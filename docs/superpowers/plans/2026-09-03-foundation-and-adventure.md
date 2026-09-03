@@ -242,7 +242,7 @@ This is the one genuinely laborious task in the plan. **Every value here is a fa
 
 - [ ] **Step 1: Transcribe the line list**
 
-Write `src/data/lines.json` as an array of 7 objects. Fill `code`, `name`, `colour` (hex from the official map legend), `termini`, and `stations` (ordered slug ids, first terminus to second). Leave `schematic` out for now — **Task 9** authors it. Until Task 9 lands, `npx tsc --noEmit` reports a missing `schematic` property on `lines.json`; that is expected, not a mistake.
+Write `src/data/lines.json` as an array of 7 objects. Fill `code`, `name`, `colour` (hex from the official map legend), `termini`, and `stations` (ordered slug ids, first terminus to second). Leave `schematic` out for now — **Task 9** authors it. The type check stays green in the meantime: the loader's `as Line[]` assertion in Task 4 is legal because `Line` is assignable to the JSON's inferred shape. Nothing reads `line.schematic` until Task 9.
 
 The 7 lines and their routes:
 
