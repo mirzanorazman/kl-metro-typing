@@ -1,0 +1,1876 @@
+[
+  {
+    "id": "16-sierra",
+    "name": "16 Sierra",
+    "codes": {
+      "PY": "PY38"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.96544,
+      "lng": 101.65489
+    }
+  },
+  {
+    "id": "abdullah-hukum",
+    "name": "Abdullah Hukum",
+    "codes": {
+      "KJ": "KJ17"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.11861,
+      "lng": 101.67278
+    }
+  },
+  {
+    "id": "alam-megah",
+    "name": "Alam Megah",
+    "codes": {
+      "KJ": "KJ35"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.02306,
+      "lng": 101.57194
+    }
+  },
+  {
+    "id": "alam-sutera",
+    "name": "Alam Sutera",
+    "codes": {
+      "SP": "SP21"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.05478,
+      "lng": 101.65644
+    }
+  },
+  {
+    "id": "ampang",
+    "name": "Ampang",
+    "codes": {
+      "AG": "AG18"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.15028,
+      "lng": 101.76
+    }
+  },
+  {
+    "id": "ampang-park",
+    "name": "Ampang Park",
+    "codes": {
+      "KJ": "KJ9",
+      "PY": "PY20"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.15972,
+      "lng": 101.71861
+    }
+  },
+  {
+    "id": "ara-damansara",
+    "name": "Ara Damansara",
+    "codes": {
+      "KJ": "KJ26"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.10836,
+      "lng": 101.58647
+    }
+  },
+  {
+    "id": "asia-jaya",
+    "name": "Asia Jaya",
+    "codes": {
+      "KJ": "KJ21"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.10417,
+      "lng": 101.63778
+    }
+  },
+  {
+    "id": "awan-besar",
+    "name": "Awan Besar",
+    "codes": {
+      "SP": "SP19"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.0621,
+      "lng": 101.6706
+    }
+  },
+  {
+    "id": "bandar-baru-klang",
+    "name": "Bandar Baru Klang",
+    "codes": {
+      "SA": "SA17"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.06264,
+      "lng": 101.46605
+    }
+  },
+  {
+    "id": "bandar-bukit-tinggi",
+    "name": "Bandar Bukit Tinggi",
+    "codes": {
+      "SA": "SA24"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.99339,
+      "lng": 101.44601
+    }
+  },
+  {
+    "id": "bandar-puteri",
+    "name": "Bandar Puteri",
+    "codes": {
+      "SP": "SP27"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.01706,
+      "lng": 101.61283
+    }
+  },
+  {
+    "id": "bandar-tasik-selatan",
+    "name": "Bandar Tasik Selatan",
+    "codes": {
+      "SP": "SP15"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.07611,
+      "lng": 101.71056
+    }
+  },
+  {
+    "id": "bandar-tun-hussein-onn",
+    "name": "Bandar Tun Hussein Onn",
+    "codes": {
+      "KG": "KG29"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.04822,
+      "lng": 101.775
+    }
+  },
+  {
+    "id": "bandar-tun-razak",
+    "name": "Bandar Tun Razak",
+    "codes": {
+      "SP": "SP14"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.08972,
+      "lng": 101.71222
+    }
+  },
+  {
+    "id": "bandar-utama",
+    "name": "Bandar Utama",
+    "codes": {
+      "SA": "SA01",
+      "KG": "KG09"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.14664,
+      "lng": 101.61875
+    }
+  },
+  {
+    "id": "bandaraya",
+    "name": "Bandaraya",
+    "codes": {
+      "AG": "AG6",
+      "SP": "SP6"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.15556,
+      "lng": 101.69417
+    }
+  },
+  {
+    "id": "bangsar",
+    "name": "Bangsar",
+    "codes": {
+      "KJ": "KJ16"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.12749,
+      "lng": 101.67904
+    }
+  },
+  {
+    "id": "batu-11-cheras",
+    "name": "Batu 11 Cheras",
+    "codes": {
+      "KG": "KG30"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.04136,
+      "lng": 101.77333
+    }
+  },
+  {
+    "id": "bu-11",
+    "name": "BU 11",
+    "codes": {
+      "SA": "SA03"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.13315,
+      "lng": 101.60586
+    }
+  },
+  {
+    "id": "bukit-bintang",
+    "name": "Bukit Bintang",
+    "codes": {
+      "MR": "MR6",
+      "KG": "KG18A"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.1465,
+      "lng": 101.71095
+    }
+  },
+  {
+    "id": "bukit-dukung",
+    "name": "Bukit Dukung",
+    "codes": {
+      "KG": "KG31"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.02642,
+      "lng": 101.77108
+    }
+  },
+  {
+    "id": "bukit-jalil",
+    "name": "Bukit Jalil",
+    "codes": {
+      "SP": "SP17"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.05806,
+      "lng": 101.69194
+    }
+  },
+  {
+    "id": "bukit-nanas",
+    "name": "Bukit Nanas",
+    "codes": {
+      "MR": "MR8"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.15611,
+      "lng": 101.70444
+    }
+  },
+  {
+    "id": "cahaya",
+    "name": "Cahaya",
+    "codes": {
+      "AG": "AG17"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.14056,
+      "lng": 101.75639
+    }
+  },
+  {
+    "id": "cempaka",
+    "name": "Cempaka",
+    "codes": {
+      "AG": "AG16"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.13833,
+      "lng": 101.75278
+    }
+  },
+  {
+    "id": "chan-sow-lin",
+    "name": "Chan Sow Lin",
+    "codes": {
+      "AG": "AG11",
+      "SP": "SP11",
+      "PY": "PY24"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.12778,
+      "lng": 101.71528
+    }
+  },
+  {
+    "id": "cheras",
+    "name": "Cheras",
+    "codes": {
+      "SP": "SP12"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.1125,
+      "lng": 101.71417
+    }
+  },
+  {
+    "id": "chow-kit",
+    "name": "Chow Kit",
+    "codes": {
+      "MR": "MR10"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.16722,
+      "lng": 101.69806
+    }
+  },
+  {
+    "id": "cochrane",
+    "name": "Cochrane",
+    "codes": {
+      "KG": "KG21"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.13281,
+      "lng": 101.72294
+    }
+  },
+  {
+    "id": "conlay",
+    "name": "Conlay",
+    "codes": {
+      "PY": "PY22"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.15144,
+      "lng": 101.71769
+    }
+  },
+  {
+    "id": "cyberjaya-city-centre",
+    "name": "Cyberjaya City Centre",
+    "codes": {
+      "PY": "PY40"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.93844,
+      "lng": 101.66586
+    }
+  },
+  {
+    "id": "cyberjaya-utara",
+    "name": "Cyberjaya Utara",
+    "codes": {
+      "PY": "PY39"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.95008,
+      "lng": 101.65725
+    }
+  },
+  {
+    "id": "damai",
+    "name": "Damai",
+    "codes": {
+      "KJ": "KJ8"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.16444,
+      "lng": 101.72417
+    }
+  },
+  {
+    "id": "damansara-damai",
+    "name": "Damansara Damai",
+    "codes": {
+      "PY": "PY05"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.2,
+      "lng": 101.59278
+    }
+  },
+  {
+    "id": "damansara-idaman",
+    "name": "Damansara Idaman",
+    "codes": {
+      "SA": "SA05"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.12277,
+      "lng": 101.59421
+    }
+  },
+  {
+    "id": "dang-wangi",
+    "name": "Dang Wangi",
+    "codes": {
+      "KJ": "KJ12"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.15667,
+      "lng": 101.70167
+    }
+  },
+  {
+    "id": "dato-keramat",
+    "name": "Dato' Keramat",
+    "codes": {
+      "KJ": "KJ7"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.165,
+      "lng": 101.73167
+    }
+  },
+  {
+    "id": "dato-menteri",
+    "name": "Dato' Menteri",
+    "codes": {
+      "SA": "SA12"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.0699,
+      "lng": 101.52127
+    }
+  },
+  {
+    "id": "glenmarie",
+    "name": "Glenmarie",
+    "codes": {
+      "KJ": "KJ27"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.0958,
+      "lng": 101.5905
+    }
+  },
+  {
+    "id": "glenmarie-2",
+    "name": "Glenmarie 2",
+    "codes": {
+      "SA": "SA07"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.09533,
+      "lng": 101.5888
+    }
+  },
+  {
+    "id": "gombak",
+    "name": "Gombak",
+    "codes": {
+      "KJ": "KJ1"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.23124,
+      "lng": 101.72439
+    }
+  },
+  {
+    "id": "hang-tuah",
+    "name": "Hang Tuah",
+    "codes": {
+      "AG": "AG9",
+      "SP": "SP9",
+      "MR": "MR4"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.14,
+      "lng": 101.70583
+    }
+  },
+  {
+    "id": "hospital-kuala-lumpur",
+    "name": "Hospital Kuala Lumpur",
+    "codes": {
+      "PY": "PY18"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.17421,
+      "lng": 101.70165
+    }
+  },
+  {
+    "id": "imbi",
+    "name": "Imbi",
+    "codes": {
+      "MR": "MR5"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.14278,
+      "lng": 101.70917
+    }
+  },
+  {
+    "id": "ioi-puchong-jaya",
+    "name": "IOI Puchong Jaya",
+    "codes": {
+      "SP": "SP24"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.04808,
+      "lng": 101.62089
+    }
+  },
+  {
+    "id": "jalan-ipoh",
+    "name": "Jalan Ipoh",
+    "codes": {
+      "PY": "PY15"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.18931,
+      "lng": 101.68117
+    }
+  },
+  {
+    "id": "jalan-meru",
+    "name": "Jalan Meru",
+    "codes": {
+      "SA": "SA19"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.0592,
+      "lng": 101.45209
+    }
+  },
+  {
+    "id": "jambatan-kota",
+    "name": "Jambatan Kota",
+    "codes": {
+      "SA": "SA20"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.04747,
+      "lng": 101.44751
+    }
+  },
+  {
+    "id": "jelatek",
+    "name": "Jelatek",
+    "codes": {
+      "KJ": "KJ6"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.1673,
+      "lng": 101.7353
+    }
+  },
+  {
+    "id": "jinjang",
+    "name": "Jinjang",
+    "codes": {
+      "PY": "PY11"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.20955,
+      "lng": 101.65606
+    }
+  },
+  {
+    "id": "johan-setia",
+    "name": "Johan Setia",
+    "codes": {
+      "SA": "SA26"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.9763,
+      "lng": 101.4594
+    }
+  },
+  {
+    "id": "kajang",
+    "name": "Kajang",
+    "codes": {
+      "KG": "KG35"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.98278,
+      "lng": 101.79028
+    }
+  },
+  {
+    "id": "kampung-baru",
+    "name": "Kampung Baru",
+    "codes": {
+      "KJ": "KJ11"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.16111,
+      "lng": 101.70639
+    }
+  },
+  {
+    "id": "kampung-batu",
+    "name": "Kampung Batu",
+    "codes": {
+      "PY": "PY13"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.20472,
+      "lng": 101.67556
+    }
+  },
+  {
+    "id": "kampung-selamat",
+    "name": "Kampung Selamat",
+    "codes": {
+      "PY": "PY03"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.1973,
+      "lng": 101.57845
+    }
+  },
+  {
+    "id": "kayu-ara",
+    "name": "Kayu Ara",
+    "codes": {
+      "SA": "SA02"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.1349,
+      "lng": 101.6168
+    }
+  },
+  {
+    "id": "kelana-jaya",
+    "name": "Kelana Jaya",
+    "codes": {
+      "KJ": "KJ24"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.1125,
+      "lng": 101.60389
+    }
+  },
+  {
+    "id": "kentonmen",
+    "name": "Kentonmen",
+    "codes": {
+      "PY": "PY14"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.19543,
+      "lng": 101.67961
+    }
+  },
+  {
+    "id": "kepong-baru",
+    "name": "Kepong Baru",
+    "codes": {
+      "PY": "PY10"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.21189,
+      "lng": 101.64804
+    }
+  },
+  {
+    "id": "kerinchi",
+    "name": "Kerinchi",
+    "codes": {
+      "KJ": "KJ18"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.11528,
+      "lng": 101.66806
+    }
+  },
+  {
+    "id": "kerjaya",
+    "name": "Kerjaya",
+    "codes": {
+      "SA": "SA09"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.08234,
+      "lng": 101.56182
+    }
+  },
+  {
+    "id": "kinrara-bk-5",
+    "name": "Kinrara BK 5",
+    "codes": {
+      "SP": "SP22"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.05056,
+      "lng": 101.64422
+    }
+  },
+  {
+    "id": "kl-sentral",
+    "name": "KL Sentral",
+    "codes": {
+      "KJ": "KJ15",
+      "MR": "MR1"
+    },
+    "demand": 3,
+    "geo": {
+      "lat": 3.134,
+      "lng": 101.686
+    }
+  },
+  {
+    "id": "klang-jaya",
+    "name": "Klang Jaya",
+    "codes": {
+      "SA": "SA23"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.0055,
+      "lng": 101.44187
+    }
+  },
+  {
+    "id": "klcc",
+    "name": "KLCC",
+    "codes": {
+      "KJ": "KJ10"
+    },
+    "demand": 3,
+    "geo": {
+      "lat": 3.15917,
+      "lng": 101.71389
+    }
+  },
+  {
+    "id": "kota-damansara",
+    "name": "Kota Damansara",
+    "codes": {
+      "KG": "KG06"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.1503,
+      "lng": 101.57862
+    }
+  },
+  {
+    "id": "kuchai",
+    "name": "Kuchai",
+    "codes": {
+      "PY": "PY27"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.08944,
+      "lng": 101.69417
+    }
+  },
+  {
+    "id": "kwasa-damansara",
+    "name": "Kwasa Damansara",
+    "codes": {
+      "KG": "KG04",
+      "PY": "PY01"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.17647,
+      "lng": 101.57256
+    }
+  },
+  {
+    "id": "kwasa-sentral",
+    "name": "Kwasa Sentral",
+    "codes": {
+      "KG": "KG05"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.16991,
+      "lng": 101.56479
+    }
+  },
+  {
+    "id": "lembah-subang",
+    "name": "Lembah Subang",
+    "codes": {
+      "KJ": "KJ25"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.1121,
+      "lng": 101.5912
+    }
+  },
+  {
+    "id": "maharajalela",
+    "name": "Maharajalela",
+    "codes": {
+      "MR": "MR3"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.13889,
+      "lng": 101.69889
+    }
+  },
+  {
+    "id": "maluri",
+    "name": "Maluri",
+    "codes": {
+      "AG": "AG13",
+      "KG": "KG22"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.12326,
+      "lng": 101.72696
+    }
+  },
+  {
+    "id": "masjid-jamek",
+    "name": "Masjid Jamek",
+    "codes": {
+      "KJ": "KJ13",
+      "AG": "AG7",
+      "SP": "SP7"
+    },
+    "demand": 3,
+    "geo": {
+      "lat": 3.14944,
+      "lng": 101.69611
+    }
+  },
+  {
+    "id": "medan-tuanku",
+    "name": "Medan Tuanku",
+    "codes": {
+      "MR": "MR9"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.15917,
+      "lng": 101.69861
+    }
+  },
+  {
+    "id": "merdeka",
+    "name": "Merdeka",
+    "codes": {
+      "KG": "KG17"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.14197,
+      "lng": 101.70205
+    }
+  },
+  {
+    "id": "metro-prima",
+    "name": "Metro Prima",
+    "codes": {
+      "PY": "PY09"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.21457,
+      "lng": 101.64037
+    }
+  },
+  {
+    "id": "miharja",
+    "name": "Miharja",
+    "codes": {
+      "AG": "AG12"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.12083,
+      "lng": 101.7175
+    }
+  },
+  {
+    "id": "muhibbah",
+    "name": "Muhibbah",
+    "codes": {
+      "SP": "SP20"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.06206,
+      "lng": 101.6625
+    }
+  },
+  {
+    "id": "mutiara-damansara",
+    "name": "Mutiara Damansara",
+    "codes": {
+      "KG": "KG08"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.15517,
+      "lng": 101.60879
+    }
+  },
+  {
+    "id": "muzium-negara",
+    "name": "Muzium Negara",
+    "codes": {
+      "KG": "KG15"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.13732,
+      "lng": 101.68734
+    }
+  },
+  {
+    "id": "pandan-indah",
+    "name": "Pandan Indah",
+    "codes": {
+      "AG": "AG15"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.13444,
+      "lng": 101.74639
+    }
+  },
+  {
+    "id": "pandan-jaya",
+    "name": "Pandan Jaya",
+    "codes": {
+      "AG": "AG14"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.13,
+      "lng": 101.73861
+    }
+  },
+  {
+    "id": "pasar-klang",
+    "name": "Pasar Klang",
+    "codes": {
+      "SA": "SA18"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.06803,
+      "lng": 101.45082
+    }
+  },
+  {
+    "id": "pasar-seni",
+    "name": "Pasar Seni",
+    "codes": {
+      "KJ": "KJ14",
+      "KG": "KG16"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.1425,
+      "lng": 101.69528
+    }
+  },
+  {
+    "id": "persiaran-klcc",
+    "name": "Persiaran KLCC",
+    "codes": {
+      "PY": "PY21"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.15692,
+      "lng": 101.71727
+    }
+  },
+  {
+    "id": "phileo-damansara",
+    "name": "Phileo Damansara",
+    "codes": {
+      "KG": "KG12"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.12929,
+      "lng": 101.64289
+    }
+  },
+  {
+    "id": "plaza-rakyat",
+    "name": "Plaza Rakyat",
+    "codes": {
+      "AG": "AG8",
+      "SP": "SP8"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.14444,
+      "lng": 101.70139
+    }
+  },
+  {
+    "id": "puchong-perdana",
+    "name": "Puchong Perdana",
+    "codes": {
+      "SP": "SP28"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.00778,
+      "lng": 101.60497
+    }
+  },
+  {
+    "id": "puchong-prima",
+    "name": "Puchong Prima",
+    "codes": {
+      "SP": "SP29"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.99994,
+      "lng": 101.59669
+    }
+  },
+  {
+    "id": "pudu",
+    "name": "Pudu",
+    "codes": {
+      "AG": "AG10",
+      "SP": "SP10"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.13472,
+      "lng": 101.71167
+    }
+  },
+  {
+    "id": "pusat-bandar-damansara",
+    "name": "Pusat Bandar Damansara",
+    "codes": {
+      "KG": "KG13"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.14341,
+      "lng": 101.66224
+    }
+  },
+  {
+    "id": "pusat-bandar-puchong",
+    "name": "Pusat Bandar Puchong",
+    "codes": {
+      "SP": "SP25"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.03328,
+      "lng": 101.61603
+    }
+  },
+  {
+    "id": "putra-heights",
+    "name": "Putra Heights",
+    "codes": {
+      "KJ": "KJ37",
+      "SP": "SP31"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 2.99606,
+      "lng": 101.57556
+    }
+  },
+  {
+    "id": "putra-permai",
+    "name": "Putra Permai",
+    "codes": {
+      "PY": "PY37"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.98301,
+      "lng": 101.66071
+    }
+  },
+  {
+    "id": "putrajaya-sentral",
+    "name": "Putrajaya Sentral",
+    "codes": {
+      "PY": "PY41"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.93153,
+      "lng": 101.67094
+    }
+  },
+  {
+    "id": "pwtc",
+    "name": "PWTC",
+    "codes": {
+      "AG": "AG4",
+      "SP": "SP4"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.16639,
+      "lng": 101.69333
+    }
+  },
+  {
+    "id": "raja-chulan",
+    "name": "Raja Chulan",
+    "codes": {
+      "MR": "MR7"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.15056,
+      "lng": 101.71028
+    }
+  },
+  {
+    "id": "raja-uda",
+    "name": "Raja Uda",
+    "codes": {
+      "PY": "PY19"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.16762,
+      "lng": 101.71004
+    }
+  },
+  {
+    "id": "salak-selatan",
+    "name": "Salak Selatan",
+    "codes": {
+      "SP": "SP13"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.10194,
+      "lng": 101.70611
+    }
+  },
+  {
+    "id": "seksyen-7-shah-alam",
+    "name": "Seksyen 7 Shah Alam",
+    "codes": {
+      "SA": "SA15"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.0675,
+      "lng": 101.48695
+    }
+  },
+  {
+    "id": "semantan",
+    "name": "Semantan",
+    "codes": {
+      "KG": "KG14"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.15112,
+      "lng": 101.66549
+    }
+  },
+  {
+    "id": "sentul",
+    "name": "Sentul",
+    "codes": {
+      "AG": "AG2",
+      "SP": "SP2"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.17833,
+      "lng": 101.69528
+    }
+  },
+  {
+    "id": "sentul-barat",
+    "name": "Sentul Barat",
+    "codes": {
+      "PY": "PY16"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.17843,
+      "lng": 101.68566
+    }
+  },
+  {
+    "id": "sentul-timur",
+    "name": "Sentul Timur",
+    "codes": {
+      "AG": "AG1",
+      "SP": "SP1"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.18583,
+      "lng": 101.69528
+    }
+  },
+  {
+    "id": "serdang-jaya",
+    "name": "Serdang Jaya",
+    "codes": {
+      "PY": "PY33"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.02121,
+      "lng": 101.70907
+    }
+  },
+  {
+    "id": "serdang-raya-selatan",
+    "name": "Serdang Raya Selatan",
+    "codes": {
+      "PY": "PY32"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.02845,
+      "lng": 101.70771
+    }
+  },
+  {
+    "id": "serdang-raya-utara",
+    "name": "Serdang Raya Utara",
+    "codes": {
+      "PY": "PY31"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.04245,
+      "lng": 101.70523
+    }
+  },
+  {
+    "id": "seri-andalas",
+    "name": "Seri Andalas",
+    "codes": {
+      "SA": "SA22"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.01616,
+      "lng": 101.44068
+    }
+  },
+  {
+    "id": "setiawangsa",
+    "name": "Setiawangsa",
+    "codes": {
+      "KJ": "KJ5"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.17571,
+      "lng": 101.73586
+    }
+  },
+  {
+    "id": "sri-damansara-barat",
+    "name": "Sri Damansara Barat",
+    "codes": {
+      "PY": "PY06"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.19778,
+      "lng": 101.60833
+    }
+  },
+  {
+    "id": "sri-damansara-sentral",
+    "name": "Sri Damansara Sentral",
+    "codes": {
+      "PY": "PY07"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.19854,
+      "lng": 101.62115
+    }
+  },
+  {
+    "id": "sri-damansara-timur",
+    "name": "Sri Damansara Timur",
+    "codes": {
+      "PY": "PY08"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.20805,
+      "lng": 101.62879
+    }
+  },
+  {
+    "id": "sri-delima",
+    "name": "Sri Delima",
+    "codes": {
+      "PY": "PY12"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.20725,
+      "lng": 101.66545
+    }
+  },
+  {
+    "id": "sri-petaling",
+    "name": "Sri Petaling",
+    "codes": {
+      "SP": "SP18"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.06139,
+      "lng": 101.68694
+    }
+  },
+  {
+    "id": "sri-rampai",
+    "name": "Sri Rampai",
+    "codes": {
+      "KJ": "KJ4"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.19889,
+      "lng": 101.73694
+    }
+  },
+  {
+    "id": "sri-raya",
+    "name": "Sri Raya",
+    "codes": {
+      "KG": "KG28"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.06228,
+      "lng": 101.77289
+    }
+  },
+  {
+    "id": "ss-15",
+    "name": "SS 15",
+    "codes": {
+      "KJ": "KJ29"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.0758,
+      "lng": 101.5861
+    }
+  },
+  {
+    "id": "ss-18",
+    "name": "SS 18",
+    "codes": {
+      "KJ": "KJ30"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.06694,
+      "lng": 101.58611
+    }
+  },
+  {
+    "id": "stadium-kajang",
+    "name": "Stadium Kajang",
+    "codes": {
+      "KG": "KG34"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.994,
+      "lng": 101.78625
+    }
+  },
+  {
+    "id": "stadium-shah-alam",
+    "name": "Stadium Shah Alam",
+    "codes": {
+      "SA": "SA10"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.0801,
+      "lng": 101.54918
+    }
+  },
+  {
+    "id": "subang",
+    "name": "Subang",
+    "codes": {
+      "SA": "SA06"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.10614,
+      "lng": 101.59117
+    }
+  },
+  {
+    "id": "subang-alam",
+    "name": "Subang Alam",
+    "codes": {
+      "KJ": "KJ36"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.00972,
+      "lng": 101.57222
+    }
+  },
+  {
+    "id": "subang-jaya",
+    "name": "Subang Jaya",
+    "codes": {
+      "KJ": "KJ28"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.08472,
+      "lng": 101.58806
+    }
+  },
+  {
+    "id": "sultan-ismail",
+    "name": "Sultan Ismail",
+    "codes": {
+      "AG": "AG5",
+      "SP": "SP5"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.16111,
+      "lng": 101.69389
+    }
+  },
+  {
+    "id": "sungai-besi",
+    "name": "Sungai Besi",
+    "codes": {
+      "SP": "SP16",
+      "PY": "PY29"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.06389,
+      "lng": 101.70778
+    }
+  },
+  {
+    "id": "sungai-buloh",
+    "name": "Sungai Buloh",
+    "codes": {
+      "PY": "PY04"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.20639,
+      "lng": 101.58028
+    }
+  },
+  {
+    "id": "sungai-jernih",
+    "name": "Sungai Jernih",
+    "codes": {
+      "KG": "KG33"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.00075,
+      "lng": 101.78408
+    }
+  },
+  {
+    "id": "surian",
+    "name": "Surian",
+    "codes": {
+      "KG": "KG07"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.14963,
+      "lng": 101.59359
+    }
+  },
+  {
+    "id": "taipan",
+    "name": "Taipan",
+    "codes": {
+      "KJ": "KJ32"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.04778,
+      "lng": 101.59028
+    }
+  },
+  {
+    "id": "taman-bahagia",
+    "name": "Taman Bahagia",
+    "codes": {
+      "KJ": "KJ23"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.11056,
+      "lng": 101.6125
+    }
+  },
+  {
+    "id": "taman-connaught",
+    "name": "Taman Connaught",
+    "codes": {
+      "KG": "KG26"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.07917,
+      "lng": 101.74522
+    }
+  },
+  {
+    "id": "taman-equine",
+    "name": "Taman Equine",
+    "codes": {
+      "PY": "PY36"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 2.9892,
+      "lng": 101.67242
+    }
+  },
+  {
+    "id": "taman-jaya",
+    "name": "Taman Jaya",
+    "codes": {
+      "KJ": "KJ20"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.10389,
+      "lng": 101.645
+    }
+  },
+  {
+    "id": "taman-melati",
+    "name": "Taman Melati",
+    "codes": {
+      "KJ": "KJ2"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.21944,
+      "lng": 101.72167
+    }
+  },
+  {
+    "id": "taman-midah",
+    "name": "Taman Midah",
+    "codes": {
+      "KG": "KG24"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.1045,
+      "lng": 101.73219
+    }
+  },
+  {
+    "id": "taman-mutiara",
+    "name": "Taman Mutiara",
+    "codes": {
+      "KG": "KG25"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.091,
+      "lng": 101.74044
+    }
+  },
+  {
+    "id": "taman-naga-emas",
+    "name": "Taman Naga Emas",
+    "codes": {
+      "PY": "PY28"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.07722,
+      "lng": 101.69972
+    }
+  },
+  {
+    "id": "taman-paramount",
+    "name": "Taman Paramount",
+    "codes": {
+      "KJ": "KJ22"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.10444,
+      "lng": 101.62306
+    }
+  },
+  {
+    "id": "taman-perindustrian-puchong",
+    "name": "Taman Perindustrian Puchong",
+    "codes": {
+      "SP": "SP26"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.02286,
+      "lng": 101.6135
+    }
+  },
+  {
+    "id": "taman-pertama",
+    "name": "Taman Pertama",
+    "codes": {
+      "KG": "KG23"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.11274,
+      "lng": 101.72929
+    }
+  },
+  {
+    "id": "taman-selatan",
+    "name": "Taman Selatan",
+    "codes": {
+      "SA": "SA21"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.02686,
+      "lng": 101.4424
+    }
+  },
+  {
+    "id": "taman-suntex",
+    "name": "Taman Suntex",
+    "codes": {
+      "KG": "KG27"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.0716,
+      "lng": 101.7636
+    }
+  },
+  {
+    "id": "taman-tun-dr-ismail",
+    "name": "Taman Tun Dr Ismail",
+    "codes": {
+      "KG": "KG10"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.13609,
+      "lng": 101.63077
+    }
+  },
+  {
+    "id": "titiwangsa",
+    "name": "Titiwangsa",
+    "codes": {
+      "AG": "AG3",
+      "SP": "SP3",
+      "MR": "MR11",
+      "PY": "PY17"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.17306,
+      "lng": 101.69528
+    }
+  },
+  {
+    "id": "tun-razak-exchange",
+    "name": "Tun Razak Exchange",
+    "codes": {
+      "KG": "KG20",
+      "PY": "PY23"
+    },
+    "demand": 2,
+    "geo": {
+      "lat": 3.14287,
+      "lng": 101.71996
+    }
+  },
+  {
+    "id": "tun-sambanthan",
+    "name": "Tun Sambanthan",
+    "codes": {
+      "MR": "MR2"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.13139,
+      "lng": 101.69056
+    }
+  },
+  {
+    "id": "uitm-shah-alam",
+    "name": "UiTM Shah Alam",
+    "codes": {
+      "SA": "SA14"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.06335,
+      "lng": 101.50151
+    }
+  },
+  {
+    "id": "universiti",
+    "name": "Universiti",
+    "codes": {
+      "KJ": "KJ19"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.11444,
+      "lng": 101.662
+    }
+  },
+  {
+    "id": "upm",
+    "name": "UPM",
+    "codes": {
+      "PY": "PY34"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.00856,
+      "lng": 101.70554
+    }
+  },
+  {
+    "id": "usj-21",
+    "name": "USJ 21",
+    "codes": {
+      "KJ": "KJ34"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.03,
+      "lng": 101.58222
+    }
+  },
+  {
+    "id": "usj-7",
+    "name": "USJ 7",
+    "codes": {
+      "KJ": "KJ31"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.05489,
+      "lng": 101.59188
+    }
+  },
+  {
+    "id": "wangsa-maju",
+    "name": "Wangsa Maju",
+    "codes": {
+      "KJ": "KJ3"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.20556,
+      "lng": 101.73139
+    }
+  },
+  {
+    "id": "wawasan",
+    "name": "Wawasan",
+    "codes": {
+      "KJ": "KJ33"
+    },
+    "demand": 1,
+    "geo": {
+      "lat": 3.035,
+      "lng": 101.58806
+    }
+  }
+]
