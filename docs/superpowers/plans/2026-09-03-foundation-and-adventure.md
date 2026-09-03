@@ -2877,7 +2877,7 @@ Expected: FAIL, cannot resolve `./AdventureScreen`.
 - [ ] **Step 3: Write the implementation**
 
 ```tsx
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadNetworkData } from '../data/load';
 import { buildSchematic } from '../geo/schematic';
 import { projectStations } from '../geo/project';
@@ -2912,32 +2912,32 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   const [run, setRun] = useState<RunState>(() => startRun(net, startAt, performance.now()));
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
 
-  /** Persists anything the run has newly established. */
-  const persist = useCallback((next: RunState) => {
-    setProfile((prev) => {
-      let updated = prev;
-      const last = next.stationTimes[next.stationTimes.length - 1];
-      if (last) {
-        const chars = stationAt(net, last.id)?.name.length ?? 0;
-        const wpm = last.ms > 0 ? chars / 5 / (last.ms / 60_000) : 0;
-        updated = recordStation(updated, last.id, wpm);
-      }
-      updated = saveAdventurePosition(updated, {
-        at: next.at, arrivedFrom: next.arrivedFrom, line: next.line,
-      });
-      saveProfile(updated);
-      return updated;
+  const persistedCount = useRef(0);
+
+  // Persist after each arrival, in an effect rather than inside the setRun
+  // updater. Calling setState from within another state updater is a
+  // render-phase update: React warns about it and it can loop. The counter
+  // guard also makes the effect idempotent, so the setProfile it performs
+  // cannot re-trigger it.
+  useEffect(() => {
+    if (run.stationTimes.length === persistedCount.current) return;
+    persistedCount.current = run.stationTimes.length;
+
+    const last = run.stationTimes[run.stationTimes.length - 1];
+    if (!last) return;
+
+    const chars = stationAt(net, last.id)?.name.length ?? 0;
+    const wpm = last.ms > 0 ? chars / 5 / (last.ms / 60_000) : 0;
+    const updated = saveAdventurePosition(recordStation(profile, last.id, wpm), {
+      at: run.at, arrivedFrom: run.arrivedFrom, line: run.line,
     });
-  }, [net]);
+    saveProfile(updated);
+    setProfile(updated);
+  }, [run, net, profile]);
 
   const onKey = useCallback((key: string) => {
-    setRun((prev) => {
-      if (prev.phase !== 'typing') return prev;
-      const next = keyRun(net, prev, key, performance.now());
-      if (next.stationTimes.length !== prev.stationTimes.length) persist(next);
-      return next;
-    });
-  }, [net, persist]);
+    setRun((prev) => (prev.phase === 'typing' ? keyRun(net, prev, key, performance.now()) : prev));
+  }, [net]);
 
   useKeyboard(onKey, run.phase === 'typing');
 
@@ -3604,13 +3604,8 @@ In `src/ui/AdventureScreen.tsx`, import `turnAround` and handle it first in `onK
       setRun((prev) => turnAround(net, prev, performance.now()));
       return;
     }
-    setRun((prev) => {
-      if (prev.phase !== 'typing') return prev;
-      const next = keyRun(net, prev, key, performance.now());
-      if (next.stationTimes.length !== prev.stationTimes.length) persist(next);
-      return next;
-    });
-  }, [net, persist]);
+    setRun((prev) => (prev.phase === 'typing' ? keyRun(net, prev, key, performance.now()) : prev));
+  }, [net]);
 ```
 
 Add a hint next to the prompt so the key is discoverable:
