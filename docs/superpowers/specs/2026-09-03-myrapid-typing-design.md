@@ -95,7 +95,7 @@ Both coordinate pairs live on the same record. The renderer only ever reads a re
 
 ### `links.json`
 
-Walk-transfer pairs between *differently named* stations joined by a walkway (for example Dang Wangi ↔ Bukit Nanas, Hang Tuah ↔ Imbi). These are explicit because nothing in the line sequences implies them. Free in Adventure; costs time in Rush Hour.
+Walk-transfer pairs between *differently named* stations joined by a walkway. There are five: Sultan Ismail ↔ Medan Tuanku, Dang Wangi ↔ Bukit Nanas, Plaza Rakyat ↔ Merdeka, KL Sentral ↔ Muzium Negara, and Glenmarie ↔ Glenmarie 2. These are explicit because nothing in the line sequences implies them. Free in Adventure; costs time in Rush Hour.
 
 ### Derived adjacency
 

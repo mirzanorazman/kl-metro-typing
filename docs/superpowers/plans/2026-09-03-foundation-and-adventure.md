@@ -299,10 +299,15 @@ Verify every `lat`/`lng` against the station's Wikipedia infobox. Klang Valley c
 
 Write `src/data/links.json` — pairs of differently-named stations joined by a walkway. Confirm each against the official map's interchange symbols (it distinguishes same-station interchange from linked-by-walkway). Do not include same-name interchanges; those need no entry.
 
+Note: Hang Tuah is a single three-line interchange (AG/SP/MR), **not** a walkway pair with Imbi. An earlier draft of this plan had that wrong.
+
 ```json
 [
+  { "a": "sultan-ismail", "b": "medan-tuanku" },
   { "a": "dang-wangi", "b": "bukit-nanas" },
-  { "a": "hang-tuah", "b": "imbi" }
+  { "a": "plaza-rakyat", "b": "merdeka" },
+  { "a": "kl-sentral", "b": "muzium-negara" },
+  { "a": "glenmarie", "b": "glenmarie-2" }
 ]
 ```
 
