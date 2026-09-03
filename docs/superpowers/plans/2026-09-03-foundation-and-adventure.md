@@ -579,6 +579,13 @@ describe('onwardOptions', () => {
     expect(opts.map((o) => o.next)).toEqual([secondLast]);
   });
 
+  it('reverses on a line that ends here while still offering the other lines', () => {
+    // Titiwangsa is the Monorail terminus AND an AG/SP/PY interchange.
+    const opts = onwardOptions(net, 'titiwangsa', 'chow-kit');
+    expect(opts.some((o) => o.line === 'MR' && o.next === 'chow-kit')).toBe(true);
+    expect(opts.some((o) => o.line !== 'MR')).toBe(true);
+  });
+
   it('offers both lines out of the Ampang / Sri Petaling trunk split', () => {
     const opts = onwardOptions(net, 'chan-sow-lin', null);
     const codes = new Set(opts.map((o) => o.line));
@@ -642,8 +649,13 @@ function railDirections(net: NetworkIndex, id: string): Direction[] {
  * Directions available from `at`, having arrived from `arrivedFrom`
  * (null when starting a run).
  *
- * Immediate reversal is filtered out — except at a terminus, where reversing
- * is the only thing possible and must therefore be offered.
+ * Immediate reversal is filtered out, so the player cannot bounce back and
+ * forth on a through line. The exception is per-LINE, not global: if the line
+ * you arrived on ends here, reversing on that line is offered even when other
+ * lines still have somewhere to go. Titiwangsa is the case that forces this —
+ * it is the Monorail terminus but also serves AG, SP, and PY, so a global
+ * "only reverse when there is nothing else" rule would strand the player at
+ * the end of the Monorail.
  */
 export function onwardOptions(
   net: NetworkIndex,
@@ -654,7 +666,14 @@ export function onwardOptions(
   if (arrivedFrom === null) return all;
 
   const forward = all.filter((d) => d.next !== arrivedFrom);
-  return forward.length > 0 ? forward : all;
+  const linesWithForward = new Set(forward.map((d) => d.line));
+
+  const terminusReversals = all.filter(
+    (d) => d.next === arrivedFrom && !linesWithForward.has(d.line),
+  );
+
+  const options = [...forward, ...terminusReversals];
+  return options.length > 0 ? options : all;
 }
 
 /** Walk transfers out of a station. Free in Adventure. */
@@ -677,7 +696,7 @@ export function isLineComplete(
 - [ ] **Step 4: Run it to verify it passes**
 
 Run: `npm test -- network`
-Expected: PASS, 11 tests.
+Expected: PASS, 12 tests.
 
 - [ ] **Step 5: Commit**
 
