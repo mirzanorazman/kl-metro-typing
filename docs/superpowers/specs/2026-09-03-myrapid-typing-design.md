@@ -76,20 +76,21 @@ Per line: `id`, official `code` prefix, display `name`, brand `colour`, terminus
 
 ### `stations.json`
 
-Per unique station: `id`, display `name`, the line codes it serves, `demand` weight, and both coordinate sets:
+Per unique station: a slug `id`, display `name`, the official per-line `codes` it carries, `demand` weight, and its real coordinates:
 
 ```json
 {
-  "id": "KJ13",
+  "id": "taman-paramount",
   "name": "Taman Paramount",
-  "lines": ["KJ"],
+  "codes": { "KJ": "KJ22" },
   "demand": 1,
-  "geo": { "lat": 3.1049, "lng": 101.6234 },
-  "schematic": { "x": 412, "y": 268 }
+  "geo": { "lat": 3.1049, "lng": 101.6234 }
 }
 ```
 
-Both coordinate pairs live on the same record. The renderer only ever reads a resolved `{x, y}`, which makes the view toggle a pure render concern and lets the schematic layout land incrementally without code changes.
+The lines a station serves are the keys of `codes`, so that fact is stored once rather than duplicated into a separate array.
+
+**Screen coordinates are derived, not stored.** Geographic x/y is projected from `lat`/`lng` at load. Schematic x/y is expanded from a per-*line* path description — a start point plus a list of `[compass direction, station gaps]` segments — which makes the diagram octolinear by construction and gives every interchange a single agreed position. The renderer only ever reads a resolved `{x, y}`, so the view toggle stays a pure render concern.
 
 `demand` is the passenger spawn weight: 1 for ordinary stops, higher for major hubs (KL Sentral, KLCC, Masjid Jamek). It is hand-set in the data file.
 
