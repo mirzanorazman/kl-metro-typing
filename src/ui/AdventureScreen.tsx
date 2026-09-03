@@ -6,7 +6,7 @@ import {
   lineAt, stationAt, walkOptions, type Direction, type NetworkIndex,
 } from '../engine/network';
 import {
-  chooseDirection, endRun, keyRun, runMetrics, startRun, walkTo, type RunState,
+  chooseDirection, endRun, keyRun, runMetrics, startRun, turnAround, walkTo, type RunState,
 } from '../engine/run';
 import {
   loadProfile, recordStation, saveAdventurePosition, saveProfile, type Profile,
@@ -60,6 +60,10 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   }, [run, net, profile]);
 
   const onKey = useCallback((key: string) => {
+    if (key === 'Backspace') {
+      setRun((prev) => turnAround(net, prev, performance.now()));
+      return;
+    }
     setRun((prev) => (prev.phase === 'typing' ? keyRun(net, prev, key, performance.now()) : prev));
   }, [net]);
 
@@ -103,6 +107,10 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
       <LineStrip net={net} line={run.line} at={run.at} />
 
       {run.phase === 'typing' && <Prompt state={run.typing} />}
+
+      {run.phase === 'typing' && run.arrivedFrom && (
+        <p className="hint"><kbd>Backspace</kbd> to turn around</p>
+      )}
 
       {run.phase === 'junction' && (
         <JunctionPicker

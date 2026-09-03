@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork, stationAt } from './network';
-import { startRun, keyRun, chooseDirection, runMetrics } from './run';
+import { startRun, keyRun, chooseDirection, runMetrics, turnAround } from './run';
 
 const net = buildNetwork(loadNetworkData());
 
@@ -76,5 +76,28 @@ describe('runMetrics', () => {
     const m = runMetrics(s, 60_000);
     expect(m.accuracy).toBe(1);
     expect(m.wpm).toBeGreaterThan(0);
+  });
+});
+
+describe('turnAround', () => {
+  it('sends the train back the way it came', () => {
+    const junction = typeStation(startRun(net, 'raja-chulan', 0));
+    const dir = junction.options.find((o) => o.next === 'bukit-nanas')!;
+    const moved = chooseDirection(net, junction, dir, 100);
+
+    const back = turnAround(net, moved, 200);
+    expect(back.at).toBe('raja-chulan');
+    expect(back.arrivedFrom).toBe('bukit-nanas');
+    expect(back.typing.target).toBe('Raja Chulan');
+  });
+
+  it('does nothing at the very start of a run, when there is nowhere to go back to', () => {
+    const s = startRun(net, 'raja-chulan', 0);
+    expect(turnAround(net, s, 10)).toEqual(s);
+  });
+
+  it('does nothing while a junction choice is open', () => {
+    const junction = typeStation(startRun(net, 'raja-chulan', 0));
+    expect(turnAround(net, junction, 10)).toEqual(junction);
   });
 });

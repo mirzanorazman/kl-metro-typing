@@ -156,3 +156,13 @@ export function endRun(state: RunState): RunState {
 export function runMetrics(state: RunState, now: number): Metrics {
   return computeMetrics(state.correctChars, state.keystrokes, now - state.startedAt);
 }
+
+/**
+ * Reverses mid-line: the station just left becomes the next one to type.
+ * A no-op before the first move, or while a junction choice is open.
+ */
+export function turnAround(net: NetworkIndex, state: RunState, now: number): RunState {
+  if (state.phase !== 'typing') return state;
+  if (state.arrivedFrom === null || state.line === null) return state;
+  return moveTo(net, state, state.arrivedFrom, state.line, now);
+}
