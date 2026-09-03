@@ -6,10 +6,22 @@ export interface Viewport {
   padding: number;
 }
 
-/** Web Mercator northing. Longitude needs no transform. */
+const RAD = Math.PI / 180;
+
+/**
+ * Web Mercator easting. Longitude MUST be converted to radians here.
+ *
+ * The northing below is `ln(tan(...))`, which is in radian units. Feeding this
+ * degrees would make x roughly 57x too large relative to y and squash the whole
+ * map into a horizontal sliver — the two axes have to share units.
+ */
+export function mercatorX(lng: number): number {
+  return lng * RAD;
+}
+
+/** Web Mercator northing, in the same radian units as {@link mercatorX}. */
 export function mercatorY(lat: number): number {
-  const rad = (lat * Math.PI) / 180;
-  return Math.log(Math.tan(Math.PI / 4 + rad / 2));
+  return Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2));
 }
 
 /**
@@ -20,7 +32,7 @@ export function projectStations(stations: Station[], vp: Viewport): Map<string, 
   const out = new Map<string, Point>();
   if (stations.length === 0) return out;
 
-  const xs = stations.map((s) => s.geo.lng);
+  const xs = stations.map((s) => mercatorX(s.geo.lng));
   const ys = stations.map((s) => mercatorY(s.geo.lat));
 
   const minX = Math.min(...xs);
@@ -41,7 +53,7 @@ export function projectStations(stations: Station[], vp: Viewport): Map<string, 
   for (const s of stations) {
     const my = mercatorY(s.geo.lat);
     out.set(s.id, {
-      x: offsetX + (s.geo.lng - minX) * scale,
+      x: offsetX + (mercatorX(s.geo.lng) - minX) * scale,
       // Screen y grows downward; mercator y grows northward. Flip it.
       y: offsetY + (maxY - my) * scale,
     });

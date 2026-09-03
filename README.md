@@ -28,3 +28,10 @@ schematic conflicts, and two stations landing on the same grid point.
 
 Not affiliated with Prasarana Malaysia or Rapid KL. Station names, codes, and
 line colours are public information.
+
+## Map data
+
+`src/data/boundaries.json` holds simplified outlines of Selangor, Kuala Lumpur,
+and Putrajaya, derived from [Natural Earth](https://www.naturalearthdata.com/)
+(public domain) and reduced to 271 points with Douglas-Peucker. It is committed
+rather than fetched, so the app still makes no network requests at runtime.
