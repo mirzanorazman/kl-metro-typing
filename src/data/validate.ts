@@ -74,8 +74,25 @@ export function validateNetworkData(data: NetworkData): string[] {
   }
 
   try {
-    const { conflicts } = buildSchematic(data.lines);
+    const { points, conflicts } = buildSchematic(data.lines);
     errors.push(...conflicts);
+
+    // `conflicts` only catches one station disagreeing with itself across lines.
+    // Two *different* stations on one cell is a separate failure: it renders as
+    // a single dot, silently hiding a station. Layout retuning is exactly when
+    // this happens, so it is guarded rather than checked by hand.
+    const occupied = new Map<string, string>();
+    for (const [id, p] of points) {
+      const cell = `${p.x},${p.y}`;
+      const other = occupied.get(cell);
+      if (other !== undefined) {
+        errors.push(
+          `stations ${other} and ${id} occupy the same schematic point (${p.x}, ${p.y})`,
+        );
+      } else {
+        occupied.set(cell, id);
+      }
+    }
   } catch (e) {
     errors.push(e instanceof Error ? e.message : String(e));
   }

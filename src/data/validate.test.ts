@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { loadNetworkData } from './load';
 import { validateNetworkData } from './validate';
+import type { NetworkData } from './types';
 
 describe('validateNetworkData', () => {
   it('reports no errors for the shipped data', () => {
@@ -19,6 +20,33 @@ describe('validateNetworkData', () => {
       s.id === 'imbi' ? { ...s, codes: {} } : s,
     );
     expect(validateNetworkData({ ...data, stations }).join(' ')).toContain('imbi');
+  });
+
+  it('catches two different stations sharing a schematic grid point', () => {
+    // Two lines starting at the same point with the same path: a/c and b/d
+    // each collide. Nothing else about this dataset is invalid.
+    const collided: NetworkData = {
+      lines: [
+        {
+          code: 'MR', name: 'A line', colour: '#000000', termini: ['A', 'B'],
+          stations: ['a', 'b'],
+          schematic: { start: { x: 0, y: 0 }, segments: [['E', 1]] },
+        },
+        {
+          code: 'KG', name: 'B line', colour: '#000000', termini: ['C', 'D'],
+          stations: ['c', 'd'],
+          schematic: { start: { x: 0, y: 0 }, segments: [['E', 1]] },
+        },
+      ],
+      stations: [
+        { id: 'a', name: 'A', codes: { MR: 'MR1' }, demand: 1, geo: { lat: 3.1, lng: 101.6 } },
+        { id: 'b', name: 'B', codes: { MR: 'MR2' }, demand: 1, geo: { lat: 3.1, lng: 101.6 } },
+        { id: 'c', name: 'C', codes: { KG: 'KG1' }, demand: 1, geo: { lat: 3.1, lng: 101.6 } },
+        { id: 'd', name: 'D', codes: { KG: 'KG2' }, demand: 1, geo: { lat: 3.1, lng: 101.6 } },
+      ],
+      links: [],
+    };
+    expect(validateNetworkData(collided).join(' ')).toContain('same schematic point');
   });
 
   it('catches coordinates outside the Klang Valley', () => {
