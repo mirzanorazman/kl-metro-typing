@@ -161,7 +161,11 @@ No clock, no fail state.
 
 ## Rush Hour mode
 
-Unlocks after the player's first completed line. The player selects which unlocked lines to include in a run — one line is a tight, legible puzzle; the full network is chaos. This is what gives Adventure a purpose beyond completionism.
+Available from the main menu immediately. Neither mode gates the other.
+
+The player selects which lines to include in a run — one line is a tight, legible puzzle; all seven at once is chaos. This picker is the difficulty dial, not a progression lock, and every line is selectable from the first launch.
+
+Adventure is not a prerequisite. Completing a line is Adventure's own payoff — the satisfaction of having typed a whole line end to end is what makes the typing concept work, and turning it into a lock on the other mode would make it feel like homework while hiding the more novel half of the game behind 37 stations of typing.
 
 ### Passengers target a line, not a station
 
@@ -253,4 +257,6 @@ No browser E2E suite in v1.
 4. Adventure mode — start search, junctions, unlocking, run summary, persistence.
 5. Rush Hour — `sim/rushhour`, `sim/balance`, HUD, day cycle, upgrades, scoring.
 
-Adventure exercises every subsystem except the simulation, so by the time Rush Hour begins, coordinates, routing, junction UI, and typing correctness are already proven. Rush Hour then reduces to a simulation module plus a HUD. Adventure is also the unlock gate deciding which network Rush Hour is played on, so it needs to exist first regardless.
+Adventure exercises every subsystem except the simulation, so by the time Rush Hour begins, coordinates, routing, junction UI, and typing correctness are already proven. Rush Hour then reduces to a simulation module plus a HUD.
+
+This is a build order, not a dependency between the modes — both ship in v1 and both are available from the menu.
