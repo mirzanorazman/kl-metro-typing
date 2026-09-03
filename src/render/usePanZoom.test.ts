@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { zoomAt, panBy, viewBoxString, type ViewBox } from './usePanZoom';
 
-const base: ViewBox = { x: 0, y: 0, w: 100, h: 100 };
+// A realistic starting view: the whole network spans about 1364 x 1100 units.
+const base: ViewBox = { x: 0, y: 0, w: 1000, h: 1000 };
 
 describe('zoomAt', () => {
   it('shrinks the view box when zooming in', () => {
-    expect(zoomAt(base, 0.5, 50, 50).w).toBeCloseTo(50);
+    expect(zoomAt(base, 0.5, 500, 500).w).toBeCloseTo(500);
   });
 
   it('keeps the focal point stationary', () => {
@@ -16,7 +17,7 @@ describe('zoomAt', () => {
 
   it('refuses to zoom past the limits', () => {
     let v = base;
-    for (let i = 0; i < 50; i++) v = zoomAt(v, 0.5, 50, 50);
+    for (let i = 0; i < 50; i++) v = zoomAt(v, 0.5, 500, 500);
     expect(v.w).toBeGreaterThan(0);
   });
 });
@@ -29,6 +30,6 @@ describe('panBy', () => {
 
 describe('viewBoxString', () => {
   it('formats for the SVG attribute', () => {
-    expect(viewBoxString(base)).toBe('0 0 100 100');
+    expect(viewBoxString(base)).toBe('0 0 1000 1000');
   });
 });

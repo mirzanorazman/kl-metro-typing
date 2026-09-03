@@ -7,7 +7,9 @@ export interface ViewBox {
   h: number;
 }
 
-const MIN_WIDTH = 20;
+// Roughly three station gaps (grid STEP is 44), which is as far in as the
+// map stays useful. The whole network spans about 1364 x 1100 units.
+const MIN_WIDTH = 120;
 const MAX_WIDTH = 6000;
 
 /** Zooms by `factor` about the point (fx, fy) in view-box coordinates. */
