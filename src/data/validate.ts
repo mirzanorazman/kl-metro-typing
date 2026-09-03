@@ -1,4 +1,5 @@
 import type { LineCode, NetworkData } from './types';
+import { buildSchematic } from '../geo/schematic';
 
 /** Klang Valley bounding box. Anything outside is a transcription error. */
 const BOUNDS = { minLat: 2.85, maxLat: 3.3, minLng: 101.35, maxLng: 101.8 };
@@ -70,6 +71,13 @@ export function validateNetworkData(data: NetworkData): string[] {
     if (link.a === link.b) errors.push(`walk link joins ${link.a} to itself`);
     if (!byId.has(link.a)) errors.push(`walk link references unknown station ${link.a}`);
     if (!byId.has(link.b)) errors.push(`walk link references unknown station ${link.b}`);
+  }
+
+  try {
+    const { conflicts } = buildSchematic(data.lines);
+    errors.push(...conflicts);
+  } catch (e) {
+    errors.push(e instanceof Error ? e.message : String(e));
   }
 
   return errors;
