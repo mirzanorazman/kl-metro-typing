@@ -1,0 +1,5 @@
+.map-canvas { width: 100%; height: 100%; touch-action: none; background: #12141a; }
+.map-canvas circle { fill: #12141a; stroke: #9aa3b2; stroke-width: 2.5; }
+.map-canvas circle[data-visited='true'] { stroke: #f2f4f8; }
+.map-canvas circle[data-next='true'] { stroke: #ffd166; stroke-width: 4; }
+.map-canvas circle[data-active='true'] { fill: #f2f4f8; stroke: #f2f4f8; }
