@@ -2,6 +2,7 @@ import './map.css';
 import type { Layout } from '../geo/layout';
 import { linesOf, type NetworkIndex } from '../engine/network';
 import { usePanZoom, viewBoxString, type ViewBox } from './usePanZoom';
+import { TrainMarker } from './TrainMarker';
 
 export interface MapCanvasProps {
   net: NetworkIndex;
@@ -11,6 +12,8 @@ export interface MapCanvasProps {
   /** Candidate next stations, highlighted during a junction choice. */
   highlight?: ReadonlySet<string>;
   initialView?: ViewBox;
+  /** Station the train is travelling from, for the arrival tween. */
+  previousStation?: string | null;
 }
 
 const DEFAULT_VIEW: ViewBox = { x: 0, y: 0, w: 1000, h: 800 };
@@ -22,6 +25,7 @@ export function MapCanvas({
   activeStation,
   highlight,
   initialView = DEFAULT_VIEW,
+  previousStation = null,
 }: MapCanvasProps) {
   const { view, handlers } = usePanZoom(initialView);
 
@@ -76,6 +80,11 @@ export function MapCanvas({
           </circle>
         );
       })}
+
+      <TrainMarker
+        from={previousStation ? layout.get(previousStation) ?? null : null}
+        to={activeStation ? layout.get(activeStation) ?? null : null}
+      />
     </svg>
   );
 }

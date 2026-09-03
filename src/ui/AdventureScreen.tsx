@@ -89,6 +89,7 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
         visited={new Set(profile.visited)}
         activeStation={run.at}
         highlight={highlight}
+        previousStation={run.arrivedFrom}
       />
 
       <button

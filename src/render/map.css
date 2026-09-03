@@ -3,3 +3,4 @@
 .map-canvas circle[data-visited='true'] { stroke: #f2f4f8; }
 .map-canvas circle[data-next='true'] { stroke: #ffd166; stroke-width: 4; }
 .map-canvas circle[data-active='true'] { fill: #f2f4f8; stroke: #f2f4f8; }
+.map-canvas .train { fill: var(--accent, #ffd166); stroke: #12141a; stroke-width: 2; }
