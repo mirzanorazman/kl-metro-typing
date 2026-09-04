@@ -126,8 +126,17 @@ body {
 }
 
 /* --- shared bits --- */
-.line-strip { display: flex; gap: var(--s2); list-style: none; padding: 0; margin: 0;
-  color: var(--dim); overflow: hidden; white-space: nowrap; transition: transform 300ms ease; }
+.line-strip {
+  display: flex; gap: var(--s2); list-style: none; padding: 0; margin: 0;
+  color: var(--dim); white-space: nowrap;
+  /* The whole line is rendered and scrolled, rather than re-sliced around the
+     current station — a stable list slides, a re-sliced one jumps. */
+  overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+          mask-image: linear-gradient(to right, transparent, #000 12%, #000 88%, transparent);
+}
+.line-strip::-webkit-scrollbar { display: none; }
+.line-strip li { flex: 0 0 auto; }
 .line-strip [data-current='true'] { color: var(--fg); font-weight: 600; }
 
 .hud { display: flex; gap: var(--s3); font-variant-numeric: tabular-nums;
