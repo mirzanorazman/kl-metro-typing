@@ -28,3 +28,19 @@
   85%      { transform: translateX(-1.5px); }
 }
 .map-canvas .train[data-shake='true'] { animation: train-shake 170ms ease-in-out; }
+
+/* Finishing a line sweeps a pulse along its whole length: the payoff for
+   having typed every station on it. */
+@keyframes line-sweep {
+  from { stroke-dashoffset: 1; opacity: 1; }
+  to   { stroke-dashoffset: -0.25; opacity: 0; }
+}
+.map-canvas .line-sweep {
+  fill: none;
+  stroke-width: 11;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 0.14 0.86;
+  animation: line-sweep 1000ms ease-out forwards;
+  pointer-events: none;
+}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadNetworkData } from '../data/load';
 import { networkLayout, lineExtent } from '../geo/networkLayout';
+import { prefersReducedMotion } from '../render/useLayoutMode';
 import { stationAt, type NetworkIndex } from '../engine/network';
 import type { LineCode } from '../data/types';
 import {
@@ -83,7 +84,17 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
 
   useKeyboard(onKey, run.phase === 'typing');
 
-  if (run.phase === 'ended') {
+  // Finishing the line earns a moment before the numbers arrive: the sweep
+  // plays on the map, then the summary. Skipped entirely under reduced motion.
+  const [celebrating, setCelebrating] = useState(false);
+  useEffect(() => {
+    if (run.phase !== 'ended' || prefersReducedMotion()) return;
+    setCelebrating(true);
+    const t = setTimeout(() => setCelebrating(false), 1100);
+    return () => clearTimeout(t);
+  }, [run.phase]);
+
+  if (run.phase === 'ended' && !celebrating) {
     return <SummaryScreen net={net} run={run} onExit={onExit} />;
   }
 
@@ -115,6 +126,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           // Emphasise the line being run: without it every line renders at
           // full strength and you cannot tell which one you are on.
           emphasis={line}
+          celebrate={celebrating ? line : null}
           // The typing panel overlays the lower third of the viewport.
           fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
         />

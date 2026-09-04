@@ -39,6 +39,8 @@ export interface MapCanvasProps {
   backdrop?: BoundaryPath[];
   /** When set, this line is emphasised and the others are dimmed. */
   emphasis?: LineCode | null;
+  /** When set, a pulse sweeps the length of this line. Set on completion. */
+  celebrate?: LineCode | null;
 }
 
 export function MapCanvas({
@@ -57,6 +59,7 @@ export function MapCanvas({
   focusKey,
   backdrop,
   emphasis,
+  celebrate,
 }: MapCanvasProps) {
   const framed = useMemo(
     () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
@@ -152,6 +155,27 @@ export function MapCanvas({
           </circle>
         );
       })}
+
+      {celebrate &&
+        (() => {
+          const line = net.lines.get(celebrate);
+          if (!line) return null;
+          const pts = line.stations
+            .map((id) => layout.get(id))
+            .filter((p): p is NonNullable<typeof p> => p !== undefined)
+            .map((p) => `${p.x},${p.y}`)
+            .join(' ');
+          return (
+            <polyline
+              className="line-sweep"
+              points={pts}
+              stroke={line.colour}
+              // Normalising the path length to 1 lets the dash animate in
+              // fractions, with no need to measure the path in JavaScript.
+              pathLength={1}
+            />
+          );
+        })()}
 
       <TrainMarker
         from={previousStation ? layout.get(previousStation) ?? null : null}
