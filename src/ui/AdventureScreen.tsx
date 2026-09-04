@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { sound } from '../audio/sound';
 import { networkLayout } from '../geo/networkLayout';
 import {
   lineAt, stationAt, walkOptions, type Direction, type NetworkIndex,
@@ -32,6 +33,21 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   const [run, setRun] = useState<RunState>(() => startRun(net, startAt, performance.now()));
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const persistedCount = useRef(0);
+
+  // Sound is driven from effects, not from inside the setRun updater — a
+  // state updater must stay pure, and React may invoke it more than once.
+  const heard = useRef({ chars: 0, errors: 0, stations: 0 });
+  useEffect(() => {
+    const h = heard.current;
+    if (run.errors > h.errors) sound.error();
+    else if (run.correctChars > h.chars) sound.key();
+    if (run.stationTimes.length > h.stations) sound.arrive();
+    heard.current = {
+      chars: run.correctChars,
+      errors: run.errors,
+      stations: run.stationTimes.length,
+    };
+  }, [run.correctChars, run.errors, run.stationTimes.length]);
 
   // The run opens framed on the whole line — matching what the map was showing
   // when you picked it — then eases in to centre the train. Without this beat

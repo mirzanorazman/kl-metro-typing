@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadNetworkData } from '../data/load';
+import { sound } from '../audio/sound';
 import { networkLayout, lineExtent } from '../geo/networkLayout';
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { stationAt, type NetworkIndex } from '../engine/network';
@@ -36,6 +37,21 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   const [run, setRun] = useState<RunState>(() => startRun(net, from, performance.now()));
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const persistedCount = useRef(0);
+
+  // Sound is driven from effects, not from inside the setRun updater — a
+  // state updater must stay pure, and React may invoke it more than once.
+  const heard = useRef({ chars: 0, errors: 0, stations: 0 });
+  useEffect(() => {
+    const h = heard.current;
+    if (run.errors > h.errors) sound.error();
+    else if (run.correctChars > h.chars) sound.key();
+    if (run.stationTimes.length > h.stations) sound.arrive();
+    heard.current = {
+      chars: run.correctChars,
+      errors: run.errors,
+      stations: run.stationTimes.length,
+    };
+  }, [run.correctChars, run.errors, run.stationTimes.length]);
 
   // The run opens framed on the whole line — matching what the map was showing
   // when you picked it — then eases in to centre the train. Without this beat
@@ -88,7 +104,9 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   // plays on the map, then the summary. Skipped entirely under reduced motion.
   const [celebrating, setCelebrating] = useState(false);
   useEffect(() => {
-    if (run.phase !== 'ended' || prefersReducedMotion()) return;
+    if (run.phase !== 'ended') return;
+    sound.complete();
+    if (prefersReducedMotion()) return;
     setCelebrating(true);
     const t = setTimeout(() => setCelebrating(false), 1100);
     return () => clearTimeout(t);

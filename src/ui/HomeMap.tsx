@@ -2,7 +2,8 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { LINE_CODES, type LineCode } from '../data/types';
 import { networkLayout } from '../geo/networkLayout';
 import { stationAt, type NetworkIndex } from '../engine/network';
-import { loadProfile } from '../engine/progress';
+import { loadProfile, saveProfile } from '../engine/progress';
+import { setMuted } from '../audio/sound';
 import { MapCanvas } from '../render/MapCanvas';
 import { StationSearch } from './StationSearch';
 import { DirectionChooser } from './DirectionChooser';
@@ -21,6 +22,14 @@ export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
   const profile = useMemo(() => loadProfile(), []);
   const visited = useMemo(() => new Set(profile.visited), [profile]);
   const [searching, setSearching] = useState(false);
+  const [muted, setMutedPref] = useState(() => loadProfile().muted);
+
+  const toggleSound = () => {
+    const next = !muted;
+    setMutedPref(next);
+    setMuted(next);
+    saveProfile({ ...loadProfile(), muted: next });
+  };
   const [selected, setSelected] = useState<LineCode | null>(null);
 
   // Two-letter line codes, buffered in a ref rather than state: calling
@@ -113,6 +122,10 @@ export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
 
             <button type="button" onClick={() => setSearching((v) => !v)}>
               Start anywhere
+            </button>
+
+            <button type="button" onClick={toggleSound} aria-pressed={!muted}>
+              Sound {muted ? 'off' : 'on'}
             </button>
             {searching && <StationSearch net={net} onPick={onPickStation} />}
           </>

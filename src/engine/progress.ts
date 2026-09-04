@@ -16,6 +16,8 @@ export interface Profile {
   adventure: AdventurePosition | null;
   /** Rush Hour high scores, keyed by sorted line-set. Written by Plan 2. */
   rushHigh: Record<string, number>;
+  /** Sound preference. Additive, so older saves migrate to unmuted. */
+  muted: boolean;
   wpmHistory: { t: number; wpm: number }[];
   /** True when this profile replaced an unreadable saved record. */
   recovered?: boolean;
@@ -28,6 +30,7 @@ export function emptyProfile(): Profile {
     bestWpm: {},
     adventure: null,
     rushHigh: {},
+    muted: false,
     wpmHistory: [],
   };
 }
