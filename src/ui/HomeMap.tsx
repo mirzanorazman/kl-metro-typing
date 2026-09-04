@@ -1,16 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { LINE_CODES, type LineCode } from '../data/types';
-import { loadNetworkData } from '../data/load';
-import { projectStations, makeProjection } from '../geo/project';
-import { loadBoundaries, projectBoundaries } from '../geo/boundaries';
+import { networkLayout } from '../geo/networkLayout';
 import { stationAt, type NetworkIndex } from '../engine/network';
 import { loadProfile } from '../engine/progress';
 import { MapCanvas } from '../render/MapCanvas';
 import { StationSearch } from './StationSearch';
 import { DirectionChooser } from './DirectionChooser';
 import { useKeyboard } from './useKeyboard';
-
-const VIEWPORT = { width: 1000, height: 800, padding: 80 };
 
 export interface HomeMapProps {
   net: NetworkIndex;
@@ -19,15 +15,8 @@ export interface HomeMapProps {
 }
 
 export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
-  const data = useMemo(() => loadNetworkData(), []);
-  const layout = useMemo(() => projectStations(data.stations, VIEWPORT), [data]);
+  const { geo: layout, backdrop } = networkLayout();
 
-  // The backdrop MUST share the stations' projection, or the tracks drift off
-  // the land. Same viewport, same fitted set.
-  const backdrop = useMemo(() => {
-    const proj = makeProjection(data.stations.map((s) => s.geo), VIEWPORT);
-    return projectBoundaries(loadBoundaries(), proj);
-  }, [data]);
 
   const profile = useMemo(() => loadProfile(), []);
   const visited = useMemo(() => new Set(profile.visited), [profile]);

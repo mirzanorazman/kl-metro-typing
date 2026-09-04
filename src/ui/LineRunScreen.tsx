@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadNetworkData } from '../data/load';
-import { loadBoundaries, projectBoundaries } from '../geo/boundaries';
-import { makeProjection } from '../geo/project';
+import { networkLayout, lineExtent } from '../geo/networkLayout';
 import { stationAt, type NetworkIndex } from '../engine/network';
 import type { LineCode } from '../data/types';
 import {
@@ -19,8 +18,6 @@ import { PlayLayout } from './PlayLayout';
 import { useKeyboard } from './useKeyboard';
 import { SummaryScreen } from './SummaryScreen';
 
-const VIEWPORT = { width: 1000, height: 800, padding: 60 };
-
 export interface LineRunScreenProps {
   net: NetworkIndex;
   line: LineCode;
@@ -32,34 +29,21 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   const data = useMemo(() => loadNetworkData(), []);
   const route = useMemo(() => lineRunRoute(net, line, from), [net, line, from]);
 
-  // Create a projection fitted to this line's stations
-  const layout = useMemo(() => {
-    const lineStations = route.map((stationId) => {
-      const station = stationAt(net, stationId);
-      return station?.geo ?? { lat: 0, lng: 0 };
-    });
-    const proj = makeProjection(lineStations, VIEWPORT);
-    // Project all stations (not just the line stations, for full network map)
-    const result = new Map<string, { x: number; y: number }>();
-    for (const [id, station] of net.stations) {
-      result.set(id, proj.project(station.geo));
-    }
-    return result;
-  }, [net, route]);
+  const { geo: layout, backdrop } = networkLayout();
 
-  // Project boundaries with the same projection instance
-  const backdrop = useMemo(() => {
-    const lineStations = route.map((stationId) => {
-      const station = stationAt(net, stationId);
-      return station?.geo ?? { lat: 0, lng: 0 };
-    });
-    const proj = makeProjection(lineStations, VIEWPORT);
-    return projectBoundaries(loadBoundaries(), proj);
-  }, [net, route]);
 
   const [run, setRun] = useState<RunState>(() => startRun(net, from, performance.now()));
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const persistedCount = useRef(0);
+
+  // The run opens framed on the whole line — matching what the map was showing
+  // when you picked it — then eases in to centre the train. Without this beat
+  // the view arrives already centred and the move reads as a jump.
+  const [arrived, setArrived] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setArrived(true), 80);
+    return () => clearTimeout(t);
+  }, []);
 
   // Persist after each arrival, in an effect rather than inside the setRun
   // updater. Calling setState from within another state updater is a
@@ -104,9 +88,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   }
 
   // Get positions of this line's stations for fitTo
-  const lineStationPositions = route
-    .map((id) => layout.get(id))
-    .filter((p): p is NonNullable<typeof p> => p !== undefined);
+  const lineStationPositions = lineExtent(route);
 
   return (
     <PlayLayout
@@ -128,8 +110,8 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
               : 0
           }
           trainErrorTick={run.errors}
-          focus={layout.get(run.arrivedFrom ?? run.at) ?? null}
-          focusKey={run.at}
+          focus={arrived ? layout.get(run.arrivedFrom ?? run.at) ?? null : null}
+          focusKey={arrived ? run.at : 'intro'}
           // Emphasise the line being run: without it every line renders at
           // full strength and you cannot tell which one you are on.
           emphasis={line}

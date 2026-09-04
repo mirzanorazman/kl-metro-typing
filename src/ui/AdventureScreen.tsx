@@ -1,8 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { loadNetworkData } from '../data/load';
-import { buildSchematic } from '../geo/schematic';
-import { makeProjection, projectStations } from '../geo/project';
-import { loadBoundaries, projectBoundaries } from '../geo/boundaries';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { networkLayout } from '../geo/networkLayout';
 import {
   lineAt, stationAt, walkOptions, type Direction, type NetworkIndex,
 } from '../engine/network';
@@ -22,8 +19,6 @@ import { JunctionPicker } from './JunctionPicker';
 import { useKeyboard } from './useKeyboard';
 import { SummaryScreen } from './SummaryScreen';
 
-const VIEWPORT = { width: 1000, height: 800, padding: 60 };
-
 export interface AdventureScreenProps {
   net: NetworkIndex;
   startAt: string;
@@ -31,21 +26,21 @@ export interface AdventureScreenProps {
 }
 
 export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) {
-  const data = useMemo(() => loadNetworkData(), []);
-  const geo = useMemo(() => projectStations(data.stations, VIEWPORT), [data]);
-  const schematic = useMemo(() => buildSchematic(data.lines).points, [data]);
+  const { geo, schematic, backdrop } = networkLayout();
   const { mode, layout, setMode } = useLayoutMode(geo, schematic, 'schematic');
-
-  // Project boundaries with the same projection as the layout
-  const backdrop = useMemo(() => {
-    const allStations = Array.from(net.stations.values()).map((s) => s.geo);
-    const proj = makeProjection(allStations, VIEWPORT);
-    return projectBoundaries(loadBoundaries(), proj);
-  }, [net]);
 
   const [run, setRun] = useState<RunState>(() => startRun(net, startAt, performance.now()));
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const persistedCount = useRef(0);
+
+  // The run opens framed on the whole line — matching what the map was showing
+  // when you picked it — then eases in to centre the train. Without this beat
+  // the view arrives already centred and the move reads as a jump.
+  const [arrived, setArrived] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setArrived(true), 80);
+    return () => clearTimeout(t);
+  }, []);
 
   // Persist after each arrival, in an effect rather than inside the setRun
   // updater. Calling setState from within another state updater is a
@@ -116,8 +111,8 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
               : 0
           }
           trainErrorTick={run.errors}
-          focus={layout.get(run.arrivedFrom ?? run.at) ?? null}
-          focusKey={run.at}
+          focus={arrived ? layout.get(run.arrivedFrom ?? run.at) ?? null : null}
+          focusKey={arrived ? run.at : 'intro'}
           // The typing panel overlays the lower third of the viewport.
           fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
         />
