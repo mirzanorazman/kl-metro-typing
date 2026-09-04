@@ -33,13 +33,13 @@ export function LeaderboardPanel({
         <p>Didn't make the leaderboard this time.</p>
         {qualification.lineCutoff !== null && (
           <p>
-            {lineName} line needs {Math.round(qualification.lineCutoff)}+ — you got {Math.round(score)}.
+            {lineName} line needs {Math.floor(qualification.lineCutoff) + 1}+ — you got {Math.floor(score)}.
           </p>
         )}
         {qualification.overallCutoff !== null && (
           <p>
-            Overall needs {Math.round(qualification.overallCutoff)}+ (weighted) — you got{' '}
-            {Math.round(qualification.weightedScore)}.
+            Overall needs {Math.floor(qualification.overallCutoff) + 1}+ (weighted) — you got{' '}
+            {Math.floor(qualification.weightedScore)}.
           </p>
         )}
       </div>

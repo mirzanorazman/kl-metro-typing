@@ -42,7 +42,7 @@ export function LeaderboardScreen({ net, onExit }: LeaderboardScreenProps) {
               <th>#</th>
               <th>Name</th>
               {tab === 'overall' && <th>Line</th>}
-              <th>Score</th>
+              <th>{tab === 'overall' ? 'Weighted' : 'Score'}</th>
               <th>WPM</th>
               <th>Accuracy</th>
             </tr>

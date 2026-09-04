@@ -45,8 +45,15 @@ export function loadStore(): LeaderboardStore {
   if (stored === null) return emptyStore();
 
   try {
-    const parsed = JSON.parse(stored) as Partial<LeaderboardStore>;
-    if (parsed.version === SCHEMA_VERSION) {
+    const raw: unknown = JSON.parse(stored);
+    if (typeof raw !== 'object' || raw === null) return emptyStore();
+    const parsed = raw as Partial<LeaderboardStore>;
+    if (
+      parsed.version === SCHEMA_VERSION &&
+      Array.isArray(parsed.overall) &&
+      (parsed.perLine === undefined ||
+        Object.values(parsed.perLine).every((entries) => Array.isArray(entries)))
+    ) {
       return {
         ...emptyStore(),
         ...parsed,

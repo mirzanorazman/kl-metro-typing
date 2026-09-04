@@ -33,8 +33,8 @@ describe('LeaderboardPanel', () => {
       />,
     );
     expect(screen.getByText(/didn't make the leaderboard/i)).toBeTruthy();
-    expect(screen.getByText(/needs 80\+/i)).toBeTruthy();
-    expect(screen.getByText(/needs 40\+/i)).toBeTruthy();
+    expect(screen.getByText(/needs 81\+/i)).toBeTruthy();
+    expect(screen.getByText(/needs 41\+/i)).toBeTruthy();
   });
 
   it('offers a name form when a board qualifies', () => {

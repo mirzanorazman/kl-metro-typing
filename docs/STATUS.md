@@ -16,7 +16,7 @@ Everything is on `main`.
 ```bash
 npm install
 npm run dev
-npm test        # 167 tests
+npm test        # 214 tests
 ```
 
 `npx tsc --noEmit` and `npm run build` are both clean. Build is ~122 kB gzipped.
@@ -36,15 +36,22 @@ resumed after closing the tab.
 The home screen *is* the map: the seven Rapid KL lines drawn over a real
 Klang Valley coastline, with per-line and overall progress.
 
+**Local leaderboard** — Line Run only. Completing a line end to end offers a
+name entry if the run's score would place in the top 20 overall or the top 20
+for that line. Longer lines are weighted more heavily on the overall board, so
+a given score on a long line ranks above the same score on a short one.
+Everything is kept in `localStorage`; there is no server.
+
 ## Architecture
 
 ```
 src/
-  data/      network JSON + types + validation      (154 stations, 7 lines, 5 walk links)
-  engine/    pure game logic: network, typing, metrics, run, lineRun, progress
+  data/      network JSON + types + validation + leaderboardStore   (154 stations, 7 lines, 5 walk links)
+  engine/    pure game logic: network, typing, metrics, run, lineRun, progress, leaderboard
   geo/       projection, schematic layout, fitting, shared networkLayout
   render/    SVG map, train marker, prompt, HUD, line strip, pan/zoom
-  ui/        screens: HomeMap, LineRunScreen, AdventureScreen, SummaryScreen
+  ui/        screens: HomeMap, LineRunScreen, AdventureScreen, SummaryScreen,
+             LeaderboardScreen, LeaderboardPanel
   audio/     Tone.js-backed synthesised sound, menu ambience, UI cues
 ```
 
