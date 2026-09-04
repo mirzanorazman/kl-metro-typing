@@ -25,7 +25,9 @@ export function emptyStore(): LeaderboardStore {
   return {
     version: SCHEMA_VERSION,
     overall: [],
-    perLine: Object.fromEntries(LINE_CODES.map((code) => [code, []])) as Record<LineCode, LeaderboardEntry[]>,
+    perLine: Object.fromEntries(
+      LINE_CODES.map((code): [LineCode, LeaderboardEntry[]] => [code, []]),
+    ) as Record<LineCode, LeaderboardEntry[]>,
   };
 }
 
