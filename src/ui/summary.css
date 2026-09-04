@@ -1,0 +1,107 @@
+/* Journey visualization */
+.summary-journey {
+  width: 100%;
+  max-width: 100%;
+  margin: var(--s2) 0;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.summary-journey svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: var(--land);
+}
+
+/* The path draws itself */
+.summary-journey polyline[data-journey] {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+  pathLength: 1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: summary-draw 700ms ease-in-out 260ms forwards;
+}
+
+@keyframes summary-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* Stations on the journey */
+.summary-journey circle[data-station] {
+  fill: var(--fg);
+  opacity: 0.8;
+}
+
+/* Network background (dimmed) */
+.summary-journey polyline[data-network] {
+  fill: none;
+  stroke: var(--dim);
+  stroke-width: 2;
+  opacity: 0.3;
+}
+
+/* Panel animation */
+.summary {
+  animation: summary-rise 260ms ease-out;
+}
+
+@keyframes summary-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Stats layout */
+.summary-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s3);
+  margin: var(--s2) 0;
+}
+
+.summary-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s);
+}
+
+.summary-stat-number {
+  font-size: var(--t-xl);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.summary-stat-label {
+  font-size: var(--t-xs);
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Reduce motion support */
+@media (prefers-reduced-motion: reduce) {
+  .summary-journey svg {
+    animation: none;
+  }
+
+  .summary-journey polyline[data-journey] {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .summary {
+    animation: none;
+  }
+}
