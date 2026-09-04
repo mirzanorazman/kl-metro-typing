@@ -1,6 +1,8 @@
 .map-canvas { width: 100%; height: 100%; touch-action: none; background: #12141a; }
 .map-canvas polyline { transition: opacity 220ms ease; }
 .map-canvas polyline[data-dim='true'] { opacity: 0.18; }
+.map-canvas circle { transition: opacity 220ms ease; }
+.map-canvas circle[data-dim='true'] { opacity: 0.22; }
 .map-canvas circle { fill: #12141a; stroke: #9aa3b2; stroke-width: 2.5; }
 .map-canvas circle[data-visited='true'] { stroke: #f2f4f8; }
 .map-canvas circle[data-next='true'] { stroke: #ffd166; stroke-width: 4; }

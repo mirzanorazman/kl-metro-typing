@@ -99,6 +99,11 @@ export function MapCanvas({
             data-active={isActive ? 'true' : undefined}
             data-next={isNext ? 'true' : undefined}
             data-visited={visited.has(station.id) ? 'true' : undefined}
+            // Dots must dim with their lines, or the de-emphasised lines
+            // still shout through their stations.
+            data-dim={
+              emphasis && !linesOf(station).includes(emphasis) ? 'true' : undefined
+            }
             cx={p.x}
             cy={p.y}
             r={isActive ? 8 : isInterchange ? 6 : 4}
