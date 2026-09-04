@@ -129,6 +129,27 @@ train's throughput; one overcrowded station ends the run. It is fully specified
 in `docs/superpowers/specs/2026-09-03-myrapid-typing-design.md` and was always
 intended as its own plan. The redesign it needs to sit on is now done.
 
+**The domain model.** `CONTEXT.md` and ADR 0001 are written; the code that
+matches them is not. Nothing in `src/` has been renamed or moved yet, so the
+glossary currently reads as intent rather than description. The gaps it names
+are real and were found by reading the code:
+
+- Line Run's route and end rules live in `LineRunScreen.tsx:85-99`, not in
+  `engine/lineRun.ts`. They have no direct test because they sit in a React
+  callback.
+- `RunState` carries `options`, which Line Run never reads, and no `route`,
+  which is why the rule ended up in the screen.
+- `src/engine/progress.ts` calls `localStorage`, which contradicts invariant 2
+  above. The original design spec marked it impure by design, so the two
+  documents have disagreed from the start.
+- The same action is labelled "End run" in one screen and "End journey" in the
+  other, and both lead to a summary headed "Journey complete".
+- `DirectionChooser` and `JunctionPicker` share the `aria-label` "Choose a
+  direction" for two different concepts.
+
+The spec has the full plan. It is a refactor, not a feature, and nothing is
+blocked on it.
+
 Smaller candidates: a stats/history screen (`wpmHistory` is already recorded in
 the profile but never displayed), and the aesthetic debt above.
 
@@ -160,10 +181,13 @@ simply synchronous while the behaviour was animated.
 
 | Document | What it is |
 |---|---|
+| `CONTEXT.md` | The glossary. Canonical names for domain concepts — read it before naming anything. |
 | `docs/superpowers/specs/2026-09-03-myrapid-typing-design.md` | Original design. Includes the full Rush Hour specification. |
 | `docs/superpowers/plans/2026-09-03-foundation-and-adventure.md` | Plan 1 — 27 tasks, complete. |
 | `docs/superpowers/specs/2026-09-04-map-first-redesign-design.md` | Redesign spec: map as home, Line Run. |
 | `docs/superpowers/plans/2026-09-04-map-first-redesign.md` | Plan 2 — 13 tasks, complete. |
+| `docs/superpowers/specs/2026-09-04-domain-model-design.md` | Lightweight domain model. **Designed, not implemented.** |
+| `docs/adr/0001-run-state-per-mode.md` | Why a Run's state is a per-mode union. |
 
 Work done after Plan 2 was driven by direct feedback rather than a plan: the
 train being positioned by typing progress, error feedback, synthesised sound,
