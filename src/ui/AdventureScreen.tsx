@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadNetworkData } from '../data/load';
 import { buildSchematic } from '../geo/schematic';
-import { projectStations } from '../geo/project';
+import { makeProjection, projectStations } from '../geo/project';
+import { loadBoundaries, projectBoundaries } from '../geo/boundaries';
 import {
   lineAt, stationAt, walkOptions, type Direction, type NetworkIndex,
 } from '../engine/network';
@@ -16,6 +17,7 @@ import { Prompt } from '../render/Prompt';
 import { HUD } from '../render/HUD';
 import { LineStrip } from '../render/LineStrip';
 import { useLayoutMode } from '../render/useLayoutMode';
+import { PlayLayout } from './PlayLayout';
 import { JunctionPicker } from './JunctionPicker';
 import { useKeyboard } from './useKeyboard';
 import { SummaryScreen } from './SummaryScreen';
@@ -33,6 +35,13 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   const geo = useMemo(() => projectStations(data.stations, VIEWPORT), [data]);
   const schematic = useMemo(() => buildSchematic(data.lines).points, [data]);
   const { mode, layout, setMode } = useLayoutMode(geo, schematic, 'schematic');
+
+  // Project boundaries with the same projection as the layout
+  const backdrop = useMemo(() => {
+    const allStations = Array.from(net.stations.values()).map((s) => s.geo);
+    const proj = makeProjection(allStations, VIEWPORT);
+    return projectBoundaries(loadBoundaries(), proj);
+  }, [net]);
 
   const [run, setRun] = useState<RunState>(() => startRun(net, startAt, performance.now()));
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
@@ -86,52 +95,58 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   const highlight = new Set(run.options.map((o) => o.next));
 
   return (
-    <div className="adventure">
-      <MapCanvas
-        net={net}
-        layout={layout}
-        visited={new Set(profile.visited)}
-        activeStation={run.at}
-        highlight={highlight}
-        previousStation={run.arrivedFrom}
-      />
-
-      <button
-        type="button"
-        className="layout-toggle"
-        onClick={() => setMode(mode === 'geo' ? 'schematic' : 'geo')}
-      >
-        {mode === 'geo' ? 'Schematic view' : 'Geographic view'}
-      </button>
-
-      <LineStrip net={net} line={run.line} at={run.at} />
-
-      {run.phase === 'typing' && <Prompt state={run.typing} />}
-
-      {run.phase === 'typing' && run.arrivedFrom && (
-        <p className="hint"><kbd>Backspace</kbd> to turn around</p>
-      )}
-
-      {run.phase === 'junction' && (
-        <JunctionPicker
+    <PlayLayout
+      map={
+        <MapCanvas
           net={net}
-          options={run.options}
-          walk={walkOptions(net, run.at)}
-          onChoose={onChoose}
-          onWalk={onWalk}
+          layout={layout}
+          visited={new Set(profile.visited)}
+          activeStation={run.at}
+          highlight={highlight}
+          previousStation={run.arrivedFrom}
+          backdrop={backdrop}
         />
-      )}
+      }
+      panel={
+        <>
+          <button
+            type="button"
+            className="layout-toggle"
+            onClick={() => setMode(mode === 'geo' ? 'schematic' : 'geo')}
+          >
+            {mode === 'geo' ? 'Schematic view' : 'Geographic view'}
+          </button>
 
-      <HUD
-        metrics={runMetrics(run, performance.now())}
-        stationsThisRun={run.stationTimes.length}
-        lineName={line?.name ?? null}
-        toward={run.line ? heading : null}
-      />
+          <LineStrip net={net} line={run.line} at={run.at} />
 
-      <button type="button" onClick={() => setRun((prev) => endRun(prev))}>
-        End journey
-      </button>
-    </div>
+          {run.phase === 'typing' && <Prompt state={run.typing} />}
+
+          {run.phase === 'typing' && run.arrivedFrom && (
+            <p className="hint"><kbd>Backspace</kbd> to turn around</p>
+          )}
+
+          {run.phase === 'junction' && (
+            <JunctionPicker
+              net={net}
+              options={run.options}
+              walk={walkOptions(net, run.at)}
+              onChoose={onChoose}
+              onWalk={onWalk}
+            />
+          )}
+
+          <HUD
+            metrics={runMetrics(run, performance.now())}
+            stationsThisRun={run.stationTimes.length}
+            lineName={line?.name ?? null}
+            toward={run.line ? heading : null}
+          />
+
+          <button type="button" onClick={() => setRun((prev) => endRun(prev))}>
+            End journey
+          </button>
+        </>
+      }
+    />
   );
 }

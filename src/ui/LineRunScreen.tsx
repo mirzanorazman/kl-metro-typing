@@ -15,6 +15,7 @@ import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { HUD } from '../render/HUD';
 import { LineStrip } from '../render/LineStrip';
+import { PlayLayout } from './PlayLayout';
 import { useKeyboard } from './useKeyboard';
 import { SummaryScreen } from './SummaryScreen';
 
@@ -108,34 +109,37 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
     .filter((p): p is NonNullable<typeof p> => p !== undefined);
 
   return (
-    <div className="play">
-      <MapCanvas
-        net={net}
-        layout={layout}
-        visited={new Set(profile.visited)}
-        activeStation={run.at}
-        previousStation={run.arrivedFrom}
-        fitTo={lineStationPositions}
-        fitKey={`line:${line}`}
-        backdrop={backdrop}
-      />
-
-      <div className="play-panel">
-        <LineStrip net={net} line={run.line} at={run.at} />
-
-        {run.phase === 'typing' && <Prompt state={run.typing} />}
-
-        <HUD
-          metrics={runMetrics(run, performance.now())}
-          stationsThisRun={run.stationTimes.length}
-          lineName={data.lines.find((l) => l.code === line)?.name ?? null}
-          toward={run.line ? (route[run.stationTimes.length] ? stationAt(net, route[run.stationTimes.length]!)?.name ?? null : null) : null}
+    <PlayLayout
+      map={
+        <MapCanvas
+          net={net}
+          layout={layout}
+          visited={new Set(profile.visited)}
+          activeStation={run.at}
+          previousStation={run.arrivedFrom}
+          fitTo={lineStationPositions}
+          fitKey={`line:${line}`}
+          backdrop={backdrop}
         />
+      }
+      panel={
+        <>
+          <LineStrip net={net} line={run.line} at={run.at} />
 
-        <button type="button" onClick={() => setRun((prev) => endRun(prev))}>
-          End run
-        </button>
-      </div>
-    </div>
+          {run.phase === 'typing' && <Prompt state={run.typing} />}
+
+          <HUD
+            metrics={runMetrics(run, performance.now())}
+            stationsThisRun={run.stationTimes.length}
+            lineName={data.lines.find((l) => l.code === line)?.name ?? null}
+            toward={run.line ? (route[run.stationTimes.length] ? stationAt(net, route[run.stationTimes.length]!)?.name ?? null : null) : null}
+          />
+
+          <button type="button" onClick={() => setRun((prev) => endRun(prev))}>
+            End run
+          </button>
+        </>
+      }
+    />
   );
 }
