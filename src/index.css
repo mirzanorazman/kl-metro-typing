@@ -85,6 +85,30 @@ body {
 .line-picker .code { color: var(--line-colour, var(--fg)); font-weight: 700; }
 .line-picker .count { color: var(--dim); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
 
+/* --- the interim home screen (replaced by .home-map in a later task) --- */
+.home {
+  max-width: 46rem; margin: 0 auto; padding: var(--s4) var(--s3);
+  display: flex; flex-direction: column; gap: var(--s2);
+}
+.home h1 { margin: 0; font-size: var(--t-xl); letter-spacing: -0.02em; }
+.home .tagline { margin: 0; color: var(--dim); }
+.home footer { margin-top: var(--s2); color: var(--dim); font-size: var(--t-xs); }
+
+.line-progress { list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: var(--s); }
+.line-progress li {
+  display: grid; grid-template-columns: 2.5rem 1fr 8rem auto;
+  gap: var(--s2); align-items: center;
+}
+/* The code keeps its line colour, and stays readable as text either way. */
+.line-progress span:first-child { color: var(--line-colour, var(--fg)); font-weight: 700; }
+.line-progress .count, .line-progress li > span:last-child {
+  color: var(--dim); font-size: var(--t-sm); font-variant-numeric: tabular-nums;
+}
+.line-progress progress {
+  width: 100%; height: 6px; accent-color: var(--line-colour, var(--accent));
+}
+
 /* --- shared bits --- */
 .line-strip { display: flex; gap: var(--s2); list-style: none; padding: 0; margin: 0;
   color: var(--dim); overflow: hidden; white-space: nowrap; }
