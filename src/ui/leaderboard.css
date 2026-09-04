@@ -1,0 +1,19 @@
+.leaderboard-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s);
+  padding: var(--s2);
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+}
+
+.leaderboard-panel input {
+  width: 100%;
+  padding: var(--s);
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+}
