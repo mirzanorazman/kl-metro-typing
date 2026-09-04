@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Station } from '../data/types';
 import { linesOf, type NetworkIndex } from '../engine/network';
+import { sound } from '../audio/sound';
 
 const MAX_RESULTS = 8;
 
@@ -49,7 +50,13 @@ export function StationSearch({
       <ul>
         {results.map((s) => (
           <li key={s.id}>
-            <button type="button" onClick={() => onPick(s.id)}>
+            <button
+              type="button"
+              onClick={() => {
+                sound.select();
+                onPick(s.id);
+              }}
+            >
               {s.name} <span className="codes">{linesOf(s).join(' · ')}</span>
             </button>
           </li>

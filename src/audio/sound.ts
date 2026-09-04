@@ -1,53 +1,160 @@
 /**
- * Synthesised sound. No audio files, no licensing, no network requests — the
- * whole set is oscillators with fast gain envelopes, which suits the game's
- * flat aesthetic and keeps the app working offline.
+ * Synthesised sound. Tone.js stays in-process and offline, but takes over the
+ * browser-facing context startup so Safari's autoplay rules are handled by a
+ * library that already knows the edge cases better than our hand-rolled path.
  *
- * Everything degrades to a no-op when there is no AudioContext (jsdom, older
- * browsers) or when muted, so callers never need to check.
+ * Everything degrades to a no-op when there is no browser audio stack or when
+ * muted, so callers never need to check.
  */
 
-let ctx: AudioContext | null = null;
+import { MembraneSynth, start, Synth } from 'tone';
+
 let muted = false;
 let unlockInstalled = false;
+let readyPromise: Promise<boolean> | null = null;
+let voicesPromise: Promise<Voices | null> | null = null;
+let voices: Voices | null = null;
+let menuWanted = false;
+let menuLoopId: number | null = null;
+let menuStep = 0;
+
+interface Voices {
+  key: Synth;
+  error: MembraneSynth;
+  arrive: Synth;
+  complete: Synth;
+  menu: Synth;
+  ui: Synth;
+}
 
 export function setMuted(value: boolean): void {
   muted = value;
+  if (muted) stopMenuLoop();
+  else startMenuLoop();
 }
 
 export function isMuted(): boolean {
   return muted;
 }
 
-type Ctor = typeof AudioContext;
+function buildVoices(): Voices {
+  return {
+    key: new Synth({
+      oscillator: { type: 'sine' },
+      envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.02 },
+      volume: -16,
+    }).toDestination(),
+    error: new MembraneSynth({
+      pitchDecay: 0.04,
+      octaves: 3,
+      envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.04 },
+      volume: -10,
+    }).toDestination(),
+    arrive: new Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.002, decay: 0.08, sustain: 0.04, release: 0.08 },
+      volume: -14,
+    }).toDestination(),
+    complete: new Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.002, decay: 0.12, sustain: 0.05, release: 0.14 },
+      volume: -12,
+    }).toDestination(),
+    menu: new Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.03, decay: 0.2, sustain: 0.15, release: 0.8 },
+      volume: -28,
+    }).toDestination(),
+    ui: new Synth({
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.05 },
+      volume: -18,
+    }).toDestination(),
+  };
+}
 
-function create(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  const Ctor: Ctor | undefined =
-    window.AudioContext ?? (window as { webkitAudioContext?: Ctor }).webkitAudioContext;
-  if (!Ctor) return null;
-  try {
-    if (!ctx) ctx = new Ctor();
-    return ctx;
-  } catch {
-    return null;
+function ensureVoices(): Promise<Voices | null> {
+  if (voices) return Promise.resolve(voices);
+  if (!readyPromise) return Promise.resolve(null);
+  if (!voicesPromise) {
+    voicesPromise = readyPromise.then((ready) => {
+      if (!ready) return null;
+      voices = buildVoices();
+      return voices;
+    });
   }
+  return voicesPromise;
+}
+
+function play(trigger: (voices: Voices) => void): void {
+  if (muted || !readyPromise) return;
+
+  void ensureVoices().then((voices) => {
+    if (!voices || muted) return;
+    trigger(voices);
+  });
+}
+
+function stopMenuLoop(): void {
+  if (menuLoopId !== null && typeof window !== 'undefined') {
+    window.clearInterval(menuLoopId);
+  }
+  menuLoopId = null;
+  menuStep = 0;
+}
+
+function beginMenuLoop(activeVoices: Voices): void {
+  const notes = ['C4', 'G4', 'A4', 'E4'] as const;
+  const playNext = () => {
+    activeVoices.menu.triggerAttackRelease(notes[menuStep % notes.length]!, 0.3);
+    menuStep += 1;
+  };
+
+  playNext();
+  menuLoopId = window.setInterval(playNext, 2400);
+}
+
+function startMenuLoop(): void {
+  if (!menuWanted || muted || menuLoopId !== null || typeof window === 'undefined') return;
+
+  void ensureVoices().then((activeVoices) => {
+    if (!activeVoices || !menuWanted || muted || menuLoopId !== null) return;
+    beginMenuLoop(activeVoices);
+  });
+}
+
+function unlockAudio(): void {
+  if (readyPromise) return;
+
+  if (typeof window === 'undefined') return;
+
+  readyPromise = (async () => {
+    try {
+      await start();
+      if (!voices) voices = buildVoices();
+      if (menuWanted && !muted && menuLoopId === null) beginMenuLoop(voices);
+      return true;
+    } catch {
+      readyPromise = null;
+      voices = null;
+      voicesPromise = null;
+      stopMenuLoop();
+      return false;
+    }
+  })();
 }
 
 /**
- * Browsers only allow an AudioContext to start from inside a real user-gesture
- * handler. Our sounds fire from React effects, which run after paint in a
- * separate task — so resuming there is silently ignored and nothing is ever
- * heard. This listens for the first genuine keydown or pointerdown and resumes
- * there, then gets out of the way.
+ * Browsers only allow audio to start from inside a real user-gesture handler.
+ * The game plays sounds from effects, so we explicitly start Tone on the first
+ * genuine keydown or pointerdown and let later sounds piggyback on that.
  */
 export function installAudioUnlock(): void {
   if (typeof window === 'undefined' || unlockInstalled) return;
   unlockInstalled = true;
 
   const unlock = () => {
-    const c = create();
-    if (c && c.state === 'suspended') void c.resume();
+    unlockAudio();
     window.removeEventListener('keydown', unlock);
     window.removeEventListener('pointerdown', unlock);
   };
@@ -56,65 +163,46 @@ export function installAudioUnlock(): void {
   window.addEventListener('pointerdown', unlock);
 }
 
-function audio(): AudioContext | null {
-  if (muted) return null;
-  const c = create();
-  if (!c) return null;
-  // Best-effort: harmless if it was already unlocked by the gesture handler.
-  if (c.state === 'suspended') void c.resume();
-  return c.state === 'running' ? c : null;
-}
-
-interface BlipOptions {
-  type?: OscillatorType;
-  gain?: number;
-  delayMs?: number;
-}
-
-/** One tone with a fast decay. Short envelopes read as clicks, longer as notes. */
-function blip(freq: number, ms: number, opts: BlipOptions = {}): void {
-  const c = audio();
-  if (!c) return;
-
-  const { type = 'sine', gain = 0.05, delayMs = 0 } = opts;
-  const start = c.currentTime + delayMs / 1000;
-
-  const osc = c.createOscillator();
-  const env = c.createGain();
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, start);
-
-  // Ramp from a hair above zero: exponentialRamp cannot reach or start at 0.
-  env.gain.setValueAtTime(0.0001, start);
-  env.gain.exponentialRampToValueAtTime(gain, start + 0.005);
-  env.gain.exponentialRampToValueAtTime(0.0001, start + ms / 1000);
-
-  osc.connect(env).connect(c.destination);
-  osc.start(start);
-  osc.stop(start + ms / 1000 + 0.02);
-}
-
 export const sound = {
   /** A correct keystroke. Pitch jitters so 37 stations do not fatigue. */
-  key: () => blip(1500 + Math.random() * 220, 16, { gain: 0.035 }),
+  key: () => play(({ key }) => key.triggerAttackRelease(1500 + Math.random() * 220, 0.016)),
 
-  /** A mistyped key: low and buzzy, unmistakably different from a keystroke. */
-  error: () => blip(110, 90, { type: 'square', gain: 0.07 }),
+  /** A mistyped key: low and punchy, unmistakably different from a keystroke. */
+  error: () => play(({ error }) => error.triggerAttackRelease('C2', 0.09)),
 
   /** Pulling into a station: a two-note rise. */
-  arrive: () => {
-    blip(660, 90, { gain: 0.045 });
-    blip(880, 150, { gain: 0.045, delayMs: 70 });
-  },
+  arrive: () => play(({ arrive }) => {
+    arrive.triggerAttackRelease('E5', 0.09);
+    arrive.triggerAttackRelease('A5', 0.15, '+0.07');
+  }),
 
   /** Finishing a line: a short ascending figure. */
-  complete: () => {
-    [0, 2, 4, 7].forEach((semitones, i) =>
-      blip(523.25 * Math.pow(2, semitones / 12), 150, {
-        type: 'triangle',
-        gain: 0.055,
-        delayMs: i * 95,
-      }),
-    );
+  complete: () => play(({ complete }) => {
+    ['C5', 'D5', 'E5', 'G5'].forEach((note, index) => {
+      complete.triggerAttackRelease(note, 0.15, `+${(index * 0.095).toFixed(3)}`);
+    });
+  }),
+
+  /** Choosing a button or opening a panel: quick and light. */
+  select: () => play(({ ui }) => {
+    ui.triggerAttackRelease('E5', 0.08);
+    ui.triggerAttackRelease('G5', 0.08, '+0.04');
+  }),
+
+  /** Returning to the map: the same cue but falling away. */
+  back: () => play(({ ui }) => {
+    ui.triggerAttackRelease('G5', 0.08);
+    ui.triggerAttackRelease('E5', 0.08, '+0.04');
+  }),
+};
+
+export const music = {
+  startMenu: () => {
+    menuWanted = true;
+    startMenuLoop();
+  },
+  stopMenu: () => {
+    menuWanted = false;
+    stopMenuLoop();
   },
 };

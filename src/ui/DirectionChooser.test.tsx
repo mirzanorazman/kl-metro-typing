@@ -1,10 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
+import { sound } from '../audio/sound';
 import { DirectionChooser } from './DirectionChooser';
 
 const net = buildNetwork(loadNetworkData());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('DirectionChooser', () => {
   it('offers both termini of the line', () => {
@@ -22,9 +26,11 @@ describe('DirectionChooser', () => {
 
   it('reports the terminus chosen by click', () => {
     let from = '';
+    const select = vi.spyOn(sound, 'select').mockImplementation(() => {});
     render(<DirectionChooser net={net} line="MR" onChoose={(id) => (from = id)} onCancel={() => {}} />);
     fireEvent.click(screen.getByRole('button', { name: /start at titiwangsa/i }));
     expect(from).toBe('titiwangsa');
+    expect(select).toHaveBeenCalledTimes(1);
   });
 
   it('cancels on Escape', () => {

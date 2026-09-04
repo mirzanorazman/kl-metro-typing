@@ -1,10 +1,14 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
+import { sound } from '../audio/sound';
 import { searchStations, StationSearch } from './StationSearch';
 
 const net = buildNetwork(loadNetworkData());
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('searchStations', () => {
   it('matches on a name prefix', () => {
@@ -34,9 +38,11 @@ describe('searchStations', () => {
 describe('StationSearch', () => {
   it('calls back with the chosen station', () => {
     let chosen = '';
+    const select = vi.spyOn(sound, 'select').mockImplementation(() => {});
     render(<StationSearch net={net} onPick={(id) => (chosen = id)} />);
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'imbi' } });
     fireEvent.click(screen.getByRole('button', { name: /imbi/i }));
     expect(chosen).toBe('imbi');
+    expect(select).toHaveBeenCalledTimes(1);
   });
 });
