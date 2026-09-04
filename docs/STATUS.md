@@ -105,9 +105,20 @@ Nothing here is blocking, but all of it is real.
 - **Three same-name station pairs** (Ampang Park, Bukit Bintang, Bandar Utama)
   are physically two stations joined by a walkway but collapse into one record,
   so they draw as a single dot and transfer is free.
-- **Sound has never been confirmed audible by the author.** The output path is
-  covered by a stubbed-context test, and the autoplay unlock is implemented, but
-  headless Chrome has no audio device. Needs a human ear.
+- **Sound does not work.** Confirmed silent in a real browser (Safari) even after
+  the user-gesture unlock was added. The output path is covered by a
+  stubbed-context test and the wiring is correct, so the fault is in reaching or
+  starting the `AudioContext`. Low priority, but leads for whoever picks it up:
+  - `audio()` in `src/audio/sound.ts` returns `null` unless `ctx.state === 'running'`.
+    `resume()` is async, so early calls are dropped — and if the state never
+    reaches `running`, everything is silent forever with no error. Loosening that
+    gate is the first thing to try.
+  - Safari is stricter than Chrome: it generally wants the `AudioContext`
+    *constructed* inside the gesture handler, not merely resumed there.
+    `installAudioUnlock()` currently constructs lazily on first gesture, which
+    may still be too late relative to how the listener is registered.
+  - Verify in isolation before touching the game: a one-line oscillator in the
+    browser console will show whether the policy or the wiring is at fault.
 - **One unexplained behaviour**: the map's framing effect did not apply its focus
   target on mount (StrictMode double-invoke is the likely cause). Worked around
   by seeding `usePanZoom`'s initial state from the same computed target, which is
