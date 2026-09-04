@@ -100,6 +100,20 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
 
   useKeyboard(onKey, run.phase === 'typing');
 
+  // Dev-only shortcut to reach the summary screen without typing the whole
+  // route by hand. `import.meta.env.DEV` is a build-time constant, so this
+  // (and the button that calls it) is stripped entirely from production
+  // builds — same pattern as the data-validation check in App.tsx.
+  const skipToEnd = useCallback(() => {
+    const remaining = [...run.typing.target].slice(run.typing.cursor);
+    for (let i = run.stationTimes.length + 1; i < route.length; i++) {
+      const id = route[i];
+      const name = id ? stationAt(net, id)?.name : undefined;
+      if (name) remaining.push(...name);
+    }
+    remaining.forEach(onKey);
+  }, [run, route, net, onKey]);
+
   // Finishing the line earns a moment before the numbers arrive: the sweep
   // plays on the map, then the summary. Skipped entirely under reduced motion.
   const [celebrating, setCelebrating] = useState(false);
@@ -168,6 +182,12 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           <button type="button" onClick={() => setRun((prev) => endRun(prev))}>
             End run
           </button>
+
+          {import.meta.env.DEV && (
+            <button type="button" onClick={skipToEnd}>
+              Skip to end (dev)
+            </button>
+          )}
         </>
       }
     />

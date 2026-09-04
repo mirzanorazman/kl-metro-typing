@@ -54,55 +54,80 @@ export function SummaryScreen({
     [leaderboardLine, net, store, metrics.score, metrics.wpm, metrics.accuracy],
   );
 
+  const split = hasJourney && Boolean(leaderboardLine) && qualification !== null;
+
   return (
-    <div className="summary">
+    <div className={`summary${split ? ' summary--wide' : ''}`}>
       <h2>Journey complete</h2>
       <p>{count === 1 ? '1 station' : `${count} stations`} this run</p>
 
-      {hasJourney && viewBox && (
-        <div className="summary-journey">
-          <svg
-            viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
-            role="img"
-            aria-label={`Journey through ${count} station${count === 1 ? '' : 's'}`}
-          >
-            {/* Draw faint network in background */}
-            {[...net.lines.values()].map((line) => {
-              const pts = line.stations
-                .map((id) => geo.get(id))
-                .filter((p): p is { x: number; y: number } => p !== undefined);
-              if (pts.length === 0) return null;
-              return (
+      <div className={`summary-top${split ? ' summary-top--split' : ''}`}>
+        {hasJourney && viewBox && (
+          <div className="summary-journey">
+            <svg
+              viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`}
+              role="img"
+              aria-label={`Journey through ${count} station${count === 1 ? '' : 's'}`}
+            >
+              {/* Draw faint network in background */}
+              {[...net.lines.values()].map((line) => {
+                const pts = line.stations
+                  .map((id) => geo.get(id))
+                  .filter((p): p is { x: number; y: number } => p !== undefined);
+                if (pts.length === 0) return null;
+                return (
+                  <polyline
+                    key={`network-${line.code}`}
+                    data-network={line.code}
+                    points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
+                  />
+                );
+              })}
+
+              {/* Draw the travelled path */}
+              {travelledPoints.length > 0 && (
                 <polyline
-                  key={`network-${line.code}`}
-                  data-network={line.code}
-                  points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
+                  data-journey="true"
+                  points={travelledPoints.map((p) => `${p.x},${p.y}`).join(' ')}
+                  stroke={pathColour}
                 />
-              );
-            })}
+              )}
 
-            {/* Draw the travelled path */}
-            {travelledPoints.length > 0 && (
-              <polyline
-                data-journey="true"
-                points={travelledPoints.map((p) => `${p.x},${p.y}`).join(' ')}
-                stroke={pathColour}
-              />
-            )}
+              {/* Draw stations on the journey */}
+              {travelledPoints.map((point, idx) => (
+                <circle
+                  key={`station-${idx}`}
+                  data-station="true"
+                  cx={point.x}
+                  cy={point.y}
+                  r="6"
+                />
+              ))}
+            </svg>
+          </div>
+        )}
 
-            {/* Draw stations on the journey */}
-            {travelledPoints.map((point, idx) => (
-              <circle
-                key={`station-${idx}`}
-                data-station="true"
-                cx={point.x}
-                cy={point.y}
-                r="6"
-              />
-            ))}
-          </svg>
-        </div>
-      )}
+        {leaderboardLine && qualification && (
+          <div
+            className="summary-side"
+            style={{ '--line-colour': lineAt(net, leaderboardLine)?.colour ?? pathColour } as React.CSSProperties}
+          >
+            <LeaderboardPanel
+              qualification={qualification}
+              score={metrics.score}
+              lineName={lineAt(net, leaderboardLine)?.name ?? leaderboardLine}
+              knownNames={knownNames(store)}
+              onSubmit={(name) => {
+                const result = submitEntry(net, store, {
+                  name, lineCode: leaderboardLine, metrics, playedAt: Date.now(),
+                });
+                setStore(result.store);
+                return { overallRank: result.overallRank, lineRank: result.lineRank };
+              }}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Stats blocks */}
       <div className="summary-stats">
@@ -125,22 +150,6 @@ export function SummaryScreen({
           <li>Fastest: {stationAt(net, fastest.id)?.name} ({(fastest.ms / 1000).toFixed(1)}s)</li>
           <li>Slowest: {stationAt(net, slowest.id)?.name} ({(slowest.ms / 1000).toFixed(1)}s)</li>
         </ul>
-      )}
-
-      {leaderboardLine && qualification && (
-        <LeaderboardPanel
-          qualification={qualification}
-          score={metrics.score}
-          lineName={lineAt(net, leaderboardLine)?.name ?? leaderboardLine}
-          knownNames={knownNames(store)}
-          onSubmit={(name) => {
-            const result = submitEntry(net, store, {
-              name, lineCode: leaderboardLine, metrics, playedAt: Date.now(),
-            });
-            setStore(result.store);
-            return { overallRank: result.overallRank, lineRank: result.lineRank };
-          }}
-        />
       )}
 
       <button

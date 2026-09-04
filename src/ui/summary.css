@@ -1,3 +1,36 @@
+/* The journey map and, when eligible, the leaderboard panel beside it —
+   stacked on narrow viewports, side by side from 700px so the leaderboard
+   never sits below the fold on desktop. */
+.summary-top {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+@media (min-width: 700px) {
+  .summary-top--split {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .summary-top--split .summary-journey {
+    flex: 1 1 60%;
+    margin: 0;
+    min-width: 0;
+  }
+
+  .summary-top--split .summary-side {
+    flex: 1 1 40%;
+    display: flex;
+    min-width: 0;
+  }
+}
+
+/* Widened to give a split top row room for both cards. */
+.summary.summary--wide {
+  max-width: 56rem;
+}
+
 /* Journey visualization */
 .summary-journey {
   width: 100%;
