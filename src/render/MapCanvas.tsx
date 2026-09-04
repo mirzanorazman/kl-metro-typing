@@ -1,7 +1,10 @@
 import './map.css';
+import { useEffect, useMemo, useRef } from 'react';
 import type { Layout } from '../geo/layout';
 import { linesOf, type NetworkIndex } from '../engine/network';
-import { usePanZoom, viewBoxString, type ViewBox } from './usePanZoom';
+import { usePanZoom, viewBoxString } from './usePanZoom';
+import { fitViewBox } from '../geo/fit';
+import type { Point } from '../data/types';
 import { TrainMarker } from './TrainMarker';
 
 export interface MapCanvasProps {
@@ -11,12 +14,13 @@ export interface MapCanvasProps {
   activeStation: string | null;
   /** Candidate next stations, highlighted during a junction choice. */
   highlight?: ReadonlySet<string>;
-  initialView?: ViewBox;
   /** Station the train is travelling from, for the arrival tween. */
   previousStation?: string | null;
+  /** Points to frame. Defaults to every point in `layout`. */
+  fitTo?: readonly Point[];
+  /** Changing this reframes the view. Use something like `${mode}:${line ?? 'all'}`. */
+  fitKey?: string;
 }
-
-const DEFAULT_VIEW: ViewBox = { x: 0, y: 0, w: 1000, h: 800 };
 
 export function MapCanvas({
   net,
@@ -24,10 +28,25 @@ export function MapCanvas({
   visited,
   activeStation,
   highlight,
-  initialView = DEFAULT_VIEW,
   previousStation = null,
+  fitTo,
+  fitKey,
 }: MapCanvasProps) {
-  const { view, handlers } = usePanZoom(initialView);
+  const framed = useMemo(
+    () => fitViewBox(fitTo ?? [...layout.values()], 0.08),
+    [fitTo, layout],
+  );
+  const { view, fit, handlers } = usePanZoom({ x: 0, y: 0, w: 1000, h: 800 });
+
+  const framedOnce = useRef(false);
+  useEffect(() => {
+    // The first framing has nothing to animate from, so it snaps.
+    fit(framed, { animate: framedOnce.current });
+    framedOnce.current = true;
+    // Reframing is driven by fitKey alone: `framed` changes on every layout
+    // tween frame, and refitting then would fight the user's pan and zoom.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey]);
 
   return (
     <svg

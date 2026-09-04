@@ -1,7 +1,11 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ViewBox } from '../data/types';
+import { easeInOut } from '../geo/layout';
+import { prefersReducedMotion } from './useLayoutMode';
 
 export type { ViewBox };
+
+const FIT_MS = 500;
 
 // Roughly three station gaps (grid STEP is 44), which is as far in as the
 // map stays useful. The whole network spans about 1364 x 1100 units.
@@ -32,6 +36,41 @@ export function viewBoxString(v: ViewBox): string {
 export function usePanZoom(initial: ViewBox) {
   const [view, setView] = useState<ViewBox>(initial);
   const dragging = useRef<{ x: number; y: number } | null>(null);
+
+  const viewRef = useRef(initial);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  const fitFrame = useRef<number | null>(null);
+  useEffect(() => () => {
+    if (fitFrame.current !== null) cancelAnimationFrame(fitFrame.current);
+  }, []);
+
+  const fit = useCallback((box: ViewBox, opts?: { animate?: boolean }) => {
+    if (fitFrame.current !== null) cancelAnimationFrame(fitFrame.current);
+
+    const animate = (opts?.animate ?? true) && !prefersReducedMotion();
+    if (!animate) {
+      setView(box);
+      return;
+    }
+
+    const from = viewRef.current;
+    const started = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - started) / FIT_MS);
+      const e = easeInOut(t);
+      setView({
+        x: from.x + (box.x - from.x) * e,
+        y: from.y + (box.y - from.y) * e,
+        w: from.w + (box.w - from.w) * e,
+        h: from.h + (box.h - from.h) * e,
+      });
+      if (t < 1) fitFrame.current = requestAnimationFrame(step);
+    };
+    fitFrame.current = requestAnimationFrame(step);
+  }, []);
 
   const onWheel = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
     const svg = e.currentTarget;
@@ -64,5 +103,5 @@ export function usePanZoom(initial: ViewBox) {
     dragging.current = null;
   }, []);
 
-  return { view, setView, handlers: { onWheel, onPointerDown, onPointerMove, onPointerUp } };
+  return { view, setView, fit, handlers: { onWheel, onPointerDown, onPointerMove, onPointerUp } };
 }
