@@ -113,7 +113,10 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   }, [run.phase]);
 
   if (run.phase === 'ended' && !celebrating) {
-    return <SummaryScreen net={net} run={run} onExit={onExit} />;
+    // Only a fully completed route is leaderboard-eligible — an early "End
+    // run" click also sets phase to 'ended', but stationTimes falls short.
+    const leaderboardLine = run.stationTimes.length === route.length ? line : null;
+    return <SummaryScreen net={net} run={run} onExit={onExit} leaderboardLine={leaderboardLine} />;
   }
 
   // Get positions of this line's stations for fitTo

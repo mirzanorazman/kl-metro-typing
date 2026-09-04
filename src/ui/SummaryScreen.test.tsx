@@ -1,15 +1,17 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { startRun, keyRun, endRun } from '../engine/run';
 import { music, sound } from '../audio/sound';
+import { emptyStore, submitEntry } from '../data/leaderboardStore';
 import { SummaryScreen } from './SummaryScreen';
 
 const net = buildNetwork(loadNetworkData());
 const finished = endRun(
   [...'Imbi'].reduce((s, k, i) => keyRun(net, s, k, i * 100), startRun(net, 'imbi', 0)),
 );
+beforeEach(() => localStorage.clear());
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -63,5 +65,35 @@ describe('SummaryScreen', () => {
 
     expect(back).toHaveBeenCalledTimes(1);
     expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  describe('leaderboard', () => {
+    it('invites a name when the run qualifies for the leaderboard', () => {
+      render(<SummaryScreen net={net} run={finished} onExit={() => {}} leaderboardLine="AG" />);
+      expect(screen.getByLabelText(/your name/i)).toBeTruthy();
+    });
+
+    it('does not show the leaderboard panel for a run with no eligible line', () => {
+      render(<SummaryScreen net={net} run={finished} onExit={() => {}} />);
+      expect(screen.queryByLabelText(/your name/i)).toBeNull();
+    });
+
+    it('shows the miss message once the board is full of better scores', () => {
+      let store = emptyStore();
+      for (let i = 0; i < 20; i++) {
+        store = submitEntry(net, store, {
+          name: `p${i}`, lineCode: 'AG', metrics: { wpm: 999, accuracy: 1, score: 999 }, playedAt: i,
+        }).store;
+      }
+      render(<SummaryScreen net={net} run={finished} onExit={() => {}} leaderboardLine="AG" />);
+      expect(screen.getByText(/didn't make the leaderboard/i)).toBeTruthy();
+    });
+
+    it('records the entry and shows the achieved rank', () => {
+      render(<SummaryScreen net={net} run={finished} onExit={() => {}} leaderboardLine="AG" />);
+      fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Ali' } });
+      fireEvent.click(screen.getByRole('button', { name: /save score/i }));
+      expect(screen.getByText(/#1 overall/i)).toBeTruthy();
+    });
   });
 });

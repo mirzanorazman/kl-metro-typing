@@ -1,19 +1,24 @@
-import { useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { music, sound } from '../audio/sound';
+import type { LineCode } from '../data/types';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
 import { runMetrics, type RunState } from '../engine/run';
 import { fitViewBox } from '../geo/fit';
 import { networkLayout } from '../geo/networkLayout';
+import { evaluateRun, knownNames, loadStore, submitEntry } from '../data/leaderboardStore';
+import { LeaderboardPanel } from './LeaderboardPanel';
 import './summary.css';
 
 export function SummaryScreen({
   net,
   run,
   onExit,
+  leaderboardLine = null,
 }: {
   net: NetworkIndex;
   run: RunState;
   onExit: () => void;
+  leaderboardLine?: LineCode | null;
 }) {
   useEffect(() => {
     music.startMenu();
@@ -40,6 +45,14 @@ export function SummaryScreen({
   // Get the journey line colour
   const lineColour = run.line ? lineAt(net, run.line)?.colour : null;
   const pathColour = lineColour || 'var(--accent)';
+
+  // The store is read once per summary: a completed run cannot change which
+  // scores it is being compared against mid-screen.
+  const [store, setStore] = useState(() => loadStore());
+  const qualification = useMemo(
+    () => (leaderboardLine ? evaluateRun(net, store, leaderboardLine, metrics) : null),
+    [leaderboardLine, net, store, metrics.score, metrics.wpm, metrics.accuracy],
+  );
 
   return (
     <div className="summary">
@@ -113,6 +126,23 @@ export function SummaryScreen({
           <li>Slowest: {stationAt(net, slowest.id)?.name} ({(slowest.ms / 1000).toFixed(1)}s)</li>
         </ul>
       )}
+
+      {leaderboardLine && qualification && (
+        <LeaderboardPanel
+          qualification={qualification}
+          score={metrics.score}
+          lineName={lineAt(net, leaderboardLine)?.name ?? leaderboardLine}
+          knownNames={knownNames(store)}
+          onSubmit={(name) => {
+            const result = submitEntry(net, store, {
+              name, lineCode: leaderboardLine, metrics, playedAt: Date.now(),
+            });
+            setStore(result.store);
+            return { overallRank: result.overallRank, lineRank: result.lineRank };
+          }}
+        />
+      )}
+
       <button
         type="button"
         onClick={() => {
