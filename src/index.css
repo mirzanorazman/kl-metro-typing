@@ -183,5 +183,15 @@ button:hover, button:focus-visible { border-color: var(--accent); }
 .junction li:nth-child(n+5) { animation-delay: 160ms; }
 
 @media (prefers-reduced-motion: reduce) {
-  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  /* Delay must be zeroed too, not just duration: the junction stagger uses
+     `backwards` fill, so a delayed card would sit invisible and then pop -
+     still motion, and exactly what the preference asks us not to do. */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
