@@ -12,6 +12,9 @@
 .summary-journey svg {
   width: 100%;
   height: auto;
+  /* Capped so the stats, fastest/slowest and the exit button stay above the
+     fold. Unbounded, the square map pushed all of them off a 900px viewport. */
+  max-height: 34vh;
   display: block;
   background: var(--land);
 }
