@@ -9,6 +9,9 @@ import type { BoundaryPath } from '../geo/boundaries';
 import { TrainMarker } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
 
+/** Where the focused point sits vertically; above centre, clear of the panel. */
+const FOCUS_BIAS_Y = 0.34;
+
 export interface MapCanvasProps {
   net: NetworkIndex;
   layout: Layout;
@@ -59,27 +62,37 @@ export function MapCanvas({
     () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
     [fitTo, layout, fitPadding],
   );
-  const { view, fit, centreOn, handlers } = usePanZoom(framed);
+
+  // Where the view should be *right now*. When a focus point is given the
+  // train is centred at the framed zoom, biased upward to clear the typing
+  // panel; otherwise the whole framed extent is shown.
+  //
+  // This is computed here rather than only inside the effect so it also seeds
+  // usePanZoom's initial state — the view is correct on the very first render
+  // instead of relying on an effect to correct it afterwards.
+  const target = useMemo(
+    () =>
+      focus
+        ? {
+            x: focus.x - framed.w / 2,
+            y: focus.y - framed.h * FOCUS_BIAS_Y,
+            w: framed.w,
+            h: framed.h,
+          }
+        : framed,
+    [focus, framed],
+  );
+  const { view, fit, handlers } = usePanZoom(target);
 
   const framedOnce = useRef(false);
-  useEffect(() => {
-    // The first framing has nothing to animate from, so it snaps.
-    fit(framed, { animate: framedOnce.current });
-    framedOnce.current = true;
-    // Reframing is driven by fitKey alone: `framed` changes on every layout
-    // tween frame, and refitting then would fight the user's pan and zoom.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitKey]);
 
   useEffect(() => {
-    if (!focus || !focusKey) return;
-    // Bias upward: the typing panel covers the lower third, so the visual
-    // centre of the usable area sits above the geometric centre.
-    centreOn(focus, { biasY: 0.34 });
-    // Driven by focusKey alone — `focus` moves with every keystroke and
-    // recentring on each would drag the map continuously.
+    fit(target, { animate: framedOnce.current });
+    framedOnce.current = true;
+    // Keyed reframing only: `target` changes identity on every render, and
+    // refitting then would fight both the layout tween and the player's pan.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusKey]);
+  }, [fitKey, focusKey]);
 
   return (
     <svg

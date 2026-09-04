@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Point, ViewBox } from '../data/types';
+import type { ViewBox } from '../data/types';
 import { easeInOut } from '../geo/layout';
 import { prefersReducedMotion } from './useLayoutMode';
 
@@ -103,25 +103,11 @@ export function usePanZoom(initial: ViewBox) {
     dragging.current = null;
   }, []);
 
-  /**
-   * Recentres on a point at the current zoom. `biasY` says where in the frame
-   * the point should sit vertically (0.5 = middle); play screens bias it
-   * upward so the train centres in the area the typing panel does not cover.
-   */
-  const centreOn = useCallback(
-    (p: Point, opts?: { animate?: boolean; biasY?: number }) => {
-      const v = viewRef.current;
-      const biasY = opts?.biasY ?? 0.5;
-      fit({ x: p.x - v.w / 2, y: p.y - v.h * biasY, w: v.w, h: v.h }, opts);
-    },
-    [fit],
-  );
 
   return {
     view,
     setView,
     fit,
-    centreOn,
     handlers: { onWheel, onPointerDown, onPointerMove, onPointerUp },
   };
 }
