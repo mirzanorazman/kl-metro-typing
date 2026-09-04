@@ -1,46 +1,44 @@
-import { useEffect, useRef, useState } from 'react';
 import type { Point } from '../data/types';
-import { easeInOut } from '../geo/layout';
-import { prefersReducedMotion } from './useLayoutMode';
-
-const TRAVEL_MS = 400;
 
 export function tweenPoint(from: Point, to: Point, t: number): Point {
   const c = Math.max(0, Math.min(1, t));
   return { x: from.x + (to.x - from.x) * c, y: from.y + (to.y - from.y) * c };
 }
 
+export interface TrainMarkerProps {
+  /** Station departed from. Null at the very start of a run. */
+  from: Point | null;
+  /** Station being typed towards. */
+  to: Point | null;
+  /** How far through the current station's name, 0..1. */
+  progress?: number;
+  /** Increments on every mistyped key; a change replays the shake. */
+  errorTick?: number;
+}
+
 /**
- * Eases from the previous station to the current one whenever `to` changes,
- * so the train visibly travels rather than teleporting.
+ * The train sits between the station it left and the one being typed, placed
+ * by typing progress — so it arrives exactly as the name is completed. Typing
+ * *is* the throttle.
+ *
+ * Motion is a CSS transition on cx/cy rather than an animation loop: it stays
+ * smooth between keystrokes, and the global prefers-reduced-motion rule
+ * zeroes it for free.
  */
-export function TrainMarker({ from, to }: { from: Point | null; to: Point | null }) {
-  const [pos, setPos] = useState<Point | null>(to);
-  const frame = useRef<number | null>(null);
+export function TrainMarker({ from, to, progress = 1, errorTick = 0 }: TrainMarkerProps) {
+  if (!to) return null;
+  const pos = from ? tweenPoint(from, to, progress) : to;
 
-  useEffect(() => {
-    if (!to) return;
-    if (!from || prefersReducedMotion()) {
-      setPos(to);
-      return;
-    }
-
-    const started = performance.now();
-    const step = (now: number) => {
-      const t = Math.min(1, (now - started) / TRAVEL_MS);
-      setPos(tweenPoint(from, to, easeInOut(t)));
-      if (t < 1) frame.current = requestAnimationFrame(step);
-    };
-    frame.current = requestAnimationFrame(step);
-
-    return () => {
-      if (frame.current !== null) cancelAnimationFrame(frame.current);
-    };
-    // `from` is intentionally excluded: the tween is driven by arriving at a
-    // new `to`, and re-running it when the origin changes would restart it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [to?.x, to?.y]);
-
-  if (!pos) return null;
-  return <circle data-train cx={pos.x} cy={pos.y} r={9} className="train" />;
+  return (
+    <circle
+      // Remounting on each mistake is what replays the shake animation.
+      key={`train-${errorTick}`}
+      data-train
+      data-shake={errorTick > 0 ? 'true' : undefined}
+      cx={pos.x}
+      cy={pos.y}
+      r={9}
+      className="train"
+    />
+  );
 }

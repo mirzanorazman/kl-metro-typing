@@ -120,6 +120,16 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           fitTo={lineStationPositions}
           fitKey={`line:${line}`}
           backdrop={backdrop}
+          // The train is placed by typing progress, so it arrives exactly as
+          // the name is finished. Recentre as each new station begins.
+          trainProgress={
+            run.typing.target.length > 0
+              ? run.typing.cursor / run.typing.target.length
+              : 0
+          }
+          trainErrorTick={run.errors}
+          focus={layout.get(run.arrivedFrom ?? run.at) ?? null}
+          focusKey={run.at}
           // Emphasise the line being run: without it every line renders at
           // full strength and you cannot tell which one you are on.
           emphasis={line}
@@ -131,7 +141,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
         <>
           <LineStrip net={net} line={run.line} at={run.at} />
 
-          {run.phase === 'typing' && <Prompt state={run.typing} />}
+          {run.phase === 'typing' && <Prompt state={run.typing} errorTick={run.errors} />}
 
           <HUD
             metrics={runMetrics(run, performance.now())}

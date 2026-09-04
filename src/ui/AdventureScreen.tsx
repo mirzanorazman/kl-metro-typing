@@ -108,6 +108,16 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
           // layout's positions are deliberately not geographic, so land
           // beneath it would be meaningless.
           backdrop={mode === 'geo' ? backdrop : undefined}
+          // The train is placed by typing progress, so it arrives exactly as
+          // the name is finished. Recentre as each new station begins.
+          trainProgress={
+            run.typing.target.length > 0
+              ? run.typing.cursor / run.typing.target.length
+              : 0
+          }
+          trainErrorTick={run.errors}
+          focus={layout.get(run.arrivedFrom ?? run.at) ?? null}
+          focusKey={run.at}
           // The typing panel overlays the lower third of the viewport.
           fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
         />
@@ -124,7 +134,7 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
 
           <LineStrip net={net} line={run.line} at={run.at} />
 
-          {run.phase === 'typing' && <Prompt state={run.typing} />}
+          {run.phase === 'typing' && <Prompt state={run.typing} errorTick={run.errors} />}
 
           {run.phase === 'typing' && run.arrivedFrom && (
             <p className="hint"><kbd>Backspace</kbd> to turn around</p>

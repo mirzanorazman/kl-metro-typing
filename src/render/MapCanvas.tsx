@@ -24,6 +24,14 @@ export interface MapCanvasProps {
   fitKey?: string;
   /** Per-side padding, to keep content clear of overlaying panels. */
   fitPadding?: number | EdgePadding;
+  /** How far through the current station's name, 0..1. Drives the train. */
+  trainProgress?: number;
+  /** Increments on every mistyped key; shakes the train. */
+  trainErrorTick?: number;
+  /** Point to recentre on when `focusKey` changes. */
+  focus?: Point | null;
+  /** Changing this recentres the view on `focus`. */
+  focusKey?: string;
   /** Land outlines to draw beneath the tracks. */
   backdrop?: BoundaryPath[];
   /** When set, this line is emphasised and the others are dimmed. */
@@ -40,6 +48,10 @@ export function MapCanvas({
   fitTo,
   fitKey,
   fitPadding = 0.08,
+  trainProgress,
+  trainErrorTick,
+  focus,
+  focusKey,
   backdrop,
   emphasis,
 }: MapCanvasProps) {
@@ -47,7 +59,7 @@ export function MapCanvas({
     () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
     [fitTo, layout, fitPadding],
   );
-  const { view, fit, handlers } = usePanZoom(framed);
+  const { view, fit, centreOn, handlers } = usePanZoom(framed);
 
   const framedOnce = useRef(false);
   useEffect(() => {
@@ -58,6 +70,16 @@ export function MapCanvas({
     // tween frame, and refitting then would fight the user's pan and zoom.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey]);
+
+  useEffect(() => {
+    if (!focus || !focusKey) return;
+    // Bias upward: the typing panel covers the lower third, so the visual
+    // centre of the usable area sits above the geometric centre.
+    centreOn(focus, { biasY: 0.34 });
+    // Driven by focusKey alone — `focus` moves with every keystroke and
+    // recentring on each would drag the map continuously.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusKey]);
 
   return (
     <svg
@@ -121,6 +143,8 @@ export function MapCanvas({
       <TrainMarker
         from={previousStation ? layout.get(previousStation) ?? null : null}
         to={activeStation ? layout.get(activeStation) ?? null : null}
+        progress={trainProgress}
+        errorTick={trainErrorTick}
       />
     </svg>
   );

@@ -16,3 +16,14 @@
   to   { r: 8; opacity: 1; }
 }
 .map-canvas circle[data-active='true'] { animation: arrive 250ms ease-out; }
+
+/* Between keystrokes the train glides; CSS so reduced-motion zeroes it. */
+.map-canvas .train { transition: cx 140ms linear, cy 140ms linear; }
+
+@keyframes train-shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-3px); }
+  60%      { transform: translateX(3px); }
+  85%      { transform: translateX(-1.5px); }
+}
+.map-canvas .train[data-shake='true'] { animation: train-shake 170ms ease-in-out; }

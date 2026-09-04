@@ -3,6 +3,7 @@
   --fg: #f2f4f8;
   --dim: #9aa3b2;
   --accent: #ffd166;
+  --error: #ff6b6b;
   --land: #202734;
   --land-edge: #38424f;
   --panel: rgba(18, 20, 26, 0.82);
@@ -57,6 +58,14 @@ body {
 .prompt [data-state='done'] { color: var(--fg); }
 .prompt [data-state='current'] { color: var(--accent); border-bottom: 3px solid var(--accent); }
 .prompt [data-space='true'][data-state='pending'] { border-bottom: 2px solid var(--dim); }
+
+/* A mistyped key must be seen, not merely counted. */
+@keyframes miskey {
+  0%   { color: var(--error); border-bottom-color: var(--error); transform: translateX(-2px); }
+  60%  { color: var(--error); border-bottom-color: var(--error); transform: translateX(2px); }
+  100% { color: var(--accent); border-bottom-color: var(--accent); transform: none; }
+}
+.prompt [data-state='current'][data-miskey='true'] { animation: miskey 220ms ease-out; }
 
 /* --- home map --- */
 .home-map { position: relative; height: 100%; }
