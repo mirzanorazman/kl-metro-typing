@@ -9,3 +9,10 @@
 .map-canvas circle[data-active='true'] { fill: #f2f4f8; stroke: #f2f4f8; }
 .map-canvas .train { fill: var(--accent, #ffd166); stroke: #12141a; stroke-width: 2; }
 .map-backdrop path { fill: var(--land, #1b2029); stroke: var(--land-edge, #2c3340); stroke-width: 1; }
+
+@keyframes arrive {
+  from { r: 8; opacity: 1; }
+  50%  { r: 14; opacity: 0.55; }
+  to   { r: 8; opacity: 1; }
+}
+.map-canvas circle[data-active='true'] { animation: arrive 250ms ease-out; }

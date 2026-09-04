@@ -94,7 +94,7 @@ export function MapCanvas({
         const isNext = highlight?.has(station.id) ?? false;
         return (
           <circle
-            key={station.id}
+            key={station.id === activeStation ? `${station.id}-active` : station.id}
             data-station={station.id}
             data-active={isActive ? 'true' : undefined}
             data-next={isNext ? 'true' : undefined}
