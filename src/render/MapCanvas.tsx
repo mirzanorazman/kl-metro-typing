@@ -5,7 +5,9 @@ import { linesOf, type NetworkIndex } from '../engine/network';
 import { usePanZoom, viewBoxString } from './usePanZoom';
 import { fitViewBox } from '../geo/fit';
 import type { Point } from '../data/types';
+import type { BoundaryPath } from '../geo/boundaries';
 import { TrainMarker } from './TrainMarker';
+import { MapBackdrop } from './MapBackdrop';
 
 export interface MapCanvasProps {
   net: NetworkIndex;
@@ -20,6 +22,8 @@ export interface MapCanvasProps {
   fitTo?: readonly Point[];
   /** Changing this reframes the view. Use something like `${mode}:${line ?? 'all'}`. */
   fitKey?: string;
+  /** Land outlines to draw beneath the tracks. */
+  backdrop?: BoundaryPath[];
 }
 
 export function MapCanvas({
@@ -31,6 +35,7 @@ export function MapCanvas({
   previousStation = null,
   fitTo,
   fitKey,
+  backdrop,
 }: MapCanvasProps) {
   const framed = useMemo(
     () => fitViewBox(fitTo ?? [...layout.values()], 0.08),
@@ -56,6 +61,7 @@ export function MapCanvas({
       aria-label="Rapid KL network map"
       {...handlers}
     >
+      {backdrop && <MapBackdrop paths={backdrop} />}
       {[...net.lines.values()].map((line) => {
         const pts = line.stations
           .map((id) => layout.get(id))
