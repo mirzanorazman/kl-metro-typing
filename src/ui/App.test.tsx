@@ -24,4 +24,10 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /^imbi/i }));
     expect(screen.getByLabelText('Type Imbi')).toBeTruthy();
   });
+
+  it('opens the leaderboard from the map', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /leaderboard/i }));
+    expect(screen.getByRole('heading', { name: /leaderboard/i })).toBeTruthy();
+  });
 });

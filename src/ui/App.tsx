@@ -8,11 +8,13 @@ import { setMuted, installAudioUnlock } from '../audio/sound';
 import { HomeMap } from './HomeMap';
 import { LineRunScreen } from './LineRunScreen';
 import { AdventureScreen } from './AdventureScreen';
+import { LeaderboardScreen } from './LeaderboardScreen';
 
 type Screen =
   | { kind: 'home' }
   | { kind: 'line'; code: LineCode; from: string }
-  | { kind: 'adventure'; at: string };
+  | { kind: 'adventure'; at: string }
+  | { kind: 'leaderboard' };
 
 export function App() {
   const data = useMemo(() => loadNetworkData(), []);
@@ -41,11 +43,15 @@ export function App() {
   if (screen.kind === 'adventure') {
     return <AdventureScreen net={net} startAt={screen.at} onExit={home} />;
   }
+  if (screen.kind === 'leaderboard') {
+    return <LeaderboardScreen net={net} onExit={home} />;
+  }
   return (
     <HomeMap
       net={net}
       onStartLine={(code, from) => setScreen({ kind: 'line', code, from })}
       onPickStation={(at) => setScreen({ kind: 'adventure', at })}
+      onOpenLeaderboard={() => setScreen({ kind: 'leaderboard' })}
     />
   );
 }

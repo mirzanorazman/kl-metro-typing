@@ -14,9 +14,10 @@ export interface HomeMapProps {
   net: NetworkIndex;
   onStartLine: (code: LineCode, from: string) => void;
   onPickStation: (stationId: string) => void;
+  onOpenLeaderboard: () => void;
 }
 
-export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
+export function HomeMap({ net, onStartLine, onPickStation, onOpenLeaderboard }: HomeMapProps) {
   const { geo: layout, backdrop } = networkLayout();
 
   const profile = useMemo(() => loadProfile(), []);
@@ -139,6 +140,13 @@ export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
               setSearching((v) => !v);
             }}>
               Start anywhere
+            </button>
+
+            <button type="button" onClick={() => {
+              sound.select();
+              onOpenLeaderboard();
+            }}>
+              Leaderboard
             </button>
 
             <SoundToggle muted={muted} onToggle={toggleSound} />
