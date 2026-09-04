@@ -3,8 +3,8 @@
   --fg: #f2f4f8;
   --dim: #9aa3b2;
   --accent: #ffd166;
-  --land: #1b2029;
-  --land-edge: #2c3340;
+  --land: #202734;
+  --land-edge: #38424f;
   --panel: rgba(18, 20, 26, 0.82);
   --panel-edge: #2c3340;
 
@@ -75,13 +75,18 @@ body {
   width: 18rem; max-height: calc(100% - var(--s4) * 2); overflow: auto;
 }
 .line-picker button {
-  display: grid; grid-template-columns: 2.5rem 1fr auto; gap: var(--s2); align-items: center;
+  display: flex; gap: var(--s2); align-items: center; justify-content: center;
   padding: var(--s) var(--s2); text-align: left;
   background: var(--panel); color: var(--fg);
   border: 1px solid var(--panel-edge); border-left: 4px solid var(--line-colour, var(--dim));
   border-radius: 10px; cursor: pointer; font: inherit;
 }
 .line-picker button:hover, .line-picker button:focus-visible { border-color: var(--accent); }
+/* Only the line rows get the three-column grid; Resume and Start anywhere
+   are ordinary buttons and were being stretched across it. */
+.line-picker button:has(.code) {
+  display: grid; grid-template-columns: 2.5rem 1fr auto; justify-content: stretch;
+}
 .line-picker .code { color: var(--line-colour, var(--fg)); font-weight: 700; }
 .line-picker .count { color: var(--dim); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
 
