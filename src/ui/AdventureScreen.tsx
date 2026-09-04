@@ -104,7 +104,10 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
           activeStation={run.at}
           highlight={highlight}
           previousStation={run.arrivedFrom}
-          backdrop={backdrop}
+          // Real coastlines belong under real geography. The schematic
+          // layout's positions are deliberately not geographic, so land
+          // beneath it would be meaningless.
+          backdrop={mode === 'geo' ? backdrop : undefined}
         />
       }
       panel={
