@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { loadNetworkData } from '../data/load';
-import { projectStations } from './project';
+import { projectStations, makeProjection } from './project';
 
 const vp = { width: 1000, height: 800, padding: 40 };
 const pts = projectStations(loadNetworkData().stations, vp);
@@ -61,5 +61,27 @@ describe('projectStations', () => {
 
   it('puts an eastern station right of a western one', () => {
     expect(pts.get('ampang')!.x).toBeGreaterThan(pts.get('johan-setia')!.x);
+  });
+});
+
+describe('makeProjection', () => {
+  it('reproduces projectStations for the same inputs', () => {
+    const stations = loadNetworkData().stations;
+    const proj = makeProjection(stations.map((s) => s.geo), vp);
+    for (const s of stations.slice(0, 20)) {
+      const a = proj.project(s.geo);
+      const b = pts.get(s.id)!;
+      expect(a.x).toBeCloseTo(b.x, 6);
+      expect(a.y).toBeCloseTo(b.y, 6);
+    }
+  });
+
+  it('places a point outside the fitted set outside the viewport, not clamped', () => {
+    const stations = loadNetworkData().stations;
+    const proj = makeProjection(stations.map((s) => s.geo), vp);
+    // Far north-west of the network: the backdrop legitimately extends past it.
+    const far = proj.project({ lat: 3.9, lng: 100.8 });
+    expect(far.x).toBeLessThan(vp.padding);
+    expect(far.y).toBeLessThan(vp.padding);
   });
 });

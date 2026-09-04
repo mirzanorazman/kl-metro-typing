@@ -1,4 +1,4 @@
-import type { Point, Station } from '../data/types';
+import type { Point, Station, LatLng } from '../data/types';
 
 export interface Viewport {
   width: number;
@@ -24,17 +24,24 @@ export function mercatorY(lat: number): number {
   return Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2));
 }
 
+export interface Projection {
+  project(at: LatLng): Point;
+}
+
 /**
- * Projects stations to screen space, fitting the whole network into the
- * padded viewport at a uniform scale so the map is not stretched.
+ * Builds a projection fitted to `fitTo`, at a uniform scale.
+ *
+ * Points outside `fitTo` project outside the viewport rather than being
+ * clamped — that is deliberate, and it is how the map backdrop extends past
+ * the edges of the framed network.
  */
-export function projectStations(stations: Station[], vp: Viewport): Map<string, Point> {
-  const out = new Map<string, Point>();
-  if (stations.length === 0) return out;
+export function makeProjection(fitTo: readonly LatLng[], vp: Viewport): Projection {
+  if (fitTo.length === 0) {
+    return { project: () => ({ x: vp.width / 2, y: vp.height / 2 }) };
+  }
 
-  const xs = stations.map((s) => mercatorX(s.geo.lng));
-  const ys = stations.map((s) => mercatorY(s.geo.lat));
-
+  const xs = fitTo.map((c) => mercatorX(c.lng));
+  const ys = fitTo.map((c) => mercatorY(c.lat));
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
@@ -46,17 +53,23 @@ export function projectStations(stations: Station[], vp: Viewport): Map<string, 
   const spanY = maxY - minY || 1;
   const scale = Math.min(usableW / spanX, usableH / spanY);
 
-  // Centre whatever the uniform scale leaves over.
   const offsetX = vp.padding + (usableW - spanX * scale) / 2;
   const offsetY = vp.padding + (usableH - spanY * scale) / 2;
 
-  for (const s of stations) {
-    const my = mercatorY(s.geo.lat);
-    out.set(s.id, {
-      x: offsetX + (mercatorX(s.geo.lng) - minX) * scale,
+  return {
+    project: (at: LatLng): Point => ({
+      x: offsetX + (mercatorX(at.lng) - minX) * scale,
       // Screen y grows downward; mercator y grows northward. Flip it.
-      y: offsetY + (maxY - my) * scale,
-    });
-  }
-  return out;
+      y: offsetY + (maxY - mercatorY(at.lat)) * scale,
+    }),
+  };
+}
+
+/**
+ * Projects stations to screen space, fitting the whole network into the
+ * padded viewport at a uniform scale so the map is not stretched.
+ */
+export function projectStations(stations: Station[], vp: Viewport): Map<string, Point> {
+  const proj = makeProjection(stations.map((s) => s.geo), vp);
+  return new Map(stations.map((s) => [s.id, proj.project(s.geo)]));
 }
