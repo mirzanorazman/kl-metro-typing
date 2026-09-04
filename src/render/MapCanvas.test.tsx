@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { buildSchematic } from '../geo/schematic';
@@ -57,7 +57,7 @@ describe('MapCanvas framing', () => {
     }
   });
 
-  it('reframes when the fit key changes', () => {
+  it('reframes when the fit key changes', async () => {
     const subset = [...layout.values()].slice(0, 5);
     const { container, rerender } = render(
       <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} fitKey="all" />,
@@ -67,6 +67,10 @@ describe('MapCanvas framing', () => {
       <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null}
         fitKey="subset" fitTo={subset} />,
     );
-    expect(container.querySelector('svg')!.getAttribute('viewBox')).not.toBe(before);
+    // The reframe eases over 500ms, so wait for the tween rather than
+    // asserting on the frame the rerender happened to land on.
+    await waitFor(() =>
+      expect(container.querySelector('svg')!.getAttribute('viewBox')).not.toBe(before),
+    );
   });
 });

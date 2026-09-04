@@ -36,7 +36,7 @@ export function MapCanvas({
     () => fitViewBox(fitTo ?? [...layout.values()], 0.08),
     [fitTo, layout],
   );
-  const { view, fit, handlers } = usePanZoom({ x: 0, y: 0, w: 1000, h: 800 });
+  const { view, fit, handlers } = usePanZoom(framed);
 
   const framedOnce = useRef(false);
   useEffect(() => {
