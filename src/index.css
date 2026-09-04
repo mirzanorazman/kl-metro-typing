@@ -64,6 +64,8 @@ body {
 .home-map header { position: absolute; top: var(--s3); left: var(--s3); z-index: 1; }
 .home-map h1 { margin: 0; font-size: var(--t-xl); letter-spacing: -0.02em; }
 .home-map .tagline { margin: 0; color: var(--dim); font-size: var(--t-sm); }
+.home-map .progress { margin: var(--s) 0 0; color: var(--dim); font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums; }
 .home-map footer {
   position: absolute; bottom: var(--s2); left: var(--s3); right: var(--s3);
   color: var(--dim); font-size: var(--t-xs);

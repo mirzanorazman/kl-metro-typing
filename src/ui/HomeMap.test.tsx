@@ -49,6 +49,11 @@ describe('HomeMap', () => {
     expect(picked).toBe('imbi');
   });
 
+  it('shows overall station progress', () => {
+    render(<HomeMap net={net} onStartLine={noop} onPickStation={noop} />);
+    expect(screen.getByText(/0 \/ \d+ stations visited/)).toBeTruthy();
+  });
+
   it('states that the project is unofficial', () => {
     render(<HomeMap net={net} onStartLine={noop} onPickStation={noop} />);
     expect(screen.getByText(/not affiliated/i)).toBeTruthy();

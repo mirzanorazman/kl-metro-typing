@@ -78,6 +78,9 @@ export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
       <header>
         <h1>MyRapid Typing</h1>
         <p className="tagline">Type your way across the Klang Valley.</p>
+        <p className="progress">
+          {visited.size} / {net.stations.size} stations visited
+        </p>
       </header>
 
       <div className="line-picker">
