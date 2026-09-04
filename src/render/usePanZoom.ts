@@ -1,11 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
+import type { ViewBox } from '../data/types';
 
-export interface ViewBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
+export type { ViewBox };
 
 // Roughly three station gaps (grid STEP is 44), which is as far in as the
 // map stays useful. The whole network spans about 1364 x 1100 units.

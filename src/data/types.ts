@@ -13,6 +13,14 @@ export interface Point {
   y: number;
 }
 
+/** An SVG viewBox: origin plus size, in user units. */
+export interface ViewBox {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface LatLng {
   lat: number;
   lng: number;
