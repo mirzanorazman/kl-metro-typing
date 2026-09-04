@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork, stationAt } from './network';
-import { startRun, keyRun, chooseDirection, runMetrics, turnAround } from './run';
+import { startRun, keyRun, chooseDirection, runMetrics, turnAround, chooseTowards } from './run';
 
 const net = buildNetwork(loadNetworkData());
 
@@ -99,5 +99,18 @@ describe('turnAround', () => {
   it('does nothing while a junction choice is open', () => {
     const junction = typeStation(startRun(net, 'raja-chulan', 0));
     expect(turnAround(net, junction, 10)).toEqual(junction);
+  });
+});
+
+describe('chooseTowards', () => {
+  it('takes the option leading to the named station', () => {
+    const junction = typeStation(startRun(net, 'raja-chulan', 0));
+    const s = chooseTowards(net, junction, 'bukit-nanas', 100);
+    expect(s.at).toBe('bukit-nanas');
+  });
+
+  it('does nothing when no option leads there', () => {
+    const junction = typeStation(startRun(net, 'raja-chulan', 0));
+    expect(chooseTowards(net, junction, 'kajang', 100)).toEqual(junction);
   });
 });

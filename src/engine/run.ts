@@ -134,6 +134,21 @@ export function chooseDirection(
   return moveTo(net, state, dir.next, dir.line, now);
 }
 
+/**
+ * Takes whichever onward option leads to `next`. Used by Line Run, where the
+ * route is fixed and interchanges must not prompt the player for a decision.
+ */
+export function chooseTowards(
+  net: NetworkIndex,
+  state: RunState,
+  next: string,
+  now: number,
+): RunState {
+  if (state.phase !== 'junction') return state;
+  const dir = state.options.find((o) => o.next === next);
+  return dir ? chooseDirection(net, state, dir, now) : state;
+}
+
 /** Walk transfers are free in Adventure: no line, no cost. */
 export function walkTo(net: NetworkIndex, state: RunState, to: string, now: number): RunState {
   const station = stationAt(net, to);
