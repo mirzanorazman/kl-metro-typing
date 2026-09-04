@@ -25,4 +25,16 @@ describe('SummaryScreen', () => {
     render(<SummaryScreen net={net} run={endRun(startRun(net, 'imbi', 0))} onExit={() => {}} />);
     expect(screen.getByText(/0 stations/i)).toBeTruthy();
   });
+
+  it('draws the journey travelled', () => {
+    const { container } = render(<SummaryScreen net={net} run={finished} onExit={() => {}} />);
+    expect(container.querySelector('polyline[data-journey]')).toBeTruthy();
+  });
+
+  it('renders no shape when no station was completed', () => {
+    const { container } = render(
+      <SummaryScreen net={net} run={endRun(startRun(net, 'imbi', 0))} onExit={() => {}} />,
+    );
+    expect(container.querySelector('polyline[data-journey]')).toBeNull();
+  });
 });
