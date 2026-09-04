@@ -9,14 +9,11 @@ drive a train across the Klang Valley.
 > `docs/superpowers/` describe what was *intended*; this file describes what
 > actually exists, what is deliberately the way it is, and what is still wrong.
 
-## Where the work is
+## Getting started
 
-**All source lives on the `feat/foundation-and-adventure` branch.** `main` has
-only documentation — it has never been merged. Check out the branch before
-concluding the project is empty.
+Everything is on `main`.
 
 ```bash
-git checkout feat/foundation-and-adventure
 npm install
 npm run dev
 npm test        # 159 tests
