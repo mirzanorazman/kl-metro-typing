@@ -17,3 +17,39 @@
   border: 1px solid var(--panel-edge);
   border-radius: 8px;
 }
+
+.leaderboard-screen {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.leaderboard-screen h2 { margin: 0; font-size: var(--t-lg); }
+
+.leaderboard-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s);
+}
+
+.leaderboard-tabs [aria-selected='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.leaderboard-screen table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-screen th, .leaderboard-screen td {
+  text-align: left;
+  padding: var(--s) var(--s2);
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.leaderboard-screen th { color: var(--dim); font-size: var(--t-xs); text-transform: uppercase; }
