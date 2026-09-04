@@ -72,6 +72,9 @@ export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
         backdrop={backdrop}
         fitTo={fitTo}
         fitKey={selected ? `line:${selected}` : 'home'}
+        // The picker overlays the right edge; pad that side so central KL
+        // is not hidden behind it.
+        fitPadding={{ top: 0.06, right: 0.45, bottom: 0.06, left: 0.06 }}
         emphasis={selected}
       />
 

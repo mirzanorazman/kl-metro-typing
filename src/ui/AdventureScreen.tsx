@@ -108,6 +108,8 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
           // layout's positions are deliberately not geographic, so land
           // beneath it would be meaningless.
           backdrop={mode === 'geo' ? backdrop : undefined}
+          // The typing panel overlays the lower third of the viewport.
+          fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
         />
       }
       panel={

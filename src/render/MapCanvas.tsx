@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { Layout } from '../geo/layout';
 import { linesOf, type NetworkIndex } from '../engine/network';
 import { usePanZoom, viewBoxString } from './usePanZoom';
-import { fitViewBox } from '../geo/fit';
+import { fitViewBox, type EdgePadding } from '../geo/fit';
 import type { Point, LineCode } from '../data/types';
 import type { BoundaryPath } from '../geo/boundaries';
 import { TrainMarker } from './TrainMarker';
@@ -22,6 +22,8 @@ export interface MapCanvasProps {
   fitTo?: readonly Point[];
   /** Changing this reframes the view. Use something like `${mode}:${line ?? 'all'}`. */
   fitKey?: string;
+  /** Per-side padding, to keep content clear of overlaying panels. */
+  fitPadding?: number | EdgePadding;
   /** Land outlines to draw beneath the tracks. */
   backdrop?: BoundaryPath[];
   /** When set, this line is emphasised and the others are dimmed. */
@@ -37,12 +39,13 @@ export function MapCanvas({
   previousStation = null,
   fitTo,
   fitKey,
+  fitPadding = 0.08,
   backdrop,
   emphasis,
 }: MapCanvasProps) {
   const framed = useMemo(
-    () => fitViewBox(fitTo ?? [...layout.values()], 0.08),
-    [fitTo, layout],
+    () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
+    [fitTo, layout, fitPadding],
   );
   const { view, fit, handlers } = usePanZoom(framed);
 

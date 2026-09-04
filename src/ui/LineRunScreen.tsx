@@ -120,6 +120,11 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           fitTo={lineStationPositions}
           fitKey={`line:${line}`}
           backdrop={backdrop}
+          // Emphasise the line being run: without it every line renders at
+          // full strength and you cannot tell which one you are on.
+          emphasis={line}
+          // The typing panel overlays the lower third of the viewport.
+          fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
         />
       }
       panel={
