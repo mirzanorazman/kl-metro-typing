@@ -4,7 +4,7 @@ import { loadNetworkData } from '../data/load';
 import { validateNetworkData } from '../data/validate';
 import { buildNetwork } from '../engine/network';
 import { loadProfile } from '../engine/progress';
-import { setMuted } from '../audio/sound';
+import { setMuted, installAudioUnlock } from '../audio/sound';
 import { HomeMap } from './HomeMap';
 import { LineRunScreen } from './LineRunScreen';
 import { AdventureScreen } from './AdventureScreen';
@@ -20,7 +20,10 @@ export function App() {
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
 
   // Apply the stored sound preference once, before anything can play.
-  useState(() => setMuted(loadProfile().muted));
+  useState(() => {
+    setMuted(loadProfile().muted);
+    installAudioUnlock();
+  });
 
   // Data is validated by the test suite; this is a developer safety net only.
   if (import.meta.env.DEV) {

@@ -14,6 +14,8 @@ export interface TrainMarkerProps {
   progress?: number;
   /** Increments on every mistyped key; a change replays the shake. */
   errorTick?: number;
+  /** Zoom compensation, so the marker keeps a constant on-screen size. */
+  scale?: number;
 }
 
 /**
@@ -25,7 +27,13 @@ export interface TrainMarkerProps {
  * smooth between keystrokes, and the global prefers-reduced-motion rule
  * zeroes it for free.
  */
-export function TrainMarker({ from, to, progress = 1, errorTick = 0 }: TrainMarkerProps) {
+export function TrainMarker({
+  from,
+  to,
+  progress = 1,
+  errorTick = 0,
+  scale = 1,
+}: TrainMarkerProps) {
   if (!to) return null;
   const pos = from ? tweenPoint(from, to, progress) : to;
 
@@ -37,7 +45,8 @@ export function TrainMarker({ from, to, progress = 1, errorTick = 0 }: TrainMark
       data-shake={errorTick > 0 ? 'true' : undefined}
       cx={pos.x}
       cy={pos.y}
-      r={9}
+      r={9 * scale}
+      vectorEffect="non-scaling-stroke"
       className="train"
     />
   );

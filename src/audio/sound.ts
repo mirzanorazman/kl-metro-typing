@@ -9,6 +9,7 @@
 
 let ctx: AudioContext | null = null;
 let muted = false;
+let unlockInstalled = false;
 
 export function setMuted(value: boolean): void {
   muted = value;
@@ -20,23 +21,48 @@ export function isMuted(): boolean {
 
 type Ctor = typeof AudioContext;
 
-function audio(): AudioContext | null {
-  if (muted) return null;
+function create(): AudioContext | null {
   if (typeof window === 'undefined') return null;
-
   const Ctor: Ctor | undefined =
     window.AudioContext ?? (window as { webkitAudioContext?: Ctor }).webkitAudioContext;
   if (!Ctor) return null;
-
   try {
     if (!ctx) ctx = new Ctor();
-    // Browsers start the context suspended until a user gesture. Every call
-    // site here follows a keystroke, so resuming lazily is safe.
-    if (ctx.state === 'suspended') void ctx.resume();
     return ctx;
   } catch {
     return null;
   }
+}
+
+/**
+ * Browsers only allow an AudioContext to start from inside a real user-gesture
+ * handler. Our sounds fire from React effects, which run after paint in a
+ * separate task — so resuming there is silently ignored and nothing is ever
+ * heard. This listens for the first genuine keydown or pointerdown and resumes
+ * there, then gets out of the way.
+ */
+export function installAudioUnlock(): void {
+  if (typeof window === 'undefined' || unlockInstalled) return;
+  unlockInstalled = true;
+
+  const unlock = () => {
+    const c = create();
+    if (c && c.state === 'suspended') void c.resume();
+    window.removeEventListener('keydown', unlock);
+    window.removeEventListener('pointerdown', unlock);
+  };
+
+  window.addEventListener('keydown', unlock);
+  window.addEventListener('pointerdown', unlock);
+}
+
+function audio(): AudioContext | null {
+  if (muted) return null;
+  const c = create();
+  if (!c) return null;
+  // Best-effort: harmless if it was already unlocked by the gesture handler.
+  if (c.state === 'suspended') void c.resume();
+  return c.state === 'running' ? c : null;
 }
 
 interface BlipOptions {

@@ -12,6 +12,9 @@ import { MapBackdrop } from './MapBackdrop';
 /** Where the focused point sits vertically; above centre, clear of the panel. */
 const FOCUS_BIAS_Y = 0.34;
 
+/** View width the station radii below were chosen against. */
+const NOMINAL_VIEW_W = 1000;
+
 export interface MapCanvasProps {
   net: NetworkIndex;
   layout: Layout;
@@ -87,6 +90,12 @@ export function MapCanvas({
   );
   const { view, fit, handlers } = usePanZoom(target);
 
+  // Radii are in SVG user units, so they inflate as the view zooms in — a
+  // short line like the Monorail frames tightly and the dots ballooned. Scale
+  // them against the view so their on-screen size stays constant. Strokes are
+  // handled by vector-effect instead, which pins them to CSS pixels.
+  const markScale = Math.max(0.15, Math.min(1.6, view.w / NOMINAL_VIEW_W));
+
   const framedOnce = useRef(false);
 
   useEffect(() => {
@@ -121,6 +130,7 @@ export function MapCanvas({
             fill="none"
             stroke={line.colour}
             strokeWidth={6}
+            vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
             strokeLinejoin="round"
           />
@@ -147,7 +157,8 @@ export function MapCanvas({
             }
             cx={p.x}
             cy={p.y}
-            r={isActive ? 8 : isInterchange ? 6 : 4}
+            r={(isActive ? 8 : isInterchange ? 6 : 4) * markScale}
+            vectorEffect="non-scaling-stroke"
           >
             <title>
               {station.name} — {linesOf(station).join(', ')}
@@ -170,6 +181,7 @@ export function MapCanvas({
               className="line-sweep"
               points={pts}
               stroke={line.colour}
+              vectorEffect="non-scaling-stroke"
               // Normalising the path length to 1 lets the dash animate in
               // fractions, with no need to measure the path in JavaScript.
               pathLength={1}
@@ -180,6 +192,7 @@ export function MapCanvas({
       <TrainMarker
         from={previousStation ? layout.get(previousStation) ?? null : null}
         to={activeStation ? layout.get(activeStation) ?? null : null}
+        scale={markScale}
         progress={trainProgress}
         errorTick={trainErrorTick}
       />
