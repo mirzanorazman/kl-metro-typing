@@ -1,5 +1,9 @@
 # MyRapid Typing
 
+> **Picking this up fresh?** Start with [`docs/STATUS.md`](docs/STATUS.md) —
+> current state, architecture invariants, known debt, and what is next.
+> Note that all source lives on the `feat/foundation-and-adventure` branch.
+
 A typing game on the Kuala Lumpur Rapid KL rail network. Drive a train across
 the Klang Valley by typing station names.
 
