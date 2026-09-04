@@ -4,7 +4,7 @@ import type { Layout } from '../geo/layout';
 import { linesOf, type NetworkIndex } from '../engine/network';
 import { usePanZoom, viewBoxString } from './usePanZoom';
 import { fitViewBox } from '../geo/fit';
-import type { Point } from '../data/types';
+import type { Point, LineCode } from '../data/types';
 import type { BoundaryPath } from '../geo/boundaries';
 import { TrainMarker } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
@@ -24,6 +24,8 @@ export interface MapCanvasProps {
   fitKey?: string;
   /** Land outlines to draw beneath the tracks. */
   backdrop?: BoundaryPath[];
+  /** When set, this line is emphasised and the others are dimmed. */
+  emphasis?: LineCode | null;
 }
 
 export function MapCanvas({
@@ -36,6 +38,7 @@ export function MapCanvas({
   fitTo,
   fitKey,
   backdrop,
+  emphasis,
 }: MapCanvasProps) {
   const framed = useMemo(
     () => fitViewBox(fitTo ?? [...layout.values()], 0.08),
@@ -72,6 +75,7 @@ export function MapCanvas({
           <polyline
             key={line.code}
             data-line={line.code}
+            data-dim={emphasis && line.code !== emphasis ? 'true' : undefined}
             points={pts}
             fill="none"
             stroke={line.colour}

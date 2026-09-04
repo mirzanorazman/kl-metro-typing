@@ -7,17 +7,18 @@ import { stationAt, type NetworkIndex } from '../engine/network';
 import { loadProfile } from '../engine/progress';
 import { MapCanvas } from '../render/MapCanvas';
 import { StationSearch } from './StationSearch';
+import { DirectionChooser } from './DirectionChooser';
 import { useKeyboard } from './useKeyboard';
 
 const VIEWPORT = { width: 1000, height: 800, padding: 80 };
 
 export interface HomeMapProps {
   net: NetworkIndex;
-  onPickLine: (code: LineCode) => void;
+  onStartLine: (code: LineCode, from: string) => void;
   onPickStation: (stationId: string) => void;
 }
 
-export function HomeMap({ net, onPickLine, onPickStation }: HomeMapProps) {
+export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
   const data = useMemo(() => loadNetworkData(), []);
   const layout = useMemo(() => projectStations(data.stations, VIEWPORT), [data]);
 
@@ -31,9 +32,10 @@ export function HomeMap({ net, onPickLine, onPickStation }: HomeMapProps) {
   const profile = useMemo(() => loadProfile(), []);
   const visited = useMemo(() => new Set(profile.visited), [profile]);
   const [searching, setSearching] = useState(false);
+  const [selected, setSelected] = useState<LineCode | null>(null);
 
   // Two-letter line codes, buffered in a ref rather than state: calling
-  // onPickLine from inside a state updater would be a render-phase update.
+  // callbacks from inside a state updater would be a render-phase update.
   const buffer = useRef('');
   const onKey = useCallback(
     (key: string) => {
@@ -42,14 +44,23 @@ export function HomeMap({ net, onPickLine, onPickStation }: HomeMapProps) {
       const match = LINE_CODES.find((c) => c === buffer.current);
       if (match) {
         buffer.current = '';
-        onPickLine(match);
+        setSelected(match);
       }
     },
-    [onPickLine],
+    [],
   );
-  // Suspended while the search field has focus, so typing a station name
-  // does not also fire line codes.
-  useKeyboard(onKey, !searching);
+  // Suspended while the search field has focus or a line is selected, so typing
+  // a station name or direction choice does not also fire line codes.
+  useKeyboard(onKey, !searching && selected === null);
+
+  const fitTo = useMemo(() => {
+    if (!selected) return undefined;
+    const line = net.lines.get(selected);
+    if (!line) return undefined;
+    return line.stations
+      .map((id) => layout.get(id))
+      .filter((p): p is NonNullable<typeof p> => p !== undefined);
+  }, [selected, net, layout]);
 
   return (
     <div className="home-map">
@@ -59,7 +70,9 @@ export function HomeMap({ net, onPickLine, onPickStation }: HomeMapProps) {
         visited={visited}
         activeStation={null}
         backdrop={backdrop}
-        fitKey="home"
+        fitTo={fitTo}
+        fitKey={selected ? `line:${selected}` : 'home'}
+        emphasis={selected}
       />
 
       <header>
@@ -78,26 +91,37 @@ export function HomeMap({ net, onPickLine, onPickStation }: HomeMapProps) {
           </button>
         )}
 
-        {[...net.lines.values()].map((line) => {
-          const done = line.stations.filter((id) => visited.has(id)).length;
-          return (
-            <button
-              key={line.code}
-              type="button"
-              style={{ '--line-colour': line.colour } as React.CSSProperties}
-              onClick={() => onPickLine(line.code)}
-            >
-              <span className="code">{line.code}</span>
-              <span>{line.name}</span>
-              <span className="count">{done} / {line.stations.length}</span>
-            </button>
-          );
-        })}
+        {selected ? (
+          <DirectionChooser
+            net={net}
+            line={selected}
+            onChoose={(from) => onStartLine(selected, from)}
+            onCancel={() => setSelected(null)}
+          />
+        ) : (
+          <>
+            {[...net.lines.values()].map((line) => {
+              const done = line.stations.filter((id) => visited.has(id)).length;
+              return (
+                <button
+                  key={line.code}
+                  type="button"
+                  style={{ '--line-colour': line.colour } as React.CSSProperties}
+                  onClick={() => setSelected(line.code)}
+                >
+                  <span className="code">{line.code}</span>
+                  <span>{line.name}</span>
+                  <span className="count">{done} / {line.stations.length}</span>
+                </button>
+              );
+            })}
 
-        <button type="button" onClick={() => setSearching((v) => !v)}>
-          Start anywhere
-        </button>
-        {searching && <StationSearch net={net} onPick={onPickStation} />}
+            <button type="button" onClick={() => setSearching((v) => !v)}>
+              Start anywhere
+            </button>
+            {searching && <StationSearch net={net} onPick={onPickStation} />}
+          </>
+        )}
       </div>
 
       <footer>
