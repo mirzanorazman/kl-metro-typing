@@ -1,67 +1,181 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { sound, setMuted, isMuted } from './sound';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-describe('sound', () => {
-  beforeEach(() => setMuted(false));
+const toneMock = vi.hoisted(() => {
+  const start = vi.fn(async () => {});
+  const synthTrigger = vi.fn();
+  const membraneTrigger = vi.fn();
 
-  it('reports its mute state', () => {
-    setMuted(true);
-    expect(isMuted()).toBe(true);
-    setMuted(false);
-    expect(isMuted()).toBe(false);
-  });
+  class Synth {
+    toDestination() {
+      return this;
+    }
 
-  it('is safe with no AudioContext available', () => {
-    // jsdom provides none, and callers must never have to check.
-    expect(() => {
-      sound.key();
-      sound.error();
-      sound.arrive();
-      sound.complete();
-    }).not.toThrow();
-  });
+    triggerAttackRelease(...args: unknown[]) {
+      synthTrigger(...args);
+      return this;
+    }
 
-  it('is silent when muted', () => {
-    setMuted(true);
-    expect(() => sound.key()).not.toThrow();
-  });
+    dispose() {
+      return this;
+    }
+  }
+
+  class MembraneSynth {
+    toDestination() {
+      return this;
+    }
+
+    triggerAttackRelease(...args: unknown[]) {
+      membraneTrigger(...args);
+      return this;
+    }
+
+    dispose() {
+      return this;
+    }
+  }
+
+  return {
+    start,
+    synthTrigger,
+    membraneTrigger,
+    Synth,
+    MembraneSynth,
+  };
 });
 
-describe('sound output', () => {
-  it('creates an oscillator per tone when a context is running', async () => {
-    const created: string[] = [];
-    const node = () => ({ connect: (n: unknown) => n, gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} } });
+vi.mock('tone', () => ({
+  start: toneMock.start,
+  Synth: toneMock.Synth,
+  MembraneSynth: toneMock.MembraneSynth,
+}));
 
-    class FakeCtx {
-      state = 'running';
-      currentTime = 0;
-      destination = {};
-      resume() { return Promise.resolve(); }
-      createGain() { created.push('gain'); return node(); }
-      createOscillator() {
-        created.push('osc');
-        return {
-          type: 'sine',
-          frequency: { setValueAtTime() {} },
-          connect: (n: unknown) => n,
-          start() {},
-          stop() {},
-        };
-      }
-    }
-    (window as unknown as { AudioContext: unknown }).AudioContext = FakeCtx;
+async function loadSound() {
+  vi.resetModules();
+  return import('./sound');
+}
 
-    // Re-import so the module picks up the stubbed constructor with no cached context.
-    vi.resetModules();
-    const fresh = await import('./sound');
-    fresh.setMuted(false);
-    fresh.sound.key();
+async function flushPromises() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
+}
 
-    expect(created.filter((c) => c === 'osc')).toHaveLength(1);
+describe('sound', () => {
+  beforeEach(() => {
+    toneMock.start.mockClear();
+    toneMock.synthTrigger.mockClear();
+    toneMock.membraneTrigger.mockClear();
+  });
 
-    fresh.setMuted(true);
-    const before = created.length;
-    fresh.sound.key();
-    expect(created).toHaveLength(before);
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('reports its mute state', async () => {
+    const sound = await loadSound();
+    sound.setMuted(true);
+    expect(sound.isMuted()).toBe(true);
+    sound.setMuted(false);
+    expect(sound.isMuted()).toBe(false);
+  });
+
+  it('is safe when sound has not been unlocked yet', async () => {
+    const sound = await loadSound();
+
+    expect(() => {
+      sound.sound.key();
+      sound.sound.error();
+      sound.sound.arrive();
+      sound.sound.complete();
+    }).not.toThrow();
+
+    expect(toneMock.synthTrigger).not.toHaveBeenCalled();
+    expect(toneMock.membraneTrigger).not.toHaveBeenCalled();
+  });
+
+  it('starts Tone from the first real gesture', async () => {
+    const sound = await loadSound();
+
+    sound.installAudioUnlock();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    await flushPromises();
+
+    expect(toneMock.start).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new Event('pointerdown'));
+    await flushPromises();
+    expect(toneMock.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('plays through Tone once unlocked', async () => {
+    const sound = await loadSound();
+
+    sound.installAudioUnlock();
+    window.dispatchEvent(new Event('pointerdown'));
+    await flushPromises();
+
+    sound.sound.key();
+    sound.sound.error();
+    sound.sound.arrive();
+    sound.sound.complete();
+    await flushPromises();
+
+    expect(toneMock.synthTrigger).toHaveBeenCalled();
+    expect(toneMock.membraneTrigger).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays silent when muted', async () => {
+    const sound = await loadSound();
+
+    sound.installAudioUnlock();
+    window.dispatchEvent(new Event('pointerdown'));
+    await flushPromises();
+
+    sound.setMuted(true);
+    sound.sound.key();
+    sound.sound.error();
+
+    expect(toneMock.synthTrigger).not.toHaveBeenCalled();
+    expect(toneMock.membraneTrigger).not.toHaveBeenCalled();
+  });
+
+  it('starts menu music after unlock when it was requested beforehand', async () => {
+    vi.useFakeTimers();
+    const sound = await loadSound();
+
+    sound.music.startMenu();
+    await flushPromises();
+    expect(toneMock.synthTrigger).not.toHaveBeenCalled();
+
+    sound.installAudioUnlock();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    await flushPromises();
+
+    expect(toneMock.start).toHaveBeenCalledTimes(1);
+    expect(toneMock.synthTrigger).toHaveBeenCalledTimes(1);
+  });
+
+  it('loops menu music until stopped', async () => {
+    vi.useFakeTimers();
+    const sound = await loadSound();
+
+    sound.installAudioUnlock();
+    window.dispatchEvent(new Event('pointerdown'));
+    await flushPromises();
+
+    sound.music.startMenu();
+    await flushPromises();
+    expect(toneMock.synthTrigger).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(2400);
+    await flushPromises();
+    expect(toneMock.synthTrigger).toHaveBeenCalledTimes(2);
+
+    sound.music.stopMenu();
+    vi.advanceTimersByTime(4800);
+    await flushPromises();
+    expect(toneMock.synthTrigger).toHaveBeenCalledTimes(2);
   });
 });

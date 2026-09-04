@@ -16,10 +16,10 @@ Everything is on `main`.
 ```bash
 npm install
 npm run dev
-npm test        # 159 tests
+npm test        # 167 tests
 ```
 
-`npx tsc --noEmit` and `npm run build` are both clean. Build is ~62 kB gzipped.
+`npx tsc --noEmit` and `npm run build` are both clean. Build is ~122 kB gzipped.
 
 ## What exists
 
@@ -45,7 +45,7 @@ src/
   geo/       projection, schematic layout, fitting, shared networkLayout
   render/    SVG map, train marker, prompt, HUD, line strip, pan/zoom
   ui/        screens: HomeMap, LineRunScreen, AdventureScreen, SummaryScreen
-  audio/     synthesised sound
+  audio/     Tone.js-backed synthesised sound, menu ambience, UI cues
 ```
 
 ### Invariants that are easy to break
@@ -71,7 +71,8 @@ These are load-bearing. Each one was a real bug at some point.
    otherwise sit invisible and then pop.
 
 5. **No network requests at runtime.** All data is bundled, including the map
-   backdrop. Sound is synthesised rather than sampled partly to preserve this.
+   backdrop. Sound is synthesised in-process rather than sampled partly to
+   preserve this.
 
 6. **Never call `setState` inside another state updater.** That is a render-phase
    update; React warns and it can loop. Persistence and sound both run from
@@ -85,7 +86,8 @@ These are load-bearing. Each one was a real bug at some point.
    against view width and strokes use `vector-effect: non-scaling-stroke`.
 
 9. **Sound must be unlocked by a real user gesture.** `installAudioUnlock()`
-   handles this. Sounds fire from effects, which are too late for the browser's
+   handles this by calling `Tone.start()` from the first real keydown or
+   pointerdown. Sounds fire from effects, which are too late for the browser's
    autoplay policy — without the unlock, everything is silently suspended.
 
 ## Known debt
@@ -102,20 +104,6 @@ Nothing here is blocking, but all of it is real.
 - **Three same-name station pairs** (Ampang Park, Bukit Bintang, Bandar Utama)
   are physically two stations joined by a walkway but collapse into one record,
   so they draw as a single dot and transfer is free.
-- **Sound does not work.** Confirmed silent in a real browser (Safari) even after
-  the user-gesture unlock was added. The output path is covered by a
-  stubbed-context test and the wiring is correct, so the fault is in reaching or
-  starting the `AudioContext`. Low priority, but leads for whoever picks it up:
-  - `audio()` in `src/audio/sound.ts` returns `null` unless `ctx.state === 'running'`.
-    `resume()` is async, so early calls are dropped — and if the state never
-    reaches `running`, everything is silent forever with no error. Loosening that
-    gate is the first thing to try.
-  - Safari is stricter than Chrome: it generally wants the `AudioContext`
-    *constructed* inside the gesture handler, not merely resumed there.
-    `installAudioUnlock()` currently constructs lazily on first gesture, which
-    may still be too late relative to how the listener is registered.
-  - Verify in isolation before touching the game: a one-line oscillator in the
-    browser console will show whether the policy or the wiring is at fault.
 - **One unexplained behaviour**: the map's framing effect did not apply its focus
   target on mount (StrictMode double-invoke is the likely cause). Worked around
   by seeding `usePanZoom`'s initial state from the same computed target, which is

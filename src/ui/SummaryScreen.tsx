@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { music, sound } from '../audio/sound';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
 import { runMetrics, type RunState } from '../engine/run';
 import { fitViewBox } from '../geo/fit';
@@ -13,6 +15,11 @@ export function SummaryScreen({
   run: RunState;
   onExit: () => void;
 }) {
+  useEffect(() => {
+    music.startMenu();
+    return () => music.stopMenu();
+  }, []);
+
   const times = [...run.stationTimes].sort((a, b) => a.ms - b.ms);
   const fastest = times[0];
   const slowest = times[times.length - 1];
@@ -106,7 +113,15 @@ export function SummaryScreen({
           <li>Slowest: {stationAt(net, slowest.id)?.name} ({(slowest.ms / 1000).toFixed(1)}s)</li>
         </ul>
       )}
-      <button type="button" onClick={onExit}>Back to the map</button>
+      <button
+        type="button"
+        onClick={() => {
+          sound.back();
+          onExit();
+        }}
+      >
+        Back to the map
+      </button>
     </div>
   );
 }

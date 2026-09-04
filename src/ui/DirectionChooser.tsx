@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { LineCode } from '../data/types';
 import { terminiOf } from '../engine/lineRun';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
+import { sound } from '../audio/sound';
 import { useKeyboard } from './useKeyboard';
 
 export interface DirectionChooserProps {
@@ -43,7 +44,10 @@ export function DirectionChooser({ net, line, onChoose, onCancel }: DirectionCho
             <button
               type="button"
               style={{ '--line-colour': def?.colour } as React.CSSProperties}
-              onClick={() => onChoose(e.from)}
+              onClick={() => {
+                sound.select();
+                onChoose(e.from);
+              }}
             >
               <kbd>{i + 1}</kbd>
               <span>Start at {stationAt(net, e.from)?.name}</span>

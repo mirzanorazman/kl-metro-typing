@@ -1,12 +1,13 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LINE_CODES, type LineCode } from '../data/types';
 import { networkLayout } from '../geo/networkLayout';
 import { stationAt, type NetworkIndex } from '../engine/network';
 import { loadProfile, saveProfile } from '../engine/progress';
-import { setMuted } from '../audio/sound';
+import { music, setMuted, sound } from '../audio/sound';
 import { MapCanvas } from '../render/MapCanvas';
 import { StationSearch } from './StationSearch';
 import { DirectionChooser } from './DirectionChooser';
+import { SoundToggle } from './SoundToggle';
 import { useKeyboard } from './useKeyboard';
 
 export interface HomeMapProps {
@@ -18,11 +19,15 @@ export interface HomeMapProps {
 export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
   const { geo: layout, backdrop } = networkLayout();
 
-
   const profile = useMemo(() => loadProfile(), []);
   const visited = useMemo(() => new Set(profile.visited), [profile]);
   const [searching, setSearching] = useState(false);
   const [muted, setMutedPref] = useState(() => loadProfile().muted);
+
+  useEffect(() => {
+    music.startMenu();
+    return () => music.stopMenu();
+  }, []);
 
   const toggleSound = () => {
     const next = !muted;
@@ -90,7 +95,13 @@ export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
         )}
 
         {profile.adventure && (
-          <button type="button" onClick={() => onPickStation(profile.adventure!.at)}>
+          <button
+            type="button"
+            onClick={() => {
+              sound.select();
+              onPickStation(profile.adventure!.at);
+            }}
+          >
             Resume from {stationAt(net, profile.adventure.at)?.name}
           </button>
         )}
@@ -111,7 +122,10 @@ export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
                   key={line.code}
                   type="button"
                   style={{ '--line-colour': line.colour } as React.CSSProperties}
-                  onClick={() => setSelected(line.code)}
+                  onClick={() => {
+                    sound.select();
+                    setSelected(line.code);
+                  }}
                 >
                   <span className="code">{line.code}</span>
                   <span>{line.name}</span>
@@ -120,13 +134,14 @@ export function HomeMap({ net, onStartLine, onPickStation }: HomeMapProps) {
               );
             })}
 
-            <button type="button" onClick={() => setSearching((v) => !v)}>
+            <button type="button" onClick={() => {
+              sound.select();
+              setSearching((v) => !v);
+            }}>
               Start anywhere
             </button>
 
-            <button type="button" onClick={toggleSound} aria-pressed={!muted}>
-              Sound {muted ? 'off' : 'on'}
-            </button>
+            <SoundToggle muted={muted} onToggle={toggleSound} />
             {searching && <StationSearch net={net} onPick={onPickStation} />}
           </>
         )}
