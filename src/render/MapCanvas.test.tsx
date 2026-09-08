@@ -174,6 +174,16 @@ describe('MapCanvas labels', () => {
     expect(container.querySelector('text[data-label="imbi"]')).not.toBeNull();
   });
 
+  it('labels an interchange that no terminus rule would catch', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,
+    );
+    // Masjid Jamek is not a terminus and is not the active station, so it is
+    // labelled at default framing only because it serves three lines. If the
+    // interchange tier breaks, the count test still passes and this does not.
+    expect(container.querySelector('text[data-label="masjid-jamek"]')).not.toBeNull();
+  });
+
   it('watermarks the districts it is given', () => {
     const districts = [{ name: 'Kuala Lumpur', at: { x: 500, y: 400 } }];
     const { container } = render(
