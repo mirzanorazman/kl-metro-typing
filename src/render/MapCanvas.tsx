@@ -258,6 +258,40 @@ export function MapCanvas({
         );
       })}
 
+      {activeStation &&
+        emphasis &&
+        (() => {
+          const p = layout.get(activeStation);
+          const colour = net.lines.get(emphasis)?.colour;
+          if (!p || !colour) return null;
+          return (
+            <g data-beacon aria-hidden="true">
+              <defs>
+                <radialGradient id="beacon-bloom">
+                  <stop offset="0%" stopColor={colour} stopOpacity="0.45" />
+                  <stop offset="100%" stopColor={colour} stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              <circle
+                className="beacon-bloom"
+                cx={p.x}
+                cy={p.y}
+                r={30 * markScale}
+                fill="url(#beacon-bloom)"
+              />
+              <circle
+                className="beacon-ring"
+                cx={p.x}
+                cy={p.y}
+                r={22 * markScale}
+                fill="none"
+                stroke={colour}
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          );
+        })()}
+
       {celebrate &&
         (() => {
           const line = net.lines.get(celebrate);

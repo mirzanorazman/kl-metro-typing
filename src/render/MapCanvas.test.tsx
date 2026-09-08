@@ -156,3 +156,25 @@ describe('MapCanvas track states', () => {
       .toBe('non-scaling-stroke');
   });
 });
+
+describe('MapCanvas beacon', () => {
+  it('marks the active station with a beacon', () => {
+    const { container } = render(
+      <MapCanvas
+        net={net}
+        layout={layout}
+        visited={new Set()}
+        activeStation="kl-sentral"
+        emphasis="KJ"
+      />,
+    );
+    expect(container.querySelector('g[data-beacon]')).not.toBeNull();
+  });
+
+  it('shows no beacon when nothing is active', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} emphasis="KJ" />,
+    );
+    expect(container.querySelector('g[data-beacon]')).toBeNull();
+  });
+});
