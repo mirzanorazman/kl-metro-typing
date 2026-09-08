@@ -1,27 +1,17 @@
+/* Colours and faces come from styles/tokens.css. This file owns the spacing
+   and type scales, and the component rules beneath them. */
 :root {
-  --bg: #12141a;
-  --fg: #f2f4f8;
-  --dim: #9aa3b2;
-  --accent: #ffd166;
-  --error: #ff6b6b;
-  --land: #202734;
-  --land-edge: #38424f;
-  --panel: rgba(18, 20, 26, 0.82);
-  --panel-edge: #2c3340;
-
   --s: 0.5rem;
   --s2: 1rem;
   --s3: 1.5rem;
   --s4: 2.5rem;
 
-  --t-xs: 0.75rem;
-  --t-sm: 0.875rem;
+  --t-xs: 0.6875rem;
+  --t-sm: 0.75rem;
   --t-md: 1rem;
-  --t-lg: 1.5rem;
-  --t-xl: 2.25rem;
-  --t-prompt: clamp(2rem, 5vw, 3.5rem);
-
-  color-scheme: dark;
+  --t-lg: 1.375rem;
+  --t-xl: 2rem;
+  --t-prompt: clamp(1.75rem, 4vw, 2.25rem);
 }
 
 * { box-sizing: border-box; }
@@ -30,9 +20,9 @@ html, body, #root { height: 100%; }
 
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--fg);
-  font: var(--t-md)/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font: var(--t-md)/1.5 var(--font-sans);
 }
 
 /* The app owns the viewport; screens fill it and never scroll the page. */
@@ -49,21 +39,31 @@ body {
   padding: var(--s3);
   background: var(--panel);
   border: 1px solid var(--panel-edge);
-  border-radius: 14px;
-  backdrop-filter: blur(12px);
+  border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--panel-blur);
 }
 
-.prompt { font-size: var(--t-prompt); letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
-.prompt [data-state='pending'] { color: var(--dim); }
-.prompt [data-state='done'] { color: var(--fg); }
-.prompt [data-state='current'] { color: var(--accent); border-bottom: 3px solid var(--accent); }
-.prompt [data-space='true'][data-state='pending'] { border-bottom: 2px solid var(--dim); }
+.prompt {
+  font: 700 var(--t-prompt)/1.2 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+}
+.prompt [data-state='pending'] { color: var(--ink-faint); }
+.prompt [data-state='done'] { color: var(--ink); }
+.prompt [data-state='current'] {
+  color: var(--line-colour, var(--ink));
+  border-bottom: 2px solid var(--line-colour, var(--ink));
+}
+.prompt [data-space='true'][data-state='pending'] { border-bottom: 2px solid var(--ink-faint); }
 
 /* A mistyped key must be seen, not merely counted. */
 @keyframes miskey {
   0%   { color: var(--error); border-bottom-color: var(--error); transform: translateX(-2px); }
   60%  { color: var(--error); border-bottom-color: var(--error); transform: translateX(2px); }
-  100% { color: var(--accent); border-bottom-color: var(--accent); transform: none; }
+  100% { color: var(--line-colour, var(--ink));
+         border-bottom-color: var(--line-colour, var(--ink)); transform: none; }
 }
 .prompt [data-state='current'][data-miskey='true'] { animation: miskey 220ms ease-out; }
 
@@ -72,12 +72,12 @@ body {
 .home-map .map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .home-map header { position: absolute; top: var(--s3); left: var(--s3); z-index: 1; }
 .home-map h1 { margin: 0; font-size: var(--t-xl); letter-spacing: -0.02em; }
-.home-map .tagline { margin: 0; color: var(--dim); font-size: var(--t-sm); }
-.home-map .progress { margin: var(--s) 0 0; color: var(--dim); font-size: var(--t-sm);
+.home-map .tagline { margin: 0; color: var(--ink-muted); font-size: var(--t-sm); }
+.home-map .progress { margin: var(--s) 0 0; color: var(--ink-muted); font-size: var(--t-sm);
   font-variant-numeric: tabular-nums; }
 .home-map footer {
   position: absolute; bottom: var(--s2); left: var(--s3); right: var(--s3);
-  color: var(--dim); font-size: var(--t-xs);
+  color: var(--ink-muted); font-size: var(--t-xs);
 }
 
 .line-picker {
@@ -88,18 +88,18 @@ body {
 .line-picker button {
   display: flex; gap: var(--s2); align-items: center; justify-content: center;
   padding: var(--s) var(--s2); text-align: left;
-  background: var(--panel); color: var(--fg);
-  border: 1px solid var(--panel-edge); border-left: 4px solid var(--line-colour, var(--dim));
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--panel-edge); border-left: 4px solid var(--line-colour, var(--ink-muted));
   border-radius: 10px; cursor: pointer; font: inherit;
 }
-.line-picker button:hover, .line-picker button:focus-visible { border-color: var(--accent); }
+.line-picker button:hover, .line-picker button:focus-visible { border-color: var(--focus-ring); }
 /* Only the line rows get the three-column grid; Resume and Start anywhere
    are ordinary buttons and were being stretched across it. */
 .line-picker button:has(.code) {
   display: grid; grid-template-columns: 2.5rem 1fr auto; justify-content: stretch;
 }
-.line-picker .code { color: var(--line-colour, var(--fg)); font-weight: 700; }
-.line-picker .count { color: var(--dim); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+.line-picker .code { color: var(--line-colour, var(--ink)); font-weight: 700; }
+.line-picker .count { color: var(--ink-muted); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
 .line-picker .sound-toggle {
   width: 2.75rem;
   align-self: flex-end;
@@ -119,8 +119,8 @@ body {
   display: flex; flex-direction: column; gap: var(--s2);
 }
 .home h1 { margin: 0; font-size: var(--t-xl); letter-spacing: -0.02em; }
-.home .tagline { margin: 0; color: var(--dim); }
-.home footer { margin-top: var(--s2); color: var(--dim); font-size: var(--t-xs); }
+.home .tagline { margin: 0; color: var(--ink-muted); }
+.home footer { margin-top: var(--s2); color: var(--ink-muted); font-size: var(--t-xs); }
 
 .line-progress { list-style: none; padding: 0; margin: 0;
   display: flex; flex-direction: column; gap: var(--s); }
@@ -129,18 +129,18 @@ body {
   gap: var(--s2); align-items: center;
 }
 /* The code keeps its line colour, and stays readable as text either way. */
-.line-progress span:first-child { color: var(--line-colour, var(--fg)); font-weight: 700; }
+.line-progress span:first-child { color: var(--line-colour, var(--ink)); font-weight: 700; }
 .line-progress .count, .line-progress li > span:last-child {
-  color: var(--dim); font-size: var(--t-sm); font-variant-numeric: tabular-nums;
+  color: var(--ink-muted); font-size: var(--t-sm); font-variant-numeric: tabular-nums;
 }
 .line-progress progress {
-  width: 100%; height: 6px; accent-color: var(--line-colour, var(--accent));
+  width: 100%; height: 6px; accent-color: var(--line-colour, var(--ink));
 }
 
 /* --- shared bits --- */
 .line-strip {
   display: flex; gap: var(--s2); list-style: none; padding: 0; margin: 0;
-  color: var(--dim); white-space: nowrap;
+  color: var(--ink-muted); white-space: nowrap;
   /* The whole line is rendered and scrolled, rather than re-sliced around the
      current station — a stable list slides, a re-sliced one jumps. */
   overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none;
@@ -149,59 +149,59 @@ body {
 }
 .line-strip::-webkit-scrollbar { display: none; }
 .line-strip li { flex: 0 0 auto; }
-.line-strip [data-current='true'] { color: var(--fg); font-weight: 600; }
+.line-strip [data-current='true'] { color: var(--ink); font-weight: 600; }
 
 .hud { display: flex; gap: var(--s3); font-variant-numeric: tabular-nums;
-  color: var(--dim); font-size: var(--t-sm); }
+  color: var(--ink-muted); font-size: var(--t-sm); }
 
 .junction { display: flex; flex-direction: column; gap: var(--s); }
-.junction h2 { margin: 0; font-size: var(--t-sm); color: var(--dim); font-weight: 600; }
+.junction h2 { margin: 0; font-size: var(--t-sm); color: var(--ink-muted); font-weight: 600; }
 .junction ul { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: var(--s); }
 .junction button {
   display: grid; grid-template-columns: auto 1fr auto; gap: var(--s2);
   align-items: baseline; width: 100%;
   padding: var(--s) var(--s2); text-align: left; font: inherit; cursor: pointer;
-  background: transparent; color: var(--fg);
-  border: 1px solid var(--panel-edge); border-left: 6px solid var(--line-colour, var(--dim));
+  background: transparent; color: var(--ink);
+  border: 1px solid var(--panel-edge); border-left: 6px solid var(--line-colour, var(--ink-muted));
   border-radius: 10px;
 }
-.junction button:hover, .junction button:focus-visible { border-color: var(--accent); }
+.junction button:hover, .junction button:focus-visible { border-color: var(--focus-ring); }
 .junction kbd {
   padding: 0 0.4em; border: 1px solid var(--panel-edge); border-radius: 4px;
-  color: var(--dim); font: var(--t-xs) ui-monospace, monospace;
+  color: var(--ink-muted); font: var(--t-xs) ui-monospace, monospace;
 }
 
 .station-search input {
-  width: 100%; padding: var(--s2); font: inherit; color: var(--fg);
+  width: 100%; padding: var(--s2); font: inherit; color: var(--ink);
   background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 10px;
 }
 .station-search ul { list-style: none; padding: 0; margin: var(--s) 0 0;
   display: flex; flex-direction: column; gap: 2px; }
 .station-search button {
   width: 100%; text-align: left; padding: var(--s) var(--s2); font: inherit;
-  background: transparent; color: var(--fg); border: 0; border-radius: 8px; cursor: pointer;
+  background: transparent; color: var(--ink); border: 0; border-radius: 8px; cursor: pointer;
 }
 .station-search button:hover, .station-search button:focus-visible { background: var(--panel-edge); }
-.station-search .codes { color: var(--dim); font-size: var(--t-sm); }
+.station-search .codes { color: var(--ink-muted); font-size: var(--t-sm); }
 
 .summary { max-width: 40rem; margin: 0 auto; padding: var(--s4);
   display: flex; flex-direction: column; gap: var(--s2); }
 .summary h2 { margin: 0; font-size: var(--t-lg); }
 .summary dl { display: grid; grid-template-columns: auto auto; gap: var(--s) var(--s3);
   justify-content: start; font-variant-numeric: tabular-nums; margin: 0; }
-.summary dt { color: var(--dim); }
+.summary dt { color: var(--ink-muted); }
 .summary dd { margin: 0; font-weight: 600; }
-.summary ul { list-style: none; padding: 0; margin: 0; color: var(--dim); }
+.summary ul { list-style: none; padding: 0; margin: 0; color: var(--ink-muted); }
 
-.hint { color: var(--dim); font-size: var(--t-xs); margin: 0; }
+.hint { color: var(--ink-muted); font-size: var(--t-xs); margin: 0; }
 
 /* Buttons that are not otherwise styled still need to look deliberate. */
 button {
-  font: inherit; color: var(--fg); cursor: pointer;
+  font: inherit; color: var(--ink); cursor: pointer;
   background: transparent; border: 1px solid var(--panel-edge);
-  border-radius: 10px; padding: var(--s) var(--s2);
+  border-radius: 8px; padding: var(--s) var(--s2);
 }
-button:hover, button:focus-visible { border-color: var(--accent); }
+button:hover, button:focus-visible { border-color: var(--focus-ring); }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(6px); }
