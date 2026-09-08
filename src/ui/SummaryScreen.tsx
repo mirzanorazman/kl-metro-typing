@@ -44,7 +44,7 @@ export function SummaryScreen({
 
   // Get the journey line colour
   const lineColour = run.line ? lineAt(net, run.line)?.colour : null;
-  const pathColour = lineColour || 'var(--accent)';
+  const pathColour = lineColour || 'var(--ink)';
 
   // The store is read once per summary: a completed run cannot change which
   // scores it is being compared against mid-screen.

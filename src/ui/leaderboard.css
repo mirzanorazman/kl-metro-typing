@@ -52,7 +52,10 @@
 .leaderboard-panel::before {
   inset: -2px;
   padding: 2px;
-  -webkit-mask: linear-gradient(var(--ink) 0 0) content-box, linear-gradient(var(--ink) 0 0);
+  /* Alpha-only mask stops: mask-composite reads opacity here, not colour, so
+     this is not a rendered colour and is exempt from the token-only rule —
+     same as .line-strip's mask in index.css. */
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
