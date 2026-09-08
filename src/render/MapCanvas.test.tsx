@@ -102,3 +102,47 @@ describe('MapCanvas cartography', () => {
     expect(container.querySelector('circle[data-core="imbi"]')).toBeNull();
   });
 });
+
+describe('MapCanvas track states', () => {
+  it('lays a glow beneath the emphasised line only', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} emphasis="KJ" />,
+    );
+    expect(container.querySelectorAll('polyline.track-glow')).toHaveLength(1);
+  });
+
+  it('draws no glow when no line is emphasised', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,
+    );
+    expect(container.querySelectorAll('polyline.track-glow')).toHaveLength(0);
+  });
+
+  it('inks the stretch already travelled', () => {
+    const { container } = render(
+      <MapCanvas
+        net={net}
+        layout={layout}
+        visited={new Set()}
+        activeStation="kl-sentral"
+        travelled={['gombak', 'taman-melati', 'wangsa-maju']}
+      />,
+    );
+    const done = container.querySelector('polyline.track-done');
+    expect(done).not.toBeNull();
+    expect(done!.getAttribute('points')!.split(' ')).toHaveLength(3);
+  });
+
+  it('draws nothing for a stretch too short to be a line', () => {
+    const { container } = render(
+      <MapCanvas
+        net={net}
+        layout={layout}
+        visited={new Set()}
+        activeStation="gombak"
+        travelled={['gombak']}
+      />,
+    );
+    expect(container.querySelector('polyline.track-done')).toBeNull();
+  });
+});

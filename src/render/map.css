@@ -60,3 +60,23 @@
    rather than taking a line's colour, because it belongs to no one line. */
 .map-canvas circle[data-core] { fill: var(--ink); stroke: none; }
 .map-canvas circle[data-core][data-dim='true'] { opacity: 0.22; }
+
+/* Paper rejects blur — the design pack is explicit that a blurred halo on
+   linen reads as a smudge — so it gets an unblurred bed instead, and only
+   midnight lights the rail. One element, switched by the theme. */
+.map-canvas .track-glow {
+  filter: none;
+  opacity: 0.16;
+  stroke-width: 12;
+}
+[data-theme='midnight'] .map-canvas .track-glow {
+  filter: url(#track-glow);
+  opacity: 0.4;
+  stroke-width: 14;
+}
+
+/* Typing inks the rail behind you. */
+.map-canvas .track-done {
+  stroke: var(--track-done);
+  stroke-width: 2.5;
+}

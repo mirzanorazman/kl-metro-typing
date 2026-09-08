@@ -44,6 +44,8 @@ export interface MapCanvasProps {
   emphasis?: LineCode | null;
   /** When set, a pulse sweeps the length of this line. Set on completion. */
   celebrate?: LineCode | null;
+  /** Stations already typed this run, in order. Inks the stretch behind you. */
+  travelled?: readonly string[];
 }
 
 export function MapCanvas({
@@ -63,6 +65,7 @@ export function MapCanvas({
   backdrop,
   emphasis,
   celebrate,
+  travelled,
 }: MapCanvasProps) {
   const framed = useMemo(
     () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
@@ -142,6 +145,13 @@ export function MapCanvas({
             r={0.95 * markScale}
           />
         </pattern>
+
+        {/* The glow is a blurred copy of the rail beneath the crisp one. Only
+            the emphasised line gets it: the filter repaints on every pan and
+            zoom, and seven of them is not affordable. */}
+        <filter id="track-glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
       </defs>
 
       <rect
@@ -154,6 +164,23 @@ export function MapCanvas({
       />
 
       {backdrop && <MapBackdrop paths={backdrop} />}
+
+      {emphasis &&
+        (() => {
+          const line = net.lines.get(emphasis);
+          if (!line) return null;
+          return (
+            <polyline
+              className="track-glow"
+              points={pointsOf(line.stations)}
+              fill="none"
+              stroke={line.colour}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          );
+        })()}
+
       {[...net.lines.values()].map((line) => {
         const pts = pointsOf(line.stations);
         return (
@@ -171,6 +198,17 @@ export function MapCanvas({
           />
         );
       })}
+
+      {travelled && travelled.length > 1 && (
+        <polyline
+          className="track-done"
+          points={pointsOf(travelled)}
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
 
       {[...net.stations.values()].map((station) => {
         const p = layout.get(station.id);

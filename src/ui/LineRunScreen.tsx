@@ -162,6 +162,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           // full strength and you cannot tell which one you are on.
           emphasis={line}
           celebrate={celebrating ? line : null}
+          travelled={route.slice(0, run.stationTimes.length + 1)}
           // The typing panel overlays the lower third of the viewport.
           fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
         />
