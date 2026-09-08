@@ -157,6 +157,38 @@ describe('MapCanvas track states', () => {
   });
 });
 
+describe('MapCanvas labels', () => {
+  it('labels the significant stations, not all 154', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,
+    );
+    const labels = container.querySelectorAll('text[data-label]');
+    expect(labels.length).toBeGreaterThan(0);
+    expect(labels.length).toBeLessThan(data.stations.length / 2);
+  });
+
+  it('always labels the station being typed', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation="imbi" />,
+    );
+    expect(container.querySelector('text[data-label="imbi"]')).not.toBeNull();
+  });
+
+  it('watermarks the districts it is given', () => {
+    const districts = [{ name: 'Kuala Lumpur', at: { x: 500, y: 400 } }];
+    const { container } = render(
+      <MapCanvas
+        net={net}
+        layout={layout}
+        visited={new Set()}
+        activeStation={null}
+        districts={districts}
+      />,
+    );
+    expect(container.querySelector('text[data-watermark]')?.textContent).toBe('Kuala Lumpur');
+  });
+});
+
 describe('MapCanvas beacon', () => {
   it('marks the active station with a beacon', () => {
     const { container } = render(

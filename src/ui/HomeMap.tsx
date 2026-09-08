@@ -28,7 +28,7 @@ export function HomeMap({
   onPickStation,
   onOpenLeaderboard,
 }: HomeMapProps) {
-  const { geo: layout, backdrop } = networkLayout();
+  const { geo: layout, backdrop, districts } = networkLayout();
 
   const profile = useMemo(() => loadProfile(), []);
   const visited = useMemo(() => new Set(profile.visited), [profile]);
@@ -84,6 +84,7 @@ export function HomeMap({
         visited={visited}
         activeStation={null}
         backdrop={backdrop}
+        districts={districts}
         fitTo={fitTo}
         fitKey={selected ? `line:${selected}` : 'home'}
         // The picker overlays the right edge; pad that side so central KL

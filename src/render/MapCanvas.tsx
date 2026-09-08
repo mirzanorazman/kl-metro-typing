@@ -6,6 +6,7 @@ import { usePanZoom, viewBoxString } from './usePanZoom';
 import { fitViewBox, type EdgePadding } from '../geo/fit';
 import type { Point, LineCode } from '../data/types';
 import type { BoundaryPath } from '../geo/boundaries';
+import { type District } from '../geo/networkLayout';
 import { TrainMarker } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
 
@@ -48,6 +49,8 @@ export interface MapCanvasProps {
   travelled?: readonly string[];
   /** The current line's colour, worn by the train. */
   trainColour?: string | null;
+  /** District names to watermark beneath the network. */
+  districts?: readonly District[];
 }
 
 export function MapCanvas({
@@ -69,6 +72,7 @@ export function MapCanvas({
   celebrate,
   travelled,
   trainColour = null,
+  districts,
 }: MapCanvasProps) {
   const framed = useMemo(
     () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
@@ -124,6 +128,25 @@ export function MapCanvas({
     [layout],
   );
 
+  // Labelling all 154 at once is noise, so labels come in tiers: the stations
+  // that orient you always, everything else only once you have zoomed in far
+  // enough for it to fit.
+  const alwaysLabelled = useMemo(() => {
+    const ids = new Set<string>();
+    for (const line of net.lines.values()) {
+      const first = line.stations[0];
+      const last = line.stations[line.stations.length - 1];
+      if (first) ids.add(first);
+      if (last) ids.add(last);
+    }
+    for (const station of net.stations.values()) {
+      if (linesOf(station).length >= 3) ids.add(station.id);
+    }
+    return ids;
+  }, [net]);
+
+  const showEveryLabel = view.w < 450;
+
   return (
     <svg
       className="map-canvas"
@@ -167,6 +190,22 @@ export function MapCanvas({
       />
 
       {backdrop && <MapBackdrop paths={backdrop} />}
+
+      {!showEveryLabel &&
+        districts?.map((d) => (
+          <text
+            key={d.name}
+            data-watermark
+            className="district-watermark"
+            x={d.at.x}
+            y={d.at.y}
+            fontSize={13 * markScale}
+            textAnchor="middle"
+            aria-hidden="true"
+          >
+            {d.name}
+          </text>
+        ))}
 
       {emphasis &&
         (() => {
@@ -257,6 +296,25 @@ export function MapCanvas({
                 vectorEffect="non-scaling-stroke"
               />
             )}
+            {(showEveryLabel || alwaysLabelled.has(station.id) || isActive) && (() => {
+              // Flip to the left near the right edge of the *live* viewport, so
+              // a label never runs off the screen the player has panned to.
+              const flip = p.x > view.x + view.w * 0.75;
+              return (
+                <text
+                  data-label={station.id}
+                  data-dim={dim}
+                  className="station-label"
+                  x={p.x + (flip ? -9 : 9) * markScale}
+                  y={p.y - 7 * markScale}
+                  textAnchor={flip ? 'end' : 'start'}
+                  fontSize={11 * markScale}
+                  aria-hidden="true"
+                >
+                  {station.name}
+                </text>
+              );
+            })()}
           </g>
         );
       })}

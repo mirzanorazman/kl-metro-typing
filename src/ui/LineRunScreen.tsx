@@ -31,7 +31,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   const data = useMemo(() => loadNetworkData(), []);
   const route = useMemo(() => lineRunRoute(net, line, from), [net, line, from]);
 
-  const { geo: layout, backdrop } = networkLayout();
+  const { geo: layout, backdrop, districts } = networkLayout();
 
 
   const [run, setRun] = useState<RunState>(() => startRun(net, from, performance.now()));
@@ -148,6 +148,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           fitTo={lineStationPositions}
           fitKey={`line:${line}`}
           backdrop={backdrop}
+          districts={districts}
           // The train is placed by typing progress, so it arrives exactly as
           // the name is finished. Recentre as each new station begins.
           trainProgress={

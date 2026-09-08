@@ -104,3 +104,24 @@
   animation: beacon-pulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 .map-canvas .beacon-ring { stroke-width: 2; }
+
+.map-canvas .station-label {
+  fill: var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.map-canvas .station-label[data-dim='true'] { opacity: 0.22; }
+
+/* Regional context, useless at street zoom and faded out there. */
+.map-canvas .district-watermark {
+  fill: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  opacity: 0.45;
+  text-transform: uppercase;
+  pointer-events: none;
+}

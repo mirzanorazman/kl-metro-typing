@@ -27,7 +27,7 @@ export interface AdventureScreenProps {
 }
 
 export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) {
-  const { geo, schematic, backdrop } = networkLayout();
+  const { geo, schematic, backdrop, districts } = networkLayout();
   const { mode, layout, setMode } = useLayoutMode(geo, schematic, 'schematic');
 
   const [run, setRun] = useState<RunState>(() => startRun(net, startAt, performance.now()));
@@ -119,6 +119,7 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
           // layout's positions are deliberately not geographic, so land
           // beneath it would be meaningless.
           backdrop={mode === 'geo' ? backdrop : undefined}
+          districts={districts}
           // The train is placed by typing progress, so it arrives exactly as
           // the name is finished. Recentre as each new station begins.
           trainProgress={
