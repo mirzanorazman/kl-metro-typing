@@ -43,6 +43,12 @@ body {
   box-shadow: var(--panel-shadow);
   backdrop-filter: var(--panel-blur);
 }
+/* The in-game mockup rings the typing card in the line's colour. On paper
+   that is the border alone; midnight adds the soft bloom around it. */
+.play-panel { border-color: var(--line-colour, var(--panel-edge)); }
+[data-theme='midnight'] .play-panel {
+  box-shadow: var(--panel-shadow), 0 0 24px -6px var(--line-colour, transparent);
+}
 
 .prompt {
   font: 700 var(--t-prompt)/1.2 var(--font-mono);

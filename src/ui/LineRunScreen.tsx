@@ -138,6 +138,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
 
   return (
     <PlayLayout
+      lineColour={net.lines.get(line)?.colour ?? null}
       map={
         <MapCanvas
           net={net}

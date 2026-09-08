@@ -107,6 +107,7 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
 
   return (
     <PlayLayout
+      lineColour={run.line ? net.lines.get(run.line)?.colour ?? null : null}
       map={
         <MapCanvas
           net={net}
