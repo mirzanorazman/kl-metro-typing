@@ -145,4 +145,14 @@ describe('MapCanvas track states', () => {
     );
     expect(container.querySelector('polyline.track-done')).toBeNull();
   });
+
+  it('pins the glow to screen space, like the rail beneath it', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} emphasis="KJ" />,
+    );
+    // Without this the glow's width is in user units and balloons as a line
+    // run zooms in, floating a wide blurred slab under a thin rail.
+    expect(container.querySelector('polyline.track-glow')!.getAttribute('vector-effect'))
+      .toBe('non-scaling-stroke');
+  });
 });

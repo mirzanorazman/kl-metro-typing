@@ -175,6 +175,7 @@ export function MapCanvas({
               points={pointsOf(line.stations)}
               fill="none"
               stroke={line.colour}
+              vectorEffect="non-scaling-stroke"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
