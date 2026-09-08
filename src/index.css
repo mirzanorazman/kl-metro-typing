@@ -107,8 +107,10 @@ body {
   display: flex; gap: var(--s2); align-items: center; justify-content: center;
   padding: var(--s) var(--s2); text-align: left;
   background: var(--panel); color: var(--ink);
-  border: 1px solid var(--panel-edge); border-left: 4px solid var(--line-colour, var(--ink-muted));
-  border-radius: 10px; cursor: pointer; font: inherit;
+  border: 1px solid var(--panel-edge); border-left: 4px solid var(--line-colour, var(--ink-faint));
+  border-radius: 8px; cursor: pointer; font: inherit;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--panel-blur);
 }
 .line-picker button:hover, .line-picker button:focus-visible { border-color: var(--focus-ring); }
 /* Only the line rows get the three-column grid; Resume and Start anywhere
@@ -188,19 +190,19 @@ body {
   display: grid; grid-template-columns: auto 1fr auto; gap: var(--s2);
   align-items: baseline; width: 100%;
   padding: var(--s) var(--s2); text-align: left; font: inherit; cursor: pointer;
-  background: transparent; color: var(--ink);
-  border: 1px solid var(--panel-edge); border-left: 6px solid var(--line-colour, var(--ink-muted));
-  border-radius: 10px;
+  background: var(--panel); color: var(--ink);
+  border: 1px solid var(--panel-edge); border-left: 6px solid var(--line-colour, var(--ink-faint));
+  border-radius: 8px;
 }
 .junction button:hover, .junction button:focus-visible { border-color: var(--focus-ring); }
 .junction kbd {
   padding: 0 0.4em; border: 1px solid var(--panel-edge); border-radius: 4px;
-  color: var(--ink-muted); font: var(--t-xs) ui-monospace, monospace;
+  color: var(--ink-muted); font: var(--t-xs) var(--font-mono);
 }
 
 .station-search input {
   width: 100%; padding: var(--s2); font: inherit; color: var(--ink);
-  background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--panel-edge); border-radius: 8px;
 }
 .station-search ul { list-style: none; padding: 0; margin: var(--s) 0 0;
   display: flex; flex-direction: column; gap: 2px; }
@@ -208,8 +210,12 @@ body {
   width: 100%; text-align: left; padding: var(--s) var(--s2); font: inherit;
   background: transparent; color: var(--ink); border: 0; border-radius: 8px; cursor: pointer;
 }
-.station-search button:hover, .station-search button:focus-visible { background: var(--panel-edge); }
-.station-search .codes { color: var(--ink-muted); font-size: var(--t-sm); }
+.station-search button:hover, .station-search button:focus-visible {
+  background: var(--paper-sub);
+}
+.station-search .codes {
+  color: var(--ink-muted); font-family: var(--font-mono); font-size: var(--t-xs);
+}
 
 .summary { max-width: 40rem; margin: 0 auto; padding: var(--s4);
   display: flex; flex-direction: column; gap: var(--s2); }

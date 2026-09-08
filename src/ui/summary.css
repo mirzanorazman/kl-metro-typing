@@ -115,16 +115,19 @@
 }
 
 .summary-stat-number {
+  font-family: var(--font-mono);
   font-size: var(--t-xl);
-  font-weight: 600;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
 }
 
 .summary-stat-label {
+  font-family: var(--font-mono);
   font-size: var(--t-xs);
   color: var(--ink-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.08em;
 }
 
 /* Reduce motion support */

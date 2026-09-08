@@ -9,6 +9,8 @@
   background: var(--panel);
   border: 1px solid var(--panel-edge);
   border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--panel-blur);
 }
 
 /* Registered so the browser can smoothly interpolate the conic-gradient's
@@ -72,13 +74,8 @@
 }
 
 .leaderboard-panel input {
-  width: 100%;
-  padding: var(--s);
-  font: inherit;
-  color: var(--ink);
-  background: transparent;
-  border: 1px solid var(--panel-edge);
-  border-radius: 8px;
+  width: 100%; padding: var(--s); font: inherit; color: var(--ink);
+  background: transparent; border: 1px solid var(--panel-edge); border-radius: 8px;
 }
 
 .leaderboard-screen {
@@ -106,6 +103,8 @@
 .leaderboard-screen table {
   width: 100%;
   border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -115,4 +114,9 @@
   border-bottom: 1px solid var(--panel-edge);
 }
 
-.leaderboard-screen th { color: var(--ink-muted); font-size: var(--t-xs); text-transform: uppercase; }
+.leaderboard-screen th {
+  color: var(--ink-muted);
+  font-size: var(--t-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
