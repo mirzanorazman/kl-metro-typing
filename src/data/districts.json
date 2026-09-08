@@ -1,0 +1,13 @@
+{
+  "note": "Approximate district centroids. Label anchors only — nothing is measured from these.",
+  "districts": [
+    { "name": "Batu Caves", "geo": { "lat": 3.2379, "lng": 101.684 } },
+    { "name": "Kuala Lumpur", "geo": { "lat": 3.139, "lng": 101.6869 } },
+    { "name": "Petaling Jaya", "geo": { "lat": 3.1073, "lng": 101.6067 } },
+    { "name": "Subang Jaya", "geo": { "lat": 3.0567, "lng": 101.5851 } },
+    { "name": "Shah Alam", "geo": { "lat": 3.0733, "lng": 101.5185 } },
+    { "name": "Klang", "geo": { "lat": 3.0449, "lng": 101.4455 } },
+    { "name": "Kajang", "geo": { "lat": 2.9931, "lng": 101.7898 } },
+    { "name": "Putrajaya", "geo": { "lat": 2.9264, "lng": 101.6964 } }
+  ]
+}
