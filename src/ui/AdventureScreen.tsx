@@ -132,6 +132,7 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
           // The typing panel overlays the lower third of the viewport.
           fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
           travelled={[startAt, ...run.visited]}
+          trainColour={run.line ? net.lines.get(run.line)?.colour ?? null : null}
         />
       }
       panel={

@@ -46,6 +46,8 @@ export interface MapCanvasProps {
   celebrate?: LineCode | null;
   /** Stations already typed this run, in order. Inks the stretch behind you. */
   travelled?: readonly string[];
+  /** The current line's colour, worn by the train. */
+  trainColour?: string | null;
 }
 
 export function MapCanvas({
@@ -66,6 +68,7 @@ export function MapCanvas({
   emphasis,
   celebrate,
   travelled,
+  trainColour = null,
 }: MapCanvasProps) {
   const framed = useMemo(
     () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
@@ -316,6 +319,7 @@ export function MapCanvas({
         scale={markScale}
         progress={trainProgress}
         errorTick={trainErrorTick}
+        colour={trainColour}
       />
     </svg>
   );

@@ -163,6 +163,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           emphasis={line}
           celebrate={celebrating ? line : null}
           travelled={route.slice(0, run.stationTimes.length + 1)}
+          trainColour={net.lines.get(line)?.colour ?? null}
           // The typing panel overlays the lower third of the viewport.
           fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
         />
