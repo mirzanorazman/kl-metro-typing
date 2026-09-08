@@ -1,5 +1,5 @@
 import './map.css';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Layout } from '../geo/layout';
 import { linesOf, type NetworkIndex } from '../engine/network';
 import { usePanZoom, viewBoxString } from './usePanZoom';
@@ -106,6 +106,18 @@ export function MapCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey, focusKey]);
 
+  // Every polyline in this canvas is the same transformation of a station
+  // list; later marks (the glow, the travelled stretch) reuse it.
+  const pointsOf = useCallback(
+    (ids: readonly string[]) =>
+      ids
+        .map((id) => layout.get(id))
+        .filter((p): p is Point => p !== undefined)
+        .map((p) => `${p.x},${p.y}`)
+        .join(' '),
+    [layout],
+  );
+
   return (
     <svg
       className="map-canvas"
@@ -114,13 +126,36 @@ export function MapCanvas({
       aria-label="Rapid KL network map"
       {...handlers}
     >
+      <defs>
+        {/* Anchored in user space, so the grid pans with the map for free; the
+            tile scales with the view, so its density on screen never changes. */}
+        <pattern
+          id="drafting-grid"
+          width={28 * markScale}
+          height={28 * markScale}
+          patternUnits="userSpaceOnUse"
+        >
+          <circle
+            className="grid-dot"
+            cx={2 * markScale}
+            cy={2 * markScale}
+            r={0.95 * markScale}
+          />
+        </pattern>
+      </defs>
+
+      <rect
+        data-grid
+        x={view.x}
+        y={view.y}
+        width={view.w}
+        height={view.h}
+        fill="url(#drafting-grid)"
+      />
+
       {backdrop && <MapBackdrop paths={backdrop} />}
       {[...net.lines.values()].map((line) => {
-        const pts = line.stations
-          .map((id) => layout.get(id))
-          .filter((p): p is NonNullable<typeof p> => p !== undefined)
-          .map((p) => `${p.x},${p.y}`)
-          .join(' ');
+        const pts = pointsOf(line.stations);
         return (
           <polyline
             key={line.code}
@@ -140,30 +175,47 @@ export function MapCanvas({
       {[...net.stations.values()].map((station) => {
         const p = layout.get(station.id);
         if (!p) return null;
-        const isInterchange = linesOf(station).length > 1;
+        const codes = linesOf(station);
+        const isInterchange = codes.length > 1;
         const isActive = station.id === activeStation;
         const isNext = highlight?.has(station.id) ?? false;
+        // A multi-line station takes its first line's colour for the ring; its
+        // core is what actually marks it as an interchange.
+        const first = codes[0];
+        const colour = first ? net.lines.get(first)?.colour : undefined;
+        const r = (isActive ? 8 : isInterchange ? 6 : 4) * markScale;
+        const dim = emphasis && !codes.includes(emphasis) ? 'true' : undefined;
+
         return (
-          <circle
-            key={station.id === activeStation ? `${station.id}-active` : station.id}
-            data-station={station.id}
-            data-active={isActive ? 'true' : undefined}
-            data-next={isNext ? 'true' : undefined}
-            data-visited={visited.has(station.id) ? 'true' : undefined}
-            // Dots must dim with their lines, or the de-emphasised lines
-            // still shout through their stations.
-            data-dim={
-              emphasis && !linesOf(station).includes(emphasis) ? 'true' : undefined
-            }
-            cx={p.x}
-            cy={p.y}
-            r={(isActive ? 8 : isInterchange ? 6 : 4) * markScale}
-            vectorEffect="non-scaling-stroke"
-          >
-            <title>
-              {station.name} — {linesOf(station).join(', ')}
-            </title>
-          </circle>
+          <g key={station.id === activeStation ? `${station.id}-active` : station.id}>
+            <circle
+              data-station={station.id}
+              data-active={isActive ? 'true' : undefined}
+              data-next={isNext ? 'true' : undefined}
+              data-visited={visited.has(station.id) ? 'true' : undefined}
+              data-interchange={isInterchange ? 'true' : undefined}
+              data-dim={dim}
+              style={{ '--station-colour': colour } as React.CSSProperties}
+              cx={p.x}
+              cy={p.y}
+              r={r}
+              vectorEffect="non-scaling-stroke"
+            >
+              <title>
+                {station.name} — {codes.join(', ')}
+              </title>
+            </circle>
+            {isInterchange && (
+              <circle
+                data-core={station.id}
+                data-dim={dim}
+                cx={p.x}
+                cy={p.y}
+                r={r * 0.45}
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
+          </g>
         );
       })}
 
@@ -171,11 +223,7 @@ export function MapCanvas({
         (() => {
           const line = net.lines.get(celebrate);
           if (!line) return null;
-          const pts = line.stations
-            .map((id) => layout.get(id))
-            .filter((p): p is NonNullable<typeof p> => p !== undefined)
-            .map((p) => `${p.x},${p.y}`)
-            .join(' ');
+          const pts = pointsOf(line.stations);
           return (
             <polyline
               className="line-sweep"

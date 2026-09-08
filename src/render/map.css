@@ -54,3 +54,9 @@
   animation: line-sweep 1000ms ease-out forwards;
   pointer-events: none;
 }
+
+.map-canvas .grid-dot { fill: var(--grid-dot); stroke: none; }
+/* The core is what says "interchange"; it holds ink in both atmospheres
+   rather than taking a line's colour, because it belongs to no one line. */
+.map-canvas circle[data-core] { fill: var(--ink); stroke: none; }
+.map-canvas circle[data-core][data-dim='true'] { opacity: 0.22; }

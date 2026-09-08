@@ -74,3 +74,31 @@ describe('MapCanvas framing', () => {
     );
   });
 });
+
+describe('MapCanvas cartography', () => {
+  it('lays a drafting grid beneath the network', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,
+    );
+    expect(container.querySelector('pattern#drafting-grid')).not.toBeNull();
+    expect(container.querySelector('rect[data-grid]')).not.toBeNull();
+  });
+
+  it('colours each station mark by its line', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,
+    );
+    const mark = container.querySelector('circle[data-station="imbi"]') as SVGCircleElement;
+    // Imbi is on the Monorail alone, so the mark takes the Monorail's colour.
+    expect(mark.style.getPropertyValue('--station-colour').toUpperCase()).toBe('#80CC28');
+  });
+
+  it('gives interchanges a distinct core', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,
+    );
+    // KL Sentral serves several lines.
+    expect(container.querySelector('circle[data-core="kl-sentral"]')).not.toBeNull();
+    expect(container.querySelector('circle[data-core="imbi"]')).toBeNull();
+  });
+});
