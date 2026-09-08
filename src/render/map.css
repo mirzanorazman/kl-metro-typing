@@ -125,3 +125,12 @@
   text-transform: uppercase;
   pointer-events: none;
 }
+
+.map-canvas .map-furniture {
+  fill: var(--ink-muted);
+  stroke: var(--ink-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+.map-canvas .map-furniture text { stroke: none; }

@@ -189,6 +189,29 @@ describe('MapCanvas labels', () => {
   });
 });
 
+describe('MapCanvas cartographic furniture', () => {
+  it('draws a compass and a scale bar when given a scale', () => {
+    const { container } = render(
+      <MapCanvas
+        net={net}
+        layout={layout}
+        visited={new Set()}
+        activeStation={null}
+        pxPerKm={12}
+      />,
+    );
+    expect(container.querySelector('g[data-compass]')).not.toBeNull();
+    expect(container.querySelector('[data-scale-bar]')?.textContent).toMatch(/\d+ km/);
+  });
+
+  it('omits them when there is no scale to draw', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,
+    );
+    expect(container.querySelector('g[data-compass]')).toBeNull();
+  });
+});
+
 describe('MapCanvas beacon', () => {
   it('marks the active station with a beacon', () => {
     const { container } = render(

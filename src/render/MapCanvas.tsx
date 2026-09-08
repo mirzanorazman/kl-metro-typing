@@ -51,6 +51,8 @@ export interface MapCanvasProps {
   trainColour?: string | null;
   /** District names to watermark beneath the network. */
   districts?: readonly District[];
+  /** Projected units per kilometre. Draws the scale bar when supplied. */
+  pxPerKm?: number;
 }
 
 export function MapCanvas({
@@ -73,6 +75,7 @@ export function MapCanvas({
   travelled,
   trainColour = null,
   districts,
+  pxPerKm,
 }: MapCanvasProps) {
   const framed = useMemo(
     () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
@@ -379,6 +382,45 @@ export function MapCanvas({
         errorTick={trainErrorTick}
         colour={trainColour}
       />
+
+      {pxPerKm !== undefined &&
+        (() => {
+          // Positioned from the live view rather than the layout, so the
+          // furniture stays pinned to the corner while the map pans beneath it.
+          const margin = 24 * markScale;
+          const x = view.x + margin;
+          const y = view.y + view.h - margin;
+          // The longest round distance that still fits comfortably on screen.
+          const km = [50, 20, 10, 5, 2, 1].find((k) => k * pxPerKm < view.w * 0.18) ?? 1;
+          const len = km * pxPerKm;
+          const tick = 4 * markScale;
+
+          return (
+            <g data-compass className="map-furniture" aria-hidden="true">
+              <path
+                d={`M ${x} ${y - 34 * markScale} l ${3 * markScale} ${9 * markScale}
+                    l ${-3 * markScale} ${-3 * markScale} l ${-3 * markScale} ${3 * markScale} Z`}
+              />
+              <text x={x} y={y - 38 * markScale} fontSize={9 * markScale} textAnchor="middle">
+                N
+              </text>
+              <path
+                d={`M ${x} ${y - tick} L ${x} ${y} L ${x + len} ${y} L ${x + len} ${y - tick}`}
+                fill="none"
+                vectorEffect="non-scaling-stroke"
+              />
+              <text
+                data-scale-bar
+                x={x + len / 2}
+                y={y - 6 * markScale}
+                fontSize={9 * markScale}
+                textAnchor="middle"
+              >
+                {km} km
+              </text>
+            </g>
+          );
+        })()}
     </svg>
   );
 }
