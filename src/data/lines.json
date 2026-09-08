@@ -2,7 +2,7 @@
   {
     "code": "KJ",
     "name": "Kelana Jaya Line",
-    "colour": "#ED114C",
+    "colour": "#ED254E",
     "termini": [
       "Gombak",
       "Putra Heights"
@@ -102,7 +102,7 @@
   {
     "code": "AG",
     "name": "Ampang Line",
-    "colour": "#F48412",
+    "colour": "#F78F1E",
     "termini": [
       "Sentul Timur",
       "Ampang"
@@ -167,7 +167,7 @@
   {
     "code": "SP",
     "name": "Sri Petaling Line",
-    "colour": "#881211",
+    "colour": "#98002E",
     "termini": [
       "Sentul Timur",
       "Putra Heights"
@@ -251,7 +251,7 @@
   {
     "code": "SA",
     "name": "Shah Alam Line",
-    "colour": "#1EA6E6",
+    "colour": "#0099FF",
     "termini": [
       "Bandar Utama",
       "Johan Setia"
@@ -314,7 +314,7 @@
   {
     "code": "MR",
     "name": "KL Monorail",
-    "colour": "#80CC28",
+    "colour": "#84BD00",
     "termini": [
       "KL Sentral",
       "Titiwangsa"
@@ -364,7 +364,7 @@
   {
     "code": "KG",
     "name": "Kajang Line",
-    "colour": "#0A8137",
+    "colour": "#00A859",
     "termini": [
       "Kwasa Damansara",
       "Kajang"
@@ -452,7 +452,7 @@
   {
     "code": "PY",
     "name": "Putrajaya Line",
-    "colour": "#FCD006",
+    "colour": "#FFC72C",
     "termini": [
       "Kwasa Damansara",
       "Putrajaya Sentral"

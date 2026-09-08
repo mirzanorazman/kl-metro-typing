@@ -90,7 +90,7 @@ describe('MapCanvas cartography', () => {
     );
     const mark = container.querySelector('circle[data-station="imbi"]') as SVGCircleElement;
     // Imbi is on the Monorail alone, so the mark takes the Monorail's colour.
-    expect(mark.style.getPropertyValue('--station-colour').toUpperCase()).toBe('#80CC28');
+    expect(mark.style.getPropertyValue('--station-colour').toUpperCase()).toBe('#84BD00');
   });
 
   it('gives interchanges a distinct core', () => {
