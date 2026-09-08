@@ -197,6 +197,14 @@ button {
   background: transparent; border: 1px solid var(--panel-edge);
   border-radius: 8px; padding: var(--s) var(--s2);
 }
+
+.line-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 0.35em;
+  border-radius: 4px;
+  font: 700 var(--t-xs)/1 var(--font-mono);
+  letter-spacing: 0.06em;
+}
 button:hover, button:focus-visible { border-color: var(--focus-ring); }
 
 @keyframes rise {
