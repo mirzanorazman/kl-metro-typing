@@ -44,3 +44,25 @@ describe('recordStation', () => {
     expect(p.bestWpm['imbi']).toBe(70);
   });
 });
+
+describe('theme preference', () => {
+  it('is absent on a fresh profile, meaning "follow the OS"', () => {
+    expect(emptyProfile().theme).toBeUndefined();
+  });
+
+  it('survives a save and load round trip', () => {
+    saveProfile({ ...emptyProfile(), theme: 'midnight' });
+    expect(loadProfile().theme).toBe('midnight');
+  });
+
+  it('carries older saves forward without a theme rather than rejecting them', () => {
+    // A record written before the field existed. It must migrate, not recover.
+    const old = { ...emptyProfile() } as Record<string, unknown>;
+    delete old.theme;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(old));
+
+    const loaded = loadProfile();
+    expect(loaded.recovered).toBeUndefined();
+    expect(loaded.theme).toBeUndefined();
+  });
+});
