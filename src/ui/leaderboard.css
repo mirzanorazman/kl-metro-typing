@@ -39,10 +39,10 @@
   background: conic-gradient(
     from var(--leaderboard-glow-angle),
     transparent 0%,
-    var(--line-colour, var(--accent)) 12%,
+    var(--line-colour, var(--ink)) 12%,
     transparent 26%,
     transparent 74%,
-    var(--line-colour, var(--accent)) 88%,
+    var(--line-colour, var(--ink)) 88%,
     transparent 100%
   );
   animation: leaderboard-glow-spin 3s linear infinite;
@@ -52,7 +52,7 @@
 .leaderboard-panel::before {
   inset: -2px;
   padding: 2px;
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask: linear-gradient(var(--ink) 0 0) content-box, linear-gradient(var(--ink) 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
 }
@@ -72,7 +72,7 @@
   width: 100%;
   padding: var(--s);
   font: inherit;
-  color: var(--fg);
+  color: var(--ink);
   background: transparent;
   border: 1px solid var(--panel-edge);
   border-radius: 8px;
@@ -96,8 +96,8 @@
 }
 
 .leaderboard-tabs [aria-selected='true'] {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--focus-ring);
+  color: var(--ink);
 }
 
 .leaderboard-screen table {
@@ -112,4 +112,4 @@
   border-bottom: 1px solid var(--panel-edge);
 }
 
-.leaderboard-screen th { color: var(--dim); font-size: var(--t-xs); text-transform: uppercase; }
+.leaderboard-screen th { color: var(--ink-muted); font-size: var(--t-xs); text-transform: uppercase; }

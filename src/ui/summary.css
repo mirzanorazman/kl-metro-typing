@@ -39,6 +39,7 @@
   background: var(--panel);
   border: 1px solid var(--panel-edge);
   border-radius: 10px;
+  box-shadow: var(--panel-shadow);
   overflow: hidden;
 }
 
@@ -49,7 +50,7 @@
      fold. Unbounded, the square map pushed all of them off a 900px viewport. */
   max-height: 34vh;
   display: block;
-  background: var(--land);
+  background: var(--paper-sub);
 }
 
 /* The path draws itself */
@@ -70,14 +71,14 @@
 
 /* Stations on the journey */
 .summary-journey circle[data-station] {
-  fill: var(--fg);
+  fill: var(--ink);
   opacity: 0.8;
 }
 
 /* Network background (dimmed) */
 .summary-journey polyline[data-network] {
   fill: none;
-  stroke: var(--dim);
+  stroke: var(--ink-muted);
   stroke-width: 2;
   opacity: 0.3;
 }
@@ -116,12 +117,12 @@
 .summary-stat-number {
   font-size: var(--t-xl);
   font-weight: 600;
-  color: var(--fg);
+  color: var(--ink);
 }
 
 .summary-stat-label {
   font-size: var(--t-xs);
-  color: var(--dim);
+  color: var(--ink-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }

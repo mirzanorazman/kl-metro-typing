@@ -1,15 +1,25 @@
-.map-canvas { width: 100%; height: 100%; touch-action: none; background: #12141a; }
+.map-canvas { width: 100%; height: 100%; touch-action: none; background: var(--paper); }
 .map-canvas polyline { transition: opacity 220ms ease; }
 .map-canvas polyline[data-dim='true'] { opacity: 0.18; }
 /* Visiting fills the dot in: you are colouring the map as you go. */
 .map-canvas circle { transition: opacity 220ms ease, fill 380ms ease, stroke 380ms ease; }
 .map-canvas circle[data-dim='true'] { opacity: 0.22; }
-.map-canvas circle { fill: #12141a; stroke: #9aa3b2; stroke-width: 2.5; }
-.map-canvas circle[data-visited='true'] { fill: #f2f4f8; stroke: #f2f4f8; }
-.map-canvas circle[data-next='true'] { stroke: #ffd166; stroke-width: 4; }
-.map-canvas circle[data-active='true'] { fill: #f2f4f8; stroke: #f2f4f8; }
-.map-canvas .train { fill: var(--accent, #ffd166); stroke: #12141a; stroke-width: 2; }
-.map-backdrop path { fill: var(--land, #1b2029); stroke: var(--land-edge, #2c3340); stroke-width: 1; }
+.map-canvas circle {
+  fill: var(--paper);
+  stroke: var(--station-colour, var(--ink-muted));
+  stroke-width: 2.5;
+}
+.map-canvas circle[data-visited='true'] {
+  fill: var(--station-colour, var(--ink));
+  stroke: var(--station-colour, var(--ink));
+}
+.map-canvas circle[data-next='true'] { stroke: var(--focus-ring); stroke-width: 4; }
+.map-canvas circle[data-active='true'] {
+  fill: var(--station-colour, var(--ink));
+  stroke: var(--station-colour, var(--ink));
+}
+.map-backdrop path { fill: var(--paper-sub); stroke: var(--paper-edge); stroke-width: 1; }
+.map-canvas .train { fill: var(--line-colour, var(--ink)); stroke: var(--paper); stroke-width: 2; }
 
 @keyframes arrive {
   from { r: 8; opacity: 1; }
