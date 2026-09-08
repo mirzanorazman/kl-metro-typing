@@ -7,6 +7,7 @@ import { music, setMuted, sound } from '../audio/sound';
 import { MapCanvas } from '../render/MapCanvas';
 import { StationSearch } from './StationSearch';
 import { DirectionChooser } from './DirectionChooser';
+import { LineBadge } from './LineBadge';
 import { SoundToggle } from './SoundToggle';
 import { ThemeToggle } from './ThemeToggle';
 import { useKeyboard } from './useKeyboard';
@@ -140,7 +141,7 @@ export function HomeMap({
                     setSelected(line.code);
                   }}
                 >
-                  <span className="code">{line.code}</span>
+                  <LineBadge code={line.code} colour={line.colour} />
                   <span>{line.name}</span>
                   <span className="count">{done} / {line.stations.length}</span>
                 </button>

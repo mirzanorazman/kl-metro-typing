@@ -3,6 +3,7 @@ import { LINE_CODES, type LineCode } from '../data/types';
 import { lineAt, type NetworkIndex } from '../engine/network';
 import type { LeaderboardEntry } from '../engine/leaderboard';
 import { loadStore, type LeaderboardStore } from '../data/leaderboardStore';
+import { LineBadge } from './LineBadge';
 import './leaderboard.css';
 
 export interface LeaderboardScreenProps {
@@ -52,7 +53,20 @@ export function LeaderboardScreen({ net, onExit }: LeaderboardScreenProps) {
               <tr key={entry.id}>
                 <td>{i + 1}</td>
                 <td>{entry.name}</td>
-                {tab === 'overall' && <td>{lineAt(net, entry.lineCode)?.name ?? entry.lineCode}</td>}
+                {tab === 'overall' && (
+                  <td>
+                    {(() => {
+                      const def = lineAt(net, entry.lineCode);
+                      return def ? (
+                        <>
+                          <LineBadge code={entry.lineCode} colour={def.colour} /> {def.name}
+                        </>
+                      ) : (
+                        entry.lineCode
+                      );
+                    })()}
+                  </td>
+                )}
                 <td>{Math.round(tab === 'overall' ? entry.weightedScore : entry.score)}</td>
                 <td>{Math.round(entry.wpm)}</td>
                 <td>{Math.round(entry.accuracy * 100)}%</td>

@@ -13,6 +13,10 @@ describe('PlayLayout', () => {
 
   it('renders without a line, before one is chosen', () => {
     const { container } = render(<PlayLayout map={<div />} panel={<div />} />);
-    expect(container.querySelector('.play-panel')).not.toBeNull();
+    const panel = container.querySelector('.play-panel') as HTMLElement;
+    expect(panel).not.toBeNull();
+    // A literal string "null" reaching the DOM would poison the var()
+    // fallback, so the property must be empty rather than merely falsy.
+    expect(panel.style.getPropertyValue('--line-colour')).toBe('');
   });
 });
