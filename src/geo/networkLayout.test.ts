@@ -48,9 +48,15 @@ describe('map scale', () => {
     expect(networkLayout().pxPerKm).toBeGreaterThan(0);
   });
 
-  it('scales linearly, so a scale bar can trust it', () => {
-    const { pxPerKm } = networkLayout();
-    expect(pxPerKm * 10).toBeCloseTo(networkLayout().pxPerKm * 10, 6);
+  it('measures a kilometre the station span agrees with', () => {
+    const { geo, pxPerKm } = networkLayout();
+    const xs = [...geo.values()].map((p) => p.x);
+    const spanKm = (Math.max(...xs) - Math.min(...xs)) / pxPerKm;
+    // The network runs roughly 39km east to west in the real world. If
+    // pxPerKm were inverted, or out by an order of magnitude, the projected
+    // span would not survive being divided by it.
+    expect(spanKm).toBeGreaterThan(30);
+    expect(spanKm).toBeLessThan(60);
   });
 });
 
