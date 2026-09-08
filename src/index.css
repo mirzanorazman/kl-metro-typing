@@ -117,7 +117,6 @@ body {
    are ordinary buttons and were being stretched across it. */
 .line-picker button:has(.line-badge) {
   display: grid; grid-template-columns: 2.5rem 1fr auto; justify-content: stretch;
-  justify-items: start;
 }
 .line-picker .count { color: var(--ink-muted); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
 .control-cluster {
@@ -242,6 +241,11 @@ button {
   border-radius: 4px;
   font: 700 var(--t-xs)/1 var(--font-mono);
   letter-spacing: 0.06em;
+  /* Ignored outside a grid context, so this is inert in the <h2> and <td>
+     sites. Inside a grid — the line picker and junction option buttons —
+     it keeps the badge a compact tablet instead of stretching to fill its
+     track, which is the default for a blockified inline-flex grid item. */
+  justify-self: start;
 }
 button:hover, button:focus-visible { border-color: var(--focus-ring); }
 
