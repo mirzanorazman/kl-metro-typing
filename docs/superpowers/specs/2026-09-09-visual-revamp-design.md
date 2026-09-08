@@ -116,8 +116,13 @@ colour. Paper is defined on bare `:root`; midnight overrides under
 | `--ink-muted` | `#5C6470` | `#94A3B8` | Secondary text, telemetry labels |
 | `--ink-faint` | `#A29E94` | `#475569` | Untyped characters, inactive marks |
 | `--grid-dot` | `#D9D4C7` | `#1A2438` | Drafting dot grid |
+| `--track-done` | `#14181F` | `#FFFFFF` | The stretch of rail already typed |
 | `--error` | `#E53935` | `#EF4444` | Mistyped character |
 | `--focus-ring` | `#14181F` | `#F8FAFC` | Keyboard focus outline |
+
+Two further tokens are **fixed across both atmospheres** — `--badge-ink`
+(`#14181F`) and `--badge-paper` (`#FFFFFF`). See §1.3 for why they must not
+follow the theme.
 
 Midnight also sets `color-scheme: dark`; paper sets `color-scheme: light`.
 
@@ -181,9 +186,23 @@ Foreground is therefore chosen at render time by a small helper in
 ```ts
 /** Relative luminance per WCAG 2.1, on sRGB hex. */
 export function luminance(hex: string): number;
-/** `--ink` for light fills, `--paper` for dark ones. */
+/** Whichever of `--badge-paper` / `--badge-ink` contrasts better with `hex`. */
 export function contrastText(hex: string): string;
 ```
+
+The two badge tokens deliberately **do not** vary by theme. `--ink` and
+`--paper` invert between atmospheres, so resolving a badge foreground through
+them would give the `PY` yellow dark text on paper and white text on
+midnight — illegible in the second. `--badge-ink` and `--badge-paper` are fixed
+values that mean "the dark one" and "the light one" regardless of ground.
+
+The helper picks whichever of the two yields the higher WCAG contrast ratio
+rather than testing luminance against a fixed pivot, because no single pivot
+gets all seven right. Against the adopted palette that resolves to white on
+`KJ` and `SP`, and ink on `AG`, `SA`, `MR`, `KG` and `PY`. Two of those —
+`KJ` at roughly 4.2:1 — sit just under AA for small text; the badge is
+therefore never the only place a line is named, and the surrounding label
+always carries the line's full name.
 
 This is computed rather than stored as a `lines.json` field so it cannot drift
 when a colour is retuned, and so no data migration is needed.
