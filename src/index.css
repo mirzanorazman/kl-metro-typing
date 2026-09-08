@@ -115,8 +115,9 @@ body {
 .line-picker button:hover, .line-picker button:focus-visible { border-color: var(--focus-ring); }
 /* Only the line rows get the three-column grid; Resume and Start anywhere
    are ordinary buttons and were being stretched across it. */
-.line-picker button:has(.code) {
+.line-picker button:has(.line-badge) {
   display: grid; grid-template-columns: 2.5rem 1fr auto; justify-content: stretch;
+  justify-items: start;
 }
 .line-picker .count { color: var(--ink-muted); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
 .control-cluster {
