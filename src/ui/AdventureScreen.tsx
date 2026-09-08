@@ -115,11 +115,12 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
           activeStation={run.at}
           highlight={highlight}
           previousStation={run.arrivedFrom}
-          // Real coastlines belong under real geography. The schematic
-          // layout's positions are deliberately not geographic, so land
-          // beneath it would be meaningless.
+          // Real coastlines and district names belong under real geography.
+          // Both are projected from lat/lng, so on the schematic diagram they
+          // would sit at coordinates that mean nothing relative to the drawn
+          // network.
           backdrop={mode === 'geo' ? backdrop : undefined}
-          districts={districts}
+          districts={mode === 'geo' ? districts : undefined}
           // The train is placed by typing progress, so it arrives exactly as
           // the name is finished. Recentre as each new station begins.
           trainProgress={

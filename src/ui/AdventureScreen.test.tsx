@@ -29,4 +29,11 @@ describe('AdventureScreen', () => {
     type('Imbi');
     expect(loadProfile().visited).toContain('imbi');
   });
+
+  it('keeps geographic watermarks off the schematic diagram', () => {
+    const { container } = render(<AdventureScreen net={net} startAt="kl-sentral" onExit={() => {}} />);
+    // Adventure opens in schematic mode, where a lat/lng-anchored district
+    // name would float at a position the diagram does not share.
+    expect(container.querySelectorAll('text[data-watermark]')).toHaveLength(0);
+  });
 });
