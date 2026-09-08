@@ -100,18 +100,14 @@ body {
 }
 .line-picker .code { color: var(--line-colour, var(--ink)); font-weight: 700; }
 .line-picker .count { color: var(--ink-muted); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
-.line-picker .sound-toggle {
-  width: 2.75rem;
-  align-self: flex-end;
-  justify-content: center;
+.control-cluster {
+  display: flex; gap: var(--s); align-self: flex-end;
+}
+.control-cluster button {
+  width: 2.75rem; display: flex; justify-content: center;
   padding: var(--s);
-  border-left: 1px solid var(--panel-edge);
 }
-.line-picker .sound-toggle svg {
-  width: 1.25rem;
-  height: 1.25rem;
-  display: block;
-}
+.control-cluster svg { width: 1.25rem; height: 1.25rem; display: block; }
 
 /* --- the interim home screen (replaced by .home-map in a later task) --- */
 .home {

@@ -2,22 +2,32 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LINE_CODES, type LineCode } from '../data/types';
 import { networkLayout } from '../geo/networkLayout';
 import { stationAt, type NetworkIndex } from '../engine/network';
-import { loadProfile, saveProfile } from '../engine/progress';
+import { loadProfile, saveProfile, type Theme } from '../engine/progress';
 import { music, setMuted, sound } from '../audio/sound';
 import { MapCanvas } from '../render/MapCanvas';
 import { StationSearch } from './StationSearch';
 import { DirectionChooser } from './DirectionChooser';
 import { SoundToggle } from './SoundToggle';
+import { ThemeToggle } from './ThemeToggle';
 import { useKeyboard } from './useKeyboard';
 
 export interface HomeMapProps {
   net: NetworkIndex;
+  theme: Theme;
+  onToggleTheme: () => void;
   onStartLine: (code: LineCode, from: string) => void;
   onPickStation: (stationId: string) => void;
   onOpenLeaderboard: () => void;
 }
 
-export function HomeMap({ net, onStartLine, onPickStation, onOpenLeaderboard }: HomeMapProps) {
+export function HomeMap({
+  net,
+  theme,
+  onToggleTheme,
+  onStartLine,
+  onPickStation,
+  onOpenLeaderboard,
+}: HomeMapProps) {
   const { geo: layout, backdrop } = networkLayout();
 
   const profile = useMemo(() => loadProfile(), []);
@@ -149,7 +159,10 @@ export function HomeMap({ net, onStartLine, onPickStation, onOpenLeaderboard }: 
               Leaderboard
             </button>
 
-            <SoundToggle muted={muted} onToggle={toggleSound} />
+            <div className="control-cluster">
+              <SoundToggle muted={muted} onToggle={toggleSound} />
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+            </div>
             {searching && <StationSearch net={net} onPick={onPickStation} />}
           </>
         )}

@@ -16,14 +16,28 @@ afterEach(() => {
 describe('HomeMap', () => {
   it('renders the network map', () => {
     const { container } = render(
-      <HomeMap net={net} onStartLine={noop} onPickStation={noop} onOpenLeaderboard={noop} />,
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
     );
     expect(container.querySelectorAll('polyline[data-line]')).toHaveLength(7);
   });
 
   it('draws the land backdrop beneath the tracks', () => {
     const { container } = render(
-      <HomeMap net={net} onStartLine={noop} onPickStation={noop} onOpenLeaderboard={noop} />,
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
     );
     expect(container.querySelectorAll('.map-backdrop path').length).toBeGreaterThan(0);
   });
@@ -33,6 +47,8 @@ describe('HomeMap', () => {
     render(
       <HomeMap
         net={net}
+        theme="paper"
+        onToggleTheme={noop}
         onStartLine={(c, f) => (got = [c, f])}
         onPickStation={noop}
         onOpenLeaderboard={noop}
@@ -48,6 +64,8 @@ describe('HomeMap', () => {
     render(
       <HomeMap
         net={net}
+        theme="paper"
+        onToggleTheme={noop}
         onStartLine={(c, f) => (got = [c, f])}
         onPickStation={noop}
         onOpenLeaderboard={noop}
@@ -65,6 +83,8 @@ describe('HomeMap', () => {
     render(
       <HomeMap
         net={net}
+        theme="paper"
+        onToggleTheme={noop}
         onStartLine={noop}
         onPickStation={(id) => (picked = id)}
         onOpenLeaderboard={noop}
@@ -75,24 +95,58 @@ describe('HomeMap', () => {
   });
 
   it('shows overall station progress', () => {
-    render(<HomeMap net={net} onStartLine={noop} onPickStation={noop} onOpenLeaderboard={noop} />);
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
+    );
     expect(screen.getByText(/0 \/ \d+ stations visited/)).toBeTruthy();
   });
 
   it('states that the project is unofficial', () => {
-    render(<HomeMap net={net} onStartLine={noop} onPickStation={noop} onOpenLeaderboard={noop} />);
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
+    );
     expect(screen.getByText(/not affiliated/i)).toBeTruthy();
   });
 
   it('shows the recovery notice when a save could not be read', () => {
     localStorage.setItem('myrapid.v1', 'not json {{{');
-    render(<HomeMap net={net} onStartLine={noop} onPickStation={noop} onOpenLeaderboard={noop} />);
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
+    );
     expect(screen.getByRole('status')).toBeTruthy();
   });
 
   it('renders an icon-only sound toggle with accessible state', () => {
     const { container } = render(
-      <HomeMap net={net} onStartLine={noop} onPickStation={noop} onOpenLeaderboard={noop} />,
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
     );
 
     const button = screen.getByRole('button', { name: /sound on/i });
@@ -112,7 +166,14 @@ describe('HomeMap', () => {
     const stopMenu = vi.spyOn(music, 'stopMenu').mockImplementation(() => {});
 
     const { unmount } = render(
-      <HomeMap net={net} onStartLine={noop} onPickStation={noop} onOpenLeaderboard={noop} />,
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
     );
 
     expect(startMenu).toHaveBeenCalledTimes(1);
@@ -124,7 +185,16 @@ describe('HomeMap', () => {
   it('plays a transition sound when opening station search', () => {
     const select = vi.spyOn(sound, 'select').mockImplementation(() => {});
 
-    render(<HomeMap net={net} onStartLine={noop} onPickStation={noop} onOpenLeaderboard={noop} />);
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
+    );
     fireEvent.click(screen.getByRole('button', { name: /start anywhere/i }));
 
     expect(select).toHaveBeenCalledTimes(1);
@@ -133,7 +203,14 @@ describe('HomeMap', () => {
   it('opens the leaderboard', () => {
     let opened = false;
     render(
-      <HomeMap net={net} onStartLine={noop} onPickStation={noop} onOpenLeaderboard={() => (opened = true)} />,
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={() => (opened = true)}
+      />,
     );
     fireEvent.click(screen.getByRole('button', { name: /leaderboard/i }));
     expect(opened).toBe(true);

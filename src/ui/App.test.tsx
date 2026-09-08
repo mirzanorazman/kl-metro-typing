@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { emptyProfile, saveProfile } from '../engine/progress';
 import { App } from './App';
 
 const type = (t: string) => { for (const ch of t) fireEvent.keyDown(window, { key: ch }); };
@@ -9,7 +10,20 @@ const MR_ROUTE_FROM_KL_SENTRAL = [
   'Bukit Bintang', 'Raja Chulan', 'Bukit Nanas', 'Medan Tuanku', 'Chow Kit', 'Titiwangsa',
 ];
 
-beforeEach(() => localStorage.clear());
+// jsdom does not implement matchMedia at all (undefined by default — see
+// resolveTheme's optional-chaining guard in App.tsx). One test below stubs it
+// permanently to skip an animation delay; restore that original value after
+// every test so it cannot leak into the atmosphere tests that follow.
+const originalMatchMedia = window.matchMedia;
+
+beforeEach(() => {
+  localStorage.clear();
+  document.documentElement.removeAttribute('data-theme');
+});
+
+afterEach(() => {
+  window.matchMedia = originalMatchMedia;
+});
 
 describe('App', () => {
   it('opens on the map', () => {
@@ -60,5 +74,19 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /leaderboard/i }));
 
     expect(screen.getByText('Ali')).toBeTruthy();
+  });
+});
+
+describe('atmosphere', () => {
+  it('follows the OS when the player has never chosen', () => {
+    // jsdom's matchMedia always reports no match, so this is the light branch.
+    render(<App />);
+    expect(document.documentElement.dataset.theme).toBe('paper');
+  });
+
+  it('honours a stored choice over the OS', () => {
+    saveProfile({ ...emptyProfile(), theme: 'midnight' });
+    render(<App />);
+    expect(document.documentElement.dataset.theme).toBe('midnight');
   });
 });
