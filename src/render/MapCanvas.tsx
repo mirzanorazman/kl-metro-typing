@@ -132,9 +132,9 @@ export function MapCanvas({
   );
 
   // Labelling all 154 at once is noise, so labels come in tiers: the stations
-  // that orient you always, everything else only once you have zoomed in far
-  // enough for it to fit.
-  const alwaysLabelled = useMemo(() => {
+  // that orient you always, then major interchanges once the view is not too
+  // crowded, then everything once it is genuinely zoomed in.
+  const termini = useMemo(() => {
     const ids = new Set<string>();
     for (const line of net.lines.values()) {
       const first = line.stations[0];
@@ -142,13 +142,32 @@ export function MapCanvas({
       if (first) ids.add(first);
       if (last) ids.add(last);
     }
+    return ids;
+  }, [net]);
+
+  const majorInterchanges = useMemo(() => {
+    const ids = new Set<string>();
     for (const station of net.stations.values()) {
       if (linesOf(station).length >= 3) ids.add(station.id);
     }
     return ids;
   }, [net]);
 
-  const showEveryLabel = view.w < 450;
+  // How crowded the current view actually is. `view.w` alone cannot answer
+  // this: it is in user units, so a line run framing one line reads as
+  // "zoomed in" while still holding most of the network on screen.
+  const inView = useMemo(
+    () =>
+      [...layout.values()].filter(
+        (p) =>
+          p.x >= view.x && p.x <= view.x + view.w &&
+          p.y >= view.y && p.y <= view.y + view.h,
+      ).length,
+    [layout, view],
+  );
+
+  const showInterchangeLabels = inView <= 40;
+  const showEveryLabel = inView <= 12;
 
   return (
     <svg
@@ -256,71 +275,109 @@ export function MapCanvas({
         />
       )}
 
-      {[...net.stations.values()].map((station) => {
-        const p = layout.get(station.id);
-        if (!p) return null;
-        const codes = linesOf(station);
-        const isInterchange = codes.length > 1;
-        const isActive = station.id === activeStation;
-        const isNext = highlight?.has(station.id) ?? false;
-        // A multi-line station takes its first line's colour for the ring; its
-        // core is what actually marks it as an interchange.
-        const first = codes[0];
-        const colour = first ? net.lines.get(first)?.colour : undefined;
-        const r = (isActive ? 8 : isInterchange ? 6 : 4) * markScale;
-        const dim = emphasis && !codes.includes(emphasis) ? 'true' : undefined;
+      {(() => {
+        // Labels are collected here rather than rendered inline in each
+        // station's <g>, then painted as one group after every station mark:
+        // a station rendered later in the loop was painting over an earlier
+        // station's text.
+        const labels: Array<{
+          id: string;
+          x: number;
+          y: number;
+          textAnchor: 'start' | 'end';
+          dim: 'true' | undefined;
+          name: string;
+        }> = [];
 
-        return (
-          <g key={station.id === activeStation ? `${station.id}-active` : station.id}>
-            <circle
-              data-station={station.id}
-              data-active={isActive ? 'true' : undefined}
-              data-next={isNext ? 'true' : undefined}
-              data-visited={visited.has(station.id) ? 'true' : undefined}
-              data-interchange={isInterchange ? 'true' : undefined}
-              data-dim={dim}
-              style={{ '--station-colour': colour } as React.CSSProperties}
-              cx={p.x}
-              cy={p.y}
-              r={r}
-              vectorEffect="non-scaling-stroke"
-            >
-              <title>
-                {station.name} — {codes.join(', ')}
-              </title>
-            </circle>
-            {isInterchange && (
+        const marks = [...net.stations.values()].map((station) => {
+          const p = layout.get(station.id);
+          if (!p) return null;
+          const codes = linesOf(station);
+          const isInterchange = codes.length > 1;
+          const isActive = station.id === activeStation;
+          const isNext = highlight?.has(station.id) ?? false;
+          // A multi-line station takes its first line's colour for the ring;
+          // its core is what actually marks it as an interchange.
+          const first = codes[0];
+          const colour = first ? net.lines.get(first)?.colour : undefined;
+          const r = (isActive ? 8 : isInterchange ? 6 : 4) * markScale;
+          const dim = emphasis && !codes.includes(emphasis) ? 'true' : undefined;
+
+          if (
+            showEveryLabel ||
+            isActive ||
+            termini.has(station.id) ||
+            (showInterchangeLabels && majorInterchanges.has(station.id))
+          ) {
+            // Flip to the left near the right edge of the *live* viewport, so
+            // a label never runs off the screen the player has panned to.
+            const flip = p.x > view.x + view.w * 0.75;
+            labels.push({
+              id: station.id,
+              x: p.x + (flip ? -9 : 9) * markScale,
+              y: p.y - 7 * markScale,
+              textAnchor: flip ? 'end' : 'start',
+              dim,
+              name: station.name,
+            });
+          }
+
+          return (
+            <g key={station.id === activeStation ? `${station.id}-active` : station.id}>
               <circle
-                data-core={station.id}
+                data-station={station.id}
+                data-active={isActive ? 'true' : undefined}
+                data-next={isNext ? 'true' : undefined}
+                data-visited={visited.has(station.id) ? 'true' : undefined}
+                data-interchange={isInterchange ? 'true' : undefined}
                 data-dim={dim}
+                style={{ '--station-colour': colour } as React.CSSProperties}
                 cx={p.x}
                 cy={p.y}
-                r={r * 0.45}
+                r={r}
                 vectorEffect="non-scaling-stroke"
-              />
-            )}
-            {(showEveryLabel || alwaysLabelled.has(station.id) || isActive) && (() => {
-              // Flip to the left near the right edge of the *live* viewport, so
-              // a label never runs off the screen the player has panned to.
-              const flip = p.x > view.x + view.w * 0.75;
-              return (
-                <text
-                  data-label={station.id}
+              >
+                <title>
+                  {station.name} — {codes.join(', ')}
+                </title>
+              </circle>
+              {isInterchange && (
+                <circle
+                  data-core={station.id}
                   data-dim={dim}
+                  cx={p.x}
+                  cy={p.y}
+                  r={r * 0.45}
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+            </g>
+          );
+        });
+
+        return (
+          <>
+            {marks}
+            <g data-labels aria-hidden="true">
+              {labels.map((label) => (
+                <text
+                  key={label.id}
+                  data-label={label.id}
+                  data-dim={label.dim}
                   className="station-label"
-                  x={p.x + (flip ? -9 : 9) * markScale}
-                  y={p.y - 7 * markScale}
-                  textAnchor={flip ? 'end' : 'start'}
+                  x={label.x}
+                  y={label.y}
+                  textAnchor={label.textAnchor}
                   fontSize={11 * markScale}
-                  aria-hidden="true"
+                  vectorEffect="non-scaling-stroke"
                 >
-                  {station.name}
+                  {label.name}
                 </text>
-              );
-            })()}
-          </g>
+              ))}
+            </g>
+          </>
         );
-      })}
+      })()}
 
       {activeStation &&
         emphasis &&
@@ -387,7 +444,7 @@ export function MapCanvas({
         (() => {
           // Positioned from the live view rather than the layout, so the
           // furniture stays pinned to the corner while the map pans beneath it.
-          const margin = 24 * markScale;
+          const margin = 64 * markScale;
           const x = view.x + margin;
           const y = view.y + view.h - margin;
           // The longest round distance that still fits comfortably on screen.

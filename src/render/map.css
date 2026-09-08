@@ -112,6 +112,12 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   pointer-events: none;
+  /* A paper-coloured halo behind the glyphs, so a label stays legible where
+     it crosses a rail, instead of the stroke smearing the letterforms. */
+  paint-order: stroke fill;
+  stroke: var(--paper);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 .map-canvas .station-label[data-dim='true'] { opacity: 0.22; }
 

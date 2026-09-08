@@ -174,14 +174,44 @@ describe('MapCanvas labels', () => {
     expect(container.querySelector('text[data-label="imbi"]')).not.toBeNull();
   });
 
-  it('labels an interchange that no terminus rule would catch', () => {
+  it('labels an interchange that no terminus rule would catch, once the view is not too crowded', () => {
+    const mj = layout.get('masjid-jamek')!;
+    // At default (full-network) framing the interchange tier is off — too
+    // many stations are in view. A tight cluster around Masjid Jamek's own
+    // position brings the in-view count low enough to turn it on, without
+    // zooming in so far that every station shows.
+    const cluster = [...layout.values()].filter(
+      (p) => Math.hypot(p.x - mj.x, p.y - mj.y) <= 100,
+    );
     const { container } = render(
-      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,
+      <MapCanvas
+        net={net}
+        layout={layout}
+        visited={new Set()}
+        activeStation={null}
+        fitTo={cluster}
+        fitKey="mj-cluster"
+      />,
     );
     // Masjid Jamek is not a terminus and is not the active station, so it is
-    // labelled at default framing only because it serves three lines. If the
-    // interchange tier breaks, the count test still passes and this does not.
+    // labelled here only because it serves three lines and the view is not
+    // too crowded. This pins both the interchange tier and the mid-zoom tier
+    // that gates it — if either breaks, the count test above still passes
+    // and this does not.
     expect(container.querySelector('text[data-label="masjid-jamek"]')).not.toBeNull();
+  });
+
+  it('does not label every station merely because a line is framed', () => {
+    const kj = net.lines.get('KJ')!.stations
+      .map((id) => layout.get(id))
+      .filter((p): p is NonNullable<typeof p> => p !== undefined);
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null}
+        fitTo={kj} fitKey="kj" />,
+    );
+    // Framing one line still leaves most of the network on screen; labelling
+    // all 154 there is what view.w < 450 used to do.
+    expect(container.querySelectorAll('text[data-label]').length).toBeLessThan(40);
   });
 
   it('watermarks the districts it is given', () => {
