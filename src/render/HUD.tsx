@@ -62,9 +62,18 @@ export function HUD({ metrics, stationsThisRun, lineName, toward }: HUDProps) {
     <div className="hud">
       <span className="hud-line">{lineName ?? 'Choose a direction'}</span>
       {toward && <span className="hud-toward">toward {toward}</span>}
-      <span>WPM {Math.round(wpm)}</span>
-      <span>ACC {Math.round(accuracy)}%</span>
-      <span>Stations {Math.round(stations)}</span>
+      <span>
+        <span className="hud-label">WPM</span>{' '}
+        <span className="hud-figure">{Math.round(wpm)}</span>
+      </span>
+      <span>
+        <span className="hud-label">ACC</span>{' '}
+        <span className="hud-figure">{Math.round(accuracy)}%</span>
+      </span>
+      <span>
+        <span className="hud-label">Stations</span>{' '}
+        <span className="hud-figure">{Math.round(stations)}</span>
+      </span>
     </div>
   );
 }

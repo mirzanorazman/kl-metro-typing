@@ -142,7 +142,12 @@ body {
 /* --- shared bits --- */
 .line-strip {
   display: flex; gap: var(--s2); list-style: none; padding: 0; margin: 0;
-  color: var(--ink-muted); white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  white-space: nowrap;
   /* The whole line is rendered and scrolled, rather than re-sliced around the
      current station — a stable list slides, a re-sliced one jumps. */
   overflow-x: auto; scroll-behavior: smooth; scrollbar-width: none;
@@ -151,10 +156,19 @@ body {
 }
 .line-strip::-webkit-scrollbar { display: none; }
 .line-strip li { flex: 0 0 auto; }
-.line-strip [data-current='true'] { color: var(--ink); font-weight: 600; }
+.line-strip [data-current='true'] { color: var(--ink); font-weight: 700; }
 
-.hud { display: flex; gap: var(--s3); font-variant-numeric: tabular-nums;
-  color: var(--ink-muted); font-size: var(--t-sm); }
+.hud {
+  display: flex; gap: var(--s3); align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+.hud-figure { color: var(--ink); font-weight: 600; }
+.hud-line { color: var(--line-colour, var(--ink)); font-weight: 700; }
 
 .junction { display: flex; flex-direction: column; gap: var(--s); }
 .junction h2 { margin: 0; font-size: var(--t-sm); color: var(--ink-muted); font-weight: 600; }
