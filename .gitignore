@@ -24,6 +24,7 @@ dist-ssr
 *.sw?
 .claude/
 .worktrees/
+.superpowers/brainstorm/
 
 # Visual reference only — mockups and design-system exports, not source
 docs/design/
