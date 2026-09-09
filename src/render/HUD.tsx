@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Metrics } from '../engine/metrics';
 import { easeInOut } from '../geo/layout';
+import { Speedometer } from './Speedometer';
 import { prefersReducedMotion } from './useLayoutMode';
 
 const ROLL_MS = 260;
@@ -60,20 +61,31 @@ export function HUD({ metrics, stationsThisRun, lineName, toward }: HUDProps) {
 
   return (
     <div className="hud">
-      <span className="hud-line">{lineName ?? 'Choose a direction'}</span>
-      {toward && <span className="hud-toward">toward {toward}</span>}
-      <span>
-        <span className="hud-label">WPM</span>{' '}
-        <span className="hud-figure">{Math.round(wpm)}</span>
-      </span>
-      <span>
-        <span className="hud-label">ACC</span>{' '}
-        <span className="hud-figure">{Math.round(accuracy)}%</span>
-      </span>
-      <span>
-        <span className="hud-label">Stations</span>{' '}
-        <span className="hud-figure">{Math.round(stations)}</span>
-      </span>
+      <div className="hud-context">
+        <span className="hud-line">{lineName ?? 'Choose a direction'}</span>
+        {toward && <span className="hud-toward">toward {toward}</span>}
+      </div>
+
+      {/* The three figures read as one instrument panel: a caption in the
+          line's colour over a figure large enough to take in mid-keystroke,
+          with the unit small beside it so the number keeps the weight. */}
+      <div className="hud-stats">
+        <Speedometer wpm={wpm} />
+        <div className="hud-cell">
+          <span className="hud-label">accuracy</span>
+          <span className="hud-figure">
+            {Math.round(accuracy)}
+            <small>%</small>
+          </span>
+        </div>
+        <div className="hud-cell">
+          <span className="hud-label">visited</span>
+          <span className="hud-figure">
+            {Math.round(stations)}
+            <small>stations</small>
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
