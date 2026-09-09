@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
-import { emptyProfile, saveProfile } from '../engine/progress';
+import { emptyProfile, saveProfile, STORAGE_KEY } from '../engine/progress';
 import { music, sound } from '../audio/sound';
 import { HomeMap } from './HomeMap';
 
@@ -123,7 +123,7 @@ describe('HomeMap', () => {
   });
 
   it('shows the recovery notice when a save could not be read', () => {
-    localStorage.setItem('myrapid.v1', 'not json {{{');
+    localStorage.setItem(STORAGE_KEY, 'not json {{{');
     render(
       <HomeMap
         net={net}
