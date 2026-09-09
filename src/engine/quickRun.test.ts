@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import type { NetworkData } from '../data/types';
+import { computeMetrics } from './metrics';
 import { buildNetwork } from './network';
 import {
   advanceQuickRun,
@@ -187,6 +188,26 @@ describe('Quick Run transitions', () => {
     expect(partial.completedStations).toEqual([]);
   });
 
+  it('caps running metrics at the deadline even without a tick', () => {
+    const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
+
+    expect(quickRunMetrics(running, 100_000).wpm).toBeCloseTo(computeMetrics(1, 1, 45_000).wpm);
+  });
+
+  it('keeps completed metrics fixed to the 45-second run duration', () => {
+    const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
+    const completed = advanceQuickRun(running, 46_000);
+
+    expect(quickRunMetrics(completed, 100_000).wpm).toBeCloseTo(computeMetrics(1, 1, 45_000).wpm);
+  });
+
+  it('keeps interrupted metrics frozen at the interruption timestamp', () => {
+    const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
+    const interrupted = interruptQuickRun(running, 2000);
+
+    expect(quickRunMetrics(interrupted, 100_000).wpm).toBeCloseTo(computeMetrics(1, 1, 1000).wpm);
+  });
+
   it('uses cumulative wrong and correct key totals for accuracy', () => {
     const ready = prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0);
     const wrong = enterQuickCharacter(network(), ready, 'x', 1000);
@@ -196,10 +217,21 @@ describe('Quick Run transitions', () => {
   });
 
   it('interrupts a running run before its deadline and remains idempotent', () => {
+    const ready = prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0);
     const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
     const interrupted = interruptQuickRun(running, 2000);
 
+    expect(interruptQuickRun(ready, 1000)).toBe(ready);
     expect(interrupted).toMatchObject({ status: 'interrupted', endedAt: 2000 });
+    expect(interruptQuickRun(interrupted, 3000)).toBe(interrupted);
+  });
+
+  it('ignores input, ticks, and interruption after interruption', () => {
+    const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
+    const interrupted = interruptQuickRun(running, 2000);
+
+    expect(enterQuickCharacter(network(), interrupted, 'L', 3000)).toBe(interrupted);
+    expect(advanceQuickRun(interrupted, 3000)).toBe(interrupted);
     expect(interruptQuickRun(interrupted, 3000)).toBe(interrupted);
   });
 
@@ -218,13 +250,26 @@ describe('Quick Run transitions', () => {
     expect(interruptQuickRun(terminal, 46_001)).toBe(terminal);
   });
 
-  it('records a non-negative station duration and creates fresh traversal state', () => {
+  it('records each station duration from its own start and creates fresh traversal state', () => {
     const ready = prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0);
-    const state = typeCurrent(ready, 1000);
+    const firstKey = enterQuickCharacter(network(), ready, 'K', 1000);
+    const firstComplete = [...firstKey.typing.target.slice(1)].reduce(
+      (state, key) => enterQuickCharacter(network(), state, key, 1500),
+      firstKey,
+    );
+    const secondKey = enterQuickCharacter(network(), firstComplete, 'T', 1600);
+    const secondComplete = [...secondKey.typing.target.slice(1)].reduce(
+      (state, key) => enterQuickCharacter(network(), state, key, 2200),
+      secondKey,
+    );
 
-    expect(state.completedStations[0]?.ms).toBeGreaterThanOrEqual(0);
-    expect(state.completedStations).not.toBe(ready.completedStations);
-    expect(state.typing).not.toBe(ready.typing);
+    expect(firstComplete.completedStations[0]).toEqual({ id: 'kl-sentral', ms: 500 });
+    expect(firstComplete.stationStartedAt).toBe(1500);
+    expect(secondComplete.completedStations[1]).toEqual({ id: 'tun-sambanthan', ms: 700 });
+    expect(firstComplete.completedStations).not.toBe(ready.completedStations);
+    expect(secondComplete.completedStations).not.toBe(firstComplete.completedStations);
+    expect(firstComplete.typing).not.toBe(ready.typing);
+    expect(secondComplete.typing).not.toBe(firstComplete.typing);
   });
 
   it('returns zero WPM and score before a run starts', () => {
