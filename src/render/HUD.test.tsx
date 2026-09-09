@@ -15,6 +15,21 @@ describe('HUD', () => {
     expect(container.querySelectorAll('.hud-figure').length).toBe(3);
   });
 
+  it('shows speed on a dial as well as in figures', () => {
+    render(
+      <HUD metrics={metrics} stationsThisRun={4} lineName="Kelana Jaya Line" toward="KLCC" />,
+    );
+    expect(screen.getByRole('img', { name: /62 words per minute/i })).toBeTruthy();
+  });
+
+  it('sets each unit apart from its figure, so the number carries the weight', () => {
+    const { container } = render(
+      <HUD metrics={metrics} stationsThisRun={4} lineName="Kelana Jaya Line" toward="KLCC" />,
+    );
+    const units = [...container.querySelectorAll('.hud-figure small')].map((el) => el.textContent);
+    expect(units).toEqual(['WPM', '%', 'stations']);
+  });
+
   it('still names the line and destination', () => {
     render(
       <HUD metrics={metrics} stationsThisRun={4} lineName="Kelana Jaya Line" toward="KLCC" />,

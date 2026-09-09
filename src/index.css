@@ -211,16 +211,72 @@ body {
 .line-strip [data-current='true'] { color: var(--ink); font-weight: 700; }
 
 .hud {
-  display: flex; gap: var(--s3); align-items: baseline;
+  display: flex; flex-direction: column; gap: var(--s);
   font-family: var(--font-mono);
-  font-size: var(--t-xs);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-muted);
 }
-.hud-figure { color: var(--ink); font-weight: 600; }
+.hud-context { display: flex; gap: var(--s2); align-items: baseline; font-size: var(--t-xs); }
 .hud-line { color: var(--line-colour, var(--ink)); font-weight: 700; }
+
+/* The instrument panel. Cells are divided by hairlines rather than boxed
+   separately, so the row reads as one strip of signage — the same move the
+   station board makes with its own dividers. */
+.hud-stats {
+  display: flex; align-items: stretch;
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.hud-cell {
+  flex: 1 1 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
+  gap: 2px;
+  /* Vertical padding is tight on purpose: the panel floats over the map and
+     every row it grows is a row of the journey it hides. */
+  padding: 4px var(--s2);
+  min-width: 0;
+}
+.hud-cell + .hud-cell { border-left: 1px solid var(--panel-edge); }
+.hud-label {
+  font-size: var(--t-xs); font-weight: 600;
+  color: var(--line-colour, var(--ink-muted));
+}
+.hud-figure {
+  display: flex; align-items: baseline; gap: 0.3em;
+  font-size: var(--t-xl); font-weight: 700; line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+/* The unit is read once and then ignored; the figure is read every second. */
+.hud-figure small {
+  font-size: var(--t-xs); font-weight: 600; letter-spacing: 0.08em;
+  color: var(--ink-muted);
+}
+
+/* The dial sits beside its readout, not above it. Stacked, it made the
+   speed cell a tier taller than the other two and pushed the whole panel
+   up the map; side by side, the strip is as tall as its figures. */
+.hud-gauge {
+  flex-direction: row; align-items: center; justify-content: center;
+  gap: var(--s);
+  /* It also carries the widest content of the three, so it takes the extra
+     room rather than squeezing its dial and figure onto two lines. */
+  flex-grow: 1.4;
+}
+.hud-readout { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.gauge { width: 4.5rem; height: 3rem; display: block; overflow: visible; flex: 0 0 auto; }
+.gauge-track {
+  fill: none; stroke: var(--panel-edge); stroke-width: 5; stroke-linecap: round;
+}
+.gauge-fill {
+  fill: none; stroke: var(--line-colour, var(--ink)); stroke-width: 5; stroke-linecap: round;
+}
+.gauge-tick { stroke: var(--ink-faint); stroke-width: 1.5; stroke-linecap: round; }
+.gauge-needle { stroke: var(--ink); stroke-width: 2.5; stroke-linecap: round; }
+.gauge-hub { fill: var(--ink); }
 
 .junction { display: flex; flex-direction: column; gap: var(--s); }
 .junction h2 { margin: 0; font-size: var(--t-sm); color: var(--ink-muted); font-weight: 600; }
@@ -309,6 +365,16 @@ button:hover, button:focus-visible { border-color: var(--focus-ring); }
     border-radius: 10px 10px 0 0;
     padding: var(--s2);
   }
+
+  /* At dock width three full-size cells overflow, so the figures step down
+     and the dial shrinks rather than the strip scrolling sideways. The dial
+     stays beside its readout even here: stacking it back would cost 40px of
+     a panel that is already capped at 40vh, and a 2.75rem dial leaves the
+     speed cell room for a four-digit figure at 358px of panel. */
+  .hud-figure { font-size: var(--t-lg); }
+  .hud-cell { padding: var(--s) 0.35rem; }
+  .hud-gauge { flex-grow: 1.6; gap: 0.35rem; }
+  .gauge { width: 2.75rem; height: 1.9rem; }
 
   /* The picker was a fixed 22rem column overlaying a phone-width map. The
      desktop rule's `max-height: calc(100% - var(--s4) * 2); overflow: auto`
