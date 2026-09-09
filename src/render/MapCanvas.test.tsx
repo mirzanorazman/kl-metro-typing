@@ -356,6 +356,62 @@ describe('MapCanvas labels', () => {
     expect(container.querySelectorAll('text[data-label]').length).toBeLessThan(40);
   });
 
+  it('does not write two labels over each other at close zoom', () => {
+    const geo = networkLayout().geo;
+    const py = net.lines.get('PY')!.stations;
+    // Sri Damansara Barat and Sri Damansara Sentral are adjacent, and their
+    // names are long enough that both cannot sit up and to the right.
+    const window = py.slice(3, 9).map((id) => geo.get(id)!);
+    const { container } = render(
+      <MapCanvas net={net} layout={geo} visited={new Set()} activeStation={py[5]!}
+        fitTo={window} fitKey="close" />,
+    );
+
+    // The face's own metrics: a 0.6em advance plus the stylesheet's 0.08em of
+    // letter-spacing, and a 0.72em cap height above the baseline. The labels
+    // are uppercase, so nothing descends below it.
+    const ADVANCE = 0.68;
+    const CAP = 0.72;
+    const boxes = [...container.querySelectorAll('text[data-label]')].map((t) => {
+      const size = Number(t.getAttribute('font-size'));
+      const width = (t.textContent ?? '').length * size * ADVANCE;
+      const x = Number(t.getAttribute('x'));
+      const y = Number(t.getAttribute('y'));
+      const x0 = t.getAttribute('text-anchor') === 'end' ? x - width : x;
+      return { id: t.getAttribute('data-label'), x0, x1: x0 + width, y0: y - size * CAP, y1: y };
+    });
+    expect(boxes.length).toBeGreaterThan(3);
+
+    for (const a of boxes) {
+      for (const b of boxes) {
+        if (a === b) continue;
+        const overlap = a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+        expect(overlap, `${a.id} overlaps ${b.id}`).toBe(false);
+      }
+    }
+  });
+
+  it('does not label stations the player cannot see', () => {
+    const geo = networkLayout().geo;
+    const py = net.lines.get('PY')!.stations;
+    const window = py.slice(3, 9).map((id) => geo.get(id)!);
+    const { container } = render(
+      <MapCanvas net={net} layout={geo} visited={new Set()} activeStation={py[5]!}
+        fitTo={window} fitKey="close" />,
+    );
+
+    const [x, y, w, h] = container.querySelector('svg')!
+      .getAttribute('viewBox')!.split(' ').map(Number) as [number, number, number, number];
+    // Generous, because a label sits beside its station rather than on it.
+    for (const label of container.querySelectorAll('text[data-label]')) {
+      const p = geo.get(label.getAttribute('data-label')!)!;
+      expect(p.x).toBeGreaterThan(x - w);
+      expect(p.x).toBeLessThan(x + w * 2);
+      expect(p.y).toBeGreaterThan(y - h);
+      expect(p.y).toBeLessThan(y + h * 2);
+    }
+  });
+
   it('watermarks the districts it is given', () => {
     const districts = [{ name: 'Kuala Lumpur', at: { x: 500, y: 400 } }];
     const { container } = render(

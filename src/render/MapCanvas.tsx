@@ -9,7 +9,8 @@ import {
 import type { Point, LineCode } from '../data/types';
 import type { BoundaryPath } from '../geo/boundaries';
 import { type District } from '../geo/networkLayout';
-import { TrainMarker } from './TrainMarker';
+import { placeLabels, type LabelCandidate, type Obstacle } from './labels';
+import { TrainMarker, tweenPoint } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
 
 /** Where the focused point sits vertically; above centre, clear of the panel. */
@@ -36,6 +37,19 @@ const FOLLOW_MIN_SPAN = 160;
 
 /** Breathing room between a station that must stay in shot and the edge. */
 const FOLLOW_EDGE_MARGIN = 0.06;
+
+/**
+ * Width of one label character as a fraction of the font size.
+ *
+ * The labels are set in a monospace face, whose advance is 0.6em, plus the
+ * 0.08em of letter-spacing the stylesheet adds. Estimating rather than
+ * measuring keeps placement a pure calculation, which is what lets it run
+ * during render instead of after a layout pass.
+ */
+const LABEL_CHAR_EM = 0.68;
+
+/** Label box height as a fraction of the font size — roughly the cap height. */
+const LABEL_LINE_EM = 0.8;
 const FOLLOW_MAX_SPAN = 240;
 
 export interface MapCanvasProps {
@@ -358,14 +372,9 @@ export function MapCanvas({
         // station's <g>, then painted as one group after every station mark:
         // a station rendered later in the loop was painting over an earlier
         // station's text.
-        const labels: Array<{
-          id: string;
-          x: number;
-          y: number;
-          textAnchor: 'start' | 'end';
-          dim: 'true' | undefined;
-          name: string;
-        }> = [];
+        const candidates: LabelCandidate[] = [];
+        const dimmed = new Map<string, 'true' | undefined>();
+        const named = new Map<string, string>();
 
         const marks = [...net.stations.values()].map((station) => {
           const p = layout.get(station.id);
@@ -381,23 +390,41 @@ export function MapCanvas({
           const r = (isActive ? 8 : isInterchange ? 6 : 4) * markScale;
           const dim = emphasis && !codes.includes(emphasis) ? 'true' : undefined;
 
+          // A label for a station well off the viewport is invisible work:
+          // it renders a text node nobody sees, and it makes the placement
+          // pass below compare every pair of the network's 154 names on every
+          // frame of a pan. Half a view of slack keeps labels from popping in
+          // at the edge as the map moves.
+          const onScreen =
+            p.x >= view.x - view.w / 2 && p.x <= view.x + view.w * 1.5 &&
+            p.y >= view.y - view.h / 2 && p.y <= view.y + view.h * 1.5;
+
           if (
-            showEveryLabel ||
             isActive ||
-            termini.has(station.id) ||
-            (showInterchangeLabels && majorInterchanges.has(station.id))
+            (onScreen &&
+              (showEveryLabel ||
+                termini.has(station.id) ||
+                (showInterchangeLabels && majorInterchanges.has(station.id))))
           ) {
-            // Flip to the left near the right edge of the *live* viewport, so
-            // a label never runs off the screen the player has panned to.
-            const flip = p.x > view.x + view.w * 0.75;
-            labels.push({
+            // Placement happens once, below, over the whole set: which corner
+            // a label can take depends on what its neighbours already took.
+            candidates.push({
               id: station.id,
-              x: p.x + (flip ? -9 : 9) * markScale,
-              y: p.y - 7 * markScale,
-              textAnchor: flip ? 'end' : 'start',
-              dim,
-              name: station.name,
+              at: p,
+              text: station.name,
+              // The station being typed outranks everything, then the marks
+              // that orient you; a plain stop yields its corner to both.
+              priority: isActive
+                ? 3
+                : majorInterchanges.has(station.id)
+                  ? 2
+                  : termini.has(station.id)
+                    ? 1
+                    : 0,
+              required: isActive,
             });
+            dimmed.set(station.id, dim);
+            named.set(station.id, station.name);
           }
 
           return (
@@ -433,6 +460,33 @@ export function MapCanvas({
           );
         });
 
+        // The furniture the names have to work around. Without it a label
+        // still cleared its neighbours and then had the train parked on it.
+        const furniture: Obstacle[] = [];
+        const activeAt = activeStation ? layout.get(activeStation) : undefined;
+        if (activeAt && emphasis) {
+          // Matches the beacon ring drawn below.
+          furniture.push({ x: activeAt.x, y: activeAt.y, r: 22 * markScale });
+        }
+        if (activeAt) {
+          const departedAt = previousStation ? layout.get(previousStation) : undefined;
+          const train = departedAt
+            ? tweenPoint(departedAt, activeAt, trainProgress ?? 1)
+            : activeAt;
+          furniture.push({ x: train.x, y: train.y, r: 13 * markScale });
+        }
+
+        const fontSize = 11 * markScale;
+        const labels = placeLabels(candidates, {
+          charWidth: fontSize * LABEL_CHAR_EM,
+          lineHeight: fontSize * LABEL_LINE_EM,
+          offset: 9 * markScale,
+          // The live viewport, so a label near the edge the player has panned
+          // to turns inward rather than running off it.
+          bounds: view,
+          obstacles: furniture,
+        });
+
         return (
           <>
             {marks}
@@ -441,15 +495,15 @@ export function MapCanvas({
                 <text
                   key={label.id}
                   data-label={label.id}
-                  data-dim={label.dim}
+                  data-dim={dimmed.get(label.id)}
                   className="station-label"
                   x={label.x}
                   y={label.y}
                   textAnchor={label.textAnchor}
-                  fontSize={11 * markScale}
+                  fontSize={fontSize}
                   vectorEffect="non-scaling-stroke"
                 >
-                  {label.name}
+                  {named.get(label.id)}
                 </text>
               ))}
             </g>
