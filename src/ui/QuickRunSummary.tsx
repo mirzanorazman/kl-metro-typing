@@ -1,4 +1,5 @@
 import type { Metrics } from '../engine/metrics';
+import { QUICK_RUN_MS } from '../engine/quickRun';
 import './mobile.css';
 
 export interface QuickRunSummaryProps {
@@ -33,7 +34,7 @@ export function QuickRunSummary({
   return (
     <section className="quick-summary">
       <h2>{status === 'completed' ? 'Quick Run complete' : 'Run interrupted'}</h2>
-      <p>{lineName} · 45 seconds</p>
+      <p>{`${lineName} · ${QUICK_RUN_MS / 1000} seconds`}</p>
 
       <dl>
         <dt>Stations completed</dt>

@@ -250,3 +250,26 @@
   background: var(--ink);
   color: var(--paper);
 }
+
+@media (pointer: coarse) and (max-height: 500px) {
+  .quick-summary {
+    gap: var(--s);
+    padding: var(--s);
+  }
+
+  .quick-summary dl {
+    gap: 2px var(--s2);
+  }
+
+  .quick-summary dd {
+    font-size: var(--t-md);
+  }
+
+  .quick-summary-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .quick-summary-actions button {
+    min-height: 44px;
+  }
+}

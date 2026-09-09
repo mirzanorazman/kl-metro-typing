@@ -1,9 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Metrics } from '../engine/metrics';
 import { QuickRunSummary } from './QuickRunSummary';
 
 const metrics: Metrics = { wpm: 51.2, accuracy: 0.968, score: 48 };
+const mobileStyles = readFileSync('src/ui/mobile.css', 'utf8');
+const summarySource = readFileSync('src/ui/QuickRunSummary.tsx', 'utf8');
 
 function renderSummary(overrides: Partial<React.ComponentProps<typeof QuickRunSummary>> = {}) {
   return render(
@@ -28,6 +31,27 @@ function expectStat(label: string, value: string) {
 }
 
 describe('QuickRunSummary', () => {
+  it('derives its displayed duration from the shared Quick Run constant', () => {
+    expect(summarySource).toMatch(
+      /import\s*\{\s*QUICK_RUN_MS\s*\}\s*from\s*'\.\.\/engine\/quickRun'/,
+    );
+    expect(summarySource).toContain('${QUICK_RUN_MS / 1000} seconds');
+  });
+
+  it('compacts into one non-scrolling viewport on short coarse-pointer screens', () => {
+    expect(mobileStyles).toMatch(
+      /\.quick-summary\s*\{[^}]*gap:\s*var\(--s2\);[^}]*overflow:\s*hidden;/,
+    );
+    expect(mobileStyles).toMatch(
+      /@media\s*\(pointer:\s*coarse\)\s*and\s*\(max-height:\s*500px\)\s*\{\s*\.quick-summary\s*\{\s*gap:\s*var\(--s\);\s*padding:\s*var\(--s\);\s*\}\s*\.quick-summary dl\s*\{\s*gap:\s*2px var\(--s2\);\s*\}\s*\.quick-summary dd\s*\{\s*font-size:\s*var\(--t-md\);\s*\}\s*\.quick-summary-actions\s*\{\s*grid-template-columns:\s*1fr 1fr;\s*\}\s*\.quick-summary-actions button\s*\{\s*min-height:\s*44px;\s*\}\s*\}/,
+    );
+
+    const quickSummaryRules = [...mobileStyles.matchAll(/\.quick-summary[^{]*\{([^}]*)\}/g)]
+      .map((match) => match[1])
+      .join('\n');
+    expect(quickSummaryRules).not.toMatch(/overflow(?:-[xy])?:\s*auto/);
+  });
+
   it('renders a completed new-best result with exact rounded metrics and actions', () => {
     const { container } = renderSummary({ newBest: true });
 
