@@ -104,7 +104,7 @@ body {
   width: 22rem; max-height: calc(100% - var(--s4) * 2); overflow: auto;
 }
 .line-picker button {
-  display: flex; gap: var(--s2); align-items: center; justify-content: center;
+  display: grid; grid-template-columns: auto 1fr; gap: var(--s2); align-items: center;
   padding: var(--s) var(--s2); text-align: left;
   background: var(--panel); color: var(--ink);
   border: 1px solid var(--panel-edge);
@@ -135,10 +135,22 @@ body {
 .line-list button:first-child { border-radius: 8px 8px 0 0; }
 .line-list button:last-child { border-radius: 0 0 8px 8px; }
 .line-list button:hover { background: var(--paper-sub); }
-/* Only the line rows get the three-column grid; Resume and Start anywhere
-   are ordinary buttons and were being stretched across it. */
+/* Only the line rows carry a badge and a count, so only they need the wider
+   grid. Resume, Start anywhere and Leaderboard keep the two-column key+label
+   shape from the rule above. */
 .line-picker button:has(.line-badge) {
-  display: grid; grid-template-columns: 2.5rem 1fr auto; justify-content: stretch;
+  grid-template-columns: auto 2.5rem 1fr auto;
+}
+/* The printed shortcut key. Same tablet as `.junction kbd`, so the home menu
+   and the direction chooser advertise their keys identically. */
+.line-picker kbd, .hint kbd {
+  padding: 0 0.4em; border: 1px solid var(--panel-edge); border-radius: 4px;
+  color: var(--ink-muted); font: var(--t-xs) var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.line-picker .hint {
+  margin: 0; padding: 0 var(--s2);
+  color: var(--ink-muted); font-size: var(--t-xs);
 }
 .line-picker .count {
   color: var(--ink-muted);

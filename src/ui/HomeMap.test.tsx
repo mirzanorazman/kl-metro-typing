@@ -215,4 +215,138 @@ describe('HomeMap', () => {
     fireEvent.click(screen.getByRole('button', { name: /leaderboard/i }));
     expect(opened).toBe(true);
   });
+  it('numbers the menu rows so every one has a shortcut key', () => {
+    saveProfile({ ...emptyProfile(), adventure: { at: 'imbi', arrivedFrom: null, line: null } });
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
+    );
+    // Seven lines, then Start anywhere and Leaderboard, then Resume on zero.
+    const keys = screen.getAllByTestId('menu-key').map((k) => k.textContent);
+    expect(keys).toEqual(['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']);
+  });
+
+  it('selects a line by its row number', () => {
+    let got: [string, string] | null = null;
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={(c, f) => (got = [c, f])}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
+    );
+    // 5 is the fifth row, the Monorail; then 1 picks a direction.
+    fireEvent.keyDown(window, { key: '5' });
+    fireEvent.keyDown(window, { key: '1' });
+    expect(got).toEqual(['MR', 'kl-sentral']);
+  });
+
+  it('opens station search with its row number', () => {
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
+    );
+    fireEvent.keyDown(window, { key: '8' });
+    expect(screen.getByLabelText(/search stations/i)).toBeTruthy();
+  });
+
+  it('opens the leaderboard with its row number', () => {
+    let opened = false;
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={() => (opened = true)}
+      />,
+    );
+    fireEvent.keyDown(window, { key: '9' });
+    expect(opened).toBe(true);
+  });
+
+  it('resumes a saved journey with zero', () => {
+    saveProfile({ ...emptyProfile(), adventure: { at: 'imbi', arrivedFrom: null, line: null } });
+    let picked = '';
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={(id) => (picked = id)}
+        onOpenLeaderboard={noop}
+      />,
+    );
+    fireEvent.keyDown(window, { key: '0' });
+    expect(picked).toBe('imbi');
+  });
+
+  it('ignores zero when there is no journey to resume', () => {
+    let picked = '';
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={(id) => (picked = id)}
+        onOpenLeaderboard={noop}
+      />,
+    );
+    fireEvent.keyDown(window, { key: '0' });
+    expect(picked).toBe('');
+  });
+
+  it('leaves the row numbers inert while the search field is open', () => {
+    let opened = false;
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={() => (opened = true)}
+      />,
+    );
+    fireEvent.keyDown(window, { key: '8' });
+    // A 9 typed into the station name must not open the leaderboard.
+    fireEvent.keyDown(window, { key: '9' });
+    expect(opened).toBe(false);
+  });
+
+  it('closes the station search on Escape', () => {
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
+    );
+    fireEvent.keyDown(window, { key: '8' });
+    expect(screen.queryByLabelText(/search stations/i)).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByLabelText(/search stations/i)).toBeNull();
+  });
 });

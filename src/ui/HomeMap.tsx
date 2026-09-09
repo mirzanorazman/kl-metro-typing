@@ -49,11 +49,54 @@ export function HomeMap({
   };
   const [selected, setSelected] = useState<LineCode | null>(null);
 
+  const lines = useMemo(() => [...net.lines.values()], [net]);
+  const resumeAt = profile.adventure?.at ?? null;
+
+  // The menu is numbered top to bottom, and the numbers are derived from that
+  // order rather than written down twice, so the keys and the printed <kbd>
+  // badges cannot drift apart. Resume takes 0 so that adding or removing it
+  // never renumbers the lines beneath it.
+  const searchKey = String(lines.length + 1);
+  const leaderboardKey = String(lines.length + 2);
+
+  const toggleSearch = useCallback(() => {
+    sound.select();
+    setSearching((v) => !v);
+  }, []);
+
+  const openLeaderboard = useCallback(() => {
+    sound.select();
+    onOpenLeaderboard();
+  }, [onOpenLeaderboard]);
+
+  const resume = useCallback(() => {
+    if (!resumeAt) return;
+    sound.select();
+    onPickStation(resumeAt);
+  }, [resumeAt, onPickStation]);
+
+  const chooseLine = useCallback((code: LineCode) => {
+    sound.select();
+    setSelected(code);
+  }, []);
+
   // Two-letter line codes, buffered in a ref rather than state: calling
   // callbacks from inside a state updater would be a render-phase update.
   const buffer = useRef('');
   const onKey = useCallback(
     (key: string) => {
+      // Digits address the menu rows directly; letters still spell a line
+      // code, so the two schemes never contend for the same keystroke.
+      if (key >= '0' && key <= '9') {
+        buffer.current = '';
+        if (key === '0') return resume();
+        const row = Number(key) - 1;
+        if (row < lines.length) return chooseLine(lines[row]!.code);
+        if (row === lines.length) return toggleSearch();
+        if (row === lines.length + 1) return openLeaderboard();
+        return;
+      }
+
       if (key.length !== 1 || !/[a-z]/i.test(key)) return;
       buffer.current = (buffer.current + key).toUpperCase().slice(-2);
       const match = LINE_CODES.find((c) => c === buffer.current);
@@ -62,11 +105,24 @@ export function HomeMap({
         setSelected(match);
       }
     },
-    [],
+    [lines, resume, chooseLine, toggleSearch, openLeaderboard],
   );
   // Suspended while the search field has focus or a line is selected, so typing
-  // a station name or direction choice does not also fire line codes.
+  // a station name or direction choice does not also fire menu shortcuts.
   useKeyboard(onKey, !searching && selected === null);
+
+  // Escape closes the search. It cannot ride on `useKeyboard` above, which is
+  // deliberately inert while searching — and which suppresses the default for
+  // every printable key, so leaving it live would stop the field being typed
+  // into at all. A listener of its own, added only while the field is open.
+  useEffect(() => {
+    if (!searching) return;
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSearching(false);
+    };
+    window.addEventListener('keydown', onEsc);
+    return () => window.removeEventListener('keydown', onEsc);
+  }, [searching]);
 
   const fitTo = useMemo(() => {
     if (!selected) return undefined;
@@ -116,14 +172,9 @@ export function HomeMap({
         )}
 
         {profile.adventure && (
-          <button
-            type="button"
-            onClick={() => {
-              sound.select();
-              onPickStation(profile.adventure!.at);
-            }}
-          >
-            Resume from {stationAt(net, profile.adventure.at)?.name}
+          <button type="button" onClick={resume}>
+            <kbd data-testid="menu-key">0</kbd>
+            <span>Resume from {stationAt(net, profile.adventure.at)?.name}</span>
           </button>
         )}
 
@@ -137,18 +188,16 @@ export function HomeMap({
         ) : (
           <>
             <div className="line-list">
-              {[...net.lines.values()].map((line) => {
+              {lines.map((line, i) => {
                 const done = line.stations.filter((id) => visited.has(id)).length;
                 return (
                   <button
                     key={line.code}
                     type="button"
                     style={{ '--line-colour': line.colour } as React.CSSProperties}
-                    onClick={() => {
-                      sound.select();
-                      setSelected(line.code);
-                    }}
+                    onClick={() => chooseLine(line.code)}
                   >
+                    <kbd data-testid="menu-key">{i + 1}</kbd>
                     <LineBadge code={line.code} colour={line.colour} />
                     <span>{line.name}</span>
                     <span className="count">{done} / {line.stations.length}</span>
@@ -157,19 +206,19 @@ export function HomeMap({
               })}
             </div>
 
-            <button type="button" onClick={() => {
-              sound.select();
-              setSearching((v) => !v);
-            }}>
-              Start anywhere
+            <button type="button" onClick={toggleSearch}>
+              <kbd data-testid="menu-key">{searchKey}</kbd>
+              <span>Start anywhere</span>
             </button>
 
-            <button type="button" onClick={() => {
-              sound.select();
-              onOpenLeaderboard();
-            }}>
-              Leaderboard
+            <button type="button" onClick={openLeaderboard}>
+              <kbd data-testid="menu-key">{leaderboardKey}</kbd>
+              <span>Leaderboard</span>
             </button>
+
+            <p className="hint">
+              Press a number, or type a line code. {searching && <><kbd>Esc</kbd> to close.</>}
+            </p>
 
             <div className="control-cluster">
               <SoundToggle muted={muted} onToggle={toggleSound} />
