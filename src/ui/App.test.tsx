@@ -122,3 +122,19 @@ describe('atmosphere', () => {
     expect(saved.muted).toBe(true);
   });
 });
+
+describe('the opening animation', () => {
+  it('draws the network on when the app first opens', () => {
+    const { container } = render(<App />);
+    expect(container.querySelector('.home-map')?.getAttribute('data-intro')).toBe('true');
+    expect(container.querySelectorAll('polyline[data-draw]')).toHaveLength(7);
+  });
+
+  it('does not replay on the way back from another screen', () => {
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /leaderboard/i }));
+    fireEvent.click(screen.getByRole('button', { name: /back to the map/i }));
+    expect(container.querySelector('.home-map')?.getAttribute('data-intro')).toBe(null);
+    expect(container.querySelectorAll('polyline[data-draw]')).toHaveLength(0);
+  });
+});

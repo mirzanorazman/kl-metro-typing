@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { StrictMode } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
@@ -348,5 +349,71 @@ describe('HomeMap', () => {
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(screen.queryByLabelText(/search stations/i)).toBeNull();
+  });
+});
+
+describe('HomeMap opening', () => {
+  const home = (intro?: boolean) =>
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+        intro={intro}
+      />,
+    );
+
+  it('draws the network on when the page first loads', () => {
+    const { container } = home(true);
+    expect(container.querySelectorAll('polyline[data-draw]')).toHaveLength(7);
+    expect(container.querySelector('.home-map')?.getAttribute('data-intro')).toBe('true');
+  });
+
+  it('shows the map already drawn when the opening has played', () => {
+    const { container } = home(false);
+    expect(container.querySelectorAll('polyline[data-draw]')).toHaveLength(0);
+    expect(container.querySelector('.home-map')?.getAttribute('data-intro')).toBe(null);
+  });
+
+  it('lets an impatient player skip the opening with a keypress', () => {
+    const { container } = home(true);
+    fireEvent.keyDown(window, { key: 'q' });
+    expect(container.querySelectorAll('polyline[data-draw]')).toHaveLength(0);
+  });
+
+  it('lets an impatient player skip the opening with a click', () => {
+    const { container } = home(true);
+    fireEvent.pointerDown(window);
+    expect(container.querySelectorAll('polyline[data-draw]')).toHaveLength(0);
+  });
+});
+
+describe('HomeMap under StrictMode', () => {
+  it('plays the opening even though React renders the component twice', async () => {
+    // A fresh module registry, because the intro is spent once per page load
+    // and the renders above have already spent this file's copy.
+    vi.resetModules();
+    const { HomeMap: Fresh } = await import('./HomeMap');
+
+    // StrictMode double-invokes state initialisers to surface impure ones.
+    // Consuming the one-per-load intro in an initialiser is exactly that:
+    // the second invocation finds it already spent and the map appears
+    // fully drawn, in development only.
+    const { container } = render(
+      <StrictMode>
+        <Fresh
+          net={net}
+          theme="paper"
+          onToggleTheme={noop}
+          onStartLine={noop}
+          onPickStation={noop}
+          onOpenLeaderboard={noop}
+        />
+      </StrictMode>,
+    );
+    expect(container.querySelector('.home-map')?.getAttribute('data-intro')).toBe('true');
   });
 });

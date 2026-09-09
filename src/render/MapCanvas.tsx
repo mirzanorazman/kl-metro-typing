@@ -12,6 +12,7 @@ import { type District } from '../geo/networkLayout';
 import { placeLabels, type LabelCandidate, type Obstacle } from './labels';
 import { TrainMarker, tweenPoint } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
+import { DRAW_EASE, type EntranceTiming } from './entrance';
 
 /** Where the focused point sits vertically; above centre, clear of the panel. */
 const FOCUS_BIAS_Y = 0.34;
@@ -95,6 +96,13 @@ export interface MapCanvasProps {
   districts?: readonly District[];
   /** Projected units per kilometre. Draws the scale bar when supplied. */
   pxPerKm?: number;
+  /**
+   * When set, the network draws itself on rather than appearing whole: each
+   * line strokes from terminus to terminus and its stations pop in behind
+   * the advancing tip. The canvas only spends the numbers as CSS animation
+   * delays; the sequence itself is decided by `entranceTiming`.
+   */
+  entrance?: EntranceTiming | null;
 }
 
 export function MapCanvas({
@@ -119,6 +127,7 @@ export function MapCanvas({
   trainColour = null,
   districts,
   pxPerKm,
+  entrance = null,
 }: MapCanvasProps) {
   // The followed shot is sized in what the player actually sees, which means
   // knowing the container's shape: preserveAspectRatio letterboxes any box
@@ -260,6 +269,14 @@ export function MapCanvas({
   const showInterchangeLabels = inView <= 40;
   const showEveryLabel = inView <= 12;
 
+  // Everything that is neither rail nor dot — names, watermarks, the compass
+  // and scale bar — waits for the network to finish assembling. Fading them
+  // in alongside the draw would put text over a map that is still moving.
+  const settledPop = entrance ? 'true' : undefined;
+  const settledStyle = entrance
+    ? ({ '--pop-delay': `${Math.round(entrance.total)}ms` } as React.CSSProperties)
+    : undefined;
+
   return (
     <svg
       ref={svgRef}
@@ -310,6 +327,8 @@ export function MapCanvas({
           <text
             key={d.name}
             data-watermark
+            data-pop={settledPop}
+            style={settledStyle}
             className="district-watermark"
             x={d.at.x}
             y={d.at.y}
@@ -340,11 +359,25 @@ export function MapCanvas({
 
       {[...net.lines.values()].map((line) => {
         const pts = pointsOf(line.stations);
+        // pathLength normalises the stroke to 1, so the dash that hides the
+        // undrawn stretch is written in fractions and needs no measuring.
+        const draw = entrance?.line.get(line.code);
         return (
           <polyline
             key={line.code}
             data-line={line.code}
             data-dim={emphasis && line.code !== emphasis ? 'true' : undefined}
+            data-draw={draw ? 'true' : undefined}
+            pathLength={draw ? 1 : undefined}
+            style={
+              draw
+                ? ({
+                    '--draw-delay': `${draw.delay}ms`,
+                    '--draw-dur': `${draw.duration}ms`,
+                    '--draw-ease': DRAW_EASE.css,
+                  } as React.CSSProperties)
+                : undefined
+            }
             points={pts}
             fill="none"
             stroke={line.colour}
@@ -389,6 +422,11 @@ export function MapCanvas({
           const colour = first ? net.lines.get(first)?.colour : undefined;
           const r = (isActive ? 8 : isInterchange ? 6 : 4) * markScale;
           const dim = emphasis && !codes.includes(emphasis) ? 'true' : undefined;
+          const pop = entrance?.station.get(station.id);
+          const popStyle =
+            pop === undefined
+              ? undefined
+              : ({ '--pop-delay': `${Math.round(pop)}ms` } as React.CSSProperties);
 
           // A label for a station well off the viewport is invisible work:
           // it renders a text node nobody sees, and it makes the placement
@@ -436,7 +474,11 @@ export function MapCanvas({
                 data-visited={visited.has(station.id) ? 'true' : undefined}
                 data-interchange={isInterchange ? 'true' : undefined}
                 data-dim={dim}
-                style={{ '--station-colour': colour } as React.CSSProperties}
+                data-pop={pop === undefined ? undefined : 'true'}
+                style={Object.assign(
+                  { '--station-colour': colour } as React.CSSProperties,
+                  popStyle,
+                )}
                 cx={p.x}
                 cy={p.y}
                 r={r}
@@ -450,6 +492,8 @@ export function MapCanvas({
                 <circle
                   data-core={station.id}
                   data-dim={dim}
+                  data-pop={pop === undefined ? undefined : 'true'}
+                  style={popStyle}
                   cx={p.x}
                   cy={p.y}
                   r={r * 0.45}
@@ -490,7 +534,7 @@ export function MapCanvas({
         return (
           <>
             {marks}
-            <g data-labels aria-hidden="true">
+            <g data-labels aria-hidden="true" data-pop={settledPop} style={settledStyle}>
               {labels.map((label) => (
                 <text
                   key={label.id}
@@ -585,7 +629,13 @@ export function MapCanvas({
           const tick = 4 * markScale;
 
           return (
-            <g data-compass className="map-furniture" aria-hidden="true">
+            <g
+              data-compass
+              className="map-furniture"
+              aria-hidden="true"
+              data-pop={settledPop}
+              style={settledStyle}
+            >
               <path
                 d={`M ${x} ${y - 34 * markScale} l ${3 * markScale} ${9 * markScale}
                     l ${-3 * markScale} ${-3 * markScale} l ${-3 * markScale} ${3 * markScale} Z`}

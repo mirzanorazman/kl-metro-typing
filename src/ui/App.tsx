@@ -33,6 +33,11 @@ export function App() {
   const data = useMemo(() => loadNetworkData(), []);
   const net = useMemo(() => buildNetwork(data), [data]);
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
+  // The map draws itself on when the session opens, and not on the returns
+  // from a run or the leaderboard. Owned here rather than in HomeMap because
+  // this is where "have we been anywhere yet" is already known: HomeMap
+  // unmounts on the way out and could not remember it.
+  const [introSpent, setIntroSpent] = useState(false);
   const [theme, setTheme] = useState<Theme>(() => resolveTheme(loadProfile().theme));
 
   useEffect(() => {
@@ -59,6 +64,11 @@ export function App() {
 
   const home = () => setScreen({ kind: 'home' });
 
+  const leaveHome = (next: Screen) => {
+    setIntroSpent(true);
+    setScreen(next);
+  };
+
   if (screen.kind === 'line') {
     return (
       <LineRunScreen net={net} line={screen.code} from={screen.from} onExit={home} />
@@ -75,9 +85,10 @@ export function App() {
       net={net}
       theme={theme}
       onToggleTheme={toggleTheme}
-      onStartLine={(code, from) => setScreen({ kind: 'line', code, from })}
-      onPickStation={(at) => setScreen({ kind: 'adventure', at })}
-      onOpenLeaderboard={() => setScreen({ kind: 'leaderboard' })}
+      onStartLine={(code, from) => leaveHome({ kind: 'line', code, from })}
+      onPickStation={(at) => leaveHome({ kind: 'adventure', at })}
+      onOpenLeaderboard={() => leaveHome({ kind: 'leaderboard' })}
+      intro={!introSpent}
     />
   );
 }

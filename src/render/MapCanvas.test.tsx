@@ -5,6 +5,7 @@ import { buildNetwork } from '../engine/network';
 import { buildSchematic } from '../geo/schematic';
 import { networkLayout } from '../geo/networkLayout';
 import { MapCanvas } from './MapCanvas';
+import { DRAW_EASE, entranceTiming } from './entrance';
 
 const data = loadNetworkData();
 const net = buildNetwork(data);
@@ -469,5 +470,59 @@ describe('MapCanvas beacon', () => {
       <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} emphasis="KJ" />,
     );
     expect(container.querySelector('g[data-beacon]')).toBeNull();
+  });
+});
+
+describe('MapCanvas entrance', () => {
+  const timing = entranceTiming(net);
+
+  it('leaves the map fully drawn when no entrance is given', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,
+    );
+    expect(container.querySelectorAll('[data-draw]')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-pop]')).toHaveLength(0);
+  });
+
+  it('draws each line on at its own moment', () => {
+    const { container } = render(
+      <MapCanvas
+        net={net} layout={layout} visited={new Set()} activeStation={null}
+        entrance={timing}
+      />,
+    );
+    const kj = container.querySelector<SVGPolylineElement>('polyline[data-line="KJ"]')!;
+    expect(kj.getAttribute('data-draw')).toBe('true');
+    expect(kj.getAttribute('pathLength')).toBe('1');
+    expect(kj.style.getPropertyValue('--draw-delay')).toBe(`${timing.line.get('KJ')!.delay}ms`);
+    expect(kj.style.getPropertyValue('--draw-dur')).toBe(`${timing.line.get('KJ')!.duration}ms`);
+    // The stylesheet animates the stroke with the same curve the station
+    // delays were computed against, rather than a copy of it.
+    expect(kj.style.getPropertyValue('--draw-ease')).toBe(DRAW_EASE.css);
+  });
+
+  it('pops each station as its line reaches it', () => {
+    const { container } = render(
+      <MapCanvas
+        net={net} layout={layout} visited={new Set()} activeStation={null}
+        entrance={timing}
+      />,
+    );
+    const dot = container.querySelector<SVGCircleElement>('circle[data-station="imbi"]')!;
+    expect(dot.getAttribute('data-pop')).toBe('true');
+    expect(dot.style.getPropertyValue('--pop-delay'))
+      .toBe(`${Math.round(timing.station.get('imbi')!)}ms`);
+  });
+
+  it('holds the labels and furniture back until the network has drawn', () => {
+    const { container } = render(
+      <MapCanvas
+        net={net} layout={layout} visited={new Set()} activeStation={null}
+        entrance={timing} pxPerKm={4}
+      />,
+    );
+    const labels = container.querySelector<SVGGElement>('g[data-labels]')!;
+    expect(labels.getAttribute('data-pop')).toBe('true');
+    expect(labels.style.getPropertyValue('--pop-delay')).toBe(`${Math.round(timing.total)}ms`);
   });
 });

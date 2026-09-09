@@ -140,3 +140,55 @@
   pointer-events: none;
 }
 .map-canvas .map-furniture text { stroke: none; }
+
+/* --- the opening draw-on ---------------------------------------------
+   Each line strokes itself from terminus to terminus and a station's dot
+   pops as the tip reaches it; `entranceTiming` decides every moment and
+   hands it down as `--draw-delay`, `--draw-dur` and `--pop-delay`.
+
+   All three use `backwards` fill, so a mark holds its undrawn state during
+   its delay rather than flashing in and out. That is exactly why the
+   reduced-motion block in index.css has to zero delay as well as duration:
+   zeroing duration alone would leave every mark waiting invisibly and then
+   appearing at its appointed moment - still motion, just uglier. */
+@keyframes track-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+/* Normalised by pathLength=1 on the element, so one dash covers the whole
+   line whatever its real length, and the offset is written in fractions.
+
+   The curve comes down as `--draw-ease` rather than being written here: the
+   station delays are computed by inverting it, so a copy in this file could
+   drift and leave every dot behind the tip that was meant to reveal it. */
+.map-canvas polyline[data-draw='true'] {
+  stroke-dasharray: 1 1;
+  animation: track-draw var(--draw-dur) var(--draw-ease) var(--draw-delay) backwards;
+}
+
+/* The spring lives here rather than in the stroke: a line that has finished
+   drawing has nowhere past "drawn" to overshoot to, and pulling its tip back
+   would read as un-drawing. A dot can genuinely overshoot and settle. */
+@keyframes station-pop {
+  from { opacity: 0; transform: scale(0.3); }
+  60%  { opacity: 1; transform: scale(1.25); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.map-canvas circle[data-pop='true'] {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: station-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1)
+    var(--pop-delay) backwards;
+}
+
+/* Names, watermarks and furniture wait for the network to stop moving:
+   text laid over a map that is still assembling is unreadable anyway. */
+@keyframes settle-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.map-canvas g[data-labels][data-pop='true'],
+.map-canvas [data-watermark][data-pop='true'],
+.map-canvas g[data-compass][data-pop='true'] {
+  animation: settle-in 420ms ease-out var(--pop-delay) backwards;
+}

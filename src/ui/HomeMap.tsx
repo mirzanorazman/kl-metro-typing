@@ -5,6 +5,7 @@ import { stationAt, type NetworkIndex } from '../engine/network';
 import { loadProfile, saveProfile, type Theme } from '../engine/progress';
 import { music, setMuted, sound } from '../audio/sound';
 import { MapCanvas } from '../render/MapCanvas';
+import { entranceTiming } from '../render/entrance';
 import { StationSearch } from './StationSearch';
 import { DirectionChooser } from './DirectionChooser';
 import { LineBadge } from './LineBadge';
@@ -19,6 +20,12 @@ export interface HomeMapProps {
   onStartLine: (code: LineCode, from: string) => void;
   onPickStation: (stationId: string) => void;
   onOpenLeaderboard: () => void;
+  /**
+   * Whether to play the opening draw-on. App withholds it on the returns
+   * from a run, so the animation opens the session rather than taxing every
+   * trip back to the map.
+   */
+  intro?: boolean;
 }
 
 export function HomeMap({
@@ -28,8 +35,28 @@ export function HomeMap({
   onStartLine,
   onPickStation,
   onOpenLeaderboard,
+  intro = true,
 }: HomeMapProps) {
   const { geo: layout, backdrop, districts, pxPerKm } = networkLayout();
+
+  // Read once, at mount: the player can cut the opening short, and after
+  // that the prop saying it was owed must not put it back.
+  const [showIntro, setShowIntro] = useState(intro);
+  const timing = useMemo(() => entranceTiming(net), [net]);
+
+  // Any deliberate input cuts the opening short and snaps the map to its
+  // settled state. Dropping the timing mid-flight is what does it: the CSS
+  // animations go with it, leaving every mark at its final value.
+  useEffect(() => {
+    if (!showIntro) return;
+    const skip = () => setShowIntro(false);
+    window.addEventListener('keydown', skip);
+    window.addEventListener('pointerdown', skip);
+    return () => {
+      window.removeEventListener('keydown', skip);
+      window.removeEventListener('pointerdown', skip);
+    };
+  }, [showIntro]);
 
   const profile = useMemo(() => loadProfile(), []);
   const visited = useMemo(() => new Set(profile.visited), [profile]);
@@ -134,7 +161,15 @@ export function HomeMap({
   }, [selected, net, layout]);
 
   return (
-    <div className="home-map">
+    <div
+      className="home-map"
+      data-intro={showIntro ? 'true' : undefined}
+      style={
+        showIntro
+          ? ({ '--intro-delay': `${Math.round(timing.total)}ms` } as React.CSSProperties)
+          : undefined
+      }
+    >
       <MapCanvas
         net={net}
         layout={layout}
@@ -149,6 +184,7 @@ export function HomeMap({
         // is not hidden behind it.
         fitPadding={{ top: 0.06, right: 0.45, bottom: 0.06, left: 0.06 }}
         emphasis={selected}
+        entrance={showIntro ? timing : null}
       />
 
       <header>

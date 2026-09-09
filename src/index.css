@@ -74,7 +74,10 @@ body {
 .prompt [data-state='current'][data-miskey='true'] { animation: miskey 220ms ease-out; }
 
 /* --- home map --- */
-.home-map { position: relative; height: 100%; }
+/* `overflow: hidden` because the opening settles the canvas from a hair
+   over full size down to it; without the clip that 2% spills past the
+   viewport and the page grows a scrollbar for a second. */
+.home-map { position: relative; height: 100%; overflow: hidden; }
 .home-map .map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .home-map header { position: absolute; top: var(--s3); left: var(--s3); z-index: 1; }
 .home-map h1 {
@@ -442,6 +445,62 @@ button:hover, button:focus-visible { border-color: var(--focus-ring); }
 :focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* --- the opening ------------------------------------------------------
+   The map draws itself on (see map.css), and the furniture arrives once it
+   has. `--intro-delay` is set on `.home-map` by HomeMap and inherits down,
+   so every rule here is written against the one number `entranceTiming`
+   produced rather than a duration copied by hand. */
+
+/* The whole canvas settles from a hair over full size. Starting above 1
+   rather than below it means the scaled edges always cover the viewport,
+   so no background seam shows through at the corners. */
+@keyframes map-settle {
+  from { transform: scale(1.02); }
+  to   { transform: none; }
+}
+.home-map[data-intro='true'] .map-canvas {
+  animation: map-settle var(--intro-delay) cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+@keyframes header-in {
+  from { opacity: 0; transform: translateX(-1.5rem); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes panel-in {
+  from { opacity: 0; transform: translateX(1.5rem); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes footer-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Overlapping the last 120ms of the draw, so the panel reads as arriving
+   on the settling map rather than after a beat of dead air. */
+.home-map[data-intro='true'] header {
+  animation: header-in 440ms cubic-bezier(0.34, 1.4, 0.64, 1)
+    calc(var(--intro-delay) - 120ms) backwards;
+}
+.home-map[data-intro='true'] .line-picker {
+  animation: panel-in 460ms cubic-bezier(0.34, 1.4, 0.64, 1)
+    calc(var(--intro-delay) - 120ms) backwards;
+}
+.home-map[data-intro='true'] footer {
+  animation: footer-in 500ms ease-out var(--intro-delay) backwards;
+}
+
+/* Below the breakpoint the picker is docked to the bottom edge, so it rises
+   into place instead of sliding in from a right margin it no longer has.
+   This has to sit after the rule above, not up in the main mobile block: two
+   @keyframes of the same name that both apply are settled by source order,
+   not by which one's media query is narrower. */
+@media (max-width: 700px) {
+  @keyframes panel-in {
+    from { opacity: 0; transform: translateY(1.25rem); }
+    to   { opacity: 1; transform: none; }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
