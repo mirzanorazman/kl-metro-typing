@@ -196,3 +196,9 @@
   color: var(--paper);
   border-color: var(--ink);
 }
+
+@media (pointer: coarse) and (max-height: 700px) {
+  .mobile-map-region {
+    min-height: 0;
+  }
+}

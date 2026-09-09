@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { loadNetworkData } from '../data/load';
@@ -6,6 +7,8 @@ import { buildNetwork, type NetworkIndex } from '../engine/network';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { MobileTransit } from './MobileTransit';
 import { TypingInputProvider } from './TypingInputProvider';
+
+const mobileStyles = readFileSync('src/ui/mobile.css', 'utf8');
 
 const net = buildNetwork(loadNetworkData());
 const originalScrollIntoView = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollIntoView');
@@ -65,6 +68,15 @@ afterEach(() => {
 });
 
 describe('MobileTransit', () => {
+  it('removes the map minimum height only for short coarse-pointer viewports', () => {
+    expect(mobileStyles).toMatch(
+      /\.mobile-map-region\s*\{[^}]*min-height:\s*8rem;/,
+    );
+    expect(mobileStyles).toMatch(
+      /@media\s*\(pointer:\s*coarse\)\s*and\s*\(max-height:\s*700px\)\s*\{\s*\.mobile-map-region\s*\{\s*min-height:\s*0;\s*\}\s*\}/,
+    );
+  });
+
   it('renders the geographic map and all compact line pills in canonical order', () => {
     const { container } = renderTransit();
     const pills = [...container.querySelectorAll('.mobile-line-pills button')];
