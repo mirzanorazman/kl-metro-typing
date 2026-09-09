@@ -29,6 +29,37 @@ describe('networkLayout', () => {
   });
 });
 
+describe('district watermarks', () => {
+  it('projects every district into the same space as the stations', () => {
+    const { districts, geo } = networkLayout();
+    expect(districts).toHaveLength(8);
+
+    const xs = [...geo.values()].map((p) => p.x);
+    const kl = districts.find((d) => d.name === 'Kuala Lumpur');
+    // KL sits inside the network's horizontal span, not off in another
+    // coordinate system — the failure this guards against.
+    expect(kl!.at.x).toBeGreaterThan(Math.min(...xs) - 200);
+    expect(kl!.at.x).toBeLessThan(Math.max(...xs) + 200);
+  });
+});
+
+describe('map scale', () => {
+  it('reports a positive number of user units per kilometre', () => {
+    expect(networkLayout().pxPerKm).toBeGreaterThan(0);
+  });
+
+  it('measures a kilometre the station span agrees with', () => {
+    const { geo, pxPerKm } = networkLayout();
+    const xs = [...geo.values()].map((p) => p.x);
+    const spanKm = (Math.max(...xs) - Math.min(...xs)) / pxPerKm;
+    // The network runs roughly 39km east to west in the real world. If
+    // pxPerKm were inverted, or out by an order of magnitude, the projected
+    // span would not survive being divided by it.
+    expect(spanKm).toBeGreaterThan(30);
+    expect(spanKm).toBeLessThan(60);
+  });
+});
+
 describe('lineExtent', () => {
   it('returns a position per station, in order', () => {
     const kj = loadNetworkData().lines.find((l) => l.code === 'KJ')!;

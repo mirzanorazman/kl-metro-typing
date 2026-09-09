@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { lineAt, stationAt, type Direction, type NetworkIndex } from '../engine/network';
 import { useKeyboard } from './useKeyboard';
+import { LineBadge } from './LineBadge';
 
 /** Resolves a keystroke to an option: a 1-based number, or a line code letter. */
 export function matchOption(options: Direction[], key: string): Direction | undefined {
@@ -44,7 +45,7 @@ export function JunctionPicker({ net, options, walk, onChoose, onWalk }: Junctio
                 onClick={() => onChoose(dir)}
               >
                 <kbd>{i + 1}</kbd>
-                <strong>{dir.line}</strong>
+                {line && <LineBadge code={dir.line} colour={line.colour} />}
                 <span>{line?.name}</span>
                 <span>toward {dir.toward}</span>
                 <em>next: {stationAt(net, dir.next)?.name}</em>

@@ -1,15 +1,24 @@
-.map-canvas { width: 100%; height: 100%; touch-action: none; background: #12141a; }
+.map-canvas { width: 100%; height: 100%; touch-action: none; background: var(--paper); }
 .map-canvas polyline { transition: opacity 220ms ease; }
 .map-canvas polyline[data-dim='true'] { opacity: 0.18; }
 /* Visiting fills the dot in: you are colouring the map as you go. */
 .map-canvas circle { transition: opacity 220ms ease, fill 380ms ease, stroke 380ms ease; }
 .map-canvas circle[data-dim='true'] { opacity: 0.22; }
-.map-canvas circle { fill: #12141a; stroke: #9aa3b2; stroke-width: 2.5; }
-.map-canvas circle[data-visited='true'] { fill: #f2f4f8; stroke: #f2f4f8; }
-.map-canvas circle[data-next='true'] { stroke: #ffd166; stroke-width: 4; }
-.map-canvas circle[data-active='true'] { fill: #f2f4f8; stroke: #f2f4f8; }
-.map-canvas .train { fill: var(--accent, #ffd166); stroke: #12141a; stroke-width: 2; }
-.map-backdrop path { fill: var(--land, #1b2029); stroke: var(--land-edge, #2c3340); stroke-width: 1; }
+.map-canvas circle[data-station] {
+  fill: var(--paper);
+  stroke: var(--station-colour, var(--ink-muted));
+  stroke-width: 2.5;
+}
+.map-canvas circle[data-visited='true'] {
+  fill: var(--station-colour, var(--ink));
+  stroke: var(--station-colour, var(--ink));
+}
+.map-canvas circle[data-next='true'] { stroke: var(--focus-ring); stroke-width: 4; }
+.map-canvas circle[data-active='true'] {
+  fill: var(--station-colour, var(--ink));
+  stroke: var(--station-colour, var(--ink));
+}
+.map-backdrop path { fill: var(--paper-sub); stroke: var(--paper-edge); stroke-width: 1; }
 
 @keyframes arrive {
   from { r: 8; opacity: 1; }
@@ -18,8 +27,21 @@
 }
 .map-canvas circle[data-active='true'] { animation: arrive 250ms ease-out; }
 
+.map-canvas .train-body {
+  fill: var(--panel);
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+.map-canvas .train-window { fill: var(--ink); stroke: none; }
+.map-canvas .train-nose { stroke: none; }
+/* Only midnight throws a headlight; on paper it would be a smudge. */
+.map-canvas .train-beam { fill: none; }
+[data-theme='midnight'] .map-canvas .train-beam {
+  fill: var(--ink);
+  opacity: 0.07;
+}
 /* Between keystrokes the train glides; CSS so reduced-motion zeroes it. */
-.map-canvas .train { transition: cx 140ms linear, cy 140ms linear; }
+.map-canvas .train { transition: transform 140ms linear; }
 
 @keyframes train-shake {
   0%, 100% { transform: translateX(0); }
@@ -27,7 +49,7 @@
   60%      { transform: translateX(3px); }
   85%      { transform: translateX(-1.5px); }
 }
-.map-canvas .train[data-shake='true'] { animation: train-shake 170ms ease-in-out; }
+.map-canvas .train-shake[data-shake='true'] { animation: train-shake 170ms ease-in-out; }
 
 /* Finishing a line sweeps a pulse along its whole length: the payoff for
    having typed every station on it. */
@@ -44,3 +66,77 @@
   animation: line-sweep 1000ms ease-out forwards;
   pointer-events: none;
 }
+
+.map-canvas .grid-dot { fill: var(--grid-dot); stroke: none; }
+/* The core is what says "interchange"; it holds ink in both atmospheres
+   rather than taking a line's colour, because it belongs to no one line. */
+.map-canvas circle[data-core] { fill: var(--ink); stroke: none; }
+.map-canvas circle[data-core][data-dim='true'] { opacity: 0.22; }
+
+/* Paper rejects blur — the design pack is explicit that a blurred halo on
+   linen reads as a smudge — so it gets an unblurred bed instead, and only
+   midnight lights the rail. One element, switched by the theme. */
+.map-canvas .track-glow {
+  filter: none;
+  opacity: 0.16;
+  stroke-width: 12;
+}
+[data-theme='midnight'] .map-canvas .track-glow {
+  filter: url(#track-glow);
+  opacity: 0.4;
+  stroke-width: 14;
+}
+
+/* Typing inks the rail behind you. */
+.map-canvas .track-done {
+  stroke: var(--track-done);
+  stroke-width: 2.5;
+}
+
+@keyframes beacon-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50%      { transform: scale(1.35); opacity: 0.2; }
+}
+.map-canvas .beacon-ring,
+.map-canvas .beacon-bloom {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: beacon-pulse 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.map-canvas .beacon-ring { stroke-width: 2; }
+
+.map-canvas .station-label {
+  fill: var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+  /* A paper-coloured halo behind the glyphs, so a label stays legible where
+     it crosses a rail, instead of the stroke smearing the letterforms. */
+  paint-order: stroke fill;
+  stroke: var(--paper);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+.map-canvas .station-label[data-dim='true'] { opacity: 0.22; }
+
+/* Regional context, useless at street zoom and faded out there. */
+.map-canvas .district-watermark {
+  fill: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  opacity: 0.45;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.map-canvas .map-furniture {
+  fill: var(--ink-muted);
+  stroke: var(--ink-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+.map-canvas .map-furniture text { stroke: none; }

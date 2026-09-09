@@ -27,7 +27,7 @@ export interface AdventureScreenProps {
 }
 
 export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) {
-  const { geo, schematic, backdrop } = networkLayout();
+  const { geo, schematic, backdrop, districts } = networkLayout();
   const { mode, layout, setMode } = useLayoutMode(geo, schematic, 'schematic');
 
   const [run, setRun] = useState<RunState>(() => startRun(net, startAt, performance.now()));
@@ -107,6 +107,7 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
 
   return (
     <PlayLayout
+      lineColour={run.line ? net.lines.get(run.line)?.colour ?? null : null}
       map={
         <MapCanvas
           net={net}
@@ -115,10 +116,12 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
           activeStation={run.at}
           highlight={highlight}
           previousStation={run.arrivedFrom}
-          // Real coastlines belong under real geography. The schematic
-          // layout's positions are deliberately not geographic, so land
-          // beneath it would be meaningless.
+          // Real coastlines and district names belong under real geography.
+          // Both are projected from lat/lng, so on the schematic diagram they
+          // would sit at coordinates that mean nothing relative to the drawn
+          // network.
           backdrop={mode === 'geo' ? backdrop : undefined}
+          districts={mode === 'geo' ? districts : undefined}
           // The train is placed by typing progress, so it arrives exactly as
           // the name is finished. Recentre as each new station begins.
           trainProgress={
@@ -131,6 +134,8 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
           focusKey={arrived ? run.at : 'intro'}
           // The typing panel overlays the lower third of the viewport.
           fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
+          travelled={[startAt, ...run.visited]}
+          trainColour={run.line ? net.lines.get(run.line)?.colour ?? null : null}
         />
       }
       panel={

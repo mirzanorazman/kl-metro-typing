@@ -1,0 +1,59 @@
+/* Both atmospheres of the design pack, as one token layer.
+ *
+ * Paper is defined on bare :root and midnight overrides it, so a theme is one
+ * attribute on <html> rather than a class on every surface. Nothing else in
+ * the app declares a literal colour — if a value is needed twice, it belongs
+ * here.
+ */
+:root {
+  --paper: #f7f5ee;
+  --paper-sub: #f0ede3;
+  --paper-edge: #ded8cb;
+
+  --panel: #ffffff;
+  --panel-edge: #ded8cb;
+  --panel-shadow: 0 4px 16px -2px rgba(60, 52, 42, 0.1);
+  --panel-blur: none;
+
+  --ink: #14181f;
+  --ink-muted: #5c6470;
+  --ink-faint: #a29e94;
+
+  --grid-dot: #d9d4c7;
+  /* The already-typed stretch of rail. Ink on paper, white on midnight. */
+  --track-done: #14181f;
+  --error: #e53935;
+  --focus-ring: #14181f;
+
+  /* Badge foregrounds do NOT vary by theme: a yellow badge needs dark text on
+     both grounds. Chosen per line colour by contrastText(). */
+  --badge-ink: #14181f;
+  --badge-paper: #ffffff;
+
+  --font-sans: 'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, SFMono-Regular, monospace;
+
+  color-scheme: light;
+}
+
+[data-theme='midnight'] {
+  --paper: #0b0f17;
+  --paper-sub: #101725;
+  --paper-edge: #1a273c;
+
+  --panel: rgba(17, 24, 39, 0.85);
+  --panel-edge: #1f293d;
+  --panel-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --panel-blur: blur(8px);
+
+  --ink: #f8fafc;
+  --ink-muted: #94a3b8;
+  --ink-faint: #475569;
+
+  --grid-dot: #1a2438;
+  --track-done: #ffffff;
+  --error: #ef4444;
+  --focus-ring: #f8fafc;
+
+  color-scheme: dark;
+}

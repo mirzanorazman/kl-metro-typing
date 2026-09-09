@@ -2,23 +2,34 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LINE_CODES, type LineCode } from '../data/types';
 import { networkLayout } from '../geo/networkLayout';
 import { stationAt, type NetworkIndex } from '../engine/network';
-import { loadProfile, saveProfile } from '../engine/progress';
+import { loadProfile, saveProfile, type Theme } from '../engine/progress';
 import { music, setMuted, sound } from '../audio/sound';
 import { MapCanvas } from '../render/MapCanvas';
 import { StationSearch } from './StationSearch';
 import { DirectionChooser } from './DirectionChooser';
+import { LineBadge } from './LineBadge';
 import { SoundToggle } from './SoundToggle';
+import { ThemeToggle } from './ThemeToggle';
 import { useKeyboard } from './useKeyboard';
 
 export interface HomeMapProps {
   net: NetworkIndex;
+  theme: Theme;
+  onToggleTheme: () => void;
   onStartLine: (code: LineCode, from: string) => void;
   onPickStation: (stationId: string) => void;
   onOpenLeaderboard: () => void;
 }
 
-export function HomeMap({ net, onStartLine, onPickStation, onOpenLeaderboard }: HomeMapProps) {
-  const { geo: layout, backdrop } = networkLayout();
+export function HomeMap({
+  net,
+  theme,
+  onToggleTheme,
+  onStartLine,
+  onPickStation,
+  onOpenLeaderboard,
+}: HomeMapProps) {
+  const { geo: layout, backdrop, districts, pxPerKm } = networkLayout();
 
   const profile = useMemo(() => loadProfile(), []);
   const visited = useMemo(() => new Set(profile.visited), [profile]);
@@ -74,6 +85,8 @@ export function HomeMap({ net, onStartLine, onPickStation, onOpenLeaderboard }: 
         visited={visited}
         activeStation={null}
         backdrop={backdrop}
+        districts={districts}
+        pxPerKm={pxPerKm}
         fitTo={fitTo}
         fitKey={selected ? `line:${selected}` : 'home'}
         // The picker overlays the right edge; pad that side so central KL
@@ -90,6 +103,13 @@ export function HomeMap({ net, onStartLine, onPickStation, onOpenLeaderboard }: 
         </p>
       </header>
 
+      {/* Grouped so the mobile breakpoint can stack the disclaimer above the
+          docked picker as one flex column, instead of two independently
+          absolutely-positioned elements that can overlap. Unstyled itself on
+          desktop, so it does not disturb `.line-picker` and `footer`'s own
+          absolute positioning there (they still position against
+          `.home-map`, the nearest positioned ancestor). */}
+      <div className="mobile-dock">
       <div className="line-picker">
         {profile.recovered && (
           <p role="status">Saved progress could not be read, so a fresh profile was started.</p>
@@ -128,7 +148,7 @@ export function HomeMap({ net, onStartLine, onPickStation, onOpenLeaderboard }: 
                     setSelected(line.code);
                   }}
                 >
-                  <span className="code">{line.code}</span>
+                  <LineBadge code={line.code} colour={line.colour} />
                   <span>{line.name}</span>
                   <span className="count">{done} / {line.stations.length}</span>
                 </button>
@@ -149,7 +169,10 @@ export function HomeMap({ net, onStartLine, onPickStation, onOpenLeaderboard }: 
               Leaderboard
             </button>
 
-            <SoundToggle muted={muted} onToggle={toggleSound} />
+            <div className="control-cluster">
+              <SoundToggle muted={muted} onToggle={toggleSound} />
+              <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+            </div>
             {searching && <StationSearch net={net} onPick={onPickStation} />}
           </>
         )}
@@ -159,6 +182,7 @@ export function HomeMap({ net, onStartLine, onPickStation, onOpenLeaderboard }: 
         An unofficial fan project. Not affiliated with Prasarana Malaysia or Rapid KL.
         Station names, codes, and line colours are public information.
       </footer>
+      </div>
     </div>
   );
 }

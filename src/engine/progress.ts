@@ -9,6 +9,9 @@ export interface AdventurePosition {
   line: LineCode | null;
 }
 
+/** Which atmosphere the app renders in. */
+export type Theme = 'paper' | 'midnight';
+
 export interface Profile {
   version: number;
   visited: string[];
@@ -18,6 +21,12 @@ export interface Profile {
   rushHigh: Record<string, number>;
   /** Sound preference. Additive, so older saves migrate to unmuted. */
   muted: boolean;
+  /**
+   * Display preference. Absent means the player has never chosen, and the app
+   * follows the OS. Optional and additive, so `migrate`'s spread carries older
+   * saves forward untouched — the same way `muted` was added.
+   */
+  theme?: Theme;
   wpmHistory: { t: number; wpm: number }[];
   /** True when this profile replaced an unreadable saved record. */
   recovered?: boolean;

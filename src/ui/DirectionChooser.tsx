@@ -4,6 +4,7 @@ import { terminiOf } from '../engine/lineRun';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
 import { sound } from '../audio/sound';
 import { useKeyboard } from './useKeyboard';
+import { LineBadge } from './LineBadge';
 
 export interface DirectionChooserProps {
   net: NetworkIndex;
@@ -36,7 +37,7 @@ export function DirectionChooser({ net, line, onChoose, onCancel }: DirectionCho
   return (
     <div className="junction" role="group" aria-label="Choose a direction">
       <h2>
-        <span style={{ color: def?.colour }}>{line}</span> {def?.name} — which way?
+        {def && <LineBadge code={line} colour={def.colour} />} {def?.name} — which way?
       </h2>
       <ul>
         {ends.map((e, i) => (

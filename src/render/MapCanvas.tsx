@@ -1,11 +1,12 @@
 import './map.css';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Layout } from '../geo/layout';
 import { linesOf, type NetworkIndex } from '../engine/network';
 import { usePanZoom, viewBoxString } from './usePanZoom';
 import { fitViewBox, type EdgePadding } from '../geo/fit';
 import type { Point, LineCode } from '../data/types';
 import type { BoundaryPath } from '../geo/boundaries';
+import { type District } from '../geo/networkLayout';
 import { TrainMarker } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
 
@@ -44,6 +45,14 @@ export interface MapCanvasProps {
   emphasis?: LineCode | null;
   /** When set, a pulse sweeps the length of this line. Set on completion. */
   celebrate?: LineCode | null;
+  /** Stations already typed this run, in order. Inks the stretch behind you. */
+  travelled?: readonly string[];
+  /** The current line's colour, worn by the train. */
+  trainColour?: string | null;
+  /** District names to watermark beneath the network. */
+  districts?: readonly District[];
+  /** Projected units per kilometre. Draws the scale bar when supplied. */
+  pxPerKm?: number;
 }
 
 export function MapCanvas({
@@ -63,6 +72,10 @@ export function MapCanvas({
   backdrop,
   emphasis,
   celebrate,
+  travelled,
+  trainColour = null,
+  districts,
+  pxPerKm,
 }: MapCanvasProps) {
   const framed = useMemo(
     () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
@@ -106,6 +119,56 @@ export function MapCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fitKey, focusKey]);
 
+  // Every polyline in this canvas is the same transformation of a station
+  // list; later marks (the glow, the travelled stretch) reuse it.
+  const pointsOf = useCallback(
+    (ids: readonly string[]) =>
+      ids
+        .map((id) => layout.get(id))
+        .filter((p): p is Point => p !== undefined)
+        .map((p) => `${p.x},${p.y}`)
+        .join(' '),
+    [layout],
+  );
+
+  // Labelling all 154 at once is noise, so labels come in tiers: the stations
+  // that orient you always, then major interchanges once the view is not too
+  // crowded, then everything once it is genuinely zoomed in.
+  const termini = useMemo(() => {
+    const ids = new Set<string>();
+    for (const line of net.lines.values()) {
+      const first = line.stations[0];
+      const last = line.stations[line.stations.length - 1];
+      if (first) ids.add(first);
+      if (last) ids.add(last);
+    }
+    return ids;
+  }, [net]);
+
+  const majorInterchanges = useMemo(() => {
+    const ids = new Set<string>();
+    for (const station of net.stations.values()) {
+      if (linesOf(station).length >= 3) ids.add(station.id);
+    }
+    return ids;
+  }, [net]);
+
+  // How crowded the current view actually is. `view.w` alone cannot answer
+  // this: it is in user units, so a line run framing one line reads as
+  // "zoomed in" while still holding most of the network on screen.
+  const inView = useMemo(
+    () =>
+      [...layout.values()].filter(
+        (p) =>
+          p.x >= view.x && p.x <= view.x + view.w &&
+          p.y >= view.y && p.y <= view.y + view.h,
+      ).length,
+    [layout, view],
+  );
+
+  const showInterchangeLabels = inView <= 40;
+  const showEveryLabel = inView <= 12;
+
   return (
     <svg
       className="map-canvas"
@@ -114,13 +177,77 @@ export function MapCanvas({
       aria-label="Rapid KL network map"
       {...handlers}
     >
+      <defs>
+        {/* Anchored in user space, so the grid pans with the map for free; the
+            tile scales with the view, so its density on screen never changes. */}
+        <pattern
+          id="drafting-grid"
+          width={28 * markScale}
+          height={28 * markScale}
+          patternUnits="userSpaceOnUse"
+        >
+          <circle
+            className="grid-dot"
+            cx={2 * markScale}
+            cy={2 * markScale}
+            r={0.95 * markScale}
+          />
+        </pattern>
+
+        {/* The glow is a blurred copy of the rail beneath the crisp one. Only
+            the emphasised line gets it: the filter repaints on every pan and
+            zoom, and seven of them is not affordable. */}
+        <filter id="track-glow" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
+      </defs>
+
+      <rect
+        data-grid
+        x={view.x}
+        y={view.y}
+        width={view.w}
+        height={view.h}
+        fill="url(#drafting-grid)"
+      />
+
       {backdrop && <MapBackdrop paths={backdrop} />}
+
+      {!showEveryLabel &&
+        districts?.map((d) => (
+          <text
+            key={d.name}
+            data-watermark
+            className="district-watermark"
+            x={d.at.x}
+            y={d.at.y}
+            fontSize={13 * markScale}
+            textAnchor="middle"
+            aria-hidden="true"
+          >
+            {d.name}
+          </text>
+        ))}
+
+      {emphasis &&
+        (() => {
+          const line = net.lines.get(emphasis);
+          if (!line) return null;
+          return (
+            <polyline
+              className="track-glow"
+              points={pointsOf(line.stations)}
+              fill="none"
+              stroke={line.colour}
+              vectorEffect="non-scaling-stroke"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          );
+        })()}
+
       {[...net.lines.values()].map((line) => {
-        const pts = line.stations
-          .map((id) => layout.get(id))
-          .filter((p): p is NonNullable<typeof p> => p !== undefined)
-          .map((p) => `${p.x},${p.y}`)
-          .join(' ');
+        const pts = pointsOf(line.stations);
         return (
           <polyline
             key={line.code}
@@ -137,45 +264,160 @@ export function MapCanvas({
         );
       })}
 
-      {[...net.stations.values()].map((station) => {
-        const p = layout.get(station.id);
-        if (!p) return null;
-        const isInterchange = linesOf(station).length > 1;
-        const isActive = station.id === activeStation;
-        const isNext = highlight?.has(station.id) ?? false;
+      {travelled && travelled.length > 1 && (
+        <polyline
+          className="track-done"
+          points={pointsOf(travelled)}
+          fill="none"
+          vectorEffect="non-scaling-stroke"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+
+      {(() => {
+        // Labels are collected here rather than rendered inline in each
+        // station's <g>, then painted as one group after every station mark:
+        // a station rendered later in the loop was painting over an earlier
+        // station's text.
+        const labels: Array<{
+          id: string;
+          x: number;
+          y: number;
+          textAnchor: 'start' | 'end';
+          dim: 'true' | undefined;
+          name: string;
+        }> = [];
+
+        const marks = [...net.stations.values()].map((station) => {
+          const p = layout.get(station.id);
+          if (!p) return null;
+          const codes = linesOf(station);
+          const isInterchange = codes.length > 1;
+          const isActive = station.id === activeStation;
+          const isNext = highlight?.has(station.id) ?? false;
+          // A multi-line station takes its first line's colour for the ring;
+          // its core is what actually marks it as an interchange.
+          const first = codes[0];
+          const colour = first ? net.lines.get(first)?.colour : undefined;
+          const r = (isActive ? 8 : isInterchange ? 6 : 4) * markScale;
+          const dim = emphasis && !codes.includes(emphasis) ? 'true' : undefined;
+
+          if (
+            showEveryLabel ||
+            isActive ||
+            termini.has(station.id) ||
+            (showInterchangeLabels && majorInterchanges.has(station.id))
+          ) {
+            // Flip to the left near the right edge of the *live* viewport, so
+            // a label never runs off the screen the player has panned to.
+            const flip = p.x > view.x + view.w * 0.75;
+            labels.push({
+              id: station.id,
+              x: p.x + (flip ? -9 : 9) * markScale,
+              y: p.y - 7 * markScale,
+              textAnchor: flip ? 'end' : 'start',
+              dim,
+              name: station.name,
+            });
+          }
+
+          return (
+            <g key={station.id === activeStation ? `${station.id}-active` : station.id}>
+              <circle
+                data-station={station.id}
+                data-active={isActive ? 'true' : undefined}
+                data-next={isNext ? 'true' : undefined}
+                data-visited={visited.has(station.id) ? 'true' : undefined}
+                data-interchange={isInterchange ? 'true' : undefined}
+                data-dim={dim}
+                style={{ '--station-colour': colour } as React.CSSProperties}
+                cx={p.x}
+                cy={p.y}
+                r={r}
+                vectorEffect="non-scaling-stroke"
+              >
+                <title>
+                  {station.name} — {codes.join(', ')}
+                </title>
+              </circle>
+              {isInterchange && (
+                <circle
+                  data-core={station.id}
+                  data-dim={dim}
+                  cx={p.x}
+                  cy={p.y}
+                  r={r * 0.45}
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+            </g>
+          );
+        });
+
         return (
-          <circle
-            key={station.id === activeStation ? `${station.id}-active` : station.id}
-            data-station={station.id}
-            data-active={isActive ? 'true' : undefined}
-            data-next={isNext ? 'true' : undefined}
-            data-visited={visited.has(station.id) ? 'true' : undefined}
-            // Dots must dim with their lines, or the de-emphasised lines
-            // still shout through their stations.
-            data-dim={
-              emphasis && !linesOf(station).includes(emphasis) ? 'true' : undefined
-            }
-            cx={p.x}
-            cy={p.y}
-            r={(isActive ? 8 : isInterchange ? 6 : 4) * markScale}
-            vectorEffect="non-scaling-stroke"
-          >
-            <title>
-              {station.name} — {linesOf(station).join(', ')}
-            </title>
-          </circle>
+          <>
+            {marks}
+            <g data-labels aria-hidden="true">
+              {labels.map((label) => (
+                <text
+                  key={label.id}
+                  data-label={label.id}
+                  data-dim={label.dim}
+                  className="station-label"
+                  x={label.x}
+                  y={label.y}
+                  textAnchor={label.textAnchor}
+                  fontSize={11 * markScale}
+                  vectorEffect="non-scaling-stroke"
+                >
+                  {label.name}
+                </text>
+              ))}
+            </g>
+          </>
         );
-      })}
+      })()}
+
+      {activeStation &&
+        emphasis &&
+        (() => {
+          const p = layout.get(activeStation);
+          const colour = net.lines.get(emphasis)?.colour;
+          if (!p || !colour) return null;
+          return (
+            <g data-beacon aria-hidden="true">
+              <defs>
+                <radialGradient id="beacon-bloom">
+                  <stop offset="0%" stopColor={colour} stopOpacity="0.45" />
+                  <stop offset="100%" stopColor={colour} stopOpacity="0" />
+                </radialGradient>
+              </defs>
+              <circle
+                className="beacon-bloom"
+                cx={p.x}
+                cy={p.y}
+                r={30 * markScale}
+                fill="url(#beacon-bloom)"
+              />
+              <circle
+                className="beacon-ring"
+                cx={p.x}
+                cy={p.y}
+                r={22 * markScale}
+                fill="none"
+                stroke={colour}
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          );
+        })()}
 
       {celebrate &&
         (() => {
           const line = net.lines.get(celebrate);
           if (!line) return null;
-          const pts = line.stations
-            .map((id) => layout.get(id))
-            .filter((p): p is NonNullable<typeof p> => p !== undefined)
-            .map((p) => `${p.x},${p.y}`)
-            .join(' ');
+          const pts = pointsOf(line.stations);
           return (
             <polyline
               className="line-sweep"
@@ -195,7 +437,47 @@ export function MapCanvas({
         scale={markScale}
         progress={trainProgress}
         errorTick={trainErrorTick}
+        colour={trainColour}
       />
+
+      {pxPerKm !== undefined &&
+        (() => {
+          // Positioned from the live view rather than the layout, so the
+          // furniture stays pinned to the corner while the map pans beneath it.
+          const margin = 64 * markScale;
+          const x = view.x + margin;
+          const y = view.y + view.h - margin;
+          // The longest round distance that still fits comfortably on screen.
+          const km = [50, 20, 10, 5, 2, 1].find((k) => k * pxPerKm < view.w * 0.18) ?? 1;
+          const len = km * pxPerKm;
+          const tick = 4 * markScale;
+
+          return (
+            <g data-compass className="map-furniture" aria-hidden="true">
+              <path
+                d={`M ${x} ${y - 34 * markScale} l ${3 * markScale} ${9 * markScale}
+                    l ${-3 * markScale} ${-3 * markScale} l ${-3 * markScale} ${3 * markScale} Z`}
+              />
+              <text x={x} y={y - 38 * markScale} fontSize={9 * markScale} textAnchor="middle">
+                N
+              </text>
+              <path
+                d={`M ${x} ${y - tick} L ${x} ${y} L ${x + len} ${y} L ${x + len} ${y - tick}`}
+                fill="none"
+                vectorEffect="non-scaling-stroke"
+              />
+              <text
+                data-scale-bar
+                x={x + len / 2}
+                y={y - 6 * markScale}
+                fontSize={9 * markScale}
+                textAnchor="middle"
+              >
+                {km} km
+              </text>
+            </g>
+          );
+        })()}
     </svg>
   );
 }

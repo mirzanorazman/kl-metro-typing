@@ -31,7 +31,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   const data = useMemo(() => loadNetworkData(), []);
   const route = useMemo(() => lineRunRoute(net, line, from), [net, line, from]);
 
-  const { geo: layout, backdrop } = networkLayout();
+  const { geo: layout, backdrop, districts } = networkLayout();
 
 
   const [run, setRun] = useState<RunState>(() => startRun(net, from, performance.now()));
@@ -138,6 +138,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
 
   return (
     <PlayLayout
+      lineColour={net.lines.get(line)?.colour ?? null}
       map={
         <MapCanvas
           net={net}
@@ -148,6 +149,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           fitTo={lineStationPositions}
           fitKey={`line:${line}`}
           backdrop={backdrop}
+          districts={districts}
           // The train is placed by typing progress, so it arrives exactly as
           // the name is finished. Recentre as each new station begins.
           trainProgress={
@@ -162,6 +164,8 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           // full strength and you cannot tell which one you are on.
           emphasis={line}
           celebrate={celebrating ? line : null}
+          travelled={route.slice(0, run.stationTimes.length + 1)}
+          trainColour={net.lines.get(line)?.colour ?? null}
           // The typing panel overlays the lower third of the viewport.
           fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}
         />

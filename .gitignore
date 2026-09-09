@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 .claude/
 .worktrees/
+
+# Visual reference only — mockups and design-system exports, not source
+docs/design/

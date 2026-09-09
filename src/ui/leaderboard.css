@@ -9,6 +9,8 @@
   background: var(--panel);
   border: 1px solid var(--panel-edge);
   border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--panel-blur);
 }
 
 /* Registered so the browser can smoothly interpolate the conic-gradient's
@@ -22,7 +24,8 @@
 
 /* Two comet-like arcs of the run's line colour, circulating just outside
    the panel's own edge. `--line-colour` is set by SummaryScreen on an
-   ancestor and inherits down; falls back to the accent colour otherwise.
+   ancestor and inherits down; falls back to `--ink` otherwise, so the glow
+   still renders (in the neutral ink colour) where no line is in scope.
    Two layers: `::before` is a thin ring masked to the band outside the
    panel (so it reads as lines tracing the border, not a blob leaking
    through it — the panel's own background is semi-transparent, so an
@@ -39,10 +42,10 @@
   background: conic-gradient(
     from var(--leaderboard-glow-angle),
     transparent 0%,
-    var(--line-colour, var(--accent)) 12%,
+    var(--line-colour, var(--ink)) 12%,
     transparent 26%,
     transparent 74%,
-    var(--line-colour, var(--accent)) 88%,
+    var(--line-colour, var(--ink)) 88%,
     transparent 100%
   );
   animation: leaderboard-glow-spin 3s linear infinite;
@@ -52,6 +55,9 @@
 .leaderboard-panel::before {
   inset: -2px;
   padding: 2px;
+  /* Alpha-only mask stops: mask-composite reads opacity here, not colour, so
+     this is not a rendered colour and is exempt from the token-only rule —
+     same as .line-strip's mask in index.css. */
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -69,13 +75,8 @@
 }
 
 .leaderboard-panel input {
-  width: 100%;
-  padding: var(--s);
-  font: inherit;
-  color: var(--fg);
-  background: transparent;
-  border: 1px solid var(--panel-edge);
-  border-radius: 8px;
+  width: 100%; padding: var(--s); font: inherit; color: var(--ink);
+  background: transparent; border: 1px solid var(--panel-edge); border-radius: 8px;
 }
 
 .leaderboard-screen {
@@ -96,13 +97,15 @@
 }
 
 .leaderboard-tabs [aria-selected='true'] {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--focus-ring);
+  color: var(--ink);
 }
 
 .leaderboard-screen table {
   width: 100%;
   border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -112,4 +115,9 @@
   border-bottom: 1px solid var(--panel-edge);
 }
 
-.leaderboard-screen th { color: var(--dim); font-size: var(--t-xs); text-transform: uppercase; }
+.leaderboard-screen th {
+  color: var(--ink-muted);
+  font-size: var(--t-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
