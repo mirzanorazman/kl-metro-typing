@@ -12,7 +12,7 @@ import {
   type LeaderboardEntry,
 } from '../engine/leaderboard';
 
-export const LEADERBOARD_STORAGE_KEY = 'myrapid.leaderboard.v1';
+export const LEADERBOARD_STORAGE_KEY = 'klmetro.leaderboard.v1';
 const SCHEMA_VERSION = 1;
 
 export interface LeaderboardStore {

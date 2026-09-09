@@ -1,4 +1,4 @@
-# MyRapid Typing
+# KL-Metro Typing
 
 > **Picking this up fresh?** Start with [`docs/STATUS.md`](docs/STATUS.md) —
 > current state, architecture invariants, known debt, and what is next.

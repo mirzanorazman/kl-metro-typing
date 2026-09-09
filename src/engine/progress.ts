@@ -1,6 +1,6 @@
 import type { LineCode } from '../data/types';
 
-export const STORAGE_KEY = 'myrapid.v1';
+export const STORAGE_KEY = 'klmetro.v1';
 const SCHEMA_VERSION = 1;
 
 export interface AdventurePosition {

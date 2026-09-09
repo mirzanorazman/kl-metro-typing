@@ -1,4 +1,4 @@
-# MyRapid Typing
+# KL-Metro Typing
 
 A typing game on the Kuala Lumpur Rapid KL rail network. You type station names
 to drive a train across the Klang Valley.
