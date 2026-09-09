@@ -1,7 +1,10 @@
 # Visual Revamp — Design Spec
 
 **Date:** 2026-09-09
-**Status:** Approved, ready for implementation planning
+**Status:** Implemented and merged (`68a561c`). Sections superseded during
+implementation are marked inline. Decisions taken during execution — including
+two that corrected this spec — are recorded in
+`docs/superpowers/2026-09-09-visual-revamp-execution-record.md`.
 
 ## Overview
 
@@ -326,18 +329,34 @@ the `key` moves to the group.
 
 ### 2.6 Station labels
 
-Labelling 154 stations at once is noise, so labels are tiered:
+Labelling 154 stations at once is noise, so labels are tiered.
 
-- **Always** — the active station, all termini, and interchanges serving three
-  or more lines.
-- **When zoomed past `view.w < 450`** — every station.
+> **Superseded during implementation.** This section originally specified two
+> tiers, with "every station" revealed once `view.w < 450`. That threshold is
+> wrong: `view.w` is in SVG user units and says nothing about on-screen
+> density. A measurement of an ordinary Kelana Jaya line run gave
+> `view.w = 437.85`, so the condition fired during normal play and rendered all
+> 154 labels at once. Replaced by a count of stations actually inside the view
+> — the quantity the rule was reaching for. See commit `7acc880`.
 
-Labels render inside the SVG in the map's coordinate space, mono at
+Three tiers, driven by `inView`, the number of stations whose layout point
+falls inside the current view rectangle:
+
+- **Always** — the active station and every line's two termini.
+- **`inView <= 40`** — interchanges serving three or more lines.
+- **`inView <= 12`** — every station.
+
+At full-network framing this yields 11 labels; the interchange tier adds
+Masjid Jamek, Hang Tuah and Chan Sow Lin as you zoom in.
+
+Labels render in a single `<g data-labels>` painted after every station mark,
+so no station's dot can cover another station's label. Mono at
 `11 * markScale`, uppercase, `0.08em`, in `--ink` for the always-tier and
-`--ink-muted` for the rest. Placement is right of the node, flipping left when
-the node sits in the right-hand quarter of the current `view` rectangle — the
-live viewport, not the framed extent, so a label near the screen edge flips
-whichever way the player has panned. No collision
+`--ink-muted` for the rest, with a `paint-order: stroke fill` halo in `--paper`
+so a name stays legible where it crosses a rail. Placement is right of the
+node, flipping left when the node sits in the right-hand quarter of the current
+`view` rectangle — the live viewport, not the framed extent, so a label near
+the screen edge flips whichever way the player has panned. No collision
 solver — the tiering is what keeps the map readable, and a solver would be
 recomputed on every pan for a map whose geometry never changes.
 
@@ -368,6 +387,17 @@ returns them on `NetworkLayout` as `districts: { name: string; at: Point }[]`.
 Rendered in `--ink-faint` at `0.35em` tracking, and faded out once zoomed past
 the same threshold that reveals all station labels — they are regional context,
 useless at street zoom.
+
+Two implementation notes, both decided during the build:
+
+- Because §2.6's threshold changed, "the same threshold" now means
+  `inView <= 12` rather than a viewport width. Watermarks therefore stay
+  visible through the interchange-label band and vanish only at close zoom.
+  The rule as stated still holds; only its definition moved.
+- Adventure defaults to the **schematic** layout, where a lat/lng-anchored
+  district name would float at coordinates the diagram does not share. Districts
+  are gated on `mode === 'geo'` there, exactly as the coastline backdrop already
+  was. The home map and Line Run draw geography and keep them unconditionally.
 
 ### 2.8 Compass and scale bar
 
@@ -502,7 +532,7 @@ Manual QA, per phase:
 | Blur filter repaints cost frames | Scoped to one line; fallback is an unfiltered wide stroke |
 | `#98002E` disappears on midnight | Lighten the shared value; do not fork the palette |
 | Station labels collide at some zooms | Tiering, not a solver; drop the always-tier to termini only if crowded |
-| Variable fonts inflate the bundle | Two variable faces, subset to Latin; measured at Phase 1 |
+| Variable fonts inflate the bundle | Two variable faces; measured at Phase 1 — see note below |
 | Scale bar fights pan/zoom | First item cut; nothing else depends on it |
 
 Drop-first order, if any of this proves not to be worth its cost: scale bar,

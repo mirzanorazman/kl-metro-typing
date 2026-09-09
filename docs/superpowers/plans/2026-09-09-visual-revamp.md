@@ -1,5 +1,17 @@
 # Visual Revamp Implementation Plan
 
+> **STATUS: COMPLETE.** All 20 tasks executed and reviewed; merged to `main` as
+> `68a561c`. Per-task commits, the decisions taken during execution, and the
+> places where the shipped code deliberately departs from this plan are
+> recorded in
+> **`docs/superpowers/2026-09-09-visual-revamp-execution-record.md`** — read
+> that before treating anything below as current.
+>
+> The step checkboxes are left unticked on purpose. Several steps were
+> superseded mid-execution (most of Task 12's, whose `view.w < 450` threshold
+> proved to be a broken proxy), so ticking them would assert something untrue.
+> The execution record's completion table is the authoritative status.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the app's improvised dark-slate visual system with the design pack's identity — two atmospheres behind a toggle, self-hosted signage typography, and a cartographic map — without changing any game rule.
