@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { loadNetworkData } from '../data/load';
 import { sound } from '../audio/sound';
 import { networkLayout, lineExtent } from '../geo/networkLayout';
+import { followPoints } from '../geo/fit';
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { stationAt, type NetworkIndex } from '../engine/network';
 import type { LineCode } from '../data/types';
@@ -136,6 +137,25 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   // Get positions of this line's stations for fitTo
   const lineStationPositions = lineExtent(route);
 
+  // The stretch you ride with: a couple of stations behind for the sense of
+  // ground covered, the next few ahead to read where you are going. Framing
+  // the whole route instead meant a 36-station line was run at overview zoom.
+  const followWindow = followPoints(
+    lineStationPositions,
+    run.stationTimes.length,
+    { behind: 2, ahead: 3 },
+  );
+
+  // Centred on the middle of the segment being typed rather than on the
+  // station just left, so the train's run across the shot is centred too. At
+  // whole-line zoom the difference was invisible; this close it is not.
+  const departed = run.arrivedFrom ? layout.get(run.arrivedFrom) ?? null : null;
+  const approaching = layout.get(run.at) ?? null;
+  const centre =
+    departed && approaching
+      ? { x: (departed.x + approaching.x) / 2, y: (departed.y + approaching.y) / 2 }
+      : approaching;
+
   return (
     <PlayLayout
       lineColour={net.lines.get(line)?.colour ?? null}
@@ -147,6 +167,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
           activeStation={run.at}
           previousStation={run.arrivedFrom}
           fitTo={lineStationPositions}
+          focusTo={followWindow}
           fitKey={`line:${line}`}
           backdrop={backdrop}
           districts={districts}
@@ -158,7 +179,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
               : 0
           }
           trainErrorTick={run.errors}
-          focus={arrived ? layout.get(run.arrivedFrom ?? run.at) ?? null : null}
+          focus={arrived ? centre : null}
           focusKey={arrived ? run.at : 'intro'}
           // Emphasise the line being run: without it every line renders at
           // full strength and you cannot tell which one you are on.
