@@ -251,6 +251,43 @@
   color: var(--paper);
 }
 
+.quick-run {
+  height: 100%;
+  overflow: hidden;
+}
+
+.quick-run .play-panel {
+  max-height: none;
+  padding: var(--s2);
+  gap: var(--s);
+}
+
+.quick-run-context {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--s);
+  font: var(--t-xs) var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.quick-run-timer {
+  min-width: 5ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-run-timer[data-final='true'] {
+  color: var(--error);
+  font-weight: 700;
+}
+
+.quick-run-refocus {
+  min-height: 44px;
+  width: 100%;
+}
+
 @media (pointer: coarse) and (max-height: 500px) {
   .quick-summary {
     gap: var(--s);
@@ -271,5 +308,16 @@
 
   .quick-summary-actions button {
     min-height: 44px;
+  }
+}
+
+@media (pointer: coarse) and (max-height: 500px) {
+  .quick-run .play-panel {
+    padding: var(--s);
+    gap: var(--s);
+  }
+
+  .quick-run .prompt {
+    font-size: var(--t-md);
   }
 }
