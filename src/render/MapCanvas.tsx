@@ -1,9 +1,11 @@
 import './map.css';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { Layout } from '../geo/layout';
 import { linesOf, type NetworkIndex } from '../engine/network';
 import { usePanZoom, viewBoxString } from './usePanZoom';
-import { fitViewBox, type EdgePadding } from '../geo/fit';
+import {
+  clampSpan, coverAspect, fitViewBox, scaleToContain, type EdgePadding,
+} from '../geo/fit';
 import type { Point, LineCode } from '../data/types';
 import type { BoundaryPath } from '../geo/boundaries';
 import { type District } from '../geo/networkLayout';
@@ -16,6 +18,26 @@ const FOCUS_BIAS_Y = 0.34;
 /** View width the station radii below were chosen against. */
 const NOMINAL_VIEW_W = 1000;
 
+/**
+ * Span limits for the followed shot, in visible layout units — visible
+ * because `coverAspect` has already absorbed the letterboxing by the time
+ * these apply.
+ *
+ * The ceiling does the real work: it stops a long hop on the Putrajaya line —
+ * some are 99 units against a 28-unit median — from opening the shot back out
+ * into the overview the follow camera exists to avoid. 240 is where a run
+ * settles at about six stations across, which is what the design calls for.
+ *
+ * The floor rarely binds, because `fitViewBox` already refuses to frame
+ * anything smaller than 200 units square; it is here for a portrait viewport,
+ * where the aspect correction works on the other axis.
+ */
+const FOLLOW_MIN_SPAN = 160;
+
+/** Breathing room between a station that must stay in shot and the edge. */
+const FOLLOW_EDGE_MARGIN = 0.06;
+const FOLLOW_MAX_SPAN = 240;
+
 export interface MapCanvasProps {
   net: NetworkIndex;
   layout: Layout;
@@ -27,6 +49,12 @@ export interface MapCanvasProps {
   previousStation?: string | null;
   /** Points to frame. Defaults to every point in `layout`. */
   fitTo?: readonly Point[];
+  /**
+   * Points that set the zoom of the followed shot. Without this the followed
+   * view keeps the size of the `fitTo` frame and only recentres, which on a
+   * long line means running the whole way at overview zoom.
+   */
+  focusTo?: readonly Point[];
   /** Changing this reframes the view. Use something like `${mode}:${line ?? 'all'}`. */
   fitKey?: string;
   /** Per-side padding, to keep content clear of overlaying panels. */
@@ -63,6 +91,7 @@ export function MapCanvas({
   highlight,
   previousStation = null,
   fitTo,
+  focusTo,
   fitKey,
   fitPadding = 0.08,
   trainProgress,
@@ -77,9 +106,40 @@ export function MapCanvas({
   districts,
   pxPerKm,
 }: MapCanvasProps) {
+  // The followed shot is sized in what the player actually sees, which means
+  // knowing the container's shape: preserveAspectRatio letterboxes any box
+  // shaped unlike it. 0 means "not measured yet" and disables the correction,
+  // which is also the right answer without layout (tests, first paint).
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [aspect, setAspect] = useState(0);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const rect = svgRef.current?.getBoundingClientRect();
+      setAspect(rect && rect.height > 0 ? rect.width / rect.height : 0);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
+
   const framed = useMemo(
     () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
     [fitTo, layout, fitPadding],
+  );
+
+  // The size of the followed shot, kept separate from `framed` because the two
+  // answer different questions: `framed` is the establishing view of the whole
+  // route, this is how much of it you ride with.
+  const followed = useMemo(
+    () =>
+      focusTo && focusTo.length > 0
+        ? clampSpan(
+            coverAspect(fitViewBox(focusTo, fitPadding), aspect),
+            FOLLOW_MIN_SPAN,
+            FOLLOW_MAX_SPAN,
+          )
+        : null,
+    [focusTo, fitPadding, aspect],
   );
 
   // Where the view should be *right now*. When a focus point is given the
@@ -89,18 +149,33 @@ export function MapCanvas({
   // This is computed here rather than only inside the effect so it also seeds
   // usePanZoom's initial state — the view is correct on the very first render
   // instead of relying on an effect to correct it afterwards.
-  const target = useMemo(
-    () =>
-      focus
-        ? {
-            x: focus.x - framed.w / 2,
-            y: focus.y - framed.h * FOCUS_BIAS_Y,
-            w: framed.w,
-            h: framed.h,
-          }
-        : framed,
-    [focus, framed],
-  );
+  // The stations the shot may not crop: the segment being typed, and any
+  // junction candidate the player is being asked to choose between.
+  const mustSee = useMemo(() => {
+    const ids = [previousStation, activeStation, ...(highlight ?? [])];
+    return ids
+      .filter((id): id is string => id !== null && id !== undefined)
+      .map((id) => layout.get(id))
+      .filter((p): p is Point => p !== undefined);
+  }, [previousStation, activeStation, highlight, layout]);
+
+  const target = useMemo(() => {
+    if (!focus) return framed;
+
+    let size: { w: number; h: number } = followed ?? framed;
+    if (followed) {
+      // The ceiling is a preference; these stations are a requirement.
+      const scale = scaleToContain(size, focus, FOCUS_BIAS_Y, mustSee, FOLLOW_EDGE_MARGIN);
+      if (scale > 1) size = { w: size.w * scale, h: size.h * scale };
+    }
+
+    return {
+      x: focus.x - size.w / 2,
+      y: focus.y - size.h * FOCUS_BIAS_Y,
+      w: size.w,
+      h: size.h,
+    };
+  }, [focus, framed, followed, mustSee]);
   const { view, fit, handlers } = usePanZoom(target);
 
   // Radii are in SVG user units, so they inflate as the view zooms in — a
@@ -116,8 +191,10 @@ export function MapCanvas({
     framedOnce.current = true;
     // Keyed reframing only: `target` changes identity on every render, and
     // refitting then would fight both the layout tween and the player's pan.
+    // `aspect` is in here because the first measurement lands after the first
+    // paint, and without a refit the opening shot keeps its uncorrected size.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitKey, focusKey]);
+  }, [fitKey, focusKey, aspect]);
 
   // Every polyline in this canvas is the same transformation of a station
   // list; later marks (the glow, the travelled stretch) reuse it.
@@ -171,6 +248,7 @@ export function MapCanvas({
 
   return (
     <svg
+      ref={svgRef}
       className="map-canvas"
       viewBox={viewBoxString(view)}
       role="img"

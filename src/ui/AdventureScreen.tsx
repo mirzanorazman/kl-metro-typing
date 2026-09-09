@@ -10,6 +10,7 @@ import {
 import {
   loadProfile, recordStation, saveAdventurePosition, saveProfile, type Profile,
 } from '../engine/progress';
+import type { Point } from '../data/types';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { HUD } from '../render/HUD';
@@ -105,6 +106,24 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   const heading = run.options[0]?.toward ?? null;
   const highlight = new Set(run.options.map((o) => o.next));
 
+  // Adventure has no route to slice a window out of, so the shot is built from
+  // where you came from, where you are, and wherever a junction could take you
+  // next. Passing no window at all is what left the whole game at network zoom.
+  const followWindow = [run.arrivedFrom, run.at, ...highlight]
+    .filter((id): id is string => id !== null && id !== undefined)
+    .map((id) => layout.get(id))
+    .filter((p): p is Point => p !== undefined);
+
+  // Centred on the middle of the segment being typed rather than on the
+  // station just left, so the train's run across the shot is centred too. At
+  // network zoom the difference was invisible; this close it is not.
+  const departed = run.arrivedFrom ? layout.get(run.arrivedFrom) ?? null : null;
+  const approaching = layout.get(run.at) ?? null;
+  const centre =
+    departed && approaching
+      ? { x: (departed.x + approaching.x) / 2, y: (departed.y + approaching.y) / 2 }
+      : approaching;
+
   return (
     <PlayLayout
       lineColour={run.line ? net.lines.get(run.line)?.colour ?? null : null}
@@ -130,7 +149,8 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
               : 0
           }
           trainErrorTick={run.errors}
-          focus={arrived ? layout.get(run.arrivedFrom ?? run.at) ?? null : null}
+          focusTo={followWindow}
+          focus={arrived ? centre : null}
           focusKey={arrived ? run.at : 'intro'}
           // The typing panel overlays the lower third of the viewport.
           fitPadding={{ top: 0.06, right: 0.06, bottom: 0.38, left: 0.06 }}

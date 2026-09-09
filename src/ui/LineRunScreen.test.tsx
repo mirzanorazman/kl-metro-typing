@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { loadProfile } from '../engine/progress';
@@ -47,6 +47,85 @@ describe('LineRunScreen', () => {
     render(<LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />);
     type('KL Sentral');
     expect(loadProfile().adventure).toBeNull();
+  });
+
+  describe('camera', () => {
+    // jsdom has no layout, so the canvas is told what shape it is; the follow
+    // camera sizes itself in what the player sees, which needs a viewport.
+    const VIEWPORT_ASPECT = 1512 / 690;
+    const original = Element.prototype.getBoundingClientRect;
+    beforeEach(() => {
+      Element.prototype.getBoundingClientRect = function () {
+        return { x: 0, y: 0, top: 0, left: 0, right: 1512, bottom: 690,
+          width: 1512, height: 690, toJSON: () => ({}) } as DOMRect;
+      };
+    });
+    // Restored, or every later test file inherits this viewport.
+    afterEach(() => { Element.prototype.getBoundingClientRect = original; });
+
+    const viewBoxOf = (container: HTMLElement) =>
+      container.querySelector('svg.map-canvas')!
+        .getAttribute('viewBox')!
+        .split(' ')
+        .map(Number) as [number, number, number, number];
+
+    // The Putrajaya line spans 334x642 layout units. Framed whole, with the
+    // typing panel's padding, that is a 924-unit-tall shot — the overview map
+    // the player was already looking at, which is what made long lines feel
+    // like nothing was happening.
+    it('rides a long line at close-up zoom rather than framing the whole line', async () => {
+      const { container } = render(
+        <LineRunScreen net={net} line="PY" from="kwasa-damansara" onExit={() => {}} />,
+      );
+      type('Kwasa Damansara');
+      await waitFor(() => {
+        const [, , w, h] = viewBoxOf(container);
+        expect(Math.max(w, h)).toBeLessThanOrEqual(420);
+      });
+    });
+
+    // The reference the camera is built against shows a couple of stations
+    // behind and the next few ahead — enough to read where you are going,
+    // few enough that the names are legible.
+    it('shows the stretch around the train, not the whole line', async () => {
+      const { container } = render(
+        <LineRunScreen net={net} line="PY" from="kwasa-damansara" onExit={() => {}} />,
+      );
+      type('Kwasa DamansaraKampung SelamatSungai Buloh');
+      await waitFor(() => {
+        const [x, y, w, h] = viewBoxOf(container);
+        expect(w / h).toBeCloseTo(VIEWPORT_ASPECT, 1);
+        const onLine = net.lines.get('PY')!.stations.filter((id) => {
+          const mark = container.querySelector(`circle[data-station="${id}"]`);
+          if (!mark) return false;
+          const cx = Number(mark.getAttribute('cx'));
+          const cy = Number(mark.getAttribute('cy'));
+          return cx >= x && cx <= x + w && cy >= y && cy <= y + h;
+        });
+        expect(onLine.length).toBeGreaterThanOrEqual(4);
+        expect(onLine.length).toBeLessThanOrEqual(8);
+      });
+    });
+
+    it('keeps the station being typed in shot', async () => {
+      const { container } = render(
+        <LineRunScreen net={net} line="PY" from="kwasa-damansara" onExit={() => {}} />,
+      );
+      type('Kwasa Damansara');
+      await waitFor(() => {
+        const [x, y, w, h] = viewBoxOf(container);
+        // Only meaningful at close-up zoom; the whole-line frame contains
+        // every station trivially.
+        expect(Math.max(w, h)).toBeLessThanOrEqual(420);
+        const mark = container.querySelector('circle[data-station="kampung-selamat"]')!;
+        const cx = Number(mark.getAttribute('cx'));
+        const cy = Number(mark.getAttribute('cy'));
+        expect(cx).toBeGreaterThanOrEqual(x);
+        expect(cx).toBeLessThanOrEqual(x + w);
+        expect(cy).toBeGreaterThanOrEqual(y);
+        expect(cy).toBeLessThanOrEqual(y + h);
+      });
+    });
   });
 
   describe('leaderboard', () => {
