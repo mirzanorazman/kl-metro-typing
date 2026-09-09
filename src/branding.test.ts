@@ -71,4 +71,17 @@ describe('active product branding', () => {
     expect(pngDimensions('public/icon-192.png')).toEqual({ width: 192, height: 192 });
     expect(pngDimensions('public/icon-512.png')).toEqual({ width: 512, height: 512 });
   });
+
+  it('declares a complete social-sharing preview', () => {
+    const indexHtml = readProjectFile('index.html');
+    expect(indexHtml).toContain('<link rel="canonical" href="https://kl-metro-typing.vercel.app/" />');
+    expect(indexHtml).toContain('<meta property="og:type" content="website" />');
+    expect(indexHtml).toContain('<meta property="og:title" content="KL-Metro Typing" />');
+    expect(indexHtml).toContain('<meta property="og:url" content="https://kl-metro-typing.vercel.app/" />');
+    expect(indexHtml).toContain('<meta property="og:image" content="https://kl-metro-typing.vercel.app/og-image.png" />');
+    expect(indexHtml).toContain('<meta name="twitter:card" content="summary_large_image" />');
+    expect(indexHtml).toContain('<meta name="twitter:title" content="KL-Metro Typing" />');
+    expect(indexHtml).toContain('<meta name="twitter:image" content="https://kl-metro-typing.vercel.app/og-image.png" />');
+    expect(pngDimensions('public/og-image.png')).toEqual({ width: 1200, height: 630 });
+  });
 });

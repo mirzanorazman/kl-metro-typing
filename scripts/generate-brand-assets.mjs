@@ -8,4 +8,7 @@ const iconOutputs = [
   { file: 'public/icon-512.png', size: 512 },
 ];
 
-await Promise.all(iconOutputs.map(({ file, size }) => sharp(iconSource).resize(size, size).png({ compressionLevel: 9 }).toFile(file)));
+await Promise.all([
+  ...iconOutputs.map(({ file, size }) => sharp(iconSource).resize(size, size).png({ compressionLevel: 9 }).toFile(file)),
+  sharp('assets/brand/social-card.svg').resize(1200, 630, { fit: 'fill' }).png({ compressionLevel: 9 }).toFile('public/og-image.png'),
+]);

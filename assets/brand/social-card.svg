@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0b0f17"/>
+  <g opacity="0.2" fill="none" stroke-linecap="round">
+    <path d="M760 690 1190 260" stroke="#ed254e" stroke-width="26"/>
+    <path d="M700 470h560" stroke="#f78f1e" stroke-width="26"/>
+    <path d="m850 650 330-330" stroke="#38bdf8" stroke-width="26"/>
+    <circle cx="980" cy="470" r="38" fill="#f8fafc" stroke="#0b0f17" stroke-width="18"/>
+  </g>
+  <g transform="translate(78 70)">
+    <rect width="88" height="88" rx="19" fill="#101725"/>
+    <circle cx="44" cy="44" r="29" fill="#ed254e"/>
+    <path d="M10 44h15M63 44h15" stroke="#f78f1e" stroke-width="9" stroke-linecap="round"/>
+    <circle cx="44" cy="44" r="15" fill="#f8fafc"/>
+  </g>
+  <text x="188" y="126" fill="#f8fafc" font-family="Arial, sans-serif" font-size="34" font-weight="700" letter-spacing="1">KL-METRO TYPING</text>
+  <text x="78" y="350" fill="#f8fafc" font-family="Arial, sans-serif" font-size="70" font-weight="700">Type your way across</text>
+  <text x="78" y="430" fill="#f8fafc" font-family="Arial, sans-serif" font-size="70" font-weight="700">the Klang Valley.</text>
+  <text x="82" y="510" fill="#94a3b8" font-family="Arial, sans-serif" font-size="27">154 stations · 7 lines · one keyboard</text>
+</svg>
