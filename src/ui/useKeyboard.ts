@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 
 /**
- * Captures every keystroke for the game. Suppresses the browser default for
- * printable keys and space so the page never scrolls mid-run.
+ * Desktop keyboard event primitive. Suppresses the browser default for
+ * printable keys and space so the page never scrolls mid-run. Mobile typing
+ * is bridged through TypingInputProvider and useGameInput.
  */
 export function useKeyboard(onKey: (key: string) => void, active = true) {
   useEffect(() => {
