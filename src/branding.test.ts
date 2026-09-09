@@ -1,10 +1,11 @@
+// @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { LEADERBOARD_STORAGE_KEY } from './data/leaderboardStore';
+import { STORAGE_KEY } from './engine/progress';
 
-const projectRoot = new URL(import.meta.url).pathname
-  .replace(/^\/@fs/, '')
-  .replace(/\/src\/[^/]+$/, '');
-const readProjectFile = (path: string) => readFileSync(`${projectRoot}/${path}`, 'utf8');
+const projectRoot = new URL('../', import.meta.url);
+const readProjectFile = (path: string) => readFileSync(new URL(path, projectRoot), 'utf8');
 
 describe('active product branding', () => {
   it('uses KL-Metro Typing in active product and package files', () => {
@@ -31,11 +32,7 @@ describe('active product branding', () => {
   });
 
   it('uses KL-Metro persistence namespaces', () => {
-    expect(readProjectFile('src/engine/progress.ts')).toContain(
-      "export const STORAGE_KEY = 'klmetro.v1';",
-    );
-    expect(readProjectFile('src/data/leaderboardStore.ts')).toContain(
-      "export const LEADERBOARD_STORAGE_KEY = 'klmetro.leaderboard.v1';",
-    );
+    expect(STORAGE_KEY).toBe('klmetro.v1');
+    expect(LEADERBOARD_STORAGE_KEY).toBe('klmetro.leaderboard.v1');
   });
 });
