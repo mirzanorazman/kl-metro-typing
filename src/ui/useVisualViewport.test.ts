@@ -80,6 +80,21 @@ describe('useVisualViewport', () => {
     expect(result.current).toEqual({ height: 764, keyboardLikelyOpen: false });
   });
 
+  it('refreshes the measurement when the effect mounts', () => {
+    setInnerHeight(844);
+    const visual = createVisualViewport(700);
+    let heightReads = 0;
+    Object.defineProperty(visual.viewport, 'height', {
+      configurable: true,
+      get: () => (heightReads++ === 0 ? 700 : 600),
+    });
+    installVisualViewport(visual.viewport);
+
+    const { result } = renderHook(() => useVisualViewport());
+
+    expect(result.current).toEqual({ height: 600, keyboardLikelyOpen: true });
+  });
+
   it('rereads the visual viewport on resize', () => {
     setInnerHeight(844);
     const visual = createVisualViewport(700);

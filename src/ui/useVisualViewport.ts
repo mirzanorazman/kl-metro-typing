@@ -22,6 +22,7 @@ export function useVisualViewport(): VisualViewportState {
     const visualViewport = window.visualViewport;
     const update = () => setViewport(readViewport());
 
+    update();
     window.addEventListener('resize', update);
     visualViewport?.addEventListener('resize', update);
     visualViewport?.addEventListener('scroll', update);
