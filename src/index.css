@@ -107,12 +107,34 @@ body {
   display: flex; gap: var(--s2); align-items: center; justify-content: center;
   padding: var(--s) var(--s2); text-align: left;
   background: var(--panel); color: var(--ink);
-  border: 1px solid var(--panel-edge); border-left: 4px solid var(--line-colour, var(--ink-faint));
+  border: 1px solid var(--panel-edge);
   border-radius: 8px; cursor: pointer; font: inherit;
   box-shadow: var(--panel-shadow);
   backdrop-filter: var(--panel-blur);
 }
 .line-picker button:hover, .line-picker button:focus-visible { border-color: var(--focus-ring); }
+
+/* The seven lines read as one list, as the design pack draws them: a single
+   panel of hairline-separated rows, not seven free-floating cards. The badge
+   already carries the line's colour, so a row needs no second colour cue. */
+.line-list {
+  display: flex; flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--panel-blur);
+}
+/* Rows sit flat on the list's own surface. Corners are rounded per-row rather
+   than clipped with `overflow: hidden`, which would crop the focus ring. */
+.line-list button {
+  background: none; border: 0; border-radius: 0;
+  box-shadow: none; backdrop-filter: none;
+}
+.line-list button + button { border-top: 1px solid var(--panel-edge); }
+.line-list button:first-child { border-radius: 8px 8px 0 0; }
+.line-list button:last-child { border-radius: 0 0 8px 8px; }
+.line-list button:hover { background: var(--paper-sub); }
 /* Only the line rows get the three-column grid; Resume and Start anywhere
    are ordinary buttons and were being stretched across it. */
 .line-picker button:has(.line-badge) {

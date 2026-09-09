@@ -136,24 +136,26 @@ export function HomeMap({
           />
         ) : (
           <>
-            {[...net.lines.values()].map((line) => {
-              const done = line.stations.filter((id) => visited.has(id)).length;
-              return (
-                <button
-                  key={line.code}
-                  type="button"
-                  style={{ '--line-colour': line.colour } as React.CSSProperties}
-                  onClick={() => {
-                    sound.select();
-                    setSelected(line.code);
-                  }}
-                >
-                  <LineBadge code={line.code} colour={line.colour} />
-                  <span>{line.name}</span>
-                  <span className="count">{done} / {line.stations.length}</span>
-                </button>
-              );
-            })}
+            <div className="line-list">
+              {[...net.lines.values()].map((line) => {
+                const done = line.stations.filter((id) => visited.has(id)).length;
+                return (
+                  <button
+                    key={line.code}
+                    type="button"
+                    style={{ '--line-colour': line.colour } as React.CSSProperties}
+                    onClick={() => {
+                      sound.select();
+                      setSelected(line.code);
+                    }}
+                  >
+                    <LineBadge code={line.code} colour={line.colour} />
+                    <span>{line.name}</span>
+                    <span className="count">{done} / {line.stations.length}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             <button type="button" onClick={() => {
               sound.select();
