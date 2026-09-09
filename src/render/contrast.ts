@@ -24,6 +24,15 @@ function ratio(a: number, b: number): number {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
+/**
+ * The third sanctioned literal-colour exception (alongside the `.line-strip`
+ * mask gradients in src/index.css and src/ui/leaderboard.css): JS cannot read
+ * a CSS custom property, so these mirror `--badge-ink` (#14181f) and
+ * `--badge-paper` (#ffffff) from src/styles/tokens.css by hand. If a future
+ * palette retune ever changes those two tokens, these two hexes must be
+ * updated to match, or contrastText()'s luminance comparison will silently
+ * drift out of sync with the token values it names.
+ */
 const INK = luminance('#14181f');
 const PAPER = luminance('#ffffff');
 

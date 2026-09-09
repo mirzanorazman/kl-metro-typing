@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import { emptyProfile, saveProfile } from '../engine/progress';
+import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { App } from './App';
 
 const type = (t: string) => { for (const ch of t) fireEvent.keyDown(window, { key: ch }); };
@@ -88,5 +88,37 @@ describe('atmosphere', () => {
     saveProfile({ ...emptyProfile(), theme: 'midnight' });
     render(<App />);
     expect(document.documentElement.dataset.theme).toBe('midnight');
+  });
+
+  it('follows the OS into midnight when it reports a dark preference', () => {
+    // Same stub pattern as the completed-run test above: jsdom never
+    // implements matchMedia, so this exercises resolveTheme's other branch —
+    // the one the "follows the OS" test above cannot reach, because jsdom's
+    // undefined matchMedia always resolves to the light branch. Restored by
+    // the shared afterEach so it cannot leak into a later test.
+    window.matchMedia = ((q: string) => ({
+      matches: true, media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+
+    render(<App />);
+    expect(document.documentElement.dataset.theme).toBe('midnight');
+  });
+
+  it('toggling the theme persists the choice without disturbing the rest of the profile', () => {
+    // `muted` stands in for "the rest of the profile": a field that has
+    // nothing to do with theme, so it only survives if toggleTheme spreads
+    // the freshly-loaded profile rather than writing a bare { theme } record.
+    saveProfile({ ...emptyProfile(), muted: true });
+    render(<App />);
+    expect(document.documentElement.dataset.theme).toBe('paper');
+
+    fireEvent.click(screen.getByRole('button', { name: /switch to midnight/i }));
+
+    expect(document.documentElement.dataset.theme).toBe('midnight');
+    const saved = loadProfile();
+    expect(saved.theme).toBe('midnight');
+    expect(saved.muted).toBe(true);
   });
 });

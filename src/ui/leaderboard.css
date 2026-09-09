@@ -24,7 +24,8 @@
 
 /* Two comet-like arcs of the run's line colour, circulating just outside
    the panel's own edge. `--line-colour` is set by SummaryScreen on an
-   ancestor and inherits down; falls back to the accent colour otherwise.
+   ancestor and inherits down; falls back to `--ink` otherwise, so the glow
+   still renders (in the neutral ink colour) where no line is in scope.
    Two layers: `::before` is a thin ring masked to the band outside the
    panel (so it reads as lines tracing the border, not a blob leaking
    through it — the panel's own background is semi-transparent, so an

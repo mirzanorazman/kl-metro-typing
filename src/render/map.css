@@ -4,7 +4,7 @@
 /* Visiting fills the dot in: you are colouring the map as you go. */
 .map-canvas circle { transition: opacity 220ms ease, fill 380ms ease, stroke 380ms ease; }
 .map-canvas circle[data-dim='true'] { opacity: 0.22; }
-.map-canvas circle {
+.map-canvas circle[data-station] {
   fill: var(--paper);
   stroke: var(--station-colour, var(--ink-muted));
   stroke-width: 2.5;
@@ -32,7 +32,7 @@
   stroke: var(--ink);
   stroke-width: 1;
 }
-.map-canvas .train-window { fill: var(--ink); }
+.map-canvas .train-window { fill: var(--ink); stroke: none; }
 .map-canvas .train-nose { stroke: none; }
 /* Only midnight throws a headlight; on paper it would be a smudge. */
 .map-canvas .train-beam { fill: none; }

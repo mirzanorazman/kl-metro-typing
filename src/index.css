@@ -118,7 +118,12 @@ body {
 .line-picker button:has(.line-badge) {
   display: grid; grid-template-columns: 2.5rem 1fr auto; justify-content: stretch;
 }
-.line-picker .count { color: var(--ink-muted); font-size: var(--t-sm); font-variant-numeric: tabular-nums; }
+.line-picker .count {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-sm);
+  font-variant-numeric: tabular-nums;
+}
 .control-cluster {
   display: flex; gap: var(--s); align-self: flex-end;
 }
@@ -273,13 +278,43 @@ button:hover, button:focus-visible { border-color: var(--focus-ring); }
 
   /* The picker was a fixed 22rem column overlaying a phone-width map. The
      desktop rule's `max-height: calc(100% - var(--s4) * 2); overflow: auto`
-     is overridden here rather than layered on top of, so the panel gets one
-     scroll container sized to the mobile dock, not two competing ones. */
+     is not layered on top of here — `max-height` is narrowed to `45vh` for
+     the mobile dock instead, while `overflow: auto` still applies from the
+     desktop rule unchanged, so the panel gets one scroll container sized to
+     the mobile dock, not two competing ones. */
+
+  /* The picker and the disclaimer footer used to be two independent
+     absolutely-positioned elements. Docking the picker to `bottom: 0` with
+     an opaque background painted straight over the footer, which sat at
+     `bottom: var(--s2)` with no z-index of its own — legal-adjacent copy,
+     silently hidden. Grouping them (see the `.mobile-dock` wrapper in
+     HomeMap.tsx) and laying them out as one flex column, docked to the
+     viewport bottom, reserves the footer real space above the picker
+     instead: its height comes out of the flex layout automatically,
+     whatever it wraps to at a given width, so nothing needs a guessed fixed
+     offset. `column-reverse` visually stacks the footer (last in the DOM)
+     above the picker (first in the DOM), which stays flush with the
+     viewport's bottom edge exactly as before. */
+  .mobile-dock {
+    position: absolute; inset: auto 0 0 0; z-index: 1;
+    display: flex; flex-direction: column-reverse;
+  }
+
   .line-picker {
-    top: auto; bottom: 0; left: 0; right: 0;
+    position: static;
     width: 100%;
     max-height: 45vh;
     padding: var(--s2);
+    background: var(--panel);
+    border-top: 1px solid var(--panel-edge);
+  }
+
+  /* Taken out of absolute positioning so it becomes a normal flex item in
+     `.mobile-dock`, sized to its own content instead of overlapping
+     whatever sits above or below it. */
+  .home-map footer {
+    position: static;
+    padding: var(--s2) var(--s3);
     background: var(--panel);
     border-top: 1px solid var(--panel-edge);
   }

@@ -103,6 +103,13 @@ export function HomeMap({
         </p>
       </header>
 
+      {/* Grouped so the mobile breakpoint can stack the disclaimer above the
+          docked picker as one flex column, instead of two independently
+          absolutely-positioned elements that can overlap. Unstyled itself on
+          desktop, so it does not disturb `.line-picker` and `footer`'s own
+          absolute positioning there (they still position against
+          `.home-map`, the nearest positioned ancestor). */}
+      <div className="mobile-dock">
       <div className="line-picker">
         {profile.recovered && (
           <p role="status">Saved progress could not be read, so a fresh profile was started.</p>
@@ -175,6 +182,7 @@ export function HomeMap({
         An unofficial fan project. Not affiliated with Prasarana Malaysia or Rapid KL.
         Station names, codes, and line colours are public information.
       </footer>
+      </div>
     </div>
   );
 }
