@@ -292,6 +292,14 @@
   gap: var(--s);
 }
 
+@media (max-width: 700px), (pointer: coarse) and (max-height: 700px) {
+  .quick-run .play-panel {
+    max-height: min(42dvh, 22rem);
+    padding: var(--s2);
+    padding-bottom: max(var(--s2), env(safe-area-inset-bottom));
+  }
+}
+
 .quick-run-context {
   display: flex;
   justify-content: space-between;
@@ -361,6 +369,7 @@
 @media (pointer: coarse) and (max-height: 500px) {
   .quick-run .play-panel {
     padding: var(--s);
+    padding-bottom: max(var(--s), env(safe-area-inset-bottom));
     gap: var(--s);
   }
 
