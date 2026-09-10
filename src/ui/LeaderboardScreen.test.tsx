@@ -53,4 +53,18 @@ describe('LeaderboardScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: /back to the map/i }));
     expect(onExit).toHaveBeenCalledTimes(1);
   });
+
+  it('keeps the standalone class and Back action by default', () => {
+    const { container } = render(<LeaderboardScreen net={net} onExit={() => {}} />);
+
+    expect(container.querySelector('.leaderboard-screen--embedded')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Back to the map' })).toBeTruthy();
+  });
+
+  it('uses the embedded class and omits the Back action inside mobile Ranking', () => {
+    const { container } = render(<LeaderboardScreen embedded net={net} />);
+
+    expect(container.querySelector('.leaderboard-screen--embedded')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Back to the map' })).toBeNull();
+  });
 });

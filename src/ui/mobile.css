@@ -288,6 +288,23 @@
   width: 100%;
 }
 
+.mobile-adventure-content {
+  display: grid;
+  gap: var(--s);
+}
+
+.mobile-adventure-content button {
+  min-height: 44px;
+}
+
+.leaderboard-screen--embedded {
+  height: 100%;
+  max-width: none;
+  margin: 0;
+  overflow: auto;
+  padding: max(var(--s2), env(safe-area-inset-top)) var(--s2) var(--s2);
+}
+
 @media (pointer: coarse) and (max-height: 500px) {
   .quick-summary {
     gap: var(--s);
