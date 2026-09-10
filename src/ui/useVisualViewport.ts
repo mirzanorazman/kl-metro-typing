@@ -1,9 +1,18 @@
-import { useEffect, useState } from 'react';
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useState,
+  type PropsWithChildren,
+} from 'react';
 
 export interface VisualViewportState {
   height: number;
   keyboardLikelyOpen: boolean;
 }
+
+const VisualViewportContext = createContext<VisualViewportState | null>(null);
 
 function readViewport(): VisualViewportState {
   const visualViewport = window.visualViewport;
@@ -11,14 +20,17 @@ function readViewport(): VisualViewportState {
 
   return {
     height,
-    keyboardLikelyOpen: visualViewport !== undefined && window.innerHeight - height > 80,
+    keyboardLikelyOpen: Boolean(visualViewport && window.innerHeight - height > 80),
   };
 }
 
 export function useVisualViewport(): VisualViewportState {
+  const shared = useContext(VisualViewportContext);
   const [viewport, setViewport] = useState(readViewport);
 
   useEffect(() => {
+    if (shared) return;
+
     const visualViewport = window.visualViewport;
     const update = () => setViewport(readViewport());
 
@@ -32,7 +44,12 @@ export function useVisualViewport(): VisualViewportState {
       visualViewport?.removeEventListener('resize', update);
       visualViewport?.removeEventListener('scroll', update);
     };
-  }, []);
+  }, [shared]);
 
-  return viewport;
+  return shared ?? viewport;
+}
+
+export function VisualViewportProvider({ children }: PropsWithChildren) {
+  const viewport = useVisualViewport();
+  return createElement(VisualViewportContext.Provider, { value: viewport }, children);
 }

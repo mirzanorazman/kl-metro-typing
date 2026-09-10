@@ -16,10 +16,11 @@
 
 * { box-sizing: border-box; }
 
-html, body, #root { height: 100%; }
+html, body, #root { height: 100%; overflow: hidden; }
 
 body {
   margin: 0;
+  overscroll-behavior: none;
   background: var(--paper);
   color: var(--ink);
   font: var(--t-md)/1.5 var(--font-sans);
@@ -315,7 +316,8 @@ body {
   color: var(--ink-muted); font-family: var(--font-mono); font-size: var(--t-xs);
 }
 
-.summary { max-width: 40rem; margin: 0 auto; padding: var(--s4);
+.summary { height: 100%; min-height: 0; max-width: 40rem; margin: 0 auto; padding: var(--s4);
+  overflow-y: auto; box-sizing: border-box;
   display: flex; flex-direction: column; gap: var(--s2); }
 .summary h2 { margin: 0; font-size: var(--t-lg); }
 .summary dl { display: grid; grid-template-columns: auto auto; gap: var(--s) var(--s3);
@@ -358,87 +360,11 @@ button:hover, button:focus-visible { border-color: var(--focus-ring); }
 .junction li:nth-child(4) { animation-delay: 120ms; }
 .junction li:nth-child(n+5) { animation-delay: 160ms; }
 
-@media (max-width: 700px) {
-  .play-panel {
-    left: 0; right: 0; bottom: 0;
+@media (max-width: 700px), (pointer: coarse) and (max-height: 700px) {
+  body {
+    position: fixed;
+    inset: 0;
     width: 100%;
-    max-height: 40vh;
-    overflow-y: auto;
-    transform: none;
-    border-radius: 10px 10px 0 0;
-    padding: var(--s2);
-  }
-
-  /* At dock width three full-size cells overflow, so the figures step down
-     and the dial shrinks rather than the strip scrolling sideways. The dial
-     stays beside its readout even here: stacking it back would cost 40px of
-     a panel that is already capped at 40vh, and a 2.75rem dial leaves the
-     speed cell room for a four-digit figure at 358px of panel. */
-  .hud-figure { font-size: var(--t-lg); }
-  .hud-cell { padding: var(--s) 0.35rem; }
-  .hud-gauge { flex-grow: 1.6; gap: 0.35rem; }
-  .gauge { width: 2.75rem; height: 1.9rem; }
-
-  /* The picker was a fixed 22rem column overlaying a phone-width map. The
-     desktop rule's `max-height: calc(100% - var(--s4) * 2); overflow: auto`
-     is not layered on top of here — `max-height` is narrowed to `45vh` for
-     the mobile dock instead, while `overflow: auto` still applies from the
-     desktop rule unchanged, so the panel gets one scroll container sized to
-     the mobile dock, not two competing ones. */
-
-  /* The picker and the disclaimer footer used to be two independent
-     absolutely-positioned elements. Docking the picker to `bottom: 0` with
-     an opaque background painted straight over the footer, which sat at
-     `bottom: var(--s2)` with no z-index of its own — legal-adjacent copy,
-     silently hidden. Grouping them (see the `.mobile-dock` wrapper in
-     HomeMap.tsx) and laying them out as one flex column, docked to the
-     viewport bottom, reserves the footer real space above the picker
-     instead: its height comes out of the flex layout automatically,
-     whatever it wraps to at a given width, so nothing needs a guessed fixed
-     offset. `column-reverse` visually stacks the footer (last in the DOM)
-     above the picker (first in the DOM), which stays flush with the
-     viewport's bottom edge exactly as before. */
-  .mobile-dock {
-    position: absolute; inset: auto 0 0 0; z-index: 1;
-    display: flex; flex-direction: column-reverse;
-  }
-
-  .line-picker {
-    position: static;
-    width: 100%;
-    max-height: 45vh;
-    padding: var(--s2);
-    background: var(--panel);
-    border-top: 1px solid var(--panel-edge);
-  }
-
-  /* Taken out of absolute positioning so it becomes a normal flex item in
-     `.mobile-dock`, sized to its own content instead of overlapping
-     whatever sits above or below it. */
-  .home-map footer {
-    position: static;
-    padding: var(--s2) var(--s3);
-    background: var(--panel);
-    border-top: 1px solid var(--panel-edge);
-  }
-
-  /* `position: static` here (as the desktop rule's absolute + z-index:1
-     no longer applies) would drop the header out of the stacking context
-     that keeps it above `.map-canvas`: a positioned element always paints
-     over static in-flow content, regardless of DOM order, so the title
-     would render invisible, behind the map. `relative` keeps the same
-     in-flow layout (no offset is set) while keeping the header a
-     positioned element, so it still paints above the map. */
-  .home-map header {
-    position: relative; top: auto; left: auto;
-    padding: var(--s2) var(--s2) 0;
-  }
-
-  /* 44px minimum touch target: at this width both fall short of it with
-     their desktop padding, so raise min-height explicitly. */
-  .control-cluster button,
-  .line-picker button {
-    min-height: 44px;
   }
 }
 
@@ -496,7 +422,7 @@ button:hover, button:focus-visible { border-color: var(--focus-ring); }
    This has to sit after the rule above, not up in the main mobile block: two
    @keyframes of the same name that both apply are settled by source order,
    not by which one's media query is narrower. */
-@media (max-width: 700px) {
+@media (max-width: 700px), (pointer: coarse) and (max-height: 700px) {
   @keyframes panel-in {
     from { opacity: 0; transform: translateY(1.25rem); }
     to   { opacity: 1; transform: none; }

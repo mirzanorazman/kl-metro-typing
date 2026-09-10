@@ -18,8 +18,26 @@ import { LineStrip } from '../render/LineStrip';
 import { useLayoutMode } from '../render/useLayoutMode';
 import { PlayLayout } from './PlayLayout';
 import { JunctionPicker } from './JunctionPicker';
-import { useKeyboard } from './useKeyboard';
+import { useGameInput, useTypingInputControls } from './TypingInputProvider';
+import { usePhoneLayout } from './usePhoneLayout';
 import { SummaryScreen } from './SummaryScreen';
+
+function MobileTurnAround({ onTurnAround }: { onTurnAround: () => void }) {
+  const { focusInput } = useTypingInputControls();
+
+  return (
+    <button
+      type="button"
+      className="mobile-turn-around"
+      onClick={() => {
+        focusInput();
+        onTurnAround();
+      }}
+    >
+      Turn around
+    </button>
+  );
+}
 
 export interface AdventureScreenProps {
   net: NetworkIndex;
@@ -33,7 +51,10 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
 
   const [run, setRun] = useState<RunState>(() => startRun(net, startAt, performance.now()));
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
+  const profileRef = useRef(profile);
   const persistedCount = useRef(0);
+  const phone = usePhoneLayout();
+  const { focusInput, blurInput } = useTypingInputControls();
 
   // Sound is driven from effects, not from inside the setRun updater — a
   // state updater must stay pure, and React may invoke it more than once.
@@ -65,20 +86,23 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   // guard also makes the effect idempotent, so the setProfile it performs
   // cannot re-trigger it.
   useEffect(() => {
-    if (run.stationTimes.length === persistedCount.current) return;
-    persistedCount.current = run.stationTimes.length;
+    const pending = run.stationTimes.slice(persistedCount.current);
+    if (pending.length === 0) return;
+    persistedCount.current += pending.length;
 
-    const last = run.stationTimes[run.stationTimes.length - 1];
-    if (!last) return;
-
-    const chars = stationAt(net, last.id)?.name.length ?? 0;
-    const wpm = last.ms > 0 ? chars / 5 / (last.ms / 60_000) : 0;
-    const updated = saveAdventurePosition(recordStation(profile, last.id, wpm), {
+    let updated = profileRef.current;
+    for (const station of pending) {
+      const chars = stationAt(net, station.id)?.name.length ?? 0;
+      const wpm = station.ms > 0 ? chars / 5 / (station.ms / 60_000) : 0;
+      updated = recordStation(updated, station.id, wpm);
+    }
+    updated = saveAdventurePosition(updated, {
       at: run.at, arrivedFrom: run.arrivedFrom, line: run.line,
     });
+    profileRef.current = updated;
     saveProfile(updated);
     setProfile(updated);
-  }, [run, net, profile]);
+  }, [run.at, run.arrivedFrom, run.line, run.stationTimes, net]);
 
   const onKey = useCallback((key: string) => {
     if (key === 'Backspace') {
@@ -88,7 +112,11 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
     setRun((prev) => (prev.phase === 'typing' ? keyRun(net, prev, key, performance.now()) : prev));
   }, [net]);
 
-  useKeyboard(onKey, run.phase === 'typing');
+  useGameInput(onKey, run.phase === 'typing');
+
+  useEffect(() => {
+    if (run.phase === 'ended') blurInput();
+  }, [run.phase, blurInput]);
 
   const onChoose = useCallback((dir: Direction) => {
     setRun((prev) => chooseDirection(net, prev, dir, performance.now()));
@@ -170,10 +198,24 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
 
           <LineStrip net={net} line={run.line} at={run.at} />
 
-          {run.phase === 'typing' && <Prompt state={run.typing} errorTick={run.errors} />}
+          {run.phase === 'typing' && (
+            <Prompt
+              state={run.typing}
+              errorTick={run.errors}
+              onActivate={phone ? focusInput : undefined}
+            />
+          )}
 
           {run.phase === 'typing' && run.arrivedFrom && (
-            <p className="hint"><kbd>Backspace</kbd> to turn around</p>
+            phone ? (
+              <MobileTurnAround
+                onTurnAround={() => {
+                  setRun((previous) => turnAround(net, previous, performance.now()));
+                }}
+              />
+            ) : (
+              <p className="hint"><kbd>Backspace</kbd> to turn around</p>
+            )
           )}
 
           {run.phase === 'junction' && (

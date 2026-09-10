@@ -8,19 +8,20 @@ import './leaderboard.css';
 
 export interface LeaderboardScreenProps {
   net: NetworkIndex;
-  onExit: () => void;
+  onExit?: () => void;
+  embedded?: boolean;
 }
 
 type Tab = 'overall' | LineCode;
 
-export function LeaderboardScreen({ net, onExit }: LeaderboardScreenProps) {
+export function LeaderboardScreen({ net, onExit, embedded = false }: LeaderboardScreenProps) {
   const [store] = useState<LeaderboardStore>(() => loadStore());
   const [tab, setTab] = useState<Tab>('overall');
 
   const entries: LeaderboardEntry[] = tab === 'overall' ? store.overall : store.perLine[tab];
 
   return (
-    <div className="leaderboard-screen">
+    <div className={`leaderboard-screen${embedded ? ' leaderboard-screen--embedded' : ''}`}>
       <h2>Leaderboard</h2>
 
       <div className="leaderboard-tabs" role="tablist">
@@ -76,7 +77,7 @@ export function LeaderboardScreen({ net, onExit }: LeaderboardScreenProps) {
         </table>
       )}
 
-      <button type="button" onClick={onExit}>Back to the map</button>
+      {!embedded && <button type="button" onClick={onExit}>Back to the map</button>}
     </div>
   );
 }

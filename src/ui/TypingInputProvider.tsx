@@ -1,0 +1,121 @@
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CompositionEvent,
+  type FormEvent,
+  type PropsWithChildren,
+} from 'react';
+import { useKeyboard } from './useKeyboard';
+
+type InputHandler = (key: string) => void;
+
+interface TypingInputContextValue {
+  enabled: boolean;
+  register: (handler: InputHandler) => () => void;
+  focusInput: () => void;
+  blurInput: () => void;
+  inputFocused: boolean;
+}
+
+const TypingInputContext = createContext<TypingInputContextValue | null>(null);
+
+export function TypingInputProvider({
+  children,
+  enabled,
+}: PropsWithChildren<{ enabled: boolean }>) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const handlerRef = useRef<InputHandler | null>(null);
+  const composingRef = useRef(false);
+  const [inputFocused, setInputFocused] = useState(false);
+
+  const register = useCallback((handler: InputHandler) => {
+    handlerRef.current = handler;
+    return () => {
+      if (handlerRef.current === handler) handlerRef.current = null;
+    };
+  }, []);
+
+  const focusInput = useCallback(() => {
+    if (enabled) inputRef.current?.focus({ preventScroll: true });
+  }, [enabled]);
+
+  const blurInput = useCallback(() => {
+    if (enabled) inputRef.current?.blur();
+  }, [enabled]);
+
+  const emitInputValue = useCallback((input: HTMLInputElement) => {
+    const value = input.value;
+    input.value = '';
+    for (const character of value) handlerRef.current?.(character);
+  }, []);
+
+  const handleInput = useCallback((event: FormEvent<HTMLInputElement>) => {
+    if (!composingRef.current) emitInputValue(event.currentTarget);
+  }, [emitInputValue]);
+
+  const handleCompositionEnd = useCallback((event: CompositionEvent<HTMLInputElement>) => {
+    composingRef.current = false;
+    emitInputValue(event.currentTarget);
+  }, [emitInputValue]);
+
+  const context = useMemo<TypingInputContextValue>(() => ({
+    enabled,
+    register,
+    focusInput,
+    blurInput,
+    inputFocused,
+  }), [enabled, register, focusInput, blurInput, inputFocused]);
+
+  return (
+    <TypingInputContext.Provider value={context}>
+      {children}
+      {enabled && (
+        <input
+          ref={inputRef}
+          className="mobile-typing-input"
+          aria-label="Typing input for Station name"
+          autoComplete="off"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          inputMode="text"
+          onFocus={() => setInputFocused(true)}
+          onBlur={() => setInputFocused(false)}
+          onInput={handleInput}
+          onCompositionStart={() => {
+            composingRef.current = true;
+          }}
+          onCompositionEnd={handleCompositionEnd}
+        />
+      )}
+    </TypingInputContext.Provider>
+  );
+}
+
+export function useGameInput(onKey: InputHandler, active = true): void {
+  const context = useContext(TypingInputContext);
+  useKeyboard(onKey, active && context?.enabled !== true);
+
+  useEffect(() => {
+    if (!active || !context?.enabled) return;
+    return context.register(onKey);
+  }, [active, context, onKey]);
+}
+
+export function useTypingInputControls(): Pick<
+  TypingInputContextValue,
+  'focusInput' | 'blurInput' | 'inputFocused'
+> {
+  const context = useContext(TypingInputContext);
+  if (!context) throw new Error('TypingInputProvider is missing');
+  return {
+    focusInput: context.focusInput,
+    blurInput: context.blurInput,
+    inputFocused: context.inputFocused,
+  };
+}

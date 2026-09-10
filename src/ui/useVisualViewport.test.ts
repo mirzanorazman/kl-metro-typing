@@ -1,137 +1,185 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, render, renderHook } from '@testing-library/react';
+import { createElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useVisualViewport } from './useVisualViewport';
+import { useVisualViewport, VisualViewportProvider } from './useVisualViewport';
 
-type FakeEventTarget = {
-  addEventListener: ReturnType<typeof vi.fn<any[], void>>;
-  removeEventListener: ReturnType<typeof vi.fn<any[], void>>;
-  dispatch: (type: string) => void;
-};
+const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+const originalVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
 
-function createEventTarget(): FakeEventTarget {
-  const listeners = new Map<string, EventListener>();
-  const addEventListener = vi.fn<any[], void>((type, listener) => {
-    listeners.set(type, listener);
-  });
-  const removeEventListener = vi.fn<any[], void>((type, listener) => {
-    if (listeners.get(type) === listener) listeners.delete(type);
-  });
+type ViewportEvent = 'resize' | 'scroll';
 
-  return {
-    addEventListener,
-    removeEventListener,
-    dispatch: (type) => listeners.get(type)?.(new Event(type)),
-  };
+function restoreWindowProperty(name: 'innerHeight' | 'visualViewport', descriptor?: PropertyDescriptor) {
+  if (descriptor) {
+    Object.defineProperty(window, name, descriptor);
+  } else {
+    delete (window as unknown as Record<string, unknown>)[name];
+  }
 }
-
-const innerHeightDescriptor = Object.getOwnPropertyDescriptor(window, 'innerHeight');
-const visualViewportDescriptor = Object.getOwnPropertyDescriptor(window, 'visualViewport');
 
 function setInnerHeight(height: number) {
   Object.defineProperty(window, 'innerHeight', {
     configurable: true,
+    writable: true,
     value: height,
   });
 }
 
-function setVisualViewport(value: object | undefined) {
+function createVisualViewport(initialHeight: number) {
+  let height = initialHeight;
+  const listeners = new Map<ViewportEvent, EventListener>();
+  const viewport = {
+    get height() {
+      return height;
+    },
+    addEventListener: vi.fn((type: ViewportEvent, listener: EventListener) => {
+      listeners.set(type, listener);
+    }),
+    removeEventListener: vi.fn(),
+  } as unknown as VisualViewport;
+
+  return {
+    viewport,
+    setHeight(nextHeight: number) {
+      height = nextHeight;
+    },
+    dispatch(type: ViewportEvent) {
+      listeners.get(type)?.(new Event(type));
+    },
+  };
+}
+
+function installVisualViewport(viewport: VisualViewport | undefined) {
   Object.defineProperty(window, 'visualViewport', {
     configurable: true,
-    value,
+    value: viewport,
   });
 }
 
 afterEach(() => {
-  if (innerHeightDescriptor) Object.defineProperty(window, 'innerHeight', innerHeightDescriptor);
-  if (visualViewportDescriptor) {
-    Object.defineProperty(window, 'visualViewport', visualViewportDescriptor);
-  } else {
-    Reflect.deleteProperty(window, 'visualViewport');
-  }
+  restoreWindowProperty('innerHeight', originalInnerHeight);
+  restoreWindowProperty('visualViewport', originalVisualViewport);
+  vi.restoreAllMocks();
 });
 
 describe('useVisualViewport', () => {
-  it('reports the visual viewport height and an open keyboard', () => {
-    const windowEvents = createEventTarget();
-    const visualViewport = { height: 430, ...createEventTarget() };
-    vi.spyOn(window, 'addEventListener').mockImplementation(windowEvents.addEventListener);
-    vi.spyOn(window, 'removeEventListener').mockImplementation(windowEvents.removeEventListener);
+  function Probe() {
+    useVisualViewport();
+    return null;
+  }
+
+  it('reports the visual viewport height and a likely open keyboard', () => {
     setInnerHeight(844);
-    setVisualViewport(visualViewport);
+    const visual = createVisualViewport(430);
+    installVisualViewport(visual.viewport);
 
     const { result } = renderHook(() => useVisualViewport());
 
     expect(result.current).toEqual({ height: 430, keyboardLikelyOpen: true });
-    vi.restoreAllMocks();
   });
 
-  it('does not report the keyboard for an exact 80 pixel difference', () => {
+  it('does not report a keyboard when the height difference is exactly 80', () => {
     setInnerHeight(844);
-    setVisualViewport({ height: 764, ...createEventTarget() });
+    installVisualViewport(createVisualViewport(764).viewport);
 
     const { result } = renderHook(() => useVisualViewport());
 
     expect(result.current).toEqual({ height: 764, keyboardLikelyOpen: false });
   });
 
-  it('updates height and keyboard state on visual viewport resize', () => {
-    const visualViewport = { height: 800, ...createEventTarget() };
+  it('refreshes the measurement when the effect mounts', () => {
     setInnerHeight(844);
-    setVisualViewport(visualViewport);
+    const visual = createVisualViewport(700);
+    let heightReads = 0;
+    Object.defineProperty(visual.viewport, 'height', {
+      configurable: true,
+      get: () => (heightReads++ === 0 ? 700 : 600),
+    });
+    installVisualViewport(visual.viewport);
+
+    const { result } = renderHook(() => useVisualViewport());
+
+    expect(result.current).toEqual({ height: 600, keyboardLikelyOpen: true });
+  });
+
+  it('rereads the visual viewport on resize', () => {
+    setInnerHeight(844);
+    const visual = createVisualViewport(700);
+    installVisualViewport(visual.viewport);
     const { result } = renderHook(() => useVisualViewport());
 
     act(() => {
-      visualViewport.height = 400;
-      visualViewport.dispatch('resize');
+      visual.setHeight(800);
+      visual.dispatch('resize');
     });
 
-    expect(result.current).toEqual({ height: 400, keyboardLikelyOpen: true });
+    expect(result.current).toEqual({ height: 800, keyboardLikelyOpen: false });
   });
 
-  it('updates height and keyboard state on visual viewport scroll', () => {
-    const visualViewport = { height: 800, ...createEventTarget() };
+  it('rereads the visual viewport on scroll', () => {
     setInnerHeight(844);
-    setVisualViewport(visualViewport);
+    const visual = createVisualViewport(800);
+    installVisualViewport(visual.viewport);
     const { result } = renderHook(() => useVisualViewport());
 
     act(() => {
-      visualViewport.height = 400;
-      visualViewport.dispatch('scroll');
+      visual.setHeight(650);
+      visual.dispatch('scroll');
     });
 
-    expect(result.current).toEqual({ height: 400, keyboardLikelyOpen: true });
+    expect(result.current).toEqual({ height: 650, keyboardLikelyOpen: true });
   });
 
-  it('falls back to innerHeight and responds to window resize without a visual viewport', () => {
-    const windowEvents = createEventTarget();
-    vi.spyOn(window, 'addEventListener').mockImplementation(windowEvents.addEventListener);
-    vi.spyOn(window, 'removeEventListener').mockImplementation(windowEvents.removeEventListener);
+  it('falls back to innerHeight and updates on window resize', () => {
     setInnerHeight(844);
-    setVisualViewport(undefined);
+    installVisualViewport(undefined);
     const { result } = renderHook(() => useVisualViewport());
 
+    expect(result.current).toEqual({ height: 844, keyboardLikelyOpen: false });
+
     act(() => {
-      setInnerHeight(600);
-      windowEvents.dispatch('resize');
+      setInnerHeight(700);
+      window.dispatchEvent(new Event('resize'));
     });
 
-    expect(result.current).toEqual({ height: 600, keyboardLikelyOpen: false });
-    vi.restoreAllMocks();
+    expect(result.current).toEqual({ height: 700, keyboardLikelyOpen: false });
   });
 
-  it('removes the window and visual viewport listeners on unmount', () => {
-    const windowEvents = createEventTarget();
-    const visualViewport = createEventTarget();
-    vi.spyOn(window, 'addEventListener').mockImplementation(windowEvents.addEventListener);
-    vi.spyOn(window, 'removeEventListener').mockImplementation(windowEvents.removeEventListener);
-    setVisualViewport({ height: 844, ...visualViewport });
+  it('removes all listeners from the captured viewport on unmount', () => {
+    setInnerHeight(844);
+    const visual = createVisualViewport(700);
+    installVisualViewport(visual.viewport);
+    const addWindowListener = vi.spyOn(window, 'addEventListener');
+    const removeWindowListener = vi.spyOn(window, 'removeEventListener');
     const { unmount } = renderHook(() => useVisualViewport());
+    const update = vi.mocked(visual.viewport.addEventListener).mock.calls.find(
+      ([type]) => type === 'resize',
+    )?.[1];
 
     unmount();
 
-    expect(window.removeEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
-    expect(visualViewport.removeEventListener).toHaveBeenCalledWith('resize', expect.any(Function));
-    expect(visualViewport.removeEventListener).toHaveBeenCalledWith('scroll', expect.any(Function));
-    vi.restoreAllMocks();
+    expect(update).toBeDefined();
+    expect(addWindowListener).toHaveBeenCalledWith('resize', update);
+    expect(visual.viewport.addEventListener).toHaveBeenCalledWith('resize', update);
+    expect(visual.viewport.addEventListener).toHaveBeenCalledWith('scroll', update);
+    expect(removeWindowListener).toHaveBeenCalledWith('resize', update);
+    expect(visual.viewport.removeEventListener).toHaveBeenCalledWith('resize', update);
+    expect(visual.viewport.removeEventListener).toHaveBeenCalledWith('scroll', update);
+  });
+
+  it('shares one viewport subscription among provider consumers', () => {
+    setInnerHeight(844);
+    const visual = createVisualViewport(700);
+    installVisualViewport(visual.viewport);
+    const addWindowListener = vi.spyOn(window, 'addEventListener');
+
+    render(createElement(
+      VisualViewportProvider,
+      null,
+      createElement(Probe),
+      createElement(Probe),
+    ));
+
+    expect(addWindowListener.mock.calls.filter(([type]) => type === 'resize')).toHaveLength(1);
+    expect(visual.viewport.addEventListener).toHaveBeenCalledTimes(2);
   });
 });

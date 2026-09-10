@@ -10,10 +10,11 @@ export interface DirectionChooserProps {
   net: NetworkIndex;
   line: LineCode;
   onChoose: (fromStationId: string) => void;
+  onQuick?: (toward: string) => void;
   onCancel: () => void;
 }
 
-export function DirectionChooser({ net, line, onChoose, onCancel }: DirectionChooserProps) {
+export function DirectionChooser({ net, line, onChoose, onQuick, onCancel }: DirectionChooserProps) {
   const def = lineAt(net, line);
   const [head, tail] = terminiOf(net, line);
   // Starting at one terminus means heading for the other.
@@ -54,6 +55,19 @@ export function DirectionChooser({ net, line, onChoose, onCancel }: DirectionCho
               <span>Start at {stationAt(net, e.from)?.name}</span>
               <em>toward {stationAt(net, e.toward)?.name}</em>
             </button>
+            {onQuick && (
+              <button
+                type="button"
+                className="quick-run-option"
+                aria-label={`45s Quick Run toward ${stationAt(net, e.toward)?.name ?? e.toward}`}
+                onClick={() => {
+                  sound.select();
+                  onQuick(e.toward);
+                }}
+              >
+                45s Quick Run
+              </button>
+            )}
           </li>
         ))}
       </ul>
