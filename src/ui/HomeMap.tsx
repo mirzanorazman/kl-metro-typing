@@ -17,6 +17,7 @@ export interface HomeMapProps {
   theme: Theme;
   onToggleTheme: () => void;
   onStartLine: (code: LineCode, from: string) => void;
+  onStartQuick?: (code: LineCode, toward: string) => void;
   onPickStation: (stationId: string) => void;
   onOpenLeaderboard: () => void;
 }
@@ -26,6 +27,7 @@ export function HomeMap({
   theme,
   onToggleTheme,
   onStartLine,
+  onStartQuick,
   onPickStation,
   onOpenLeaderboard,
 }: HomeMapProps) {
@@ -183,6 +185,7 @@ export function HomeMap({
             net={net}
             line={selected}
             onChoose={(from) => onStartLine(selected, from)}
+            onQuick={onStartQuick ? (toward) => onStartQuick(selected, toward) : undefined}
             onCancel={() => setSelected(null)}
           />
         ) : (

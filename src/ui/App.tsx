@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LineCode } from '../data/types';
 import { loadNetworkData } from '../data/load';
 import { validateNetworkData } from '../data/validate';
@@ -9,12 +9,20 @@ import { HomeMap } from './HomeMap';
 import { LineRunScreen } from './LineRunScreen';
 import { AdventureScreen } from './AdventureScreen';
 import { LeaderboardScreen } from './LeaderboardScreen';
+import { MobileAdventureSetup } from './MobileAdventureSetup';
+import { MobileShell, type MobileDestination } from './MobileShell';
+import { MobileTransit } from './MobileTransit';
+import { QuickRunScreen } from './QuickRunScreen';
+import { TypingInputProvider } from './TypingInputProvider';
+import { usePhoneLayout } from './usePhoneLayout';
 
 type Screen =
   | { kind: 'home' }
+  | { kind: 'adventure-setup' }
   | { kind: 'line'; code: LineCode; from: string }
   | { kind: 'adventure'; at: string }
-  | { kind: 'leaderboard' };
+  | { kind: 'leaderboard' }
+  | { kind: 'quick'; code: LineCode; toward: string };
 
 /**
  * The atmosphere to render in. A stored choice always wins; with none, the OS
@@ -34,6 +42,9 @@ export function App() {
   const net = useMemo(() => buildNetwork(data), [data]);
   const [screen, setScreen] = useState<Screen>({ kind: 'home' });
   const [theme, setTheme] = useState<Theme>(() => resolveTheme(loadProfile().theme));
+  const [mobileDestination, setMobileDestination] = useState<MobileDestination>('transit');
+  const phone = usePhoneLayout();
+  const lastQuickStart = useRef<string | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -59,25 +70,92 @@ export function App() {
 
   const home = () => setScreen({ kind: 'home' });
 
-  if (screen.kind === 'line') {
+  const startQuick = useCallback((code: LineCode, toward: string) => {
+    setScreen({ kind: 'quick', code, toward });
+  }, []);
+
+  const onStartingStation = useCallback((stationId: string) => {
+    lastQuickStart.current = stationId;
+  }, []);
+
+  const navigateMobile = useCallback((destination: MobileDestination) => {
+    setMobileDestination(destination);
+    setScreen(destination === 'adventure' ? { kind: 'adventure-setup' } : { kind: 'home' });
+  }, []);
+
+  const renderHome = () => {
+    if (phone) {
+      return (
+        <MobileShell active={mobileDestination} onNavigate={navigateMobile}>
+          {mobileDestination === 'transit' && (
+            <MobileTransit
+              net={net}
+              onStartQuick={(code, toward) => startQuick(code, toward)}
+              onStartLine={(code, from) => setScreen({ kind: 'line', code, from })}
+            />
+          )}
+          {mobileDestination === 'adventure' && (
+            <MobileAdventureSetup
+              net={net}
+              onStart={(at) => setScreen({ kind: 'adventure', at })}
+            />
+          )}
+          {mobileDestination === 'ranking' && <LeaderboardScreen net={net} embedded />}
+        </MobileShell>
+      );
+    }
+
     return (
-      <LineRunScreen net={net} line={screen.code} from={screen.from} onExit={home} />
+      <HomeMap
+        net={net}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onStartLine={(code, from) => setScreen({ kind: 'line', code, from })}
+        onStartQuick={startQuick}
+        onPickStation={(at) => setScreen({ kind: 'adventure', at })}
+        onOpenLeaderboard={() => setScreen({ kind: 'leaderboard' })}
+      />
     );
+  };
+
+  let content: JSX.Element;
+
+  if (screen.kind === 'line') {
+    content = (
+      <LineRunScreen
+        net={net}
+        line={screen.code}
+        from={screen.from}
+        onExit={home}
+      />
+    );
+  } else if (screen.kind === 'adventure') {
+    content = <AdventureScreen net={net} startAt={screen.at} onExit={home} />;
+  } else if (screen.kind === 'leaderboard') {
+    content = <LeaderboardScreen net={net} onExit={home} />;
+  } else if (screen.kind === 'quick') {
+    content = (
+      <QuickRunScreen
+        net={net}
+        line={screen.code}
+        toward={screen.toward}
+        previousStart={lastQuickStart.current}
+        onStartingStation={onStartingStation}
+        onBack={home}
+      />
+    );
+  } else if (screen.kind === 'adventure-setup') {
+    content = (
+      <MobileShell active="adventure" onNavigate={navigateMobile}>
+        <MobileAdventureSetup
+          net={net}
+          onStart={(at) => setScreen({ kind: 'adventure', at })}
+        />
+      </MobileShell>
+    );
+  } else {
+    content = renderHome();
   }
-  if (screen.kind === 'adventure') {
-    return <AdventureScreen net={net} startAt={screen.at} onExit={home} />;
-  }
-  if (screen.kind === 'leaderboard') {
-    return <LeaderboardScreen net={net} onExit={home} />;
-  }
-  return (
-    <HomeMap
-      net={net}
-      theme={theme}
-      onToggleTheme={toggleTheme}
-      onStartLine={(code, from) => setScreen({ kind: 'line', code, from })}
-      onPickStation={(at) => setScreen({ kind: 'adventure', at })}
-      onOpenLeaderboard={() => setScreen({ kind: 'leaderboard' })}
-    />
-  );
+
+  return <TypingInputProvider enabled={phone}>{content}</TypingInputProvider>;
 }

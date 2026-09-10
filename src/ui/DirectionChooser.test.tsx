@@ -33,6 +33,32 @@ describe('DirectionChooser', () => {
     expect(select).toHaveBeenCalledTimes(1);
   });
 
+  it('renders no quick-run actions without a quick callback', () => {
+    render(<DirectionChooser net={net} line="MR" onChoose={() => {}} onCancel={() => {}} />);
+
+    expect(screen.queryByRole('button', { name: '45s Quick Run' })).toBeNull();
+  });
+
+  it('offers one compact quick-run action per direction', () => {
+    const onQuick = vi.fn();
+    render(
+      <DirectionChooser
+        net={net}
+        line="MR"
+        onChoose={() => {}}
+        onQuick={onQuick}
+        onCancel={() => {}}
+      />,
+    );
+
+    const quickActions = screen.getAllByRole('button', { name: '45s Quick Run' });
+    expect(quickActions).toHaveLength(2);
+
+    fireEvent.click(quickActions[0]!);
+
+    expect(onQuick).toHaveBeenCalledWith('titiwangsa');
+  });
+
   it('cancels on Escape', () => {
     let cancelled = false;
     render(<DirectionChooser net={net} line="MR" onChoose={() => {}} onCancel={() => (cancelled = true)} />);

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { App } from './App';
@@ -11,21 +11,50 @@ const MR_ROUTE_FROM_KL_SENTRAL = [
 ];
 
 // jsdom does not implement matchMedia at all (undefined by default — see
-// resolveTheme's optional-chaining guard in App.tsx). One test below stubs it
-// permanently to skip an animation delay; restore that original value after
-// every test so it cannot leak into the atmosphere tests that follow.
+// resolveTheme's optional-chaining guard in App.tsx). App tests install a
+// desktop or phone result explicitly, then restore the original value.
 const originalMatchMedia = window.matchMedia;
+const originalVisibility = Object.getOwnPropertyDescriptor(document, 'visibilityState');
+const originalScrollIntoView = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
+
+function installMatchMedia(matches: boolean, phoneMatches = matches) {
+  window.matchMedia = ((q: string) => ({
+    matches: q.includes('max-width: 700px') || q.includes('pointer: coarse')
+      ? phoneMatches
+      : matches,
+    media: q,
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+}
+
+function setVisibility(value: DocumentVisibilityState) {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    value,
+  });
+}
 
 beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
+  Element.prototype.scrollIntoView = () => {};
 });
 
 afterEach(() => {
   window.matchMedia = originalMatchMedia;
+  if (originalVisibility) Object.defineProperty(document, 'visibilityState', originalVisibility);
+  if (originalScrollIntoView) Object.defineProperty(Element.prototype, 'scrollIntoView', originalScrollIntoView);
+  else delete (Element.prototype as Partial<Element>).scrollIntoView;
 });
 
 describe('App', () => {
+  beforeEach(() => installMatchMedia(false));
+
   it('opens on the map', () => {
     const { container } = render(<App />);
     expect(container.querySelectorAll('polyline[data-line]')).toHaveLength(7);
@@ -52,14 +81,81 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: /leaderboard/i })).toBeTruthy();
   });
 
+  it('starts a desktop quick run from the home direction picker', () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: '45s Quick Run' })[0]!);
+
+    expect(document.querySelector('.quick-run')).toBeTruthy();
+    expect(screen.getByText(/KL Monorail · toward/i)).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
+  });
+
+  it('starts phone home in Transit without the desktop line picker', () => {
+    installMatchMedia(true);
+    render(<App />);
+
+    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start 45s Quick Run' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /start anywhere/i })).toBeNull();
+  });
+
+  it('switches between phone destinations and embeds ranking without Back', () => {
+    installMatchMedia(true);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adventure' }));
+    expect(screen.getByRole('textbox', { name: 'Search stations' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ranking' }));
+    expect(screen.getByRole('heading', { name: 'Leaderboard' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /back to the map/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Transit' }));
+    expect(screen.getByRole('button', { name: 'Start 45s Quick Run' })).toBeTruthy();
+  });
+
+  it('hides phone navigation during a quick run and restores Transit on back', () => {
+    installMatchMedia(true);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    expect(document.querySelector('.quick-run')).toBeTruthy();
+    expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
+
+    setVisibility('hidden');
+    fireEvent(document, new Event('visibilitychange'));
+
+    expect(document.querySelector('.quick-run')).toBeNull();
+    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start 45s Quick Run' })).toBeTruthy();
+  });
+
+  it('retains the latest quick-run starting station for the next run', () => {
+    installMatchMedia(false);
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: '45s Quick Run' })[0]!);
+    for (const key of 'KL Sentral') fireEvent.keyDown(window, { key });
+    expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
+
+    setVisibility('hidden');
+    fireEvent(document, new Event('visibilitychange'));
+    fireEvent.click(screen.getByRole('button', { name: /back to transit/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: '45s Quick Run' })[0]!);
+
+    expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
+  });
+
   it('takes a completed line run all the way to a visible leaderboard entry', () => {
     // Skips the 1.1s post-completion celebration delay so the summary (and
     // its leaderboard panel) appears synchronously — see LineRunScreen.test.tsx.
-    window.matchMedia = ((q: string) => ({
-      matches: true, media: q, onchange: null,
-      addEventListener: () => {}, removeEventListener: () => {},
-      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
-    })) as unknown as typeof window.matchMedia;
+    installMatchMedia(true, false);
 
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
@@ -96,11 +192,7 @@ describe('atmosphere', () => {
     // the one the "follows the OS" test above cannot reach, because jsdom's
     // undefined matchMedia always resolves to the light branch. Restored by
     // the shared afterEach so it cannot leak into a later test.
-    window.matchMedia = ((q: string) => ({
-      matches: true, media: q, onchange: null,
-      addEventListener: () => {}, removeEventListener: () => {},
-      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
-    })) as unknown as typeof window.matchMedia;
+    installMatchMedia(true, false);
 
     render(<App />);
     expect(document.documentElement.dataset.theme).toBe('midnight');

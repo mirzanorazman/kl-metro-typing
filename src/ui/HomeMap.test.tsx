@@ -59,6 +59,26 @@ describe('HomeMap', () => {
     expect(got).toEqual(['KJ', 'gombak']);
   });
 
+  it('starts a quick run with the selected line and direction', () => {
+    let got: [string, string] | null = null;
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onStartQuick={(code, toward) => (got = [code, toward])}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /kelana jaya/i }));
+    fireEvent.click(screen.getAllByRole('button', { name: '45s Quick Run' })[0]!);
+
+    expect(got).toEqual(['KJ', 'putra-heights']);
+  });
+
   it('starts a line run from a line chosen by typing its code', () => {
     let got: [string, string] | null = null;
     render(
