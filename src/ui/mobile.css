@@ -197,6 +197,36 @@
   border-color: var(--ink);
 }
 
+@media (max-width: 700px), (pointer: coarse) and (max-height: 700px) {
+  .play-panel {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    transform: none;
+    max-height: min(42dvh, 22rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-radius: 10px 10px 0 0;
+    padding: var(--s2);
+    padding-bottom: max(var(--s2), env(safe-area-inset-bottom));
+  }
+
+  .mobile-turn-around,
+  .junction button {
+    min-height: 44px;
+  }
+
+  .hud-figure { font-size: var(--t-lg); }
+  .hud-cell { padding: var(--s) 0.35rem; }
+  .hud-gauge { flex-grow: 1.6; gap: 0.35rem; }
+  .gauge { width: 2.75rem; height: 1.9rem; }
+
+  .mobile-map-region {
+    min-height: 0;
+  }
+}
+
 @media (pointer: coarse) and (max-height: 700px) {
   .mobile-map-region {
     min-height: 0;
