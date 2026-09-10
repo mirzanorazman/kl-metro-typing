@@ -28,7 +28,7 @@ function MobileTurnAround({ onTurnAround }: { onTurnAround: () => void }) {
   return (
     <button
       type="button"
-      className="quick-run-refocus"
+      className="mobile-turn-around"
       onClick={() => {
         focusInput();
         onTurnAround();

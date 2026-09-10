@@ -79,6 +79,7 @@ describe('AdventureScreen', () => {
     fireEvent.click(screen.getByRole('group', { name: /choose a direction/i }).querySelector('button')!);
 
     const turnAround = screen.getByRole('button', { name: 'Turn around' });
+    expect(turnAround.classList.contains('mobile-turn-around')).toBe(true);
     fireEvent.click(turnAround);
 
     expect(document.activeElement).toBe(input);
