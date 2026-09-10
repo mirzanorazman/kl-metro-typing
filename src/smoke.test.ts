@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 
 const indexCss = readFileSync('src/index.css', 'utf8');
 const mobileCss = readFileSync('src/ui/mobile.css', 'utf8');
+const leaderboardCss = readFileSync('src/ui/leaderboard.css', 'utf8');
 
 describe('toolchain', () => {
   it('runs tests', () => {
@@ -24,6 +25,18 @@ describe('toolchain', () => {
 
     expect(mobileCss).toMatch(
       /@media\s*\(max-width:\s*700px\),\s*\(pointer:\s*coarse\)\s*and\s*\(max-height:\s*700px\)\s*\{\s*\.quick-run \.play-panel\s*\{[^}]*max-height:\s*min\(42dvh,\s*22rem\);[^}]*padding:\s*var\(--s2\);[^}]*padding-bottom:\s*max\(var\(--s2\),\s*env\(safe-area-inset-bottom\)\);[^}]*\}\s*\}/,
+    );
+  });
+
+  it('keeps standalone terminal surfaces scrollable inside the locked document', () => {
+    expect(indexCss).toMatch(
+      /\.summary\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/,
+    );
+    expect(leaderboardCss).toMatch(
+      /\.leaderboard-screen\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/,
+    );
+    expect(mobileCss).toMatch(
+      /\.leaderboard-screen--embedded\s*\{[^}]*height:\s*100%;[^}]*overflow:\s*auto;/,
     );
   });
 });

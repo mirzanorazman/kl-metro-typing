@@ -80,9 +80,13 @@
 }
 
 .leaderboard-screen {
+  height: 100%;
+  min-height: 0;
   max-width: 40rem;
   margin: 0 auto;
   padding: var(--s4);
+  overflow-y: auto;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--s2);

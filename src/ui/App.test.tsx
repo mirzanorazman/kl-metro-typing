@@ -80,6 +80,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   window.matchMedia = originalMatchMedia;
   if (originalVisualViewport) Object.defineProperty(window, 'visualViewport', originalVisualViewport);
   else delete (window as unknown as Record<string, unknown>).visualViewport;
@@ -123,7 +124,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getAllByRole('button', { name: '45s Quick Run' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
 
     expect(document.querySelector('.quick-run')).toBeTruthy();
     expect(screen.getByText(/KL Monorail · toward/i)).toBeTruthy();
@@ -231,7 +232,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getAllByRole('button', { name: '45s Quick Run' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
     for (const key of 'KL Sentral') fireEvent.keyDown(window, { key });
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
 
@@ -240,7 +241,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /back to transit/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getAllByRole('button', { name: '45s Quick Run' })[0]!);
+    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
 
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
   });

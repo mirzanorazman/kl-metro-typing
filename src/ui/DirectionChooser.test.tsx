@@ -51,8 +51,10 @@ describe('DirectionChooser', () => {
       />,
     );
 
-    const quickActions = screen.getAllByRole('button', { name: '45s Quick Run' });
-    expect(quickActions).toHaveLength(2);
+    const quickActions = [
+      screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }),
+      screen.getByRole('button', { name: '45s Quick Run toward KL Sentral' }),
+    ];
 
     fireEvent.click(quickActions[0]!);
 
