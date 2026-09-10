@@ -222,6 +222,17 @@
     min-height: 44px;
   }
 
+  .prompt-recovery {
+    width: 100%;
+    min-height: 44px;
+    padding: 0;
+    text-align: left;
+    background: transparent;
+    color: inherit;
+    border: 0;
+    border-radius: 0;
+  }
+
   .hud-figure { font-size: var(--t-lg); }
   .hud-cell { padding: var(--s) 0.35rem; }
   .hud-gauge { flex-grow: 1.6; gap: 0.35rem; }

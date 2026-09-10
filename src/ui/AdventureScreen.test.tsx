@@ -67,6 +67,22 @@ describe('AdventureScreen', () => {
     expect(screen.getByRole('group', { name: /choose a direction/i })).toBeTruthy();
   });
 
+  it('recovers native typing from the initial phone prompt after blur', () => {
+    render(
+      <TypingInputProvider enabled>
+        <AdventureScreen net={net} startAt="imbi" onExit={() => {}} />
+      </TypingInputProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+    fireEvent.blur(input);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Type Imbi' }));
+
+    expect(document.activeElement).toBe(input);
+    expect(screen.queryByRole('group', { name: /choose a direction/i })).toBeNull();
+  });
+
   it('persists every station completed in one native input event and the final position', () => {
     render(
       <TypingInputProvider enabled>

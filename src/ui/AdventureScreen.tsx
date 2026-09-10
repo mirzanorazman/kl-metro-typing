@@ -54,7 +54,7 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   const profileRef = useRef(profile);
   const persistedCount = useRef(0);
   const phone = usePhoneLayout();
-  const { blurInput } = useTypingInputControls();
+  const { focusInput, blurInput } = useTypingInputControls();
 
   // Sound is driven from effects, not from inside the setRun updater — a
   // state updater must stay pure, and React may invoke it more than once.
@@ -198,7 +198,13 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
 
           <LineStrip net={net} line={run.line} at={run.at} />
 
-          {run.phase === 'typing' && <Prompt state={run.typing} errorTick={run.errors} />}
+          {run.phase === 'typing' && (
+            <Prompt
+              state={run.typing}
+              errorTick={run.errors}
+              onActivate={phone ? focusInput : undefined}
+            />
+          )}
 
           {run.phase === 'typing' && run.arrivedFrom && (
             phone ? (

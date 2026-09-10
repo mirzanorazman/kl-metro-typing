@@ -61,6 +61,33 @@ describe('LineRunScreen', () => {
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
   });
 
+  it('recovers native typing when the phone prompt is tapped after blur', () => {
+    render(
+      <TypingInputProvider enabled>
+        <LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />
+      </TypingInputProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+    fireEvent.blur(input);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Type KL Sentral' }));
+
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('keeps the desktop prompt noninteractive', () => {
+    window.matchMedia = ((q: string) => ({
+      matches: false, media: q, onchange: null,
+      addEventListener: () => {}, removeEventListener: () => {},
+      addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
+
+    expect(screen.getByLabelText('Type KL Sentral').tagName).toBe('DIV');
+    expect(screen.queryByRole('button', { name: 'Type KL Sentral' })).toBeNull();
+  });
+
   it('persists every station completed in one native input event', () => {
     render(
       <TypingInputProvider enabled>

@@ -19,6 +19,7 @@ import { HUD } from '../render/HUD';
 import { LineStrip } from '../render/LineStrip';
 import { PlayLayout } from './PlayLayout';
 import { useGameInput, useTypingInputControls } from './TypingInputProvider';
+import { usePhoneLayout } from './usePhoneLayout';
 import { SummaryScreen } from './SummaryScreen';
 
 export interface LineRunScreenProps {
@@ -39,7 +40,8 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const profileRef = useRef(profile);
   const persistedCount = useRef(0);
-  const { blurInput } = useTypingInputControls();
+  const { focusInput, blurInput } = useTypingInputControls();
+  const phone = usePhoneLayout();
 
   // Sound is driven from effects, not from inside the setRun updater — a
   // state updater must stay pure, and React may invoke it more than once.
@@ -203,7 +205,13 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
         <>
           <LineStrip net={net} line={run.line} at={run.at} />
 
-          {run.phase === 'typing' && <Prompt state={run.typing} errorTick={run.errors} />}
+          {run.phase === 'typing' && (
+            <Prompt
+              state={run.typing}
+              errorTick={run.errors}
+              onActivate={phone ? focusInput : undefined}
+            />
+          )}
 
           <HUD
             metrics={runMetrics(run, performance.now())}

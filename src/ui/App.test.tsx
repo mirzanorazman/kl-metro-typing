@@ -154,6 +154,36 @@ describe('App', () => {
     expect(frame.style.height).toBe('390px');
   });
 
+  it('preserves an active quick run across both phone breakpoint transitions', () => {
+    installMatchMedia(false);
+    installVisualViewport(700);
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
+    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
+    fireEvent.keyDown(window, { key: 'K' });
+
+    const prompt = screen.getByLabelText('Type KL Sentral');
+    expect(prompt.querySelector('[data-state="done"]')?.textContent).toBe('K');
+    const timer = screen.getByText('0:45', { selector: '.quick-run-timer' }).textContent;
+
+    act(() => setPhoneLayout(true));
+    expect((document.querySelector('.mobile-run-frame') as HTMLElement).style.height).toBe('700px');
+    expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
+    expect(screen.getByText('0:45', { selector: '.quick-run-timer' }).textContent).toBe(timer);
+
+    act(() => setPhoneLayout(false));
+    expect(document.querySelector('.mobile-run-frame')).toBeNull();
+    expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
+    expect(screen.getByText('0:45', { selector: '.quick-run-timer' }).textContent).toBe(timer);
+
+    act(() => setPhoneLayout(true));
+    expect((document.querySelector('.mobile-run-frame') as HTMLElement).style.height).toBe('700px');
+    expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
+    expect(screen.getByText('0:45', { selector: '.quick-run-timer' }).textContent).toBe(timer);
+  });
+
   it('starts phone home in Transit without the desktop line picker', () => {
     installMatchMedia(true);
     render(<App />);

@@ -25,11 +25,14 @@ type Screen =
   | { kind: 'leaderboard' }
   | { kind: 'quick'; code: LineCode; toward: string };
 
-function MobileRunFrame({ children }: { children: JSX.Element }) {
+function MobileRunFrame({ children, phone }: { children: JSX.Element; phone: boolean }) {
   const { height } = useVisualViewport();
 
   return (
-    <div className="mobile-run-frame" style={{ height: `${height}px` }}>
+    <div
+      className={phone ? 'mobile-run-frame' : undefined}
+      style={{ height: phone ? `${height}px` : '100%' }}
+    >
       {children}
     </div>
   );
@@ -185,8 +188,8 @@ export function App() {
   }
 
   const activeRun = screen.kind === 'line' || screen.kind === 'adventure' || screen.kind === 'quick';
-  const framedContent = phone && activeRun
-    ? <MobileRunFrame>{content}</MobileRunFrame>
+  const framedContent = activeRun
+    ? <MobileRunFrame phone={phone}>{content}</MobileRunFrame>
     : content;
 
   return (
