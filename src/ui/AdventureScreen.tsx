@@ -18,8 +18,26 @@ import { LineStrip } from '../render/LineStrip';
 import { useLayoutMode } from '../render/useLayoutMode';
 import { PlayLayout } from './PlayLayout';
 import { JunctionPicker } from './JunctionPicker';
-import { useKeyboard } from './useKeyboard';
+import { useGameInput, useTypingInputControls } from './TypingInputProvider';
+import { usePhoneLayout } from './usePhoneLayout';
 import { SummaryScreen } from './SummaryScreen';
+
+function MobileTurnAround({ onTurnAround }: { onTurnAround: () => void }) {
+  const { focusInput } = useTypingInputControls();
+
+  return (
+    <button
+      type="button"
+      className="quick-run-refocus"
+      onClick={() => {
+        focusInput();
+        onTurnAround();
+      }}
+    >
+      Turn around
+    </button>
+  );
+}
 
 export interface AdventureScreenProps {
   net: NetworkIndex;
@@ -34,6 +52,7 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   const [run, setRun] = useState<RunState>(() => startRun(net, startAt, performance.now()));
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const persistedCount = useRef(0);
+  const phone = usePhoneLayout();
 
   // Sound is driven from effects, not from inside the setRun updater — a
   // state updater must stay pure, and React may invoke it more than once.
@@ -88,7 +107,7 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
     setRun((prev) => (prev.phase === 'typing' ? keyRun(net, prev, key, performance.now()) : prev));
   }, [net]);
 
-  useKeyboard(onKey, run.phase === 'typing');
+  useGameInput(onKey, run.phase === 'typing');
 
   const onChoose = useCallback((dir: Direction) => {
     setRun((prev) => chooseDirection(net, prev, dir, performance.now()));
@@ -173,7 +192,15 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
           {run.phase === 'typing' && <Prompt state={run.typing} errorTick={run.errors} />}
 
           {run.phase === 'typing' && run.arrivedFrom && (
-            <p className="hint"><kbd>Backspace</kbd> to turn around</p>
+            phone ? (
+              <MobileTurnAround
+                onTurnAround={() => {
+                  setRun((previous) => turnAround(net, previous, performance.now()));
+                }}
+              />
+            ) : (
+              <p className="hint"><kbd>Backspace</kbd> to turn around</p>
+            )
           )}
 
           {run.phase === 'junction' && (

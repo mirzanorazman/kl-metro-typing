@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { lineAt, stationAt, type Direction, type NetworkIndex } from '../engine/network';
-import { useKeyboard } from './useKeyboard';
+import { useGameInput } from './TypingInputProvider';
 import { LineBadge } from './LineBadge';
 
 /** Resolves a keystroke to an option: a 1-based number, or a line code letter. */
@@ -22,6 +22,9 @@ export interface JunctionPickerProps {
 }
 
 export function JunctionPicker({ net, options, walk, onChoose, onWalk }: JunctionPickerProps) {
+  const focusInput = useCallback(() => {
+    document.querySelector<HTMLInputElement>('.mobile-typing-input')?.focus({ preventScroll: true });
+  }, []);
   const onKey = useCallback(
     (key: string) => {
       const match = matchOption(options, key);
@@ -29,7 +32,7 @@ export function JunctionPicker({ net, options, walk, onChoose, onWalk }: Junctio
     },
     [options, onChoose],
   );
-  useKeyboard(onKey);
+  useGameInput(onKey);
 
   return (
     <div className="junction" role="group" aria-label="Choose a direction">
@@ -42,7 +45,10 @@ export function JunctionPicker({ net, options, walk, onChoose, onWalk }: Junctio
               <button
                 type="button"
                 style={{ '--line-colour': line?.colour } as React.CSSProperties}
-                onClick={() => onChoose(dir)}
+                onClick={() => {
+                  focusInput();
+                  onChoose(dir);
+                }}
               >
                 <kbd>{i + 1}</kbd>
                 {line && <LineBadge code={dir.line} colour={line.colour} />}
@@ -55,7 +61,13 @@ export function JunctionPicker({ net, options, walk, onChoose, onWalk }: Junctio
         })}
         {walk.map((id) => (
           <li key={`walk-${id}`}>
-            <button type="button" onClick={() => onWalk(id)}>
+            <button
+              type="button"
+              onClick={() => {
+                focusInput();
+                onWalk(id);
+              }}
+            >
               walk to {stationAt(net, id)?.name}
             </button>
           </li>

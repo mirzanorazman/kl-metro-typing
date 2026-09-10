@@ -4,6 +4,7 @@ import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { loadProfile } from '../engine/progress';
 import { LineRunScreen } from './LineRunScreen';
+import { TypingInputProvider } from './TypingInputProvider';
 
 const net = buildNetwork(loadNetworkData());
 const type = (t: string) => { for (const ch of t) fireEvent.keyDown(window, { key: ch }); };
@@ -35,6 +36,21 @@ describe('LineRunScreen', () => {
     type('KL Sentral');
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
     expect(screen.queryByRole('group', { name: /choose a direction/i })).toBeNull();
+  });
+
+  it('advances from native input inside the typing provider', () => {
+    render(
+      <TypingInputProvider enabled>
+        <LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />
+      </TypingInputProvider>,
+    );
+
+    fireEvent.input(
+      screen.getByRole('textbox', { name: 'Typing input for Station name' }),
+      { target: { value: 'KL Sentral' } },
+    );
+
+    expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
   });
 
   it('persists each visited station', () => {

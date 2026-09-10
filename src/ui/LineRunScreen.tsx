@@ -18,7 +18,7 @@ import { Prompt } from '../render/Prompt';
 import { HUD } from '../render/HUD';
 import { LineStrip } from '../render/LineStrip';
 import { PlayLayout } from './PlayLayout';
-import { useKeyboard } from './useKeyboard';
+import { useGameInput } from './TypingInputProvider';
 import { SummaryScreen } from './SummaryScreen';
 
 export interface LineRunScreenProps {
@@ -99,7 +99,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
     });
   }, [net, route]);
 
-  useKeyboard(onKey, run.phase === 'typing');
+  useGameInput(onKey, run.phase === 'typing');
 
   // Dev-only shortcut to reach the summary screen without typing the whole
   // route by hand. `import.meta.env.DEV` is a build-time constant, so this
