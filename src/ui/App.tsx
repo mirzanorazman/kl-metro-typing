@@ -15,6 +15,7 @@ import { MobileTransit } from './MobileTransit';
 import { QuickRunScreen } from './QuickRunScreen';
 import { TypingInputProvider } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
+import { useVisualViewport, VisualViewportProvider } from './useVisualViewport';
 
 type Screen =
   | { kind: 'home' }
@@ -23,6 +24,16 @@ type Screen =
   | { kind: 'adventure'; at: string }
   | { kind: 'leaderboard' }
   | { kind: 'quick'; code: LineCode; toward: string };
+
+function MobileRunFrame({ children }: { children: JSX.Element }) {
+  const { height } = useVisualViewport();
+
+  return (
+    <div className="mobile-run-frame" style={{ height: `${height}px` }}>
+      {children}
+    </div>
+  );
+}
 
 /**
  * The atmosphere to render in. A stored choice always wins; with none, the OS
@@ -44,7 +55,23 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(() => resolveTheme(loadProfile().theme));
   const [mobileDestination, setMobileDestination] = useState<MobileDestination>('transit');
   const phone = usePhoneLayout();
+  const previousPhone = useRef(phone);
   const lastQuickStart = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (previousPhone.current === phone) return;
+    previousPhone.current = phone;
+
+    if (phone && screen.kind === 'leaderboard') {
+      setMobileDestination('ranking');
+      setScreen({ kind: 'home' });
+    } else if (!phone && screen.kind === 'adventure-setup') {
+      setMobileDestination('transit');
+      setScreen({ kind: 'home' });
+    } else if (!phone && screen.kind === 'home') {
+      setMobileDestination('transit');
+    }
+  }, [phone, screen.kind]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -157,5 +184,14 @@ export function App() {
     content = renderHome();
   }
 
-  return <TypingInputProvider enabled={phone}>{content}</TypingInputProvider>;
+  const activeRun = screen.kind === 'line' || screen.kind === 'adventure' || screen.kind === 'quick';
+  const framedContent = phone && activeRun
+    ? <MobileRunFrame>{content}</MobileRunFrame>
+    : content;
+
+  return (
+    <VisualViewportProvider>
+      <TypingInputProvider enabled={phone}>{framedContent}</TypingInputProvider>
+    </VisualViewportProvider>
+  );
 }

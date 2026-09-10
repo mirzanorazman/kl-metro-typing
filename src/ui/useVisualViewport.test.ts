@@ -1,6 +1,7 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, render, renderHook } from '@testing-library/react';
+import { createElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useVisualViewport } from './useVisualViewport';
+import { useVisualViewport, VisualViewportProvider } from './useVisualViewport';
 
 const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
 const originalVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
@@ -61,6 +62,11 @@ afterEach(() => {
 });
 
 describe('useVisualViewport', () => {
+  function Probe() {
+    useVisualViewport();
+    return null;
+  }
+
   it('reports the visual viewport height and a likely open keyboard', () => {
     setInnerHeight(844);
     const visual = createVisualViewport(430);
@@ -158,5 +164,22 @@ describe('useVisualViewport', () => {
     expect(removeWindowListener).toHaveBeenCalledWith('resize', update);
     expect(visual.viewport.removeEventListener).toHaveBeenCalledWith('resize', update);
     expect(visual.viewport.removeEventListener).toHaveBeenCalledWith('scroll', update);
+  });
+
+  it('shares one viewport subscription among provider consumers', () => {
+    setInnerHeight(844);
+    const visual = createVisualViewport(700);
+    installVisualViewport(visual.viewport);
+    const addWindowListener = vi.spyOn(window, 'addEventListener');
+
+    render(createElement(
+      VisualViewportProvider,
+      null,
+      createElement(Probe),
+      createElement(Probe),
+    ));
+
+    expect(addWindowListener.mock.calls.filter(([type]) => type === 'resize')).toHaveLength(1);
+    expect(visual.viewport.addEventListener).toHaveBeenCalledTimes(2);
   });
 });

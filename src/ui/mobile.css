@@ -100,6 +100,11 @@
   pointer-events: none;
 }
 
+.mobile-run-frame {
+  height: 100%;
+  overflow: hidden;
+}
+
 .mobile-map-screen {
   width: 100%;
   height: 100%;

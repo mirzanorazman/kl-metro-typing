@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { App } from './App';
 
@@ -14,22 +14,56 @@ const MR_ROUTE_FROM_KL_SENTRAL = [
 // resolveTheme's optional-chaining guard in App.tsx). App tests install a
 // desktop or phone result explicitly, then restore the original value.
 const originalMatchMedia = window.matchMedia;
+const originalVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
 const originalVisibility = Object.getOwnPropertyDescriptor(document, 'visibilityState');
 const originalScrollIntoView = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
 
+let phoneMedia: { matches: boolean; listeners: Set<EventListener> } | null = null;
+
 function installMatchMedia(matches: boolean, phoneMatches = matches) {
   window.matchMedia = ((q: string) => ({
-    matches: q.includes('max-width: 700px') || q.includes('pointer: coarse')
-      ? phoneMatches
-      : matches,
+    get matches() {
+      return q.includes('max-width: 700px') || q.includes('pointer: coarse')
+        ? phoneMedia?.matches ?? phoneMatches
+        : matches;
+    },
     media: q,
     onchange: null,
-    addEventListener: () => {},
-    removeEventListener: () => {},
+    addEventListener: (_type: string, listener: EventListener) => {
+      if (q.includes('max-width: 700px') || q.includes('pointer: coarse')) {
+        phoneMedia?.listeners.add(listener);
+      }
+    },
+    removeEventListener: (_type: string, listener: EventListener) => {
+      phoneMedia?.listeners.delete(listener);
+    },
     addListener: () => {},
     removeListener: () => {},
     dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia;
+  phoneMedia = { matches: phoneMatches, listeners: new Set() };
+}
+
+function setPhoneLayout(matches: boolean) {
+  if (!phoneMedia) throw new Error('matchMedia not installed');
+  phoneMedia.matches = matches;
+  for (const listener of phoneMedia.listeners) listener(new Event('change'));
+}
+
+function installVisualViewport(initialHeight: number) {
+  let height = initialHeight;
+  const viewport = new EventTarget() as EventTarget & { height: number };
+  Object.defineProperty(viewport, 'height', {
+    configurable: true,
+    get: () => height,
+  });
+  Object.defineProperty(window, 'innerHeight', { configurable: true, value: 844 });
+  Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport });
+  return {
+    setHeight(nextHeight: number) { height = nextHeight; },
+    dispatch(type: 'resize' | 'scroll') { viewport.dispatchEvent(new Event(type)); },
+  };
 }
 
 function setVisibility(value: DocumentVisibilityState) {
@@ -47,9 +81,13 @@ beforeEach(() => {
 
 afterEach(() => {
   window.matchMedia = originalMatchMedia;
+  if (originalVisualViewport) Object.defineProperty(window, 'visualViewport', originalVisualViewport);
+  else delete (window as unknown as Record<string, unknown>).visualViewport;
+  if (originalInnerHeight) Object.defineProperty(window, 'innerHeight', originalInnerHeight);
   if (originalVisibility) Object.defineProperty(document, 'visibilityState', originalVisibility);
   if (originalScrollIntoView) Object.defineProperty(Element.prototype, 'scrollIntoView', originalScrollIntoView);
   else delete (Element.prototype as Partial<Element>).scrollIntoView;
+  phoneMedia = null;
 });
 
 describe('App', () => {
@@ -92,6 +130,29 @@ describe('App', () => {
     expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
   });
 
+  it('bounds an active phone run to the live visual viewport height', () => {
+    installMatchMedia(true);
+    const viewport = installVisualViewport(700);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+
+    const frame = document.querySelector('.mobile-run-frame') as HTMLElement;
+    expect(frame.style.height).toBe('700px');
+
+    act(() => {
+      viewport.setHeight(430);
+      viewport.dispatch('resize');
+    });
+    expect(frame.style.height).toBe('430px');
+
+    act(() => {
+      viewport.setHeight(390);
+      viewport.dispatch('scroll');
+    });
+    expect(frame.style.height).toBe('390px');
+  });
+
   it('starts phone home in Transit without the desktop line picker', () => {
     installMatchMedia(true);
     render(<App />);
@@ -114,6 +175,38 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Transit' }));
     expect(screen.getByRole('button', { name: 'Start 45s Quick Run' })).toBeTruthy();
+  });
+
+  it('returns a phone adventure setup to the desktop home when the layout widens', () => {
+    installMatchMedia(true);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Adventure' }));
+    expect(screen.getByRole('textbox', { name: 'Search stations' })).toBeTruthy();
+
+    act(() => setPhoneLayout(false));
+
+    expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
+    expect(document.querySelector('.home-map')).toBeTruthy();
+  });
+
+  it('moves a desktop leaderboard into the phone ranking shell and back', () => {
+    installMatchMedia(false);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /leaderboard/i }));
+    expect(screen.getByRole('button', { name: /back to the map/i })).toBeTruthy();
+
+    act(() => setPhoneLayout(true));
+
+    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ranking' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.queryByRole('button', { name: /back to the map/i })).toBeNull();
+
+    act(() => setPhoneLayout(false));
+
+    expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
+    expect(document.querySelector('.home-map')).toBeTruthy();
   });
 
   it('hides phone navigation during a quick run and restores Transit on back', () => {
