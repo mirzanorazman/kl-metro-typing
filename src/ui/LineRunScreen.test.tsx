@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { loadProfile } from '../engine/progress';
@@ -14,6 +14,14 @@ const MR_ROUTE_FROM_KL_SENTRAL = [
   'Bukit Bintang', 'Raja Chulan', 'Bukit Nanas', 'Medan Tuanku', 'Chow Kit', 'Titiwangsa',
 ];
 
+function renderLine(props: { line: 'MR' | 'PY'; from: string; onExit: () => void }) {
+  return render(
+    <TypingInputProvider enabled={false}>
+      <LineRunScreen net={net} {...props} />
+    </TypingInputProvider>,
+  );
+}
+
 beforeEach(() => {
   localStorage.clear();
   // Skips the 1.1s post-completion celebration delay so completion tests
@@ -27,12 +35,12 @@ beforeEach(() => {
 
 describe('LineRunScreen', () => {
   it('starts at the chosen terminus', () => {
-    render(<LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />);
+    renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
     expect(screen.getByLabelText('Type KL Sentral')).toBeTruthy();
   });
 
   it('advances along the line without asking for a direction', () => {
-    render(<LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />);
+    renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
     type('KL Sentral');
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
     expect(screen.queryByRole('group', { name: /choose a direction/i })).toBeNull();
@@ -53,14 +61,41 @@ describe('LineRunScreen', () => {
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
   });
 
+  it('persists every station completed in one native input event', () => {
+    render(
+      <TypingInputProvider enabled>
+        <LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />
+      </TypingInputProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+
+    fireEvent.input(input, { target: { value: 'KL SentralTun Sambanthan' } });
+
+    expect(loadProfile().visited).toEqual(expect.arrayContaining(['kl-sentral', 'tun-sambanthan']));
+  });
+
+  it('releases the native input when the line run ends', () => {
+    render(
+      <TypingInputProvider enabled>
+        <LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />
+      </TypingInputProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+
+    fireEvent.click(screen.getByRole('button', { name: 'End run' }));
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('persists each visited station', () => {
-    render(<LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />);
+    renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
     type('KL Sentral');
     expect(loadProfile().visited).toContain('kl-sentral');
   });
 
   it('does not write an adventure resume position', () => {
-    render(<LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />);
+    renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
     type('KL Sentral');
     expect(loadProfile().adventure).toBeNull();
   });
@@ -90,9 +125,7 @@ describe('LineRunScreen', () => {
     // the player was already looking at, which is what made long lines feel
     // like nothing was happening.
     it('rides a long line at close-up zoom rather than framing the whole line', async () => {
-      const { container } = render(
-        <LineRunScreen net={net} line="PY" from="kwasa-damansara" onExit={() => {}} />,
-      );
+      const { container } = renderLine({ line: 'PY', from: 'kwasa-damansara', onExit: () => {} });
       type('Kwasa Damansara');
       await waitFor(() => {
         const [, , w, h] = viewBoxOf(container);
@@ -104,9 +137,7 @@ describe('LineRunScreen', () => {
     // behind and the next few ahead — enough to read where you are going,
     // few enough that the names are legible.
     it('shows the stretch around the train, not the whole line', async () => {
-      const { container } = render(
-        <LineRunScreen net={net} line="PY" from="kwasa-damansara" onExit={() => {}} />,
-      );
+      const { container } = renderLine({ line: 'PY', from: 'kwasa-damansara', onExit: () => {} });
       type('Kwasa DamansaraKampung SelamatSungai Buloh');
       await waitFor(() => {
         const [x, y, w, h] = viewBoxOf(container);
@@ -124,9 +155,7 @@ describe('LineRunScreen', () => {
     });
 
     it('keeps the station being typed in shot', async () => {
-      const { container } = render(
-        <LineRunScreen net={net} line="PY" from="kwasa-damansara" onExit={() => {}} />,
-      );
+      const { container } = renderLine({ line: 'PY', from: 'kwasa-damansara', onExit: () => {} });
       type('Kwasa Damansara');
       await waitFor(() => {
         const [x, y, w, h] = viewBoxOf(container);
@@ -146,13 +175,13 @@ describe('LineRunScreen', () => {
 
   describe('leaderboard', () => {
     it('invites the player to the leaderboard after completing the whole line', () => {
-      render(<LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />);
+      renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
       for (const name of MR_ROUTE_FROM_KL_SENTRAL) type(name);
       expect(screen.getByLabelText(/your name/i)).toBeTruthy();
     });
 
     it('does not invite the player when the run ends early', () => {
-      render(<LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />);
+      renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
       type('KL Sentral');
       fireEvent.click(screen.getByRole('button', { name: /end run/i }));
       expect(screen.queryByLabelText(/your name/i)).toBeNull();

@@ -157,6 +157,30 @@ describe('QuickRunScreen', () => {
     expect(screen.queryByText('0:00')).toBeNull();
   });
 
+  it('releases the native input when a Quick Run completes normally', () => {
+    renderQuick();
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+    nativeInput('K');
+
+    tickAt(1_000 + QUICK_RUN_MS);
+
+    expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it('releases the native input when a Quick Run is interrupted', () => {
+    renderQuick();
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+    nativeInput('K');
+
+    hidePage(2_000);
+
+    expect(screen.getByRole('heading', { name: 'Run interrupted' })).toBeTruthy();
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('cleans up the running interval and visibility listener on unmount', () => {
     const clearInterval = vi.spyOn(window, 'clearInterval');
     const removeEventListener = vi.spyOn(document, 'removeEventListener');

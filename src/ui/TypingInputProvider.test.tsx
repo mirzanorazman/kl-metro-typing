@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   TypingInputProvider,
@@ -13,11 +13,12 @@ interface ProbeProps {
 
 function Probe({ active = true, onKey }: ProbeProps) {
   useGameInput(onKey, active);
-  const { focusInput, inputFocused } = useTypingInputControls();
+  const { focusInput, blurInput, inputFocused } = useTypingInputControls();
 
   return (
     <>
       <button type="button" onClick={focusInput}>Focus input</button>
+      <button type="button" onClick={blurInput}>Blur input</button>
       <output data-testid="focus-state">{inputFocused ? 'focused' : 'blurred'}</output>
     </>
   );
@@ -73,6 +74,21 @@ describe('TypingInputProvider', () => {
 
     fireEvent.blur(input);
 
+    expect(screen.getByTestId('focus-state').textContent).toBe('blurred');
+  });
+
+  it('blurs the provider-owned input on request', () => {
+    render(
+      <TypingInputProvider enabled>
+        <Probe onKey={() => {}} />
+      </TypingInputProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+
+    fireEvent.click(screen.getByRole('button', { name: 'Blur input' }));
+
+    expect(document.activeElement).toBe(document.body);
     expect(screen.getByTestId('focus-state').textContent).toBe('blurred');
   });
 

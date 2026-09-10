@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { loadProfile } from '../engine/progress';
@@ -65,6 +65,42 @@ describe('AdventureScreen', () => {
     );
 
     expect(screen.getByRole('group', { name: /choose a direction/i })).toBeTruthy();
+  });
+
+  it('persists every station completed in one native input event and the final position', () => {
+    render(
+      <TypingInputProvider enabled>
+        <AdventureScreen net={net} startAt="kl-sentral" onExit={() => {}} />
+      </TypingInputProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+
+    fireEvent.input(input, { target: { value: 'KL Sentral' } });
+    fireEvent.click(screen.getByRole('button', { name: /toward Titiwangsa/i }));
+    fireEvent.input(input, { target: { value: 'Tun SambanthanMaharajalela' } });
+
+    expect(loadProfile().visited).toEqual(
+      expect.arrayContaining(['kl-sentral', 'tun-sambanthan', 'maharajalela']),
+    );
+    expect(loadProfile().adventure).toMatchObject({
+      at: 'hang-tuah',
+      arrivedFrom: 'maharajalela',
+      line: 'MR',
+    });
+  });
+
+  it('releases the native input when the adventure ends', () => {
+    render(
+      <TypingInputProvider enabled>
+        <AdventureScreen net={net} startAt="imbi" onExit={() => {}} />
+      </TypingInputProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+
+    fireEvent.click(screen.getByRole('button', { name: 'End journey' }));
+
+    expect(document.activeElement).toBe(document.body);
   });
 
   it('offers a phone turn-around button that focuses input before returning', () => {

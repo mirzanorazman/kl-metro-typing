@@ -18,6 +18,7 @@ interface TypingInputContextValue {
   enabled: boolean;
   register: (handler: InputHandler) => () => void;
   focusInput: () => void;
+  blurInput: () => void;
   inputFocused: boolean;
 }
 
@@ -43,6 +44,10 @@ export function TypingInputProvider({
     if (enabled) inputRef.current?.focus({ preventScroll: true });
   }, [enabled]);
 
+  const blurInput = useCallback(() => {
+    if (enabled) inputRef.current?.blur();
+  }, [enabled]);
+
   const emitInputValue = useCallback((input: HTMLInputElement) => {
     const value = input.value;
     input.value = '';
@@ -62,8 +67,9 @@ export function TypingInputProvider({
     enabled,
     register,
     focusInput,
+    blurInput,
     inputFocused,
-  }), [enabled, register, focusInput, inputFocused]);
+  }), [enabled, register, focusInput, blurInput, inputFocused]);
 
   return (
     <TypingInputContext.Provider value={context}>
@@ -103,12 +109,13 @@ export function useGameInput(onKey: InputHandler, active = true): void {
 
 export function useTypingInputControls(): Pick<
   TypingInputContextValue,
-  'focusInput' | 'inputFocused'
+  'focusInput' | 'blurInput' | 'inputFocused'
 > {
   const context = useContext(TypingInputContext);
   if (!context) throw new Error('TypingInputProvider is missing');
   return {
     focusInput: context.focusInput,
+    blurInput: context.blurInput,
     inputFocused: context.inputFocused,
   };
 }

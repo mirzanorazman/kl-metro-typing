@@ -72,7 +72,7 @@ export function QuickRunScreen({
   const [dismissed, setDismissed] = useState(false);
   const heard = useRef({ chars: 0, errors: 0, stations: 0 });
   const completionHeard = useRef(false);
-  const { focusInput, inputFocused } = useTypingInputControls();
+  const { focusInput, blurInput, inputFocused } = useTypingInputControls();
   const phone = usePhoneLayout();
   const { keyboardLikelyOpen } = useVisualViewport();
 
@@ -90,6 +90,10 @@ export function QuickRunScreen({
   }, [net]);
 
   useGameInput(onKey, run.status === 'ready' || run.status === 'running');
+
+  useEffect(() => {
+    if (run.status === 'completed' || run.status === 'interrupted') blurInput();
+  }, [run.status, blurInput]);
 
   useEffect(() => {
     if (run.status !== 'running') return;

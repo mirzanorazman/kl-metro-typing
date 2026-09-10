@@ -18,7 +18,7 @@ import { Prompt } from '../render/Prompt';
 import { HUD } from '../render/HUD';
 import { LineStrip } from '../render/LineStrip';
 import { PlayLayout } from './PlayLayout';
-import { useGameInput } from './TypingInputProvider';
+import { useGameInput, useTypingInputControls } from './TypingInputProvider';
 import { SummaryScreen } from './SummaryScreen';
 
 export interface LineRunScreenProps {
@@ -37,7 +37,9 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
 
   const [run, setRun] = useState<RunState>(() => startRun(net, from, performance.now()));
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
+  const profileRef = useRef(profile);
   const persistedCount = useRef(0);
+  const { blurInput } = useTypingInputControls();
 
   // Sound is driven from effects, not from inside the setRun updater — a
   // state updater must stay pure, and React may invoke it more than once.
@@ -69,18 +71,20 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   // guard also makes the effect idempotent, so the setProfile it performs
   // cannot re-trigger it.
   useEffect(() => {
-    if (run.stationTimes.length === persistedCount.current) return;
-    persistedCount.current = run.stationTimes.length;
+    const pending = run.stationTimes.slice(persistedCount.current);
+    if (pending.length === 0) return;
+    persistedCount.current += pending.length;
 
-    const last = run.stationTimes[run.stationTimes.length - 1];
-    if (!last) return;
-
-    const chars = stationAt(net, last.id)?.name.length ?? 0;
-    const wpm = last.ms > 0 ? chars / 5 / (last.ms / 60_000) : 0;
-    const updated = recordStation(profile, last.id, wpm);
+    let updated = profileRef.current;
+    for (const station of pending) {
+      const chars = stationAt(net, station.id)?.name.length ?? 0;
+      const wpm = station.ms > 0 ? chars / 5 / (station.ms / 60_000) : 0;
+      updated = recordStation(updated, station.id, wpm);
+    }
+    profileRef.current = updated;
     saveProfile(updated);
     setProfile(updated);
-  }, [run, net, profile]);
+  }, [run.stationTimes, net]);
 
   const onKey = useCallback((key: string) => {
     setRun((prev) => {
@@ -100,6 +104,10 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   }, [net, route]);
 
   useGameInput(onKey, run.phase === 'typing');
+
+  useEffect(() => {
+    if (run.phase === 'ended') blurInput();
+  }, [run.phase, blurInput]);
 
   // Dev-only shortcut to reach the summary screen without typing the whole
   // route by hand. `import.meta.env.DEV` is a build-time constant, so this
