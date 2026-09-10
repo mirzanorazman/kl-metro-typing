@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { lineAt, stationAt, type Direction, type NetworkIndex } from '../engine/network';
-import { useGameInput } from './TypingInputProvider';
+import { useGameInput, useTypingInputControls } from './TypingInputProvider';
 import { LineBadge } from './LineBadge';
 
 /** Resolves a keystroke to an option: a 1-based number, or a line code letter. */
@@ -22,15 +22,16 @@ export interface JunctionPickerProps {
 }
 
 export function JunctionPicker({ net, options, walk, onChoose, onWalk }: JunctionPickerProps) {
-  const focusInput = useCallback(() => {
-    document.querySelector<HTMLInputElement>('.mobile-typing-input')?.focus({ preventScroll: true });
-  }, []);
+  const { focusInput } = useTypingInputControls();
   const onKey = useCallback(
     (key: string) => {
       const match = matchOption(options, key);
-      if (match) onChoose(match);
+      if (match) {
+        focusInput();
+        onChoose(match);
+      }
     },
-    [options, onChoose],
+    [focusInput, options, onChoose],
   );
   useGameInput(onKey);
 

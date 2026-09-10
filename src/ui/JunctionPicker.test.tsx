@@ -82,4 +82,27 @@ describe('JunctionPicker', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /walk to imbi/i }));
   });
+
+  it('focuses the native input before choosing from the keyboard', () => {
+    render(
+      <TypingInputProvider enabled>
+        <JunctionPicker
+          net={net}
+          options={options}
+          walk={[]}
+          onChoose={() => {
+            expect(document.activeElement).toBe(
+              screen.getByRole('textbox', { name: 'Typing input for Station name' }),
+            );
+          }}
+          onWalk={() => {}}
+        />
+      </TypingInputProvider>,
+    );
+
+    fireEvent.input(
+      screen.getByRole('textbox', { name: 'Typing input for Station name' }),
+      { target: { value: '1' } },
+    );
+  });
 });
