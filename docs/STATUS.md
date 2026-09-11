@@ -143,8 +143,18 @@ Nothing here is blocking, but all of it is real.
   sturdier anyway — but the root cause was never confirmed.
 - **`untrusted-input` is a hard fail with an unquantified false-positive rate.**
   Assistive input tools that dispatch synthetic DOM events would be refused the
-  leaderboard. `profile.integrityFails` records every refusal so this shows up
-  in the data; nothing reads it yet.
+  leaderboard. `profile.integrityFails` records every refusal — but see the next
+  entry: in production nobody can read those records, so the rate stays
+  unquantified in practice as well as in principle.
+- **The integrity layer is unobservable in production.** `integrityFails` is
+  written and never read: `src/engine/progress.ts:52` declares it and `:166`
+  appends to it, and those are the only two references in `src/`. It lives in
+  each player's `localStorage`, and invariant 5 forbids runtime network
+  requests, so it never leaves their device. A wrongly-refused honest player
+  sees one reasonless sentence, has no reason to think it is a bug, and their
+  evidence is unreachable. See the operational-readiness entry under
+  **What is next** — this is the gap that matters most before this feature is
+  trusted.
 - **No shared guard against a malformed Keylog crossing a server boundary.**
   Before any server parses a submitted Keylog from JSON, `replayLineRun`,
   `replayQuickRun` and `verifyKeyLog` all need one shared `isWellFormedKeyLog`
@@ -153,6 +163,36 @@ Nothing here is blocking, but all of it is real.
   throws just as readily on a malformed element.
 
 ## What is next
+
+**Operational readiness for run integrity.** The integrity layer shipped with
+no deployment gate, no kill switch, and no way to see it misbehaving. That is
+deliberate scope, not an oversight, but it should be closed before the feature
+is relied on — and certainly before an online leaderboard sits on top of it.
+
+The order matters, because items 1–3 are what make the question "should we roll
+this back?" answerable at all:
+
+1. **A kill switch.** One flag that keeps recording Verdicts but stops *gating*
+   on them, so a misbehaving validator can be neutralised without a rebuild and
+   redeploy. Highest value of anything in this list.
+2. **Make the failure log reachable** — a hidden debug view, or an export, so a
+   player who reports "it won't take my score" can send something concrete.
+   Without this, item 1 has no trigger.
+3. **Acceptance criteria.** Measurable definitions of healthy: what
+   false-positive rate is tolerable, what to check after deploying, what trips
+   the kill switch.
+4. **CI.** There is none — no `.github/workflows`, no host config in the repo.
+   The 565 tests, `tsc --noEmit` and `npm run build` are all manual gates today.
+5. **A rollback runbook**, including the one piece of good news below.
+
+**Rollback is data-safe**, and that is a consequence of a deliberate decision
+rather than luck. Neither `SCHEMA_VERSION` moved; every field the integrity work
+added (`Profile.integrityFails`, `LeaderboardEntry.verified`, `KeyLog.truncated`)
+is optional; and both stores load and save by spreading, so older code reading a
+newer record preserves the unknown fields instead of rejecting or dropping them.
+Redeploying a previous build needs no migration and will not wipe anyone's
+leaderboard or profile. Keep it that way: the moment a schema version moves,
+this paragraph stops being true.
 
 **Rush Hour** — the survival mode from the original spec, and the only major
 piece never built. Passengers accumulate at stations; your typing speed is the
