@@ -9,6 +9,22 @@ import { QUICK_RUN_MS } from '../engine/quickRun';
 import { QuickRunScreen } from './QuickRunScreen';
 import { TypingInputProvider } from './TypingInputProvider';
 
+// jsdom cannot produce a trusted keyboard event (see TypingInputProvider.test.tsx),
+// so a dispatched keydown always reports `isTrusted: false`. The PB tests
+// below need to simulate a legitimate, trusted player run, which no
+// fireEvent option can achieve — isTrusted is a non-configurable own property
+// jsdom sets at construction. Wrapping useKeyboard here is the standard
+// escape hatch for an untestable browser primitive; every other behaviour of
+// useKeyboard is preserved unchanged.
+vi.mock('./useKeyboard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./useKeyboard')>();
+  return {
+    ...actual,
+    useKeyboard: (onKey: Parameters<typeof actual.useKeyboard>[0], active?: boolean) =>
+      actual.useKeyboard((key, source) => onKey(key, { ...source, trusted: true }), active),
+  };
+});
+
 const net = buildNetwork(loadNetworkData());
 const mobileStyles = readFileSync('src/ui/mobile.css', 'utf8');
 
@@ -91,6 +107,24 @@ function nativeInput(value: string) {
 function tickAt(nextNow: number) {
   now = nextNow;
   act(() => vi.advanceTimersByTime(100));
+}
+
+const TYPING_INTERVALS = [128, 191, 97, 164, 233, 112, 145, 178, 88, 205];
+
+/**
+ * Types via real keydown events (routed through useKeyboard, not the mobile
+ * native-input path), advancing the mocked `now` with varied intervals
+ * between keystrokes so the resulting Keylog reads as human rather than
+ * tripping `impossible-speed` on a flat mocked clock. Requires
+ * `renderQuick({ providerEnabled: false })` so typing is not swallowed by
+ * TypingInputProvider's own (untrusted) native-input path.
+ */
+function typeQuickAsHuman(text: string) {
+  let i = 0;
+  for (const ch of text) {
+    now += TYPING_INTERVALS[i++ % TYPING_INTERVALS.length]!;
+    fireEvent.keyDown(window, { key: ch });
+  }
 }
 
 function hidePage(at: number) {
@@ -214,11 +248,14 @@ describe('QuickRunScreen', () => {
   });
 
   it('records a strictly higher selected-line PB once and keeps the new-best label stable', () => {
-    const setItem = vi.spyOn(Storage.prototype, 'setItem');
-    renderQuick();
-    nativeInput('K');
+    renderQuick({ providerEnabled: false });
+    // At least 20 keystrokes with varied intervals: the completion effect
+    // now gates the PB write on the Verdict, and a single 'K' (as before
+    // Task 7) is too few keystrokes to ever verify.
+    typeQuickAsHuman('KL SentralTun Sambanthan');
 
-    tickAt(1_000 + QUICK_RUN_MS);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    tickAt(now + QUICK_RUN_MS + 5_000);
 
     expect(loadProfile().quickBest.MR).toBeGreaterThan(0);
     expect(setItem).toHaveBeenCalledTimes(1);
@@ -229,11 +266,11 @@ describe('QuickRunScreen', () => {
 
   it('does not replace an equal or lower PB', () => {
     saveProfile({ ...emptyProfile(), quickBest: { MR: 999 } });
-    const setItem = vi.spyOn(Storage.prototype, 'setItem');
-    renderQuick();
-    nativeInput('K');
+    renderQuick({ providerEnabled: false });
+    typeQuickAsHuman('KL SentralTun Sambanthan');
 
-    tickAt(1_000 + QUICK_RUN_MS);
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    tickAt(now + QUICK_RUN_MS + 5_000);
 
     expect(loadProfile().quickBest.MR).toBe(999);
     expect(setItem).not.toHaveBeenCalled();

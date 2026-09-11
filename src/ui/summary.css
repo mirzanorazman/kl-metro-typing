@@ -145,3 +145,11 @@
     animation: none;
   }
 }
+
+.summary-ineligible {
+  margin: 0;
+  padding: 1rem;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}

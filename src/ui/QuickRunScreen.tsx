@@ -24,6 +24,11 @@ import { QuickRunSummary } from './QuickRunSummary';
 import { useGameInput, useTypingInputControls } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
 import { useVisualViewport } from './useVisualViewport';
+import { runTick, useRunRecorder } from './useRunRecorder';
+import { replayQuickRun } from '../engine/replay';
+import { verifyKeyLog, type Verdict } from '../engine/integrity';
+import { recordIntegrityFail } from '../engine/progress';
+import type { KeySource } from '../engine/keylog';
 import './mobile.css';
 
 export interface QuickRunScreenProps {
@@ -57,6 +62,8 @@ export function QuickRunScreen({
   const randomRef = useRef(random ?? Math.random);
   const [run, setRun] = useState<QuickRunState>(() =>
     prepareQuickRun(net, line, toward, previousStart, randomRef.current));
+  const [startedAt] = useState(runTick);
+  const recorder = useRunRecorder(startedAt);
   const initialStart = useRef(run.at);
   const currentStart = useRef(run.at);
   const startingCallback = useRef(onStartingStation);
@@ -83,11 +90,11 @@ export function QuickRunScreen({
     startingCallback.current(initialStart.current);
   }, []);
 
-  const onKey = useCallback((key: string) => {
-    const keyNow = performance.now();
+  const onKey = useCallback((key: string, source?: KeySource) => {
+    const keyNow = recorder.record(key, source);
     setDisplayNow(keyNow);
     setRun((previous) => enterQuickCharacter(net, previous, key, keyNow));
-  }, [net]);
+  }, [net, recorder]);
 
   useGameInput(onKey, run.status === 'ready' || run.status === 'running');
 
@@ -168,6 +175,26 @@ export function QuickRunScreen({
     completionSaved.current = true;
 
     const metrics = quickRunMetrics(run, run.endedAt ?? displayNow);
+
+    // A Quick Run's best is gated on the same evidence a Line Run's board
+    // entry is, or instrumenting it would be decorative.
+    const log = recorder.snapshot();
+    const replayed = replayQuickRun(net, line, initialStart.current, run.initialToward, log);
+    const verdict: Verdict = replayed && replayed.complete
+      ? verifyKeyLog(log, replayed.metrics.wpm)
+      : { ok: false, reason: 'malformed-log' };
+
+    if (!verdict.ok) {
+      const updated = recordIntegrityFail(profileRef.current, {
+        t: Date.now(), mode: 'quick', reason: verdict.reason,
+      });
+      profileRef.current = updated;
+      saveProfile(updated);
+      setProfile(updated);
+      setSummaryBest(bestAtStart.current);
+      return;
+    }
+
     const previousBest = bestAtStart.current ?? 0;
     if (metrics.score <= previousBest) {
       setSummaryBest(bestAtStart.current);
@@ -180,7 +207,7 @@ export function QuickRunScreen({
     setProfile(updated);
     setSummaryBest(metrics.score);
     setNewBest(true);
-  }, [displayNow, line, run]);
+  }, [displayNow, line, run, net, recorder]);
 
   const runAgain = useCallback(() => {
     focusInput();

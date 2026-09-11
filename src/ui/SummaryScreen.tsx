@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { music, sound } from '../audio/sound';
 import type { LineCode } from '../data/types';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
@@ -7,6 +7,10 @@ import { fitViewBox } from '../geo/fit';
 import { networkLayout } from '../geo/networkLayout';
 import { evaluateRun, knownNames, loadStore, submitEntry } from '../data/leaderboardStore';
 import { LeaderboardPanel } from './LeaderboardPanel';
+import type { KeyLog } from '../engine/keylog';
+import { verifyKeyLog, type IntegrityReason } from '../engine/integrity';
+import { replayLineRun } from '../engine/replay';
+import { loadProfile, recordIntegrityFail, saveProfile } from '../engine/progress';
 import './summary.css';
 
 export function SummaryScreen({
@@ -14,11 +18,17 @@ export function SummaryScreen({
   run,
   onExit,
   leaderboardLine = null,
+  leaderboardFrom = null,
+  keylog = null,
 }: {
   net: NetworkIndex;
   run: RunState;
   onExit: () => void;
   leaderboardLine?: LineCode | null;
+  /** The terminus the Line Run started from. Needed to replay it. */
+  leaderboardFrom?: string | null;
+  /** The Run's evidence. Absent for Adventure, which has no board. */
+  keylog?: KeyLog | null;
 }) {
   useEffect(() => {
     music.startMenu();
@@ -49,12 +59,42 @@ export function SummaryScreen({
   // The store is read once per summary: a completed run cannot change which
   // scores it is being compared against mid-screen.
   const [store, setStore] = useState(() => loadStore());
+
+  // Eligibility is decided once per summary, from the Run's own evidence. The
+  // Metrics that reach the board are the replayed ones, not the ones the Run
+  // reported — the two are identical for an honest Run, and only the replayed
+  // pair can be re-derived by anyone else later.
+  const eligibility = useMemo(() => {
+    if (!leaderboardLine || !leaderboardFrom || !keylog) return null;
+
+    const replayed = replayLineRun(net, leaderboardLine, leaderboardFrom, keylog);
+    if (!replayed || !replayed.complete) {
+      return { ok: false as const, reason: 'malformed-log' as IntegrityReason, metrics: null };
+    }
+
+    const verdict = verifyKeyLog(keylog, replayed.metrics.wpm);
+    return verdict.ok
+      ? { ok: true as const, metrics: replayed.metrics }
+      : { ok: false as const, reason: verdict.reason, metrics: replayed.metrics };
+  }, [net, leaderboardLine, leaderboardFrom, keylog]);
+
+  // Kept so a false positive is visible in the data. No UI reads it.
+  const failRecorded = useRef(false);
+  useEffect(() => {
+    if (!eligibility || eligibility.ok || failRecorded.current) return;
+    failRecorded.current = true;
+    saveProfile(recordIntegrityFail(loadProfile(), {
+      t: Date.now(), mode: 'line', reason: eligibility.reason,
+    }));
+  }, [eligibility]);
+
+  const boardMetrics = eligibility?.ok ? eligibility.metrics : null;
   const qualification = useMemo(
-    () => (leaderboardLine ? evaluateRun(net, store, leaderboardLine, metrics) : null),
-    [leaderboardLine, net, store, metrics.score, metrics.wpm, metrics.accuracy],
+    () => (leaderboardLine && boardMetrics ? evaluateRun(net, store, leaderboardLine, boardMetrics) : null),
+    [leaderboardLine, net, store, boardMetrics],
   );
 
-  const split = hasJourney && Boolean(leaderboardLine) && qualification !== null;
+  const split = hasJourney && Boolean(leaderboardLine) && eligibility !== null;
 
   return (
     <div className={`summary${split ? ' summary--wide' : ''}`}>
@@ -107,24 +147,37 @@ export function SummaryScreen({
           </div>
         )}
 
-        {leaderboardLine && qualification && (
+        {leaderboardLine && eligibility && (
           <div
             className="summary-side"
             style={{ '--line-colour': lineAt(net, leaderboardLine)?.colour ?? pathColour } as React.CSSProperties}
           >
-            <LeaderboardPanel
-              qualification={qualification}
-              score={metrics.score}
-              lineName={lineAt(net, leaderboardLine)?.name ?? leaderboardLine}
-              knownNames={knownNames(store)}
-              onSubmit={(name) => {
-                const result = submitEntry(net, store, {
-                  name, lineCode: leaderboardLine, metrics, playedAt: Date.now(),
-                });
-                setStore(result.store);
-                return { overallRank: result.overallRank, lineRank: result.lineRank };
-              }}
-            />
+            {eligibility.ok && qualification && boardMetrics ? (
+              <LeaderboardPanel
+                qualification={qualification}
+                score={boardMetrics.score}
+                lineName={lineAt(net, leaderboardLine)?.name ?? leaderboardLine}
+                knownNames={knownNames(store)}
+                onSubmit={(name) => {
+                  const result = submitEntry(net, store, {
+                    name,
+                    lineCode: leaderboardLine,
+                    metrics: boardMetrics,
+                    playedAt: Date.now(),
+                    verified: true,
+                  });
+                  setStore(result.store);
+                  return { overallRank: result.overallRank, lineRank: result.lineRank };
+                }}
+              />
+            ) : (
+              // Deliberately reasonless. An honest player knows something
+              // happened and can say so; a cheater gets no gradient to tune
+              // against.
+              <p className="summary-ineligible" role="status">
+                This run wasn&apos;t eligible for the leaderboard.
+              </p>
+            )}
           </div>
         )}
       </div>

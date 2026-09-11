@@ -19,6 +19,8 @@ import { PlayLayout } from './PlayLayout';
 import { useGameInput, useTypingInputControls } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
 import { SummaryScreen } from './SummaryScreen';
+import { runTick, useRunRecorder } from './useRunRecorder';
+import type { KeySource } from '../engine/keylog';
 
 export interface LineRunScreenProps {
   net: NetworkIndex;
@@ -34,7 +36,9 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   const { geo: layout, backdrop, districts } = networkLayout();
 
 
-  const [run, setRun] = useState<RunState>(() => startRun(net, from, performance.now()));
+  const [startedAt] = useState(runTick);
+  const [run, setRun] = useState<RunState>(() => startRun(net, from, startedAt));
+  const recorder = useRunRecorder(startedAt);
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const profileRef = useRef(profile);
   const persistedCount = useRef(0);
@@ -86,9 +90,10 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
     setProfile(updated);
   }, [run.stationTimes, net]);
 
-  const onKey = useCallback((key: string) => {
-    setRun((prev) => keyLineRun(net, route, prev, key, performance.now()));
-  }, [net, route]);
+  const onKey = useCallback((key: string, source?: KeySource) => {
+    const now = recorder.record(key, source);
+    setRun((prev) => keyLineRun(net, route, prev, key, now));
+  }, [net, route, recorder]);
 
   useGameInput(onKey, run.phase === 'typing');
 
@@ -107,7 +112,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
       const name = id ? stationAt(net, id)?.name : undefined;
       if (name) remaining.push(...name);
     }
-    remaining.forEach(onKey);
+    remaining.forEach((key) => onKey(key));
   }, [run, route, net, onKey]);
 
   // Finishing the line earns a moment before the numbers arrive: the sweep
@@ -126,7 +131,16 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
     // Only a fully completed route is leaderboard-eligible — an early "End
     // run" click also sets phase to 'ended', but stationTimes falls short.
     const leaderboardLine = run.stationTimes.length === route.length ? line : null;
-    return <SummaryScreen net={net} run={run} onExit={onExit} leaderboardLine={leaderboardLine} />;
+    return (
+      <SummaryScreen
+        net={net}
+        run={run}
+        onExit={onExit}
+        leaderboardLine={leaderboardLine}
+        leaderboardFrom={from}
+        keylog={recorder.snapshot()}
+      />
+    );
   }
 
   // Get positions of this line's stations for fitTo

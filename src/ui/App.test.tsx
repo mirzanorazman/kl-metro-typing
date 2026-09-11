@@ -3,7 +3,38 @@ import { act, render, screen, fireEvent } from '@testing-library/react';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { App } from './App';
 
-const type = (t: string) => { for (const ch of t) fireEvent.keyDown(window, { key: ch }); };
+// jsdom cannot produce a trusted keyboard event (see TypingInputProvider.test.tsx),
+// so a dispatched keydown always reports `isTrusted: false`. The end-to-end
+// leaderboard test below needs to simulate a legitimate, trusted player run,
+// which no fireEvent option can achieve — isTrusted is a non-configurable own
+// property jsdom sets at construction. Wrapping useKeyboard here is the
+// standard escape hatch for an untestable browser primitive (the same reason
+// this file already mocks `window.matchMedia`); every other behaviour of
+// useKeyboard is preserved unchanged.
+vi.mock('./useKeyboard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./useKeyboard')>();
+  return {
+    ...actual,
+    useKeyboard: (onKey: Parameters<typeof actual.useKeyboard>[0], active?: boolean) =>
+      actual.useKeyboard((key, source) => onKey(key, { ...source, trusted: true }), active),
+  };
+});
+
+const TYPING_INTERVALS = [128, 191, 97, 164, 233, 112, 145, 178, 88, 205];
+
+/**
+ * Types with a mocked, varying clock so the resulting Keylog reads as human:
+ * a real fireEvent-driven loop executes fast enough that consecutive
+ * `performance.now()` reads round to the same millisecond, which trips
+ * `impossible-speed` regardless of trust.
+ */
+function typeAsHuman(text: string, clock: { now: number }) {
+  let i = 0;
+  for (const ch of text) {
+    clock.now += TYPING_INTERVALS[i++ % TYPING_INTERVALS.length]!;
+    fireEvent.keyDown(window, { key: ch });
+  }
+}
 
 const MR_ROUTE_FROM_KL_SENTRAL = [
   'KL Sentral', 'Tun Sambanthan', 'Maharajalela', 'Hang Tuah', 'Imbi',
@@ -281,11 +312,14 @@ describe('App', () => {
     // its leaderboard panel) appears synchronously — see LineRunScreen.test.tsx.
     installMatchMedia(true, false);
 
+    const clock = { now: 0 };
+    vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
+
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
     fireEvent.keyDown(window, { key: '1' });
 
-    for (const name of MR_ROUTE_FROM_KL_SENTRAL) type(name);
+    for (const name of MR_ROUTE_FROM_KL_SENTRAL) typeAsHuman(name, clock);
 
     fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Ali' } });
     fireEvent.click(screen.getByRole('button', { name: /save score/i }));

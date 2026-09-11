@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
@@ -6,8 +6,41 @@ import { loadProfile } from '../engine/progress';
 import { LineRunScreen } from './LineRunScreen';
 import { TypingInputProvider } from './TypingInputProvider';
 
+// jsdom cannot produce a trusted keyboard event (see TypingInputProvider.test.tsx),
+// so a dispatched keydown always reports `isTrusted: false`. The leaderboard
+// test below needs to simulate a legitimate, trusted player run, which no
+// amount of fireEvent options can achieve — the DOM Event's `isTrusted` is a
+// non-configurable own property jsdom sets at construction. Wrapping useKeyboard
+// here is the standard escape hatch for an untestable browser primitive (the
+// same reason this file already mocks `window.matchMedia`): every other
+// behaviour of useKeyboard is preserved unchanged.
+vi.mock('./useKeyboard', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./useKeyboard')>();
+  return {
+    ...actual,
+    useKeyboard: (onKey: Parameters<typeof actual.useKeyboard>[0], active?: boolean) =>
+      actual.useKeyboard((key, source) => onKey(key, { ...source, trusted: true }), active),
+  };
+});
+
 const net = buildNetwork(loadNetworkData());
 const type = (t: string) => { for (const ch of t) fireEvent.keyDown(window, { key: ch }); };
+
+const TYPING_INTERVALS = [128, 191, 97, 164, 233, 112, 145, 178, 88, 205];
+
+/**
+ * Types with a mocked, varying clock so the resulting Keylog reads as human:
+ * a real fireEvent-driven loop executes fast enough that consecutive
+ * `performance.now()` reads round to the same millisecond, which trips
+ * `impossible-speed` regardless of trust.
+ */
+function typeAsHuman(text: string, clock: { now: number }) {
+  let i = 0;
+  for (const ch of text) {
+    clock.now += TYPING_INTERVALS[i++ % TYPING_INTERVALS.length]!;
+    fireEvent.keyDown(window, { key: ch });
+  }
+}
 
 const MR_ROUTE_FROM_KL_SENTRAL = [
   'KL Sentral', 'Tun Sambanthan', 'Maharajalela', 'Hang Tuah', 'Imbi',
@@ -202,9 +235,12 @@ describe('LineRunScreen', () => {
 
   describe('leaderboard', () => {
     it('invites the player to the leaderboard after completing the whole line', () => {
+      const clock = { now: 0 };
+      const spy = vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
       renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
-      for (const name of MR_ROUTE_FROM_KL_SENTRAL) type(name);
+      for (const name of MR_ROUTE_FROM_KL_SENTRAL) typeAsHuman(name, clock);
       expect(screen.getByLabelText(/your name/i)).toBeTruthy();
+      spy.mockRestore();
     });
 
     it('does not invite the player when the run ends early', () => {
