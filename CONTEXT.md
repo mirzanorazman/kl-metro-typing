@@ -106,6 +106,27 @@ WPM multiplied by accuracy squared. Squaring prices sloppiness above raw speed.
 The player's persisted record: unlocked stations, best WPM per station, the
 Adventure resume position, Rush Hour high scores, and WPM history.
 
+**Keylog**:
+The record of one Run's typing — every keystroke with its timing and how it
+arrived. The Run's evidence.
+_Avoid_: keystroke log, trace, telemetry
+
+**Source**:
+How a keystroke reached the game: whether the browser marked its event trusted,
+and how many characters arrived in the same event.
+_Avoid_: provenance, origin
+
+**Verdict**:
+The result of judging a Keylog: a pass, or a single named Reason for failing.
+
+**Replay**:
+Feeding a Keylog back through the Run engine to derive its Metrics, rather than
+believing the Metrics the Run reported.
+
+**Eligible**:
+A completed Run whose Keylog replays cleanly and passes its Verdict. Only
+eligible Runs reach a leaderboard.
+
 ## A note on "line"
 
 Three different things are called a line, and the distinction matters:

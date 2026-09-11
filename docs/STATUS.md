@@ -1,6 +1,6 @@
 # KL-Metro Typing — status and handoff
 
-**Last updated:** 2026-09-04
+**Last updated:** 2026-09-11
 
 A typing game on the Kuala Lumpur Rapid KL rail network. Type station names to
 drive a train across the Klang Valley.
@@ -16,7 +16,7 @@ Everything is on `main`.
 ```bash
 npm install
 npm run dev
-npm test        # 214 tests
+npm test        # 560 tests
 ```
 
 `npx tsc --noEmit` and `npm run build` are both clean. Build is ~122 kB gzipped.
@@ -41,6 +41,13 @@ name entry if the run's score would place in the top 20 overall or the top 20
 for that line. Longer lines are weighted more heavily on the overall board, so
 a given score on a long line ranks above the same score on a short one.
 Everything is kept in `localStorage`; there is no server.
+
+**Run integrity** — Line Run and Quick Run record a Keylog: every keystroke with
+its timing and how it arrived. Finishing a Line Run replays that log to derive
+the score, and a pure validator judges it before the leaderboard will take it.
+The input layer annotates keystrokes but never rejects them, so a false positive
+costs a leaderboard entry rather than the ability to play. Design and reasoning
+in `docs/superpowers/specs/2026-09-10-run-integrity-design.md`.
 
 ## Architecture
 
@@ -97,6 +104,12 @@ These are load-bearing. Each one was a real bug at some point.
    pointerdown. Sounds fire from effects, which are too late for the browser's
    autoplay policy — without the unlock, everything is silently suspended.
 
+10. **The recorder owns the Run clock.** Screens stamp Run state with
+    `runTick()`, not `performance.now()`, and pass the tick the recorder
+    returns. One clock means a replayed Keylog reproduces the live Run's
+    Metrics exactly rather than approximately — which is the property the whole
+    integrity layer rests on. `src/engine/replay.test.ts` guards it.
+
 ## Known debt
 
 Nothing here is blocking, but all of it is real.
@@ -115,6 +128,10 @@ Nothing here is blocking, but all of it is real.
   target on mount (StrictMode double-invoke is the likely cause). Worked around
   by seeding `usePanZoom`'s initial state from the same computed target, which is
   sturdier anyway — but the root cause was never confirmed.
+- **`untrusted-input` is a hard fail with an unquantified false-positive rate.**
+  Assistive input tools that dispatch synthetic DOM events would be refused the
+  leaderboard. `profile.integrityFails` records every refusal so this shows up
+  in the data; nothing reads it yet.
 
 ## What is next
 
@@ -129,9 +146,6 @@ matches them is not. Nothing in `src/` has been renamed or moved yet, so the
 glossary currently reads as intent rather than description. The gaps it names
 are real and were found by reading the code:
 
-- Line Run's route and end rules live in `LineRunScreen.tsx:85-99`, not in
-  `engine/lineRun.ts`. They have no direct test because they sit in a React
-  callback.
 - `RunState` carries `options`, which Line Run never reads, and no `route`,
   which is why the rule ended up in the screen.
 - `src/engine/progress.ts` calls `localStorage`, which contradicts invariant 2
@@ -183,6 +197,8 @@ simply synchronous while the behaviour was animated.
 | `docs/superpowers/plans/2026-09-04-map-first-redesign.md` | Plan 2 — 13 tasks, complete. |
 | `docs/superpowers/specs/2026-09-04-domain-model-design.md` | Lightweight domain model. **Designed, not implemented.** |
 | `docs/adr/0001-run-state-per-mode.md` | Why a Run's state is a per-mode union. |
+| `docs/superpowers/specs/2026-09-10-run-integrity-design.md` | Run integrity: the Keylog, replay, and the validator. |
+| `docs/superpowers/plans/2026-09-11-run-integrity.md` | Plan 3 — 8 tasks. |
 
 Work done after Plan 2 was driven by direct feedback rather than a plan: the
 train being positioned by typing progress, error feedback, synthesised sound,
