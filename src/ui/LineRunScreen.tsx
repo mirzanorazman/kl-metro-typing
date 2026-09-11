@@ -6,13 +6,11 @@ import { followPoints } from '../geo/fit';
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { stationAt, type NetworkIndex } from '../engine/network';
 import type { LineCode } from '../data/types';
-import {
-  chooseTowards, endRun, keyRun, runMetrics, startRun, type RunState,
-} from '../engine/run';
+import { endRun, runMetrics, startRun, type RunState } from '../engine/run';
 import {
   loadProfile, recordStation, saveProfile, type Profile,
 } from '../engine/progress';
-import { lineRunRoute } from '../engine/lineRun';
+import { keyLineRun, lineRunRoute } from '../engine/lineRun';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { HUD } from '../render/HUD';
@@ -89,20 +87,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   }, [run.stationTimes, net]);
 
   const onKey = useCallback((key: string) => {
-    setRun((prev) => {
-      if (prev.phase !== 'typing') return prev;
-      let next = keyRun(net, prev, key, performance.now());
-
-      // Route complete: end here rather than letting the engine reverse at the terminus.
-      if (next.stationTimes.length >= route.length) return endRun(next);
-
-      // Interchange: stay on the line instead of prompting.
-      if (next.phase === 'junction') {
-        const target = route[next.stationTimes.length];
-        if (target) next = chooseTowards(net, next, target, performance.now());
-      }
-      return next;
-    });
+    setRun((prev) => keyLineRun(net, route, prev, key, performance.now()));
   }, [net, route]);
 
   useGameInput(onKey, run.phase === 'typing');
