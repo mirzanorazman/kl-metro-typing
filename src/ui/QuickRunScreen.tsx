@@ -174,15 +174,26 @@ export function QuickRunScreen({
     if (run.status !== 'completed' || completionSaved.current) return;
     completionSaved.current = true;
 
-    const metrics = quickRunMetrics(run, run.endedAt ?? displayNow);
-
     // A Quick Run's best is gated on the same evidence a Line Run's board
-    // entry is, or instrumenting it would be decorative.
+    // entry is, or instrumenting it would be decorative. The score that gets
+    // written is the replayed one, not the live Run's — the two agree for an
+    // honest Run, and only the replayed figure is derived from the evidence
+    // rather than believed.
     const log = recorder.snapshot();
     const replayed = replayQuickRun(net, line, initialStart.current, run.initialToward, log);
-    const verdict: Verdict = replayed && replayed.complete
-      ? verifyKeyLog(log, replayed.metrics.wpm)
-      : { ok: false, reason: 'malformed-log' };
+
+    if (!replayed || !replayed.complete) {
+      const updated = recordIntegrityFail(profileRef.current, {
+        t: Date.now(), mode: 'quick', reason: 'malformed-log',
+      });
+      profileRef.current = updated;
+      saveProfile(updated);
+      setProfile(updated);
+      setSummaryBest(bestAtStart.current);
+      return;
+    }
+
+    const verdict: Verdict = verifyKeyLog(log, replayed.metrics.wpm);
 
     if (!verdict.ok) {
       const updated = recordIntegrityFail(profileRef.current, {
@@ -196,16 +207,16 @@ export function QuickRunScreen({
     }
 
     const previousBest = bestAtStart.current ?? 0;
-    if (metrics.score <= previousBest) {
+    if (replayed.metrics.score <= previousBest) {
       setSummaryBest(bestAtStart.current);
       return;
     }
 
-    const updated = recordQuickBest(profileRef.current, line, metrics.score);
+    const updated = recordQuickBest(profileRef.current, line, replayed.metrics.score);
     profileRef.current = updated;
     saveProfile(updated);
     setProfile(updated);
-    setSummaryBest(metrics.score);
+    setSummaryBest(replayed.metrics.score);
     setNewBest(true);
   }, [displayNow, line, run, net, recorder]);
 

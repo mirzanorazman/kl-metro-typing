@@ -135,6 +135,12 @@ Nothing here is blocking, but all of it is real.
   Assistive input tools that dispatch synthetic DOM events would be refused the
   leaderboard. `profile.integrityFails` records every refusal so this shows up
   in the data; nothing reads it yet.
+- **No shared guard against a malformed Keylog crossing a server boundary.**
+  Before any server parses a submitted Keylog from JSON, `replayLineRun`,
+  `replayQuickRun` and `verifyKeyLog` all need one shared `isWellFormedKeyLog`
+  predicate in front of them, element shape included. Guarding `verifyKeyLog`
+  alone would be theatre, because replay runs first at both call sites and
+  throws just as readily on a malformed element.
 
 ## What is next
 

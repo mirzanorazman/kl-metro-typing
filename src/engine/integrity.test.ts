@@ -30,6 +30,14 @@ describe('verifyKeyLog', () => {
     expect(verifyKeyLog(log, HUMAN_WPM)).toEqual({ ok: false, reason: 'malformed-log' });
   });
 
+  // A capped log's length is exactly KEYLOG_MAX_EVENTS, so length alone
+  // cannot distinguish it from an honestly short-but-long run; the flag is
+  // what appendKey leaves behind, and this is what refuses it.
+  it('rejects a log flagged as truncated', () => {
+    const log = { ...logOf(HUMAN), truncated: true as const };
+    expect(verifyKeyLog(log, HUMAN_WPM)).toEqual({ ok: false, reason: 'malformed-log' });
+  });
+
   it('rejects a log that runs backwards', () => {
     const log = logOf(HUMAN);
     log.events[40]!.dt = -50;
@@ -61,6 +69,11 @@ describe('verifyKeyLog', () => {
     expect(verifyKeyLog(log, HUMAN_WPM)).toEqual({ ok: true });
   });
 
+  // The encoder marks only the first character of a burst with `b`, so a
+  // burst is one flagged event, never two — a real 12-burst run looks like
+  // 12 solitary `b: 2` events, exactly what this builds, not 12 adjacent
+  // pairs. See TypingInputProvider.test.tsx for the same rule exercised
+  // through the actual encoder rather than a hand-built log.
   it('rejects many small bursts even when none is large', () => {
     const log = logOf(HUMAN);
     for (let i = 1; i <= 12; i++) log.events[i * 5]!.b = 2;

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { KeySource } from '../engine/keylog';
+import { appendKey, beginLog, type KeySource } from '../engine/keylog';
+import { verifyKeyLog } from '../engine/integrity';
 import {
   TypingInputProvider,
   useGameInput,
@@ -251,16 +252,23 @@ describe('keystroke provenance', () => {
     );
   }
 
-  it('reports how many characters one input event delivered', () => {
-    // A paste arrives as a single input event carrying the whole name.
+  it('reports how many characters one input event delivered, on the first character only', () => {
+    // A paste arrives as a single input event carrying the whole name. Only
+    // the first character's Source carries the count — the rest carry 1 —
+    // so a log built from this reports one flagged event per burst, not one
+    // per character (see the fixed count of flagged events verifyKeyLog
+    // judges against).
     const received: { key: string; batch: number }[] = [];
     renderProbe((key, source) => received.push({ key, batch: source.batch }));
 
     const input = screen.getByLabelText('Typing input for Station name') as HTMLInputElement;
     fireEvent.input(input, { target: { value: 'abc' } });
 
-    expect(received.map((r) => r.key)).toEqual(['a', 'b', 'c']);
-    expect(received.every((r) => r.batch === 3)).toBe(true);
+    expect(received).toEqual([
+      { key: 'a', batch: 3 },
+      { key: 'b', batch: 1 },
+      { key: 'c', batch: 1 },
+    ]);
   });
 
   it('reports an ordinary single keystroke as a batch of one', () => {
@@ -282,5 +290,44 @@ describe('keystroke provenance', () => {
     fireEvent.keyDown(window, { key: 'a' });
 
     expect(received).toEqual([false]);
+  });
+
+  // Regression coverage for the defect this file's encoding used to have:
+  // every character of a burst carried the full batch size, so a real
+  // predictive-keyboard run inflated verifyKeyLog's flagged-event count by
+  // the burst width rather than by one per burst. Driving real two-character
+  // bursts through the provider and replaying the emitted Sources into an
+  // actual Keylog is what would have caught it — a hand-built fixture, as
+  // the one this defect escaped past did, cannot exercise the encoder.
+  it('lets six real two-character predictive-keyboard bursts still verify ok', () => {
+    const received: KeySource[] = [];
+    renderProbe((_key, source) => received.push(source));
+
+    const input = screen.getByLabelText('Typing input for Station name') as HTMLInputElement;
+    for (let i = 0; i < 6; i++) {
+      fireEvent.input(input, { target: { value: 'ab' } });
+    }
+
+    expect(received).toHaveLength(12);
+    // One flagged Source per burst, not two: the shape maxBatchedEvents is
+    // specified against.
+    expect(received.filter((s) => s.batch > 1)).toHaveLength(6);
+
+    let log = beginLog(0);
+    let now = 0;
+    for (const source of received) {
+      now += 100;
+      // Trust is a separate, already-covered concern; only the batching
+      // behaviour under test is carried over from the captured Source.
+      log = appendKey(log, 'a', { trusted: true, batch: source.batch }, now);
+    }
+    // Pad past the minimum sample size the validator requires before it
+    // judges anything.
+    for (let i = 0; i < 10; i++) {
+      now += 100;
+      log = appendKey(log, 'a', { trusted: true, batch: 1 }, now);
+    }
+
+    expect(verifyKeyLog(log, 80)).toEqual({ ok: true });
   });
 });

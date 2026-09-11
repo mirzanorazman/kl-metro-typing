@@ -6,6 +6,7 @@ import {
   type KeyLog,
   type KeySource,
 } from '../engine/keylog';
+import { isPrintable } from '../engine/typing';
 
 /**
  * The clock a Run is recorded against: whole milliseconds, monotonic.
@@ -36,9 +37,19 @@ export function useRunRecorder(startedAt: number): RunRecorder {
   const logRef = useRef<KeyLog | null>(null);
   if (logRef.current === null) logRef.current = beginLog(startedAt);
 
+  // A non-printable key (Shift, Tab, Enter, CapsLock, an arrow, a function
+  // key...) never moves a Run forward — `keyRun` and `enterQuickCharacter`
+  // already no-op on it — so logging it would only pollute the interval
+  // statistics the Verdict judges by: OS auto-repeat on a held key arrives
+  // fast enough to drag the median under the impossible-speed floor, and a
+  // run of no-op keydowns dilutes the consistency check the other way. The
+  // tick is still returned so callers that only need a timestamp are
+  // unaffected.
   const record = useCallback((key: string, source: KeySource = PLAIN_SOURCE) => {
     const now = runTick();
-    logRef.current = appendKey(logRef.current!, key, source, now);
+    if (isPrintable(key)) {
+      logRef.current = appendKey(logRef.current!, key, source, now);
+    }
     return now;
   }, []);
 

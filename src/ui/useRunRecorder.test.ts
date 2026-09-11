@@ -62,6 +62,22 @@ describe('useRunRecorder', () => {
     expect(renders).toBe(before);
   });
 
+  // A non-printable key never moves a Run forward, so logging it would only
+  // pollute the interval statistics the Verdict judges by (auto-repeat on a
+  // held Shift, for one). The tick is still returned so callers that only
+  // need a timestamp — not a logged event — are unaffected.
+  it('does not log a non-printable key but still returns a tick', () => {
+    const { result } = renderHook(() => useRunRecorder(0));
+    let tick = -1;
+    act(() => { tick = result.current.record('Shift'); });
+
+    expect(result.current.snapshot().events).toEqual([]);
+    expect(Number.isInteger(tick)).toBe(true);
+
+    act(() => { result.current.record('a'); });
+    expect(result.current.snapshot().events.map((e) => e.k)).toEqual(['a']);
+  });
+
   it('reopens an empty log on reset', () => {
     const { result } = renderHook(() => useRunRecorder(0));
     act(() => { result.current.record('a'); });

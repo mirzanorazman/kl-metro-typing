@@ -239,13 +239,19 @@ describe('LineRunScreen', () => {
   });
 
   describe('leaderboard', () => {
+    // In an afterEach, not a trailing call in the test: a mockRestore that
+    // only runs after every assertion passes leaves performance.now frozen
+    // for the rest of the file the first time one of them throws.
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
     it('invites the player to the leaderboard after completing the whole line', () => {
       const clock = { now: 0 };
-      const spy = vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
+      vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
       renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
       for (const name of MR_ROUTE_FROM_KL_SENTRAL) typeAsHuman(name, clock);
       expect(screen.getByLabelText(/your name/i)).toBeTruthy();
-      spy.mockRestore();
     });
 
     it('does not invite the player when the run ends early', () => {

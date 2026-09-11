@@ -69,13 +69,13 @@ export function SummaryScreen({
 
     const replayed = replayLineRun(net, leaderboardLine, leaderboardFrom, keylog);
     if (!replayed || !replayed.complete) {
-      return { ok: false as const, reason: 'malformed-log' as IntegrityReason, metrics: null };
+      return { ok: false as const, reason: 'malformed-log' as IntegrityReason };
     }
 
     const verdict = verifyKeyLog(keylog, replayed.metrics.wpm);
     return verdict.ok
       ? { ok: true as const, metrics: replayed.metrics }
-      : { ok: false as const, reason: verdict.reason, metrics: replayed.metrics };
+      : { ok: false as const, reason: verdict.reason };
   }, [net, leaderboardLine, leaderboardFrom, keylog]);
 
   // Kept so a false positive is visible in the data. No UI reads it.

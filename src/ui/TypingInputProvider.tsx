@@ -54,12 +54,21 @@ export function TypingInputProvider({
   // predictive keyboard also delivers several characters at once, and
   // telling them apart here is guesswork. The batch size is reported
   // instead, and the Verdict decides.
+  //
+  // One input event, however many characters it delivers, is one burst. Only
+  // the first character's Source carries the real count; the rest carry 1.
+  // The integrity check counts log events with b > 1 to bound how many
+  // multi-character bursts a Run contains — if every character of a burst
+  // carried the count, an N-character burst would inflate that count by N,
+  // not 1, making the threshold far tighter than it is specified against.
   const emitInputValue = useCallback((input: HTMLInputElement, trusted: boolean) => {
     const value = input.value;
     input.value = '';
     const characters = [...value];
-    const source: KeySource = { trusted, batch: characters.length };
-    for (const character of characters) handlerRef.current?.(character, source);
+    characters.forEach((character, index) => {
+      const source: KeySource = { trusted, batch: index === 0 ? characters.length : 1 };
+      handlerRef.current?.(character, source);
+    });
   }, []);
 
   const handleInput = useCallback((event: FormEvent<HTMLInputElement>) => {

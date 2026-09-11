@@ -25,7 +25,12 @@ export interface KeyEvent {
   dt: number;
   /** Present only when the event was untrusted. */
   u?: 1;
-  /** Present only when more than one character arrived together. */
+  /**
+   * Present only on the first keystroke of a burst, carrying how many
+   * characters that one input event delivered. Later characters of the same
+   * burst carry no `b`, so the count of flagged events in a log is the count
+   * of bursts, not the count of batched characters.
+   */
   b?: number;
 }
 
@@ -36,6 +41,13 @@ export interface KeyLog {
   /** Offset of the most recent event. 0 while the log is empty. */
   ms: number;
   events: KeyEvent[];
+  /**
+   * Present only once the log has hit `KEYLOG_MAX_EVENTS` and stopped
+   * appending. A log's length can never exceed the cap, so length alone
+   * cannot distinguish a capped log from an honestly short one — this flag
+   * is what lets the Verdict tell them apart and refuse the truncated one.
+   */
+  truncated?: true;
 }
 
 export function beginLog(now: number): KeyLog {
@@ -56,7 +68,9 @@ export function appendKey(
   source: KeySource,
   now: number,
 ): KeyLog {
-  if (log.events.length >= KEYLOG_MAX_EVENTS) return log;
+  if (log.events.length >= KEYLOG_MAX_EVENTS) {
+    return log.truncated ? log : { ...log, truncated: true };
+  }
 
   const offset = Math.round(now) - log.t0;
   const event: KeyEvent = { k: key, dt: offset - log.ms };

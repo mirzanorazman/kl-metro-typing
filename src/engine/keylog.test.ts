@@ -86,4 +86,23 @@ describe('appendKey', () => {
     };
     expect(appendKey(full, 'b', PLAIN_SOURCE, 99).events).toHaveLength(KEYLOG_MAX_EVENTS);
   });
+
+  // A capped log's length is exactly KEYLOG_MAX_EVENTS, indistinguishable by
+  // length alone from an honestly short one — this flag is the only thing
+  // that marks it, which is what lets verifyKeyLog refuse it.
+  it('flags a log that hits the cap as truncated', () => {
+    const full: KeyLog = {
+      v: KEYLOG_VERSION,
+      t0: 0,
+      ms: 0,
+      events: Array.from({ length: KEYLOG_MAX_EVENTS }, () => ({ k: 'a', dt: 0 })),
+    };
+    expect(full.truncated).toBeUndefined();
+    expect(appendKey(full, 'b', PLAIN_SOURCE, 99).truncated).toBe(true);
+  });
+
+  it('leaves an unfilled log unflagged', () => {
+    const log = appendKey(beginLog(0), 'a', PLAIN_SOURCE, 10);
+    expect(log.truncated).toBeUndefined();
+  });
 });
