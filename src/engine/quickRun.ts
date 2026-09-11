@@ -31,6 +31,49 @@ export interface QuickRunState {
   status: QuickRunStatus;
 }
 
+/**
+ * A ready Quick Run starting at `at`.
+ *
+ * Split out of `prepareQuickRun` so a Run can be reconstructed at a known
+ * Station — replay cannot re-roll the random choice that picked it.
+ * Returns null if `at` is not on the Line, or `toward` is not a terminus.
+ */
+export function quickRunAt(
+  net: NetworkIndex,
+  lineCode: LineCode,
+  at: string,
+  toward: string,
+): QuickRunState | null {
+  const line = lineAt(net, lineCode);
+  if (!line || line.stations.length < 2) return null;
+
+  const first = line.stations[0]!;
+  const last = line.stations[line.stations.length - 1]!;
+  if (toward !== first && toward !== last) return null;
+  if (!line.stations.includes(at)) return null;
+
+  const station = stationAt(net, at);
+  if (!station) return null;
+
+  return {
+    line: lineCode,
+    initialToward: toward,
+    direction: toward === last ? 1 : -1,
+    at,
+    arrivedFrom: null,
+    typing: beginTyping(station.name),
+    completedStations: [],
+    startedAt: null,
+    stationStartedAt: null,
+    deadline: null,
+    endedAt: null,
+    correctChars: 0,
+    keystrokes: 0,
+    errors: 0,
+    status: 'ready',
+  };
+}
+
 export function prepareQuickRun(
   net: NetworkIndex,
   lineCode: LineCode,
@@ -57,28 +100,9 @@ export function prepareQuickRun(
     ? Math.max(0, Math.min(candidates.length - 1, rawIndex))
     : 0;
   const at = candidates[index]!;
-  const station = stationAt(net, at);
-  if (!station) {
-    throw new Error(`Quick Run starting station not found: ${at}`);
-  }
-
-  return {
-    line: lineCode,
-    initialToward: toward,
-    direction: toward === last ? 1 : -1,
-    at,
-    arrivedFrom: null,
-    typing: beginTyping(station.name),
-    completedStations: [],
-    startedAt: null,
-    stationStartedAt: null,
-    deadline: null,
-    endedAt: null,
-    correctChars: 0,
-    keystrokes: 0,
-    errors: 0,
-    status: 'ready',
-  };
+  const state = quickRunAt(net, lineCode, at, toward);
+  if (!state) throw new Error(`Quick Run starting station not found: ${at}`);
+  return state;
 }
 
 export function quickRunToward(net: NetworkIndex, state: QuickRunState): string {
