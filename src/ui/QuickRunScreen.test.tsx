@@ -127,6 +127,25 @@ function typeQuickAsHuman(text: string) {
   }
 }
 
+/**
+ * Types `count` keydown events at a perfectly uniform interval — the
+ * inhuman-consistency signature `verifyKeyLog` is built to reject. Content is
+ * irrelevant (a Quick Run completes on the deadline, not on matching text),
+ * so it always sends the same printable key.
+ */
+function typeQuickAsBot(count: number, intervalMs = 150) {
+  for (let i = 0; i < count; i++) {
+    now += intervalMs;
+    fireEvent.keyDown(window, { key: 'a' });
+  }
+}
+
+/** Reads the name currently prompted, whatever station the run is on. */
+function currentStationName(): string {
+  const label = screen.getByLabelText(/^Type /).getAttribute('aria-label')!;
+  return label.replace(/^Type /, '');
+}
+
 function hidePage(at: number) {
   now = at;
   visibility = 'hidden';
@@ -351,6 +370,70 @@ describe('QuickRunScreen', () => {
     expect(screen.getByText('KL Monorail · toward Titiwangsa')).toBeTruthy();
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
     expect(screen.getByText('0:45')).toBeTruthy();
+  });
+
+  it('records the second Quick Run of a session as its own personal best, with no integrity failure', () => {
+    renderQuick({ providerEnabled: false });
+
+    // First run: two honest stations, comfortably past the 20-keystroke floor.
+    typeQuickAsHuman(currentStationName());
+    typeQuickAsHuman(currentStationName());
+    tickAt(now + QUICK_RUN_MS + 5_000);
+
+    expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
+    const firstBest = loadProfile().quickBest.MR;
+    expect(firstBest).toBeGreaterThan(0);
+    expect(loadProfile().integrityFails ?? []).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run again' }));
+
+    // Second run: more honest stations than the first, so an uncorrupted
+    // recorder and replay clock produce a strictly higher score. Guards the
+    // ordinary path: a second Quick Run in one session must be scored (and
+    // able to beat the first run's best) on its own evidence.
+    typeQuickAsHuman(currentStationName());
+    typeQuickAsHuman(currentStationName());
+    typeQuickAsHuman(currentStationName());
+    typeQuickAsHuman(currentStationName());
+    tickAt(now + QUICK_RUN_MS + 5_000);
+
+    expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe('New personal best');
+    expect(loadProfile().quickBest.MR).toBeGreaterThan(firstBest!);
+    expect(loadProfile().integrityFails ?? []).toHaveLength(0);
+  });
+
+  it('judges a bot-paced second Quick Run on its own Keylog rather than the first run\'s', () => {
+    renderQuick({ providerEnabled: false });
+
+    // Run 1: two honest, humanly-varied stations — establishes a real best.
+    typeQuickAsHuman(currentStationName());
+    typeQuickAsHuman(currentStationName());
+    tickAt(now + QUICK_RUN_MS + 5_000);
+
+    expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
+    const firstBest = loadProfile().quickBest.MR;
+    expect(firstBest).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run again' }));
+
+    // Run 2: uniform, bot-paced keystrokes — exactly what `inhuman-consistency`
+    // exists to catch, and well past the 40-interval floor that check needs.
+    // Before the fix, `runAgain` never called `recorder.reset`, so this run's
+    // keystrokes were appended onto run one's still-open Keylog: the
+    // consistency check then ran over the *combined* log, and run one's
+    // human variance diluted run two's uniform timing below the rejection
+    // threshold, letting a bot-paced run masquerade as legitimate and even
+    // book a personal best.
+    typeQuickAsBot(45);
+    tickAt(now + QUICK_RUN_MS + 5_000);
+
+    expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
+    expect(loadProfile().quickBest.MR).toBe(firstBest);
+    const fails = loadProfile().integrityFails ?? [];
+    expect(fails).toHaveLength(1);
+    expect(fails[0]!.mode).toBe('quick');
+    expect(fails[0]!.reason).toBe('inhuman-consistency');
   });
 
   it('renders only the compact active play surface around the map, prompt, and timer', () => {

@@ -213,6 +213,8 @@ export function QuickRunScreen({
     focusInput();
     const next = prepareQuickRun(net, line, toward, currentStart.current, randomRef.current);
     currentStart.current = next.at;
+    initialStart.current = next.at;
+    recorder.reset(runTick());
     persistedCount.current = 0;
     bestAtStart.current = profileQuickBest(profileRef.current, line);
     completionSaved.current = false;
@@ -223,7 +225,7 @@ export function QuickRunScreen({
     setDisplayNow(performance.now());
     setRun(next);
     startingCallback.current(next.at);
-  }, [focusInput, line, net, toward]);
+  }, [focusInput, line, net, toward, recorder]);
 
   if (dismissed) return null;
 

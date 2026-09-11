@@ -79,7 +79,7 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
     if (pending.length === 0) return;
     persistedCount.current += pending.length;
 
-    let updated = profileRef.current;
+    let updated = loadProfile();
     for (const station of pending) {
       const chars = stationAt(net, station.id)?.name.length ?? 0;
       const wpm = station.ms > 0 ? chars / 5 / (station.ms / 60_000) : 0;

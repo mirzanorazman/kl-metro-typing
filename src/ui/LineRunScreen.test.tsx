@@ -14,14 +14,19 @@ import { TypingInputProvider } from './TypingInputProvider';
 // here is the standard escape hatch for an untestable browser primitive (the
 // same reason this file already mocks `window.matchMedia`): every other
 // behaviour of useKeyboard is preserved unchanged.
-vi.mock('./useKeyboard', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('./useKeyboard')>();
+// Named (not inline) so the "untrusted keystrokes" describe block below can
+// re-register it via `vi.doMock` after deliberately unmocking this module for
+// one test — restoring every other test's normal, trusted-input behaviour.
+async function trustedUseKeyboardMock(importOriginal: () => Promise<typeof import('./useKeyboard')>) {
+  const actual = await importOriginal();
   return {
     ...actual,
     useKeyboard: (onKey: Parameters<typeof actual.useKeyboard>[0], active?: boolean) =>
       actual.useKeyboard((key, source) => onKey(key, { ...source, trusted: true }), active),
   };
-});
+}
+
+vi.mock('./useKeyboard', trustedUseKeyboardMock);
 
 const net = buildNetwork(loadNetworkData());
 const type = (t: string) => { for (const ch of t) fireEvent.keyDown(window, { key: ch }); };
@@ -248,6 +253,44 @@ describe('LineRunScreen', () => {
       type('KL Sentral');
       fireEvent.click(screen.getByRole('button', { name: /end run/i }));
       expect(screen.queryByLabelText(/your name/i)).toBeNull();
+    });
+  });
+
+  // The rest of this file mocks `useKeyboard` to force `trusted: true`,
+  // because jsdom cannot produce a trusted event and the tests above need to
+  // simulate a legitimate player. That leaves an untrusted, driven-by-a-real-
+  // screen run completely untested — the only coverage of "untrusted input
+  // denies the leaderboard" lived at the unit level, against a synthetic
+  // Keylog, in SummaryScreen.test.tsx. This is the deliberate exception: it
+  // unmocks `useKeyboard` for one test so jsdom's real (always-untrusted)
+  // `isTrusted` reaches the screen, then restores the mock afterwards.
+  describe('untrusted keystrokes', () => {
+    afterEach(() => {
+      vi.doMock('./useKeyboard', trustedUseKeyboardMock);
+      vi.resetModules();
+    });
+
+    it('denies the leaderboard, and records the failure, for a run typed with untrusted keystrokes', async () => {
+      vi.doUnmock('./useKeyboard');
+      vi.resetModules();
+      const { LineRunScreen: RealLineRunScreen } = await import('./LineRunScreen');
+      const { TypingInputProvider: RealProvider } = await import('./TypingInputProvider');
+
+      render(
+        <RealProvider enabled={false}>
+          <RealLineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />
+        </RealProvider>,
+      );
+
+      for (const name of MR_ROUTE_FROM_KL_SENTRAL) type(name);
+
+      expect(screen.getByText("This run wasn't eligible for the leaderboard.")).toBeTruthy();
+      expect(screen.queryByLabelText(/your name/i)).toBeNull();
+
+      const fails = loadProfile().integrityFails ?? [];
+      expect(fails).toHaveLength(1);
+      expect(fails[0]!.mode).toBe('line');
+      expect(fails[0]!.reason).toBe('untrusted-input');
     });
   });
 });
