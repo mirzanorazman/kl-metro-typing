@@ -104,11 +104,14 @@ These are load-bearing. Each one was a real bug at some point.
    pointerdown. Sounds fire from effects, which are too late for the browser's
    autoplay policy — without the unlock, everything is silently suspended.
 
-10. **The recorder owns the Run clock.** Screens stamp Run state with
-    `runTick()`, not `performance.now()`, and pass the tick the recorder
-    returns. One clock means a replayed Keylog reproduces the live Run's
-    Metrics exactly rather than approximately — which is the property the whole
-    integrity layer rests on. `src/engine/replay.test.ts` guards it.
+10. **The recorder owns the Run clock.** Every keystroke a scored Run is stamped
+    with comes from `runTick()` — the tick the recorder returns — never a separate
+    `performance.now()` read. One clock is what makes a replayed Keylog reproduce
+    the live Run's Metrics exactly rather than approximately, and that exactness is
+    the property the whole integrity layer rests on; `src/engine/replay.test.ts`
+    guards it. The one exception is Quick Run's visibility-change handler, which
+    stamps `endedAt` from a raw `performance.now()` — an interrupted Run is never
+    replayed or scored, so it never reaches the comparison.
 
 ## Known debt
 
@@ -146,8 +149,9 @@ matches them is not. Nothing in `src/` has been renamed or moved yet, so the
 glossary currently reads as intent rather than description. The gaps it names
 are real and were found by reading the code:
 
-- `RunState` carries `options`, which Line Run never reads, and no `route`,
-  which is why the rule ended up in the screen.
+- `RunState` carries `options`, which Line Run never reads, and no `route` — which
+  is why the rule lived in the screen until `keyLineRun` moved it into
+  `engine/lineRun.ts`.
 - `src/engine/progress.ts` calls `localStorage`, which contradicts invariant 2
   above. The original design spec marked it impure by design, so the two
   documents have disagreed from the start.
