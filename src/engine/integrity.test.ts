@@ -73,8 +73,9 @@ describe('verifyKeyLog', () => {
 
   it('rejects a stopped clock', () => {
     // performance.now() overridden to a constant: every delta collapses to zero.
+    // WPM is modest so the median check (not the WPM check) is the sole cause.
     const log = logOf(Array.from({ length: 120 }, () => 0));
-    expect(verifyKeyLog(log, 9_000)).toEqual({ ok: false, reason: 'impossible-speed' });
+    expect(verifyKeyLog(log, 100)).toEqual({ ok: false, reason: 'impossible-speed' });
   });
 
   it('rejects the metronome timing of a scripted bot', () => {
@@ -95,5 +96,37 @@ describe('verifyKeyLog', () => {
 
   it('never penalises perfect accuracy on its own', () => {
     expect(verifyKeyLog(logOf(HUMAN), 180)).toEqual({ ok: true });
+  });
+
+  it('rejects null log', () => {
+    expect(verifyKeyLog(null as any, HUMAN_WPM)).toEqual({ ok: false, reason: 'malformed-log' });
+  });
+
+  it('rejects undefined log', () => {
+    expect(verifyKeyLog(undefined as any, HUMAN_WPM)).toEqual({ ok: false, reason: 'malformed-log' });
+  });
+
+  it('rejects log with missing events array', () => {
+    expect(verifyKeyLog({ v: KEYLOG_VERSION, t0: 0, ms: 0 } as any, HUMAN_WPM)).toEqual({
+      ok: false, reason: 'malformed-log',
+    });
+  });
+
+  it('rejects log with non-array events', () => {
+    expect(verifyKeyLog({ v: KEYLOG_VERSION, t0: 0, ms: 0, events: 'not-an-array' } as any, HUMAN_WPM)).toEqual({
+      ok: false, reason: 'malformed-log',
+    });
+  });
+
+  it('rejects NaN WPM', () => {
+    expect(verifyKeyLog(logOf(HUMAN), NaN)).toEqual({ ok: false, reason: 'malformed-log' });
+  });
+
+  it('rejects Infinity WPM', () => {
+    expect(verifyKeyLog(logOf(HUMAN), Infinity)).toEqual({ ok: false, reason: 'malformed-log' });
+  });
+
+  it('rejects negative Infinity WPM', () => {
+    expect(verifyKeyLog(logOf(HUMAN), -Infinity)).toEqual({ ok: false, reason: 'malformed-log' });
   });
 });

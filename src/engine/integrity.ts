@@ -61,6 +61,11 @@ function coefficientOfVariation(values: number[]): number {
 export function verifyKeyLog(log: KeyLog, replayedWpm: number): Verdict {
   const t = INTEGRITY_THRESHOLDS;
 
+  // Guard against structurally malformed input: null/undefined log or events.
+  if (!log || !Array.isArray(log.events)) return fail('malformed-log');
+  // Guard against non-finite speed: NaN, Infinity.
+  if (!Number.isFinite(replayedWpm)) return fail('malformed-log');
+
   if (log.v !== KEYLOG_VERSION) return fail('malformed-log');
   if (log.events.length > KEYLOG_MAX_EVENTS) return fail('malformed-log');
   if (log.events.some((event) => event.dt < 0)) return fail('malformed-log');
