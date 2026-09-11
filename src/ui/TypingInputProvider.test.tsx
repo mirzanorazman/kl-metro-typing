@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { KeySource } from '../engine/keylog';
 import {
   TypingInputProvider,
   useGameInput,
@@ -8,7 +9,7 @@ import {
 
 interface ProbeProps {
   active?: boolean;
-  onKey: (key: string) => void;
+  onKey: (key: string, source: KeySource) => void;
 }
 
 function Probe({ active = true, onKey }: ProbeProps) {
@@ -171,7 +172,7 @@ describe('TypingInputProvider', () => {
     fireEvent.keyDown(window, { key: 'a' });
 
     expect(focus).not.toHaveBeenCalled();
-    expect(onKey).toHaveBeenCalledWith('a');
+    expect(onKey).toHaveBeenCalledWith('a', { trusted: false, batch: 1 });
   });
 
   it('falls back to window keydown when no provider is mounted', () => {
@@ -180,7 +181,7 @@ describe('TypingInputProvider', () => {
 
     fireEvent.keyDown(window, { key: 'a' });
 
-    expect(onKey).toHaveBeenCalledWith('a');
+    expect(onKey).toHaveBeenCalledWith('a', { trusted: false, batch: 1 });
   });
 
   it('suppresses both native input and window keydown when inactive', () => {
@@ -219,7 +220,7 @@ describe('TypingInputProvider', () => {
     fireEvent.input(input, { target: { value: 'a' } });
 
     expect(first).not.toHaveBeenCalled();
-    expect(replacement).toHaveBeenCalledWith('a');
+    expect(replacement).toHaveBeenCalledWith('a', { trusted: false, batch: 1 });
   });
 
   it('throws a clear error when controls are used outside the provider', () => {
@@ -238,5 +239,48 @@ describe('TypingInputProvider', () => {
 
     expect(() => fireEvent.input(input, { target: { value: 'abc' } })).not.toThrow();
     expect((input as HTMLInputElement).value).toBe('');
+  });
+});
+
+describe('keystroke provenance', () => {
+  function renderProbe(onKey: (key: string, source: KeySource) => void, enabled = true) {
+    return render(
+      <TypingInputProvider enabled={enabled}>
+        <GameInputOnly onKey={onKey} />
+      </TypingInputProvider>,
+    );
+  }
+
+  it('reports how many characters one input event delivered', () => {
+    // A paste arrives as a single input event carrying the whole name.
+    const received: { key: string; batch: number }[] = [];
+    renderProbe((key, source) => received.push({ key, batch: source.batch }));
+
+    const input = screen.getByLabelText('Typing input for Station name') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: 'abc' } });
+
+    expect(received.map((r) => r.key)).toEqual(['a', 'b', 'c']);
+    expect(received.every((r) => r.batch === 3)).toBe(true);
+  });
+
+  it('reports an ordinary single keystroke as a batch of one', () => {
+    const received: { key: string; batch: number }[] = [];
+    renderProbe((key, source) => received.push({ key, batch: source.batch }));
+
+    const input = screen.getByLabelText('Typing input for Station name') as HTMLInputElement;
+    fireEvent.input(input, { target: { value: 'a' } });
+
+    expect(received).toEqual([{ key: 'a', batch: 1 }]);
+  });
+
+  // jsdom cannot produce a trusted event, so a dispatched keydown is exactly
+  // the synthetic case this check exists to catch.
+  it('marks a dispatched keydown as untrusted', () => {
+    const received: boolean[] = [];
+    renderProbe((_key, source) => received.push(source.trusted), false);
+
+    fireEvent.keyDown(window, { key: 'a' });
+
+    expect(received).toEqual([false]);
   });
 });

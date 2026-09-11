@@ -10,9 +10,10 @@ import {
   type FormEvent,
   type PropsWithChildren,
 } from 'react';
+import type { KeySource } from '../engine/keylog';
 import { useKeyboard } from './useKeyboard';
 
-type InputHandler = (key: string) => void;
+type InputHandler = (key: string, source: KeySource) => void;
 
 interface TypingInputContextValue {
   enabled: boolean;
@@ -48,19 +49,26 @@ export function TypingInputProvider({
     if (enabled) inputRef.current?.blur();
   }, [enabled]);
 
-  const emitInputValue = useCallback((input: HTMLInputElement) => {
+  // The whole value is drained and each character emitted, which is how a
+  // paste of a full Station name gets in. It is not blocked: an Android
+  // predictive keyboard also delivers several characters at once, and
+  // telling them apart here is guesswork. The batch size is reported
+  // instead, and the Verdict decides.
+  const emitInputValue = useCallback((input: HTMLInputElement, trusted: boolean) => {
     const value = input.value;
     input.value = '';
-    for (const character of value) handlerRef.current?.(character);
+    const characters = [...value];
+    const source: KeySource = { trusted, batch: characters.length };
+    for (const character of characters) handlerRef.current?.(character, source);
   }, []);
 
   const handleInput = useCallback((event: FormEvent<HTMLInputElement>) => {
-    if (!composingRef.current) emitInputValue(event.currentTarget);
+    if (!composingRef.current) emitInputValue(event.currentTarget, event.isTrusted);
   }, [emitInputValue]);
 
   const handleCompositionEnd = useCallback((event: CompositionEvent<HTMLInputElement>) => {
     composingRef.current = false;
-    emitInputValue(event.currentTarget);
+    emitInputValue(event.currentTarget, event.isTrusted);
   }, [emitInputValue]);
 
   const context = useMemo<TypingInputContextValue>(() => ({
