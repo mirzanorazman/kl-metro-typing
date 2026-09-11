@@ -132,8 +132,8 @@ one unit is impure.
 `beginLog(now)`, `appendKey(log, key, source, now)`. Owns the delta encoding.
 Knows nothing about Runs, Stations, or cheating.
 
-**`src/engine/integrity.ts`** — `verifyKeyLog(log): Verdict`. The only place a
-judgment is made. Takes a Keylog, returns a pass or a named Reason. No network
+**`src/engine/integrity.ts`** — `verifyKeyLog(log, replayedWpm): Verdict`. The
+only place a judgment is made. Takes a Keylog, returns a pass or a named Reason. No network
 knowledge, no Run knowledge — only the shape of the typing.
 
 **`src/engine/replay.ts`** — `replayLineRun` and `replayQuickRun`. Feeds a
@@ -260,8 +260,13 @@ export type IntegrityReason =
   | 'impossible-speed' | 'inhuman-consistency' | 'too-few-keystrokes';
 
 export type Verdict = { ok: true } | { ok: false; reason: IntegrityReason };
-export function verifyKeyLog(log: KeyLog): Verdict;
+export function verifyKeyLog(log: KeyLog, replayedWpm: number): Verdict;
 ```
+
+WPM arrives as a parameter rather than being derived inside. A Keylog records
+which keys were pressed and when, but not which were *correct* — only Replay
+knows that, because only Replay knows the route. The caller replays first and
+passes the result in, which keeps `integrity.ts` free of any network knowledge.
 
 | Reason | Fires when | Why that number |
 |---|---|---|
@@ -270,7 +275,12 @@ export function verifyKeyLog(log: KeyLog): Verdict;
 | `untrusted-input` | any event carries `u` | Scripted keystrokes are the bot case and the console case at once. |
 | `batched-input` | any single event delivered 4+ characters, or more than 8 multi-character events across the Run | "Kelana Jaya" pastes as one event of 11. The headroom to 4 exists because Android predictive keyboards legitimately deliver 2–3. |
 | `impossible-speed` | replayed WPM above 300, or median inter-key interval below 40 ms | The sustained human record is roughly 212 WPM; 300 is not a close call. Median rather than minimum, so a couple of fast digraph rolls do not trip it. |
-| `inhuman-consistency` | coefficient of variation of intervals below 0.12, with 40+ intervals | The real anti-bot check. Humans run 0.35–0.7; a `setInterval` script runs 0.01–0.05; even a jittered bot rarely clears 0.15. |
+| `inhuman-consistency` | coefficient of variation of inter-key intervals below 0.12, with 40+ intervals | The real anti-bot check. Humans run 0.35–0.7; a `setInterval` script runs 0.01–0.05; even a jittered bot rarely clears 0.15. |
+
+The first event's `dt` is never counted as an inter-key interval. It measures
+the pause before typing began — a player thinking for ten seconds is not
+evidence of anything, but it would wreck both the median and the coefficient of
+variation.
 
 Thresholds live in one exported const object so tuning is a one-line edit with
 tests around it.
