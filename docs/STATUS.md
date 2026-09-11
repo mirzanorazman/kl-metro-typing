@@ -47,7 +47,17 @@ its timing and how it arrived. Finishing a Line Run replays that log to derive
 the score, and a pure validator judges it before the leaderboard will take it.
 The input layer annotates keystrokes but never rejects them, so a false positive
 costs a leaderboard entry rather than the ability to play. Design and reasoning
-in `docs/superpowers/specs/2026-09-10-run-integrity-design.md`.
+in `docs/superpowers/specs/2026-09-10-run-integrity-design.md`; what was
+actually built, and the handful of places it diverges, in
+`docs/superpowers/2026-09-11-run-integrity-execution-record.md`.
+
+Two numbers are worth knowing before you touch the validator. The thresholds are
+deliberately generous — 300 WPM, a 40 ms median floor, a coefficient of
+variation of 0.12 — because a false positive here costs an honest player their
+place on the board and they have no way to tell you why. And the anti-paste
+budget counts *bursts*, not characters: getting that backwards once already made
+it four times stricter than intended, silently refusing Android predictive
+keyboards.
 
 ## Architecture
 
@@ -207,8 +217,9 @@ simply synchronous while the behaviour was animated.
 | `docs/superpowers/plans/2026-09-04-map-first-redesign.md` | Plan 2 — 13 tasks, complete. |
 | `docs/superpowers/specs/2026-09-04-domain-model-design.md` | Lightweight domain model. **Designed, not implemented.** |
 | `docs/adr/0001-run-state-per-mode.md` | Why a Run's state is a per-mode union. |
-| `docs/superpowers/specs/2026-09-10-run-integrity-design.md` | Run integrity: the Keylog, replay, and the validator. |
-| `docs/superpowers/plans/2026-09-11-run-integrity.md` | Plan 3 — 8 tasks. |
+| `docs/superpowers/specs/2026-09-10-run-integrity-design.md` | Run integrity: the Keylog, replay, and the validator. Implemented; divergences marked inline. |
+| `docs/superpowers/plans/2026-09-11-run-integrity.md` | Plan 3 — 8 tasks, complete. Checkboxes left unticked on purpose; see the execution record. |
+| `docs/superpowers/2026-09-11-run-integrity-execution-record.md` | **What actually happened** building run integrity: rulings made on the user's behalf, where the code diverges from the spec, and the four defects a green test suite could not catch. |
 
 Work done after Plan 2 was driven by direct feedback rather than a plan: the
 train being positioned by typing progress, error feedback, synthesised sound,

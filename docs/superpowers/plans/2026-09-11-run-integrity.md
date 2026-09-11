@@ -1,5 +1,19 @@
 # Run Integrity Implementation Plan
 
+> **Status: executed 2026-09-11.** All eight tasks are complete on branch
+> `worktree-run-integrity` (`80ed5b8..0188244`). The step checkboxes below are
+> left unticked deliberately — several steps were superseded during execution,
+> so ticking them would assert something untrue. The authoritative record of
+> what was built, what diverged, and why is
+> `docs/superpowers/2026-09-11-run-integrity-execution-record.md`. Read that
+> before trusting any step here.
+>
+> Known defects in this plan's own text, all corrected during execution: Task
+> 6's batch encoding made the anti-paste budget 2–4× tighter than the spec
+> (§3.11); Task 3's and Task 4's tests never reached the branches they claimed
+> to cover (§3.2, §3.4); Task 7 shipped a verification bypass its prescribed
+> test could not have caught (§3.5); Task 8's prose contradicted itself (§3.9).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Record every scored Run as a Keylog, replay it to derive its Metrics, and judge it with one pure function — so a leaderboard score is derived from evidence rather than believed.

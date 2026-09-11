@@ -1,7 +1,11 @@
 # Run integrity — design
 
 **Date:** 2026-09-10
-**Status:** Designed, not implemented.
+**Status:** Implemented, 2026-09-11. Read
+`docs/superpowers/2026-09-11-run-integrity-execution-record.md` alongside this
+document — it records where the shipped code diverges from what is designed
+here, and why. Two divergences touch this document's own code blocks and are
+marked inline below.
 
 A lightweight integrity layer for scored Runs. It closes the exploits that need
 no tools at all, and — more importantly — makes a Run produce *evidence* rather
@@ -180,20 +184,29 @@ export const KEYLOG_VERSION = 1;
 
 export interface KeySource {
   trusted: boolean;   // DOM event.isTrusted
-  batch: number;      // characters delivered by the one input event; 1 is normal
+  // AS SHIPPED: the characters delivered by the one input event, but carried
+  // only on that burst's FIRST character; the rest of the burst gets 1.
+  // See execution record §3.11 — stamping every character made the
+  // batched-input budget count characters instead of events, refusing honest
+  // mobile players at 2-4x the intended strictness.
+  batch: number;
 }
 
 export interface KeyEvent {
   k: string;          // the character
   dt: number;         // ms since the previous event
   u?: 1;              // present only if untrusted
-  b?: number;         // present only if batch > 1
+  b?: number;         // present only on the first keystroke of a multi-char burst
 }
 
 export interface KeyLog {
   v: number;
   t0: number;         // performance.now() when the log opened
+  ms: number;         // offset of the most recent event; 0 while empty
   events: KeyEvent[];
+  truncated?: true;   // AS SHIPPED: set once the event cap is hit. See §3.14 —
+                      // without a mark, a capped log was indistinguishable from
+                      // a complete one, since it stops at exactly the cap.
 }
 ```
 
@@ -284,6 +297,22 @@ variation.
 
 Thresholds live in one exported const object so tuning is a one-line edit with
 tests around it.
+
+**As shipped, three things were added to this section.** None changes a
+threshold value; the numbers above are exactly the numbers in the code.
+
+- Non-printable keys — `Shift`, `Tab`, arrows, `F5` — are never written to the
+  Keylog at all, so they cannot enter the interval statistics. A held key's
+  auto-repeat arrives at roughly 30/s and would otherwise drag the median under
+  the 40 ms floor for a player who typed nothing wrong. Execution record §3.12.
+- A non-finite `replayedWpm` fails as `malformed-log`, because `NaN > 300` is
+  `false` and would otherwise sail past the ceiling. §3.4.
+- `verifyKeyLog` carries runtime shape guards. This document calls the function
+  total; a TypeScript annotation does not make it so at a server boundary. §3.3.
+
+The `batched-input` row above is the binding statement, and the first
+implementation did not honour it: the budget was spent per *character* rather
+than per *event*, making it 2–4× tighter than written. §3.11.
 
 ### Deliberate non-goals
 
