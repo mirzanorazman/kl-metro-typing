@@ -6,7 +6,10 @@ import {
   recordStation,
   recordQuickBest,
   saveSelectedLine,
+  recordIntegrityFail,
+  INTEGRITY_FAIL_LIMIT,
   STORAGE_KEY,
+  type Profile,
 } from './progress';
 
 beforeEach(() => localStorage.clear());
@@ -146,5 +149,51 @@ describe('saveSelectedLine', () => {
     expect(selected.lastSelectedLine).toBe('MR');
     expect(selected.visited).toEqual(['imbi']);
     expect(selected.quickBest).toEqual({});
+  });
+});
+
+describe('recordIntegrityFail', () => {
+  it('records a failure newest first', () => {
+    let profile = emptyProfile();
+    profile = recordIntegrityFail(profile, { t: 1, mode: 'line', reason: 'batched-input' });
+    profile = recordIntegrityFail(profile, { t: 2, mode: 'quick', reason: 'untrusted-input' });
+    expect(profile.integrityFails).toEqual([
+      { t: 2, mode: 'quick', reason: 'untrusted-input' },
+      { t: 1, mode: 'line', reason: 'batched-input' },
+    ]);
+  });
+
+  it('keeps only the most recent failures', () => {
+    let profile = emptyProfile();
+    for (let i = 0; i < INTEGRITY_FAIL_LIMIT + 5; i++) {
+      profile = recordIntegrityFail(profile, { t: i, mode: 'line', reason: 'impossible-speed' });
+    }
+    expect(profile.integrityFails).toHaveLength(INTEGRITY_FAIL_LIMIT);
+    expect(profile.integrityFails![0]!.t).toBe(INTEGRITY_FAIL_LIMIT + 4);
+  });
+
+  it('does not mutate the profile it is given', () => {
+    const profile = emptyProfile();
+    recordIntegrityFail(profile, { t: 1, mode: 'line', reason: 'malformed-log' });
+    expect(profile.integrityFails).toBeUndefined();
+  });
+
+  it('survives a save and load round trip', () => {
+    const profile = recordIntegrityFail(emptyProfile(), {
+      t: 7, mode: 'quick', reason: 'inhuman-consistency',
+    });
+    saveProfile(profile);
+    expect(loadProfile().integrityFails).toEqual([
+      { t: 7, mode: 'quick', reason: 'inhuman-consistency' },
+    ]);
+  });
+
+  it('loads a profile saved before the field existed', () => {
+    const old = { ...emptyProfile() };
+    delete (old as Partial<Profile>).integrityFails;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(old));
+    const loaded = loadProfile();
+    expect(loaded.recovered).toBeUndefined();
+    expect(loaded.integrityFails).toBeUndefined();
   });
 });

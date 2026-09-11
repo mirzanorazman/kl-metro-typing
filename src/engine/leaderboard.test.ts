@@ -147,3 +147,22 @@ describe('rankOf', () => {
     expect(rankOf([entry({ id: 'a' })], 'z')).toBeNull();
   });
 });
+
+describe('makeEntry verification', () => {
+  const metrics = { wpm: 60, accuracy: 0.95, score: 54.15 };
+
+  it('marks a verified entry', () => {
+    const entry = makeEntry({
+      id: 'a', name: 'Mirza', lineCode: 'MR', metrics, weight: 1, playedAt: 0, verified: true,
+    });
+    expect(entry.verified).toBe(true);
+  });
+
+  it('leaves an unverified entry unmarked rather than marking it false', () => {
+    const entry = makeEntry({
+      id: 'a', name: 'Mirza', lineCode: 'MR', metrics, weight: 1, playedAt: 0,
+    });
+    expect(entry.verified).toBeUndefined();
+    expect('verified' in entry).toBe(false);
+  });
+});

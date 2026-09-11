@@ -113,12 +113,14 @@ export interface SubmitResult {
 export function submitEntry(
   net: NetworkIndex,
   store: LeaderboardStore,
-  params: { name: string; lineCode: LineCode; metrics: Metrics; playedAt: number },
+  params: { name: string; lineCode: LineCode; metrics: Metrics; playedAt: number; verified?: boolean },
 ): SubmitResult {
-  const { name, lineCode, metrics, playedAt } = params;
+  const { name, lineCode, metrics, playedAt, verified } = params;
   const q = evaluateRun(net, store, lineCode, metrics);
   const id = `${lineCode}-${playedAt}-${Math.random().toString(36).slice(2, 8)}`;
-  const entry = makeEntry({ id, name: name.trim(), lineCode, metrics, weight: q.weight, playedAt });
+  const entry = makeEntry({
+    id, name: name.trim(), lineCode, metrics, weight: q.weight, playedAt, verified,
+  });
 
   let overall = store.overall;
   let overallRank: number | null = null;

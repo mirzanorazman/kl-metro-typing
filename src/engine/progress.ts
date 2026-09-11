@@ -1,7 +1,17 @@
 import { LINE_CODES, type LineCode } from '../data/types';
+import type { IntegrityReason } from './integrity';
 
 export const STORAGE_KEY = 'klmetro.v1';
 const SCHEMA_VERSION = 1;
+
+export const INTEGRITY_FAIL_LIMIT = 20;
+
+/** One Run that failed its Verdict. Kept so false positives are visible. */
+export interface IntegrityFail {
+  t: number;
+  mode: 'line' | 'quick';
+  reason: IntegrityReason;
+}
 
 export interface AdventurePosition {
   at: string;
@@ -32,6 +42,14 @@ export interface Profile {
    */
   theme?: Theme;
   wpmHistory: { t: number; wpm: number }[];
+  /**
+   * Runs that failed their Verdict, newest first, capped at
+   * INTEGRITY_FAIL_LIMIT. Optional and additive, so older saves carry forward
+   * untouched through migrate's spread — the path `muted` and `quickBest` took.
+   * There is no UI for it; it exists so a false positive is visible before a
+   * server is built on the assumption it cannot happen.
+   */
+  integrityFails?: IntegrityFail[];
   /** True when this profile replaced an unreadable saved record. */
   recovered?: boolean;
 }
@@ -140,4 +158,11 @@ export function saveAdventurePosition(
   position: AdventurePosition | null,
 ): Profile {
   return { ...profile, adventure: position };
+}
+
+export function recordIntegrityFail(profile: Profile, fail: IntegrityFail): Profile {
+  return {
+    ...profile,
+    integrityFails: [fail, ...(profile.integrityFails ?? [])].slice(0, INTEGRITY_FAIL_LIMIT),
+  };
 }

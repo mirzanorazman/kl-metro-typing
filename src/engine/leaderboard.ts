@@ -14,6 +14,12 @@ export interface LeaderboardEntry {
   score: number;
   weightedScore: number;
   playedAt: number;
+  /**
+   * Present only on entries whose Keylog replayed and passed its Verdict.
+   * Optional, so SCHEMA_VERSION does not move and loadStore's version check
+   * still passes. Entries written before integrity existed stay unmarked.
+   */
+  verified?: true;
 }
 
 export type LeaderboardKey = 'score' | 'weightedScore';
@@ -44,9 +50,10 @@ export function makeEntry(params: {
   metrics: Metrics;
   weight: number;
   playedAt: number;
+  verified?: boolean;
 }): LeaderboardEntry {
-  const { id, name, lineCode, metrics, weight, playedAt } = params;
-  return {
+  const { id, name, lineCode, metrics, weight, playedAt, verified } = params;
+  const entry: LeaderboardEntry = {
     id,
     name,
     lineCode,
@@ -56,6 +63,8 @@ export function makeEntry(params: {
     weightedScore: metrics.score * weight,
     playedAt,
   };
+  if (verified) entry.verified = true;
+  return entry;
 }
 
 /** Descending by `key`; ties broken by earlier playedAt (first to set the score keeps the higher slot). */
