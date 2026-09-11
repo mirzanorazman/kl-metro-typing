@@ -4,7 +4,13 @@ import { buildNetwork, stationAt } from './network';
 import { appendKey, beginLog, PLAIN_SOURCE, type KeyLog } from './keylog';
 import { keyLineRun, lineRunRoute } from './lineRun';
 import { startRun, type RunState } from './run';
-import { enterQuickCharacter, quickRunAt, quickRunMetrics, type QuickRunState } from './quickRun';
+import {
+  advanceQuickRun,
+  enterQuickCharacter,
+  quickRunAt,
+  quickRunMetrics,
+  type QuickRunState,
+} from './quickRun';
 import { replayLineRun, replayQuickRun } from './replay';
 
 const net = buildNetwork(loadNetworkData());
@@ -101,6 +107,49 @@ describe('replayQuickRun', () => {
     const live = quickRunMetrics(run, run.endedAt ?? now);
     const replayed = replayQuickRun(net, 'MR', start, toward, log);
     expect(replayed).not.toBeNull();
+    expect(replayed!.metrics).toEqual(live);
+    expect(replayed!.complete).toBe(run.status === 'completed');
+    expect(replayed!.stationsCompleted).toBe(run.completedStations.length);
+  });
+
+  // The real-world ending: the player stops typing before the deadline, and
+  // it is the UI's interval tick — not a keystroke — that completes the run.
+  // The log therefore has no event at the deadline; replay must reach
+  // `complete` by advancing to it explicitly, the way `replay.ts` does after
+  // its event loop. If that advance were missing, this run would replay as
+  // permanently `running` instead of `completed`.
+  it('completes a run that stopped short of the deadline, via the tick rather than a keystroke', () => {
+    const start = 'imbi';
+    const toward = 'titiwangsa';
+    const t0 = 2_000;
+    let run: QuickRunState = quickRunAt(net, 'MR', start, toward)!;
+    let log = beginLog(t0);
+    let now = t0;
+    let i = 0;
+
+    // Type only a handful of characters — well short of the 45-second
+    // deadline — then stop. No further keystrokes reach the log.
+    for (let n = 0; n < 8; n++) {
+      const character = run.typing.target[run.typing.cursor];
+      if (character === undefined) break;
+      now += interval(i++);
+      log = appendKey(log, character, PLAIN_SOURCE, now);
+      run = enterQuickCharacter(net, run, character, now);
+    }
+
+    expect(run.status).toBe('running');
+    expect(run.deadline).not.toBeNull();
+    expect(now - t0).toBeLessThan(run.deadline! - t0);
+
+    // Live: the deadline arrives with no further keystrokes — only the tick.
+    const completedLive = advanceQuickRun(run, run.deadline!);
+    expect(completedLive.status).toBe('completed');
+    const live = quickRunMetrics(completedLive, completedLive.endedAt ?? run.deadline!);
+
+    const replayed = replayQuickRun(net, 'MR', start, toward, log);
+    expect(replayed).not.toBeNull();
+    expect(replayed!.complete).toBe(true);
+    expect(replayed!.stationsCompleted).toBe(completedLive.completedStations.length);
     expect(replayed!.metrics).toEqual(live);
   });
 
