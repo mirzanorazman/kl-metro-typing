@@ -269,33 +269,33 @@ git commit -m "fix: keep wrong key feedback visible"
 - Modify: `src/ui/QuickRunSummary.test.tsx`
 - Modify: `src/ui/mobile.css`
 
-- [ ] **Step 1: Write failing screen tests**
+- [x] **Step 1: Write failing screen tests**
 
 Cover `—` WPM/Accuracy before input, once-per-second displayed refresh, immediate Line/prompt changes at a jump, input accepted during map transition, persistent jump announcement until the first correct landing character, no unrelated `previousStation`, one-behind/two-ahead camera request, ordered Lines in Summary, mode-wide personal best, and fresh evidence on `Run again`.
 
-- [ ] **Step 2: Run the screen tests and confirm red**
+- [x] **Step 2: Run the screen tests and confirm red**
 
 Run: `npm test -- src/ui/QuickRunScreen.test.tsx src/ui/QuickRunSummary.test.tsx`
 
-- [ ] **Step 3: Wire the screen to current engine state and evidence**
+- [x] **Step 3: Wire the screen to current engine state and evidence**
 
 Use `run.line` and the active leg for context, map emphasis, colour, fit extent, and Direction. Pass `randomRef.current` into live character entry. On normal completion, call `replayQuickRun(net, { keylog: recorder.snapshot(), trace: run.trace })`, apply the existing Verdict, and write only `quickBestOverall`.
 
 Derive ordered Lines from `run.trace.legs.map(leg => leg.line)` and pass them to Summary. Keep Station progress persistence idempotent across jumps.
 
-- [ ] **Step 4: Add independent one-second metric display cadence**
+- [x] **Step 4: Add independent one-second metric display cadence**
 
 Keep the existing 100 ms deadline tick. Add separate displayed metrics state: `—` until the run starts, then sample `quickRunMetrics(runRef.current, performance.now())` once per second. Do not use the one-second display state to decide completion.
 
-- [ ] **Step 5: Add jump presentation and closer camera**
+- [x] **Step 5: Add jump presentation and closer camera**
 
 Use `followPoints(linePositions, currentIndex, { behind: 1, ahead: 2 })`. Key the map reframe by active Line plus `jumpRevision`, set `previousStation={null}` immediately after a jump, and apply a maximum 250 ms fade class. Under reduced motion, disable only the fade. Keep the visible `Jumped to CODE · Station` status until the first correct character advances the landing prompt.
 
-- [ ] **Step 6: Update Summary**
+- [x] **Step 6: Update Summary**
 
 Change its context from a single starting Line to `30 seconds` plus ordered Line codes. Preserve completed Stations, WPM, Accuracy, Score, interruption labeling, and Run-again controls.
 
-- [ ] **Step 7: Run focused tests and commit**
+- [x] **Step 7: Run focused tests and commit**
 
 Run: `npm test -- src/ui/QuickRunScreen.test.tsx src/ui/QuickRunSummary.test.tsx`
 
