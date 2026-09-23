@@ -23,23 +23,29 @@ export function Prompt({
     >
       {ch}
     </span>,
-    ...(i === state.cursor && state.mistyped
+    ...(!onActivate && i === state.cursor && state.mistyped
       ? [<span key="wrong-feedback" className="prompt-feedback" role="status">Wrong key</span>]
       : []),
   ]);
-
   if (onActivate) {
     return (
-      <button
-        type="button"
-        className="prompt prompt-recovery"
-        aria-label={`Type ${state.target}`}
-        onClick={onActivate}
-      >
-        {content}
-      </button>
+      <>
+        <button
+          type="button"
+          className="prompt prompt-recovery"
+          aria-label={`Type ${state.target}`}
+          onClick={onActivate}
+        >
+          {content}
+        </button>
+        {state.mistyped && <span className="prompt-feedback" role="status">Wrong key</span>}
+      </>
     );
   }
 
-  return <div className="prompt" aria-label={`Type ${state.target}`}>{content}</div>;
+  return (
+    <div className="prompt" aria-label={`Type ${state.target}`}>
+      {content}
+    </div>
+  );
 }
