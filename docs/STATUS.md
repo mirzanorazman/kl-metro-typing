@@ -56,8 +56,9 @@ On phone-sized landscape screens, Run starts are disabled with the instruction
 `Rotate to portrait to play`. Rotating an active Quick Run interrupts it; its Summary is
 shown on return to portrait. The same phone-only guard applies to Line Run and
 Adventure. Tablet and desktop landscape are not blocked solely by orientation.
-iPad Mini landscape with the keyboard open remains a separate compatibility
-follow-up; the revised flow has not yet received browser or device verification.
+iPad Mini-sized landscape renders the desktop/tablet play layout without being
+blocked, including at a reduced-height browser viewport. A real iPad Mini check
+with its software keyboard open remains a separate compatibility follow-up.
 
 **Local leaderboard** — Line Run only. Completing a line end to end offers a
 name entry if the run's score would place in the top 20 overall or the top 20

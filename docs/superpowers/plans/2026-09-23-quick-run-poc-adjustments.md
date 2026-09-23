@@ -398,7 +398,7 @@ Run: `git diff --check`
 
 Expected: no whitespace errors.
 
-- [ ] **Step 6: Perform browser verification at representative viewports**
+- [x] **Step 6: Perform browser verification at representative viewports**
 
 Verify a desktop viewport, phone portrait, and phone landscape. Exercise one Quick Run through a jump; confirm prompt/context update immediately, no false path is drawn, WPM/Accuracy update once per second, the error state survives reduced motion, and returning to portrait after rotation shows an interrupted Summary. Record iPad Mini landscape as a separate compatibility follow-up, not a release blocker.
 
@@ -411,11 +411,11 @@ git commit -m "docs: mark quick run adjustments implemented"
 
 ## Final review checklist
 
-- [ ] Every approved design decision has an automated test or an explicit manual compatibility gate.
-- [ ] Quick Run selection and replay share validation instead of maintaining parallel rule implementations.
-- [ ] The UI never chooses a Line, Direction, or landing Station.
-- [ ] Randomness is injected for live tests and absent from replay.
-- [ ] Legacy `quickBest` data remains readable but is neither displayed nor mutated by new Runs.
-- [ ] Reduced motion removes motion only, not information.
-- [ ] Landscape blocking depends on phone presentation plus aspect ratio, so an iPad is not rejected solely for being landscape.
-- [ ] No placeholder comments, skipped tests, `any` casts, or debug logging remain.
+- [x] Every approved design decision has an automated test or an explicit manual compatibility gate.
+- [x] Quick Run selection and replay share validation instead of maintaining parallel rule implementations.
+- [x] The UI never chooses a Line, Direction, or landing Station.
+- [x] Randomness is injected for live tests and absent from replay.
+- [x] Legacy `quickBest` data remains readable but is neither displayed nor mutated by new Runs.
+- [x] Reduced motion removes motion only, not information.
+- [x] Landscape blocking depends on phone presentation plus aspect ratio, so an iPad is not rejected solely for being landscape.
+- [x] No placeholder comments, skipped tests, `any` casts, or debug logging remain.
