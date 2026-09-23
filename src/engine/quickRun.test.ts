@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
-import type { NetworkData } from '../data/types';
+import type { LineCode, NetworkData } from '../data/types';
 import { computeMetrics } from './metrics';
 import { buildNetwork, type NetworkIndex } from './network';
 import {
@@ -13,10 +13,10 @@ import {
   interruptQuickRun,
   isEligibleQuickLeg,
   prepareQuickRun,
-  quickRunAt,
   quickRunMetrics,
   quickRunToward,
   type QuickLeg,
+  type QuickRunState,
 } from './quickRun';
 
 function advancesToTerminus(net: NetworkIndex, leg: QuickLeg): number {
@@ -77,6 +77,41 @@ function fiveStationNetwork() {
     links: [],
   };
   return buildNetwork(data);
+}
+
+function multiLineNetwork(lengths: [LineCode, number][] = [['MR', 5], ['KG', 6], ['PY', 9]]) {
+  const lines: NetworkData['lines'] = lengths.map(([code, length]) => ({
+    code,
+    name: `${code} Line`,
+    colour: '#000000',
+    termini: [`${code}0`, `${code}${length - 1}`],
+    stations: Array.from({ length }, (_, index) => `${code}${index}`),
+    schematic: { start: { x: 0, y: 0 }, segments: [['E', length - 1]] },
+  }));
+  return buildNetwork({
+    lines,
+    stations: lines.flatMap((line) => line.stations.map((id, index) => ({
+      id, name: id, codes: { [line.code]: id }, demand: 1, geo: { lat: 0, lng: index },
+    }))),
+    links: [],
+  });
+}
+
+function typePrompt(net: NetworkIndex, state: QuickRunState, now: number, random = () => 0) {
+  return [...state.typing.target.slice(state.typing.cursor)].reduce(
+    (next, key) => enterQuickCharacter(net, next, key, now, random), state,
+  );
+}
+
+function finishLeg(net: NetworkIndex, state: QuickRunState, now: number, random = () => 0) {
+  let next = state;
+  while (next.at !== next.activeLeg.toward) next = typePrompt(net, next, now, random);
+  return typePrompt(net, next, now, random);
+}
+
+function sequence(...values: number[]) {
+  let index = 0;
+  return () => values[index++]!;
 }
 
 describe('prepareQuickRun', () => {
@@ -234,27 +269,12 @@ describe('Quick Run transitions', () => {
     expect(quickRunToward(network(), state)).toBe('Titiwangsa');
   });
 
-  it('reverses at Titiwangsa and displays KL Sentral as the new destination', () => {
+  it('advances from a starting terminus toward the selected destination', () => {
     const state = typeCurrent(prepareQuickRun(network(), 'MR', 'kl-sentral', null, () => 1), 1000);
 
     expect(state.at).toBe('chow-kit');
     expect(state.arrivedFrom).toBe('titiwangsa');
     expect(quickRunToward(network(), state)).toBe('KL Sentral');
-  });
-
-  it('reverses repeatedly at both termini', () => {
-    const net = twoStationNetwork();
-    const first = quickRunAt(net, 'MR', 'alpha', 'beta')!;
-    const second = [...first.typing.target].reduce((s, key) => enterQuickCharacter(net, s, key, 1000), first);
-    const third = [...second.typing.target].reduce((s, key) => enterQuickCharacter(net, s, key, 2000), second);
-    const fourth = [...third.typing.target].reduce((s, key) => enterQuickCharacter(net, s, key, 3000), third);
-
-    expect([second.at, third.at, fourth.at]).toEqual(['beta', 'alpha', 'beta']);
-    expect([quickRunToward(net, second), quickRunToward(net, third), quickRunToward(net, fourth)]).toEqual([
-      'Beta',
-      'Alpha',
-      'Beta',
-    ]);
   });
 
   it('rejects input exactly at the deadline and completes at that deadline', () => {
@@ -370,5 +390,153 @@ describe('Quick Run transitions', () => {
 
     expect(metrics.wpm).toBe(0);
     expect(metrics.score).toBe(0);
+  });
+});
+
+describe('Quick Run Line jumps', () => {
+  it('records the completed terminus and immediately activates a different Line without a rail arrival', () => {
+    const net = multiLineNetwork();
+    const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+    let terminus = ready;
+    for (let i = 0; i < 4; i += 1) terminus = typePrompt(net, terminus, 1000);
+    const jumped = typePrompt(net, terminus, 1500, sequence(0, 1));
+
+    expect(jumped.completedStations[jumped.completedStations.length - 1]).toEqual({ id: 'MR4', ms: 500 });
+    expect(jumped).toMatchObject({
+      status: 'running', line: 'KG', at: 'KG5', direction: -1, arrivedFrom: null,
+      activeLeg: { line: 'KG', at: 'KG5', toward: 'KG0' },
+      jumpRevision: 1, stationStartedAt: 1500,
+    });
+    expect(jumped.typing).toMatchObject({ target: 'KG5', cursor: 0, done: false });
+    expect(quickRunToward(net, jumped)).toBe('KG0');
+    expect(jumped.deadline).toBe(31_000);
+    expect(ready.jumpRevision).toBe(0);
+    expect(terminus.trace.legs).toEqual([ready.activeLeg]);
+  });
+
+  it('prefers unused eligible Lines before reusing a Line', () => {
+    const net = multiLineNetwork();
+    const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+    const second = finishLeg(net, ready, 1000);
+    const third = finishLeg(net, second, 2000);
+    const fourth = finishLeg(net, third, 3000);
+
+    expect([second.line, third.line, fourth.line]).toEqual(['KG', 'PY', 'MR']);
+    expect(fourth.jumpRevision).toBe(3);
+    expect(fourth.trace.legs).toEqual([ready.activeLeg, second.activeLeg, third.activeLeg, fourth.activeLeg]);
+  });
+
+  it('treats the just-completed terminus as typed when it is also a candidate landing', () => {
+    const base = multiLineNetwork([['MR', 5], ['KG', 5]]);
+    const net = buildNetwork({
+      lines: [...base.lines.values()].map((line) => line.code === 'KG'
+        ? { ...line, stations: ['MR4', ...line.stations.slice(1)] }
+        : line),
+      stations: [...base.stations.values()],
+      links: [],
+    });
+    const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+    const jumped = finishLeg(net, ready, 1000);
+    expect(jumped.activeLeg).toEqual({ line: 'KG', at: 'KG4', toward: 'MR4' });
+    expect(jumped.completedStations[jumped.completedStations.length - 1]?.id).toBe('MR4');
+  });
+
+  it('prefers an untyped landing on the chosen Line, then permits typed landings when exhausted', () => {
+    const net = multiLineNetwork();
+    const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+    const second = finishLeg(net, ready, 1000, sequence(0, 0.3));
+    expect(second.at).toBe('KG1');
+    const third = finishLeg(net, second, 2000);
+    const fourth = finishLeg(net, third, 3000, sequence(1, 1));
+    expect(fourth.activeLeg).toEqual({ line: 'KG', at: 'KG0', toward: 'KG5' });
+    const fifth = finishLeg(net, fourth, 4000, sequence(0, 1));
+    expect(fifth.activeLeg).toEqual({ line: 'MR', at: 'MR4', toward: 'MR0' });
+  });
+
+  it.each([[0, 'KG'], [0.49, 'KG'], [0.5, 'PY'], [1, 'PY']] as const)(
+    'weights Lines equally before legs when random=%s', (lineRandom, expectedLine) => {
+      const net = multiLineNetwork();
+      expect(eligibleQuickLegs(net, 'KG').length).toBe(4);
+      expect(eligibleQuickLegs(net, 'PY').length).toBe(10);
+      const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+      const jumped = finishLeg(net, ready, 1000, sequence(lineRandom, 0));
+      expect(jumped.line).toBe(expectedLine);
+    },
+  );
+
+  it('appends only activated legs and does not sample randomness on ordinary station advances', () => {
+    const net = multiLineNetwork();
+    const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+    let samples = 0;
+    const random = () => { samples += 1; return 0; };
+    const next = typePrompt(net, ready, 1000, random);
+    expect(next.trace).toBe(ready.trace);
+    expect(next.jumpRevision).toBe(0);
+    expect(samples).toBe(0);
+    const jumped = finishLeg(net, next, 2000, random);
+    expect(samples).toBe(2);
+    expect(jumped.trace.legs).toEqual([ready.activeLeg, jumped.activeLeg]);
+    expect(ready.trace.legs).toEqual([ready.activeLeg]);
+  });
+
+  it('interrupts with a continuation error when all other Lines are ineligible', () => {
+    const net = multiLineNetwork([['MR', 5], ['KG', 4]]);
+    const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+    const ended = finishLeg(net, ready, 1000);
+    expect(ended).toMatchObject({
+      status: 'interrupted', interruptionReason: 'continuation-error', endedAt: 1000,
+      line: 'MR', at: 'MR4', jumpRevision: 0,
+    });
+    expect(ended.completedStations.map(({ id }) => id)).toEqual(['MR0', 'MR1', 'MR2', 'MR3', 'MR4']);
+    expect(ended.trace).toBe(ready.trace);
+    expect(enterQuickCharacter(net, ended, 'M', 2000)).toBe(ended);
+  });
+
+  it.each([31_000, 31_001])('rejects the final terminus character at %s without a jump', (now) => {
+    const net = multiLineNetwork();
+    let state = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+    for (let i = 0; i < 4; i += 1) state = typePrompt(net, state, 1000);
+    state = enterQuickCharacter(net, state, 'M', 1000);
+    state = enterQuickCharacter(net, state, 'R', 1000);
+    const ended = enterQuickCharacter(net, state, '4', now, () => { throw new Error('Unexpected jump'); });
+    expect(ended).toMatchObject({ status: 'completed', endedAt: 31_000, jumpRevision: 0 });
+    expect(ended.typing).toBe(state.typing);
+    expect(ended.completedStations).toBe(state.completedStations);
+    expect(ended.trace).toBe(state.trace);
+  });
+
+  it('jumps on a final terminus character immediately before the deadline', () => {
+    const net = multiLineNetwork();
+    let state = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+    for (let i = 0; i < 4; i += 1) state = typePrompt(net, state, 1000);
+    const jumped = typePrompt(net, state, 30_999);
+    expect(jumped).toMatchObject({ status: 'running', line: 'KG', jumpRevision: 1 });
+  });
+
+  it('keeps every sampled landing at least four advances from its new terminus', () => {
+    const net = multiLineNetwork();
+    const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+    for (const lineRandom of [0, 0.5, 1]) {
+      for (let i = 0; i <= 20; i += 1) {
+        const jumped = finishLeg(net, ready, 1000, sequence(lineRandom, i / 20));
+        expect(jumped.line).not.toBe('MR');
+        expect(advancesToTerminus(net, jumped.activeLeg)).toBeGreaterThanOrEqual(4);
+      }
+    }
+  });
+
+  it('reproduces both Line and leg choices from the injected random sequence', () => {
+    const net = multiLineNetwork();
+    const run = () => {
+      const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
+      const random = sequence(0.9, 0.7, 0.1, 0.4);
+      return finishLeg(net, finishLeg(net, ready, 1000, random), 2000, random);
+    };
+    expect(run()).toEqual(run());
+    expect(run().trace.legs).toEqual([
+      { line: 'MR', at: 'MR0', toward: 'MR4' },
+      { line: 'PY', at: 'PY6', toward: 'PY0' },
+      { line: 'KG', at: 'KG1', toward: 'KG5' },
+    ]);
   });
 });

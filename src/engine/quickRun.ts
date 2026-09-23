@@ -29,6 +29,7 @@ export interface QuickRunState {
   line: LineCode;
   activeLeg: QuickLeg;
   trace: QuickLegTrace;
+  jumpRevision: number;
   /** Terminus station id selected as the run's destination. */
   initialToward: string;
   direction: -1 | 1;
@@ -44,6 +45,7 @@ export interface QuickRunState {
   keystrokes: number;
   errors: number;
   status: QuickRunStatus;
+  interruptionReason: 'continuation-error' | null;
 }
 
 /** Whether a leg starts at least four Station advances from its Terminus. */
@@ -111,6 +113,7 @@ export function quickRunAt(
     line: lineCode,
     activeLeg,
     trace: { version: QUICK_LEG_TRACE_VERSION, legs: [activeLeg] },
+    jumpRevision: 0,
     initialToward: toward,
     direction: toward === last ? 1 : -1,
     at,
@@ -125,6 +128,7 @@ export function quickRunAt(
     keystrokes: 0,
     errors: 0,
     status: 'ready',
+    interruptionReason: null,
   };
 }
 
@@ -175,34 +179,71 @@ export function advanceQuickRun(state: QuickRunState, now: number): QuickRunStat
   return completeQuickRun(state);
 }
 
-function advanceStation(net: NetworkIndex, state: QuickRunState, now: number): QuickRunState {
+function selectNextLeg(net: NetworkIndex, state: QuickRunState, random: () => number): QuickLeg | null {
+  const eligibleLines = [...net.lines.keys()]
+    .filter((line) => line !== state.line)
+    .map((line) => ({ line, legs: eligibleQuickLegs(net, line) }))
+    .filter(({ legs }) => legs.length > 0);
+  if (eligibleLines.length === 0) return null;
+
+  const usedLines = new Set(state.trace.legs.map((leg) => leg.line));
+  const unusedLines = eligibleLines.filter(({ line }) => !usedLines.has(line));
+  const chosenLine = pickRandom(unusedLines.length > 0 ? unusedLines : eligibleLines, random);
+  const typedStations = new Set(state.completedStations.map(({ id }) => id));
+  const untypedLegs = chosenLine.legs.filter((leg) => !typedStations.has(leg.at));
+  return pickRandom(untypedLegs.length > 0 ? untypedLegs : chosenLine.legs, random);
+}
+
+/** Activates one selected leg; selection and future recorded-leg replay share this transition. */
+function activateQuickLeg(net: NetworkIndex, state: QuickRunState, leg: QuickLeg, now: number): QuickRunState {
+  const line = lineAt(net, leg.line)!;
+  const station = stationAt(net, leg.at)!;
+  return {
+    ...state,
+    line: leg.line,
+    activeLeg: leg,
+    trace: { ...state.trace, legs: [...state.trace.legs, leg] },
+    jumpRevision: state.jumpRevision + 1,
+    direction: leg.toward === line.stations[line.stations.length - 1] ? 1 : -1,
+    at: leg.at,
+    arrivedFrom: null,
+    typing: beginTyping(station.name),
+    stationStartedAt: now,
+  };
+}
+
+function advanceStation(net: NetworkIndex, state: QuickRunState, now: number, random: () => number): QuickRunState {
   const line = lineAt(net, state.line);
   const stationIndex = line?.stations.indexOf(state.at) ?? -1;
   const stationStartedAt = state.stationStartedAt;
   if (!line || stationIndex < 0 || stationStartedAt === null) return state;
 
-  let direction = state.direction;
-  if (stationIndex + direction < 0 || stationIndex + direction >= line.stations.length) {
-    direction = direction === 1 ? -1 : 1;
+  const completed: QuickRunState = {
+    ...state,
+    completedStations: [...state.completedStations, { id: state.at, ms: now - stationStartedAt }],
+  };
+  if (state.at === state.activeLeg.toward) {
+    const leg = selectNextLeg(net, completed, random);
+    return leg
+      ? activateQuickLeg(net, completed, leg, now)
+      : { ...completed, status: 'interrupted', interruptionReason: 'continuation-error', endedAt: now };
   }
-  const at = line.stations[stationIndex + direction];
+  const at = line.stations[stationIndex + state.direction];
   if (!at) return state;
 
   const station = stationAt(net, at);
   if (!station) return state;
 
   return {
-    ...state,
-    direction,
+    ...completed,
     at,
     arrivedFrom: state.at,
     typing: beginTyping(station.name),
-    completedStations: [...state.completedStations, { id: state.at, ms: now - stationStartedAt }],
     stationStartedAt: now,
   };
 }
 
-function applyQuickCharacter(net: NetworkIndex, state: QuickRunState, key: string, now: number): QuickRunState {
+function applyQuickCharacter(net: NetworkIndex, state: QuickRunState, key: string, now: number, random: () => number): QuickRunState {
   const typing = applyKey(state.typing, key);
   if (typing === state.typing) return state;
 
@@ -213,7 +254,7 @@ function applyQuickCharacter(net: NetworkIndex, state: QuickRunState, key: strin
     keystrokes: state.keystrokes + (typing.keystrokes - state.typing.keystrokes),
     errors: state.errors + (typing.errors - state.typing.errors),
   };
-  return typing.done ? advanceStation(net, next, now) : next;
+  return typing.done ? advanceStation(net, next, now, random) : next;
 }
 
 /** Enters one character, starting the run only for a printable first key. */
@@ -222,6 +263,7 @@ export function enterQuickCharacter(
   state: QuickRunState,
   key: string,
   now: number,
+  random: () => number = Math.random,
 ): QuickRunState {
   if (state.status === 'completed' || state.status === 'interrupted') return state;
 
@@ -234,11 +276,11 @@ export function enterQuickCharacter(
       deadline: now + QUICK_RUN_MS,
       status: 'running',
     };
-    return applyQuickCharacter(net, started, key, now);
+    return applyQuickCharacter(net, started, key, now, random);
   }
 
   if (state.deadline !== null && now >= state.deadline) return completeQuickRun(state);
-  return applyQuickCharacter(net, state, key, now);
+  return applyQuickCharacter(net, state, key, now, random);
 }
 
 /** Interrupts a live run unless it has already reached its deadline. */
