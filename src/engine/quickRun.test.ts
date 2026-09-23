@@ -104,8 +104,13 @@ function typePrompt(net: NetworkIndex, state: QuickRunState, now: number, random
 }
 
 function finishLeg(net: NetworkIndex, state: QuickRunState, now: number, random = () => 0) {
+  const toward = state.activeLeg.toward;
+  const maxAdvances = net.lines.get(state.line)!.stations.length - 1;
   let next = state;
-  while (next.at !== next.activeLeg.toward) next = typePrompt(net, next, now, random);
+  for (let advances = 0; advances < maxAdvances && next.at !== toward; advances += 1) {
+    next = typePrompt(net, next, now, random);
+  }
+  expect(next.at, `Expected ${state.line} to reach ${toward} within ${maxAdvances} advances`).toBe(toward);
   return typePrompt(net, next, now, random);
 }
 
@@ -430,14 +435,19 @@ describe('Quick Run Line jumps', () => {
     const base = multiLineNetwork([['MR', 5], ['KG', 5]]);
     const net = buildNetwork({
       lines: [...base.lines.values()].map((line) => line.code === 'KG'
-        ? { ...line, stations: ['MR4', ...line.stations.slice(1)] }
+        ? { ...line, termini: ['MR4', line.termini[1]], stations: ['MR4', ...line.stations.slice(1)] }
         : line),
-      stations: [...base.stations.values()],
+      stations: [...base.stations.values()]
+        .filter((station) => station.id !== 'KG0')
+        .map((station) => station.id === 'MR4'
+          ? { ...station, codes: { ...station.codes, KG: 'KG0' } }
+          : station),
       links: [],
     });
     const ready = prepareQuickRun(net, 'MR', 'MR4', null, () => 0);
     const jumped = finishLeg(net, ready, 1000);
     expect(jumped.activeLeg).toEqual({ line: 'KG', at: 'KG4', toward: 'MR4' });
+    expect(quickRunToward(net, jumped)).toBe('MR4');
     expect(jumped.completedStations[jumped.completedStations.length - 1]?.id).toBe('MR4');
   });
 
