@@ -5,6 +5,7 @@ import {
   saveProfile,
   recordStation,
   recordQuickBest,
+  recordQuickBestOverall,
   saveSelectedLine,
   recordIntegrityFail,
   INTEGRITY_FAIL_LIMIT,
@@ -91,6 +92,43 @@ describe('quick run profile fields', () => {
     expect(loaded.recovered).toBeUndefined();
   });
 
+  it('loads old v1 profiles without an overall best and keeps legacy bests', () => {
+    const old = { ...emptyProfile(), quickBest: { KJ: 42 } } as Record<string, unknown>;
+    delete old.quickBestOverall;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(old));
+
+    const loaded = loadProfile();
+    expect(loaded.quickBestOverall).toBeUndefined();
+    expect(loaded.quickBest).toEqual({ KJ: 42 });
+    expect(loaded.recovered).toBeUndefined();
+  });
+
+  it('sanitizes the overall best independently and retains zero', () => {
+    for (const malformed of [-1, Number.POSITIVE_INFINITY, Number.NaN, 'bad', null, {}]) {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...emptyProfile(), quickBest: { KJ: 42 }, quickBestOverall: malformed }),
+      );
+      const loaded = loadProfile();
+      expect(loaded.quickBestOverall).toBeUndefined();
+      expect(loaded.quickBest).toEqual({ KJ: 42 });
+      expect(loaded.recovered).toBeUndefined();
+    }
+
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...emptyProfile(), quickBest: { KJ: 42 }, quickBestOverall: 0 }),
+    );
+    expect(loadProfile().quickBestOverall).toBe(0);
+  });
+
+  it('round-trips the overall best without changing legacy quick bests', () => {
+    saveProfile({ ...emptyProfile(), quickBest: { KJ: 42 }, quickBestOverall: 81 });
+    const loaded = loadProfile();
+    expect(loaded.quickBestOverall).toBe(81);
+    expect(loaded.quickBest).toEqual({ KJ: 42 });
+  });
+
   it('sanitizes malformed new fields while retaining old progress', () => {
     localStorage.setItem(
       STORAGE_KEY,
@@ -139,6 +177,33 @@ describe('recordQuickBest', () => {
     const withKj = recordQuickBest(emptyProfile(), 'KJ', 80);
     const withMr = recordQuickBest(withKj, 'MR', 40);
     expect(withMr.quickBest).toEqual({ KJ: 80, MR: 40 });
+  });
+});
+
+describe('recordQuickBestOverall', () => {
+  it('replaces only with a higher finite non-negative score', () => {
+    const original = { ...emptyProfile(), quickBest: { KJ: 60 } };
+    const higher = recordQuickBestOverall(original, 75);
+    expect(higher.quickBestOverall).toBe(75);
+    expect(higher.quickBest).toBe(original.quickBest);
+    expect(recordQuickBestOverall(higher, 75)).toBe(higher);
+    expect(recordQuickBestOverall(higher, 70)).toBe(higher);
+    expect(recordQuickBestOverall(higher, Number.NaN)).toBe(higher);
+    expect(recordQuickBestOverall(higher, Number.POSITIVE_INFINITY)).toBe(higher);
+    expect(recordQuickBestOverall(higher, -1)).toBe(higher);
+  });
+
+  it('treats a missing overall best as zero', () => {
+    const original = emptyProfile();
+    expect(recordQuickBestOverall(original, 0)).toBe(original);
+    expect(recordQuickBestOverall(original, 1).quickBestOverall).toBe(1);
+  });
+
+  it('treats an invalid current overall best as zero and preserves legacy bests', () => {
+    const original = { ...emptyProfile(), quickBest: { KJ: 60 }, quickBestOverall: -1 };
+    const updated = recordQuickBestOverall(original, 1);
+    expect(updated.quickBestOverall).toBe(1);
+    expect(updated.quickBest).toBe(original.quickBest);
   });
 });
 

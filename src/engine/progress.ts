@@ -33,6 +33,8 @@ export interface Profile {
   muted: boolean;
   /** Quick Run high scores, keyed by line code. */
   quickBest: Partial<Record<LineCode, number>>;
+  /** Quick Run high score across all lines. */
+  quickBestOverall?: number;
   /** Last line selected for Quick Run. */
   lastSelectedLine?: LineCode;
   /**
@@ -83,6 +85,10 @@ function cleanQuickBest(value: unknown): Partial<Record<LineCode, number>> {
   return clean;
 }
 
+function cleanQuickBestOverall(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
+}
+
 /**
  * Future schema versions migrate here. An unknown version is treated as
  * unreadable rather than guessed at.
@@ -96,6 +102,7 @@ function migrate(raw: unknown): Profile | null {
     ...rec,
     version: SCHEMA_VERSION,
     quickBest: cleanQuickBest(rec.quickBest),
+    quickBestOverall: cleanQuickBestOverall(rec.quickBestOverall),
     lastSelectedLine: isLineCode(rec.lastSelectedLine) ? rec.lastSelectedLine : undefined,
   };
 }
@@ -147,6 +154,13 @@ export function recordQuickBest(profile: Profile, line: LineCode, score: number)
   const best = typeof current === 'number' && Number.isFinite(current) && current >= 0 ? current : 0;
   if (!Number.isFinite(score) || score < 0 || score <= best) return profile;
   return { ...profile, quickBest: { ...profile.quickBest, [line]: score } };
+}
+
+export function recordQuickBestOverall(profile: Profile, score: number): Profile {
+  const current = profile.quickBestOverall;
+  const best = typeof current === 'number' && Number.isFinite(current) && current >= 0 ? current : 0;
+  if (!Number.isFinite(score) || score < 0 || score <= best) return profile;
+  return { ...profile, quickBestOverall: score };
 }
 
 export function saveSelectedLine(profile: Profile, line: LineCode): Profile {
