@@ -324,29 +324,29 @@ git commit -m "feat: present multi line quick runs"
 - Modify: `src/ui/AdventureScreen.test.tsx`
 - Modify: `src/ui/mobile.css`
 
-- [ ] **Step 1: Test the shared phone-landscape predicate**
+- [x] **Step 1: Test the shared phone-landscape predicate**
 
 Implement a small hook that observes resize/orientation changes and returns true only when both conditions hold: the existing phone presentation is active and `window.innerWidth > window.innerHeight`. Test phone portrait, phone landscape, desktop landscape, and a transition event.
 
-- [ ] **Step 2: Test disabled starts and interruption semantics**
+- [x] **Step 2: Test disabled starts and interruption semantics**
 
 In App/Mobile tests assert Run actions are disabled with `Rotate to portrait to play` while other navigation remains available. In screen tests assert a ready Quick Run cancels without Summary, a running Quick Run interrupts and reveals its Summary on return to portrait, and active Line Run/Adventure also end or interrupt consistently. Assert desktop/tablet presentation is not blocked by landscape alone.
 
-- [ ] **Step 3: Run the focused tests and confirm red**
+- [x] **Step 3: Run the focused tests and confirm red**
 
 Run: `npm test -- src/ui/usePhoneLandscape.test.ts src/ui/App.test.tsx src/ui/MobileTransit.test.tsx src/ui/MobileAdventureSetup.test.tsx src/ui/QuickRunScreen.test.tsx src/ui/LineRunScreen.test.tsx src/ui/AdventureScreen.test.tsx`
 
-- [ ] **Step 4: Centralize the policy in App and pass explicit state**
+- [x] **Step 4: Centralize the policy in App and pass explicit state**
 
 Compute `phoneLandscape` once in `App`. Pass it to mobile setup components to disable start actions and to active Run screens to react to rotation. Do not infer tablet behavior from `orientation`; the existing `phone` presentation decision is the first gate.
 
 For Quick Run, ready rotation calls `onBack`; running rotation calls `interruptQuickRun`, hides the active play UI while landscape persists, and reveals the interrupted Summary in portrait. For Line Run and Adventure, use their existing safe end/exit mechanics and never leave hidden input focused.
 
-- [ ] **Step 5: Add the blocking message and styling**
+- [x] **Step 5: Add the blocking message and styling**
 
 Use one reusable inline/overlay presentation with the exact instruction `Rotate to portrait to play`. It must not prevent Transit, Adventure setup, Ranking, theme, or other browsing actions.
 
-- [ ] **Step 6: Run focused tests and commit**
+- [x] **Step 6: Run focused tests and commit**
 
 Run: `npm test -- src/ui/usePhoneLandscape.test.ts src/ui/App.test.tsx src/ui/MobileTransit.test.tsx src/ui/MobileAdventureSetup.test.tsx src/ui/QuickRunScreen.test.tsx src/ui/LineRunScreen.test.tsx src/ui/AdventureScreen.test.tsx`
 
