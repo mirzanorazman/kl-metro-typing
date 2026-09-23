@@ -18,7 +18,7 @@
 - Modify: `src/engine/quickRun.ts`
 - Modify: `src/engine/quickRun.test.ts`
 
-- [ ] **Step 1: Write failing engine tests for the new duration and minimum distance**
+- [x] **Step 1: Write failing engine tests for the new duration and minimum distance**
 
 Add tests that assert `QUICK_RUN_MS === 30_000`, the first printable character sets a 30-second deadline, all prepared starts are at least four advances from `toward`, previous starts are excluded when another eligible choice exists, and an insufficient Line throws a specific unavailable error.
 
@@ -31,13 +31,13 @@ function advancesToTerminus(net: NetworkIndex, leg: QuickLeg): number {
 }
 ```
 
-- [ ] **Step 2: Run the focused test and confirm the red state**
+- [x] **Step 2: Run the focused test and confirm the red state**
 
 Run: `npm test -- src/engine/quickRun.test.ts`
 
 Expected: failures still show a 45-second deadline and starts fewer than four advances away.
 
-- [ ] **Step 3: Add the leg types and eligible-leg helpers**
+- [x] **Step 3: Add the leg types and eligible-leg helpers**
 
 In `src/engine/quickRun.ts`, add the public evidence vocabulary and constants:
 
@@ -60,17 +60,17 @@ export interface QuickLegTrace {
 
 Add `eligibleQuickLegs(net, lineCode, toward?)`, `isEligibleQuickLeg(net, leg)`, and a clamped random picker. Change `prepareQuickRun` to choose only eligible initial legs and retain the previous-start fallback behavior. Store the active leg and a trace containing exactly that first leg in `QuickRunState`.
 
-- [ ] **Step 4: Update canonical domain language**
+- [x] **Step 4: Update canonical domain language**
 
 In `CONTEXT.md`, define Quick Run as a timed multi-Line Mode, define a leg and jump, reserve Route for Line Run, and describe `quickBest` as legacy plus `quickBestOverall` as the active record.
 
-- [ ] **Step 5: Run the focused test and confirm green**
+- [x] **Step 5: Run the focused test and confirm green**
 
 Run: `npm test -- src/engine/quickRun.test.ts`
 
 Expected: all initial-leg and timing tests pass.
 
-- [ ] **Step 6: Commit the engine foundation**
+- [x] **Step 6: Commit the engine foundation**
 
 ```bash
 git add CONTEXT.md src/engine/quickRun.ts src/engine/quickRun.test.ts
