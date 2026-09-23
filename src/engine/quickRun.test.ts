@@ -2,15 +2,27 @@ import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import type { NetworkData } from '../data/types';
 import { computeMetrics } from './metrics';
-import { buildNetwork } from './network';
+import { buildNetwork, type NetworkIndex } from './network';
 import {
+  QUICK_LEG_TRACE_VERSION,
+  QUICK_RUN_MIN_ADVANCES,
+  QUICK_RUN_MS,
   advanceQuickRun,
+  eligibleQuickLegs,
   enterQuickCharacter,
   interruptQuickRun,
+  isEligibleQuickLeg,
   prepareQuickRun,
+  quickRunAt,
   quickRunMetrics,
   quickRunToward,
+  type QuickLeg,
 } from './quickRun';
+
+function advancesToTerminus(net: NetworkIndex, leg: QuickLeg): number {
+  const stations = net.lines.get(leg.line)!.stations;
+  return Math.abs(stations.indexOf(leg.at) - stations.indexOf(leg.toward));
+}
 
 function network() {
   return buildNetwork(loadNetworkData());
@@ -44,7 +56,77 @@ function twoStationNetwork() {
   return buildNetwork(data);
 }
 
+function fiveStationNetwork() {
+  const ids = ['alpha', 'bravo', 'charlie', 'delta', 'echo'];
+  const data: NetworkData = {
+    lines: [{
+      code: 'MR',
+      name: 'Boundary Line',
+      colour: '#000000',
+      termini: ['Alpha', 'Echo'],
+      stations: ids,
+      schematic: { start: { x: 0, y: 0 }, segments: [['E', 4]] },
+    }],
+    stations: ids.map((id, index) => ({
+      id,
+      name: id[0]!.toUpperCase() + id.slice(1),
+      codes: { MR: `MR${index + 1}` },
+      demand: 1,
+      geo: { lat: 0, lng: index },
+    })),
+    links: [],
+  };
+  return buildNetwork(data);
+}
+
 describe('prepareQuickRun', () => {
+  it('uses a 30-second duration and a four-advance minimum', () => {
+    expect(QUICK_RUN_MS).toBe(30_000);
+    expect(QUICK_RUN_MIN_ADVANCES).toBe(4);
+    expect(QUICK_LEG_TRACE_VERSION).toBe(1);
+  });
+
+  it('enumerates only legs at least four advances from their terminus', () => {
+    const net = fiveStationNetwork();
+
+    expect(eligibleQuickLegs(net, 'MR', 'echo')).toEqual([
+      { line: 'MR', at: 'alpha', toward: 'echo' },
+    ]);
+    expect(eligibleQuickLegs(net, 'MR')).toEqual([
+      { line: 'MR', at: 'alpha', toward: 'echo' },
+      { line: 'MR', at: 'echo', toward: 'alpha' },
+    ]);
+    expect(eligibleQuickLegs(net, 'MR', 'charlie')).toEqual([]);
+  });
+
+  it('recognizes only valid legs with the minimum distance', () => {
+    const net = fiveStationNetwork();
+
+    expect(isEligibleQuickLeg(net, { line: 'MR', at: 'alpha', toward: 'echo' })).toBe(true);
+    expect(isEligibleQuickLeg(net, { line: 'MR', at: 'bravo', toward: 'echo' })).toBe(false);
+    expect(isEligibleQuickLeg(net, { line: 'MR', at: 'outside', toward: 'echo' })).toBe(false);
+    expect(isEligibleQuickLeg(net, { line: 'MR', at: 'alpha', toward: 'charlie' })).toBe(false);
+    expect(isEligibleQuickLeg(net, { line: 'KG', at: 'alpha', toward: 'echo' })).toBe(false);
+  });
+
+  it('prepares only starts at least four advances from either selected terminus', () => {
+    const net = network();
+    for (const toward of ['kl-sentral', 'titiwangsa']) {
+      for (let index = 0; index <= 100; index += 1) {
+        const state = prepareQuickRun(net, 'MR', toward, null, () => index / 100);
+        expect(advancesToTerminus(net, { line: state.line, at: state.at, toward })).toBeGreaterThanOrEqual(4);
+      }
+    }
+  });
+
+  it('keeps the active first leg as the sole trace entry', () => {
+    const state = prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0);
+    const firstLeg = { line: 'MR', at: 'kl-sentral', toward: 'titiwangsa' };
+
+    expect(state.activeLeg).toEqual(firstLeg);
+    expect(state.trace).toEqual({ version: 1, legs: [firstLeg] });
+  });
+
   it('starts a Monorail run at KL Sentral when choosing toward Titiwangsa', () => {
     const state = prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0);
 
@@ -82,9 +164,15 @@ describe('prepareQuickRun', () => {
   });
 
   it('allows the only eligible start even when it matches the previous start', () => {
-    const state = prepareQuickRun(twoStationNetwork(), 'MR', 'beta', 'alpha', () => 0);
+    const state = prepareQuickRun(fiveStationNetwork(), 'MR', 'echo', 'alpha', () => 0);
 
     expect(state.at).toBe('alpha');
+  });
+
+  it('reports an unavailable line when it has fewer than four advances', () => {
+    expect(() => prepareQuickRun(twoStationNetwork(), 'MR', 'beta', null, () => 0)).toThrow(
+      /Quick Run unavailable.*four station advances/,
+    );
   });
 
   it('travels toward the first terminus and displays its name', () => {
@@ -97,7 +185,12 @@ describe('prepareQuickRun', () => {
   it('clamps a random value of exactly one to the final eligible candidate', () => {
     const state = prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 1);
 
-    expect(state.at).toBe('chow-kit');
+    expect(state.at).toBe('raja-chulan');
+  });
+
+  it('clamps negative and non-finite random values to the first eligible candidate', () => {
+    expect(prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => -1).at).toBe('kl-sentral');
+    expect(prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => Number.NaN).at).toBe('kl-sentral');
   });
 
   it('returns fresh arrays and typing state for each preparation', () => {
@@ -121,7 +214,7 @@ describe('Quick Run transitions', () => {
     expect(state.status).toBe('running');
     expect(state.startedAt).toBe(1000);
     expect(state.stationStartedAt).toBe(1000);
-    expect(state.deadline).toBe(46_000);
+    expect(state.deadline).toBe(31_000);
     expect(state.errors).toBe(1);
   });
 
@@ -151,7 +244,7 @@ describe('Quick Run transitions', () => {
 
   it('reverses repeatedly at both termini', () => {
     const net = twoStationNetwork();
-    const first = prepareQuickRun(net, 'MR', 'beta', null, () => 0);
+    const first = quickRunAt(net, 'MR', 'alpha', 'beta')!;
     const second = [...first.typing.target].reduce((s, key) => enterQuickCharacter(net, s, key, 1000), first);
     const third = [...second.typing.target].reduce((s, key) => enterQuickCharacter(net, s, key, 2000), second);
     const fourth = [...third.typing.target].reduce((s, key) => enterQuickCharacter(net, s, key, 3000), third);
@@ -166,18 +259,18 @@ describe('Quick Run transitions', () => {
 
   it('rejects input exactly at the deadline and completes at that deadline', () => {
     const started = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
-    const state = enterQuickCharacter(network(), started, 'L', 46_000);
+    const state = enterQuickCharacter(network(), started, 'L', 31_000);
 
     expect(state.status).toBe('completed');
-    expect(state.endedAt).toBe(46_000);
+    expect(state.endedAt).toBe(31_000);
     expect(state.typing.cursor).toBe(1);
   });
 
   it('is a no-op before the deadline and completes when advanced at the deadline', () => {
     const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
 
-    expect(advanceQuickRun(running, 45_999)).toBe(running);
-    expect(advanceQuickRun(running, 46_000)).toMatchObject({ status: 'completed', endedAt: 46_000 });
+    expect(advanceQuickRun(running, 30_999)).toBe(running);
+    expect(advanceQuickRun(running, 31_000)).toMatchObject({ status: 'completed', endedAt: 31_000 });
   });
 
   it('counts correct characters from an incomplete station in metrics', () => {
@@ -191,14 +284,14 @@ describe('Quick Run transitions', () => {
   it('caps running metrics at the deadline even without a tick', () => {
     const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
 
-    expect(quickRunMetrics(running, 100_000).wpm).toBeCloseTo(computeMetrics(1, 1, 45_000).wpm);
+    expect(quickRunMetrics(running, 100_000).wpm).toBeCloseTo(computeMetrics(1, 1, 30_000).wpm);
   });
 
-  it('keeps completed metrics fixed to the 45-second run duration', () => {
+  it('keeps completed metrics fixed to the 30-second run duration', () => {
     const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
-    const completed = advanceQuickRun(running, 46_000);
+    const completed = advanceQuickRun(running, 31_000);
 
-    expect(quickRunMetrics(completed, 100_000).wpm).toBeCloseTo(computeMetrics(1, 1, 45_000).wpm);
+    expect(quickRunMetrics(completed, 100_000).wpm).toBeCloseTo(computeMetrics(1, 1, 30_000).wpm);
   });
 
   it('keeps interrupted metrics frozen at the interruption timestamp', () => {
@@ -238,16 +331,16 @@ describe('Quick Run transitions', () => {
   it('completes instead when interruption is observed after the deadline', () => {
     const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
 
-    expect(interruptQuickRun(running, 46_000)).toMatchObject({ status: 'completed', endedAt: 46_000 });
+    expect(interruptQuickRun(running, 31_000)).toMatchObject({ status: 'completed', endedAt: 31_000 });
   });
 
   it('ignores input, ticks, and interruption after becoming terminal', () => {
     const running = enterQuickCharacter(network(), prepareQuickRun(network(), 'MR', 'titiwangsa', null, () => 0), 'K', 1000);
-    const terminal = advanceQuickRun(running, 46_000);
+    const terminal = advanceQuickRun(running, 31_000);
 
-    expect(enterQuickCharacter(network(), terminal, 'L', 46_001)).toBe(terminal);
-    expect(advanceQuickRun(terminal, 46_001)).toBe(terminal);
-    expect(interruptQuickRun(terminal, 46_001)).toBe(terminal);
+    expect(enterQuickCharacter(network(), terminal, 'L', 31_001)).toBe(terminal);
+    expect(advanceQuickRun(terminal, 31_001)).toBe(terminal);
+    expect(interruptQuickRun(terminal, 31_001)).toBe(terminal);
   });
 
   it('records each station duration from its own start and creates fresh traversal state', () => {

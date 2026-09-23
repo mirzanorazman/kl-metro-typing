@@ -58,9 +58,23 @@ The mode where the player types one line from end to end. The route is fixed and
 interchanges never prompt.
 
 **Quick Run**:
-The 45-second sprint along one line toward a chosen terminus, from a random
-starting station. Ends at the deadline, not at a terminus; reversing at the end
-of the line rather than stopping. Records a best per line.
+A 30-second timed Run that can travel on multiple Lines. The player chooses its
+starting Line and Direction; the first Station is random and at least four
+Station advances from that Line's Terminus. The clock begins on the first
+printable character, and the Run ends at its deadline.
+
+**Leg**:
+One continuous ordered sequence of Stations on one Line in a Quick Run. Its
+first Station and destination Terminus determine its Direction.
+
+**Jump**:
+A Quick Run change from a completed Leg at its Terminus to an eligible Leg on
+a different Line. The Lines need not meet at an Interchange; a Jump is not a
+Walk link.
+
+**Leg trace**:
+The ordered Legs used by a Quick Run, beginning with its initial Leg. Each
+Jump adds the Leg that becomes active.
 
 **Adventure**:
 The mode where the player roams freely and chooses a Direction at every junction.
@@ -86,8 +100,8 @@ this document exists to prevent, and it is on the rename list in
 `docs/STATUS.md`.
 
 **Route**:
-The ordered stations a Line Run will type. Line Runs have a route; Quick Run
-picks its next station from the line and direction, and Adventure has none.
+The ordered Stations a Line Run will type. Route belongs only to Line Run;
+Quick Run has a Leg trace, and Adventure has neither.
 
 **Visited**:
 The stations reached during the current Run.
@@ -121,8 +135,9 @@ WPM multiplied by accuracy squared. Squaring prices sloppiness above raw speed.
 
 **Profile**:
 The player's persisted record: unlocked stations, best WPM per station, the
-Adventure resume position, Quick Run bests per line, WPM history, the sound and
-theme preferences, and the integrity-failure log.
+Adventure resume position, Quick Run personal best, WPM history, the sound and
+theme preferences, and the integrity-failure log. `quickBest` holds legacy
+per-Line Quick Run bests; `quickBestOverall` is the active Mode-wide record.
 
 **Integrity-failure log**:
 The Runs that failed their Verdict, newest first, capped at twenty. It has no
@@ -165,6 +180,7 @@ record a best.
 Three different things are called a line, and the distinction matters:
 
 1. The line a train travels on **now**, which changes during a Run.
-2. The line chosen before a Line Run or Quick Run starts, which does not change
-   for the length of that Run. (Rush Hour, when built, chooses a *set* of them.)
+2. The line chosen before a Line Run or Quick Run starts. It stays fixed for a
+   Line Run, while a Quick Run can Jump to another Line. (Rush Hour, when built,
+   chooses a *set* of them.)
 3. Line Run, the name of a mode.

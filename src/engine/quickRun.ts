@@ -3,7 +3,20 @@ import { lineAt, stationAt, type NetworkIndex } from './network';
 import { applyKey, beginTyping, isPrintable, type TypingState } from './typing';
 import { computeMetrics, type Metrics } from './metrics';
 
-export const QUICK_RUN_MS = 45_000;
+export const QUICK_RUN_MS = 30_000;
+export const QUICK_RUN_MIN_ADVANCES = 4;
+export const QUICK_LEG_TRACE_VERSION = 1;
+
+export interface QuickLeg {
+  line: LineCode;
+  at: string;
+  toward: string;
+}
+
+export interface QuickLegTrace {
+  version: 1;
+  legs: QuickLeg[];
+}
 
 export type QuickRunStatus = 'ready' | 'running' | 'completed' | 'interrupted';
 
@@ -14,6 +27,8 @@ export interface QuickStationTime {
 
 export interface QuickRunState {
   line: LineCode;
+  activeLeg: QuickLeg;
+  trace: QuickLegTrace;
   /** Terminus station id selected as the run's destination. */
   initialToward: string;
   direction: -1 | 1;
@@ -29,6 +44,41 @@ export interface QuickRunState {
   keystrokes: number;
   errors: number;
   status: QuickRunStatus;
+}
+
+/** Whether a leg starts at least four Station advances from its Terminus. */
+export function isEligibleQuickLeg(net: NetworkIndex, leg: QuickLeg): boolean {
+  const line = lineAt(net, leg.line);
+  if (!line || !stationAt(net, leg.at)) return false;
+
+  const atIndex = line.stations.indexOf(leg.at);
+  const towardIndex = line.stations.indexOf(leg.toward);
+  if (atIndex < 0 || (towardIndex !== 0 && towardIndex !== line.stations.length - 1)) return false;
+
+  return Math.abs(towardIndex - atIndex) >= QUICK_RUN_MIN_ADVANCES;
+}
+
+/** Enumerates eligible legs on one Line, optionally toward one Terminus. */
+export function eligibleQuickLegs(net: NetworkIndex, lineCode: LineCode, toward?: string): QuickLeg[] {
+  const line = lineAt(net, lineCode);
+  if (!line) return [];
+
+  const first = line.stations[0];
+  const last = line.stations[line.stations.length - 1];
+  if (!first || !last) return [];
+
+  const termini = toward === undefined ? [last, first] : [toward];
+  return termini.flatMap((terminus) => line.stations
+    .map((at) => ({ line: lineCode, at, toward: terminus }))
+    .filter((leg) => isEligibleQuickLeg(net, leg)));
+}
+
+function pickRandom<T>(candidates: readonly T[], random: () => number): T {
+  const rawIndex = Math.floor(random() * candidates.length);
+  const index = Number.isFinite(rawIndex)
+    ? Math.max(0, Math.min(candidates.length - 1, rawIndex))
+    : 0;
+  return candidates[index]!;
 }
 
 /**
@@ -55,8 +105,12 @@ export function quickRunAt(
   const station = stationAt(net, at);
   if (!station) return null;
 
+  const activeLeg: QuickLeg = { line: lineCode, at, toward };
+
   return {
     line: lineCode,
+    activeLeg,
+    trace: { version: QUICK_LEG_TRACE_VERSION, legs: [activeLeg] },
     initialToward: toward,
     direction: toward === last ? 1 : -1,
     at,
@@ -92,14 +146,13 @@ export function prepareQuickRun(
     throw new Error('Quick Run destination must be a terminus');
   }
 
-  const allCandidates = line.stations.filter((id) => id !== toward);
-  const alternatives = allCandidates.filter((id) => id !== previousStart);
+  const allCandidates = eligibleQuickLegs(net, lineCode, toward);
+  if (allCandidates.length === 0) {
+    throw new Error('Quick Run unavailable: Line needs at least four station advances to a terminus');
+  }
+  const alternatives = allCandidates.filter((leg) => leg.at !== previousStart);
   const candidates = alternatives.length > 0 ? alternatives : allCandidates;
-  const rawIndex = Math.floor(random() * candidates.length);
-  const index = Number.isFinite(rawIndex)
-    ? Math.max(0, Math.min(candidates.length - 1, rawIndex))
-    : 0;
-  const at = candidates[index]!;
+  const at = pickRandom(candidates, random).at;
   const state = quickRunAt(net, lineCode, at, toward);
   if (!state) throw new Error(`Quick Run starting station not found: ${at}`);
   return state;
