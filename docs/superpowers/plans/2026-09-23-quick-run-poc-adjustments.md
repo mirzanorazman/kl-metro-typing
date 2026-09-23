@@ -84,7 +84,7 @@ git commit -m "feat: define quick run legs and 30 second starts"
 - Modify: `src/engine/quickRun.ts`
 - Modify: `src/engine/quickRun.test.ts`
 
-- [ ] **Step 1: Write failing selection and transition tests**
+- [x] **Step 1: Write failing selection and transition tests**
 
 Cover these cases with a small synthetic multi-Line network:
 
@@ -98,13 +98,13 @@ it('interrupts with a continuation error when no different line is eligible', ()
 it('lets the deadline win over a terminus completion at the deadline', () => { /* ... */ });
 ```
 
-- [ ] **Step 2: Run the focused test and confirm reversal causes failures**
+- [x] **Step 2: Run the focused test and confirm reversal causes failures**
 
 Run: `npm test -- src/engine/quickRun.test.ts`
 
 Expected: reversal tests conflict with the new jump assertions.
 
-- [ ] **Step 3: Implement hierarchical jump selection in the engine**
+- [x] **Step 3: Implement hierarchical jump selection in the engine**
 
 Track `usedLines` from the trace and typed Stations from completed Station records. Implement the approved hierarchy exactly:
 
@@ -117,17 +117,17 @@ Track `usedLines` from the trace and typed Stations from completed Station recor
 
 Change `enterQuickCharacter` to accept the injected random function and use it only if a pre-deadline keystroke completes a Terminus. On a jump, update active Line/Direction/Station immediately, reset `arrivedFrom` to `null` so no false rail segment is drawn, append the leg to the trace, and increment a `jumpRevision` used only for presentation. Add a specific interruption reason to state when no continuation exists.
 
-- [ ] **Step 4: Keep non-Terminus advancement unchanged and remove reversal**
+- [x] **Step 4: Keep non-Terminus advancement unchanged and remove reversal**
 
 The just-completed Terminus must be appended to `completedStations` before the new leg is activated. A normal Station completion advances one position on the same Line. No transition reverses direction.
 
-- [ ] **Step 5: Run the engine tests**
+- [x] **Step 5: Run the engine tests**
 
 Run: `npm test -- src/engine/quickRun.test.ts`
 
 Expected: all Quick Run transition and selection tests pass.
 
-- [ ] **Step 6: Commit the jump engine**
+- [x] **Step 6: Commit the jump engine**
 
 ```bash
 git add src/engine/quickRun.ts src/engine/quickRun.test.ts
