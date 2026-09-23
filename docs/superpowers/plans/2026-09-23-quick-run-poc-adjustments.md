@@ -144,7 +144,7 @@ git commit -m "feat: jump between lines in quick run"
 - Modify: `src/ui/useRunRecorder.ts`
 - Test: `src/ui/useRunRecorder.test.ts`
 
-- [ ] **Step 1: Write failing replay tests for trace validation**
+- [x] **Step 1: Write failing replay tests for trace validation**
 
 Change the public input to:
 
@@ -159,29 +159,29 @@ replayQuickRun(net, evidence)
 
 Test a valid multi-Line replay plus invalid first leg, same-Line jump, too-short leg, missing leg, extra leg, and a leg outside the currently preferred unused-Line or untyped-Station tier.
 
-- [ ] **Step 2: Run replay tests and confirm the old signature fails**
+- [x] **Step 2: Run replay tests and confirm the old signature fails**
 
 Run: `npm test -- src/engine/replay.test.ts src/engine/integrity.test.ts`
 
 Expected: compile/test failures until replay consumes evidence.
 
-- [ ] **Step 3: Add an explicit replay leg source without duplicating transitions**
+- [x] **Step 3: Add an explicit replay leg source without duplicating transitions**
 
 Refactor the internal terminus continuation to accept a leg provider. Live play uses the random selector; replay uses the next trace entry. Both paths call the same validation and state-application function, ensuring scoring and deadline behavior cannot drift.
 
 Replay must validate the active preference tier from replay state before applying each recorded leg, consume one entry per actual jump, and reject leftover entries after completion. It must never call `Math.random` or reproduce candidate ordering from a seed.
 
-- [ ] **Step 4: Snapshot Keylog and trace together**
+- [x] **Step 4: Snapshot Keylog and trace together**
 
 Extend the recorder-facing API or compose evidence in `QuickRunScreen` so each completed attempt captures a fresh immutable Keylog plus the engine-owned `run.trace`. Ensure `Run again` resets both records.
 
-- [ ] **Step 5: Run replay and integrity tests**
+- [x] **Step 5: Run replay and integrity tests**
 
 Run: `npm test -- src/engine/replay.test.ts src/engine/integrity.test.ts src/ui/useRunRecorder.test.ts`
 
 Expected: valid evidence reproduces Metrics and invalid traces return `null`; existing Verdict thresholds remain green.
 
-- [ ] **Step 6: Commit evidence replay**
+- [x] **Step 6: Commit evidence replay**
 
 ```bash
 git add src/engine/replay.ts src/engine/replay.test.ts src/engine/integrity.test.ts src/ui/useRunRecorder.ts src/ui/useRunRecorder.test.ts
