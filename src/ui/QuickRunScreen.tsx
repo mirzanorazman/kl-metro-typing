@@ -21,6 +21,7 @@ import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { PlayLayout } from './PlayLayout';
+import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { QuickRunSummary } from './QuickRunSummary';
 import { useGameInput, useTypingInputControls } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
@@ -41,6 +42,7 @@ export interface QuickRunScreenProps {
   onStartingStation: (id: string) => void;
   onBack: () => void;
   random?: () => number;
+  phoneLandscape?: boolean;
 }
 
 function profileQuickBest(profile: Profile): number | null {
@@ -144,6 +146,7 @@ export function QuickRunScreen({
   onStartingStation,
   onBack,
   random,
+  phoneLandscape = false,
 }: QuickRunScreenProps) {
   const randomRef = useRef(random ?? Math.random);
   const [run, setRun] = useState<QuickRunState>(() =>
@@ -172,6 +175,10 @@ export function QuickRunScreen({
   const [summaryBest, setSummaryBest] = useState<number | null>(bestAtStart.current);
   const [newBest, setNewBest] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const dismissedRef = useRef(false);
+  const [awaitingPortrait, setAwaitingPortrait] = useState(false);
+  const playBlocked = useRef(phoneLandscape);
+  playBlocked.current = phoneLandscape;
   const heard = useRef({ chars: 0, errors: 0, stations: 0 });
   const completionHeard = useRef(false);
   const { focusInput, blurInput, inputFocused } = useTypingInputControls();
@@ -185,13 +192,34 @@ export function QuickRunScreen({
   }, []);
 
   const onKey = useCallback((key: string, source?: KeySource) => {
+    if (playBlocked.current || dismissedRef.current) return;
     if (currentRun.current.status !== 'ready' && currentRun.current.status !== 'running') return;
     const keyNow = recorder.record(key, source);
     setDisplayNow(keyNow);
     commitRun(enterQuickCharacter(net, currentRun.current, key, keyNow, randomRef.current));
   }, [commitRun, net, recorder]);
 
-  useGameInput(onKey, run.status === 'ready' || run.status === 'running');
+  useGameInput(onKey, !phoneLandscape && !dismissed && (run.status === 'ready' || run.status === 'running'));
+
+  useLayoutEffect(() => {
+    if (!phoneLandscape) {
+      setAwaitingPortrait(false);
+      return;
+    }
+    if (dismissedRef.current) return;
+    if (currentRun.current.status === 'ready') {
+      dismissedRef.current = true;
+      blurInput();
+      setDismissed(true);
+      onBack();
+    } else if (currentRun.current.status === 'running') {
+      const interruptedAt = performance.now();
+      blurInput();
+      setAwaitingPortrait(true);
+      setDisplayNow(interruptedAt);
+      commitRun(interruptQuickRun(currentRun.current, interruptedAt));
+    }
+  }, [phoneLandscape, commitRun, blurInput, onBack]);
 
   useEffect(() => {
     if (run.status === 'completed' || run.status === 'interrupted') blurInput();
@@ -324,6 +352,7 @@ export function QuickRunScreen({
   }, [run, net, recorder]);
 
   const runAgain = useCallback(() => {
+    if (playBlocked.current) return;
     focusInput();
     const next = prepareQuickRun(net, line, toward, currentStart.current, randomRef.current);
     currentStart.current = next.at;
@@ -344,6 +373,10 @@ export function QuickRunScreen({
 
   if (dismissed) return null;
 
+  if (phoneLandscape && (awaitingPortrait || run.status === 'ready' || run.status === 'running')) {
+    return <PhoneLandscapeBlock fullScreen />;
+  }
+
   const metrics = quickRunMetrics(run, displayNow);
   if (run.status === 'completed' || run.status === 'interrupted') {
     return (
@@ -356,6 +389,7 @@ export function QuickRunScreen({
         newBest={newBest}
         onAgain={runAgain}
         onBack={onBack}
+        phoneLandscape={phoneLandscape}
       />
     );
   }

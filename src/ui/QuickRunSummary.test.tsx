@@ -31,6 +31,20 @@ function expectStat(label: string, value: string) {
 }
 
 describe('QuickRunSummary', () => {
+  it('blocks Run again in phone landscape while keeping Back available', () => {
+    const onAgain = vi.fn();
+    const onBack = vi.fn();
+    renderSummary({ phoneLandscape: true, onAgain, onBack });
+
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    const again = screen.getByRole('button', { name: 'Run again' }) as HTMLButtonElement;
+    expect(again.disabled).toBe(true);
+    fireEvent.click(again);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Transit' }));
+    expect(onAgain).not.toHaveBeenCalled();
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   it('derives its displayed duration from the shared Quick Run constant', () => {
     expect(summarySource).toMatch(
       /import\s*\{\s*QUICK_RUN_MS\s*\}\s*from\s*'\.\.\/engine\/quickRun'/,

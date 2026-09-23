@@ -1,6 +1,7 @@
 import type { Metrics } from '../engine/metrics';
 import type { LineCode } from '../data/types';
 import { QUICK_RUN_MS } from '../engine/quickRun';
+import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import './mobile.css';
 
 export interface QuickRunSummaryProps {
@@ -12,6 +13,7 @@ export interface QuickRunSummaryProps {
   newBest: boolean;
   onAgain: () => void;
   onBack: () => void;
+  phoneLandscape?: boolean;
 }
 
 export function QuickRunSummary({
@@ -23,6 +25,7 @@ export function QuickRunSummary({
   newBest,
   onAgain,
   onBack,
+  phoneLandscape = false,
 }: QuickRunSummaryProps) {
   const resultStatus = status === 'interrupted'
     ? 'This result was not saved as a personal best.'
@@ -51,9 +54,10 @@ export function QuickRunSummary({
       </dl>
 
       {resultStatus && <p role="status">{resultStatus}</p>}
+      {phoneLandscape && <PhoneLandscapeBlock />}
 
       <div className="quick-summary-actions">
-        <button type="button" onClick={onAgain}>Run again</button>
+        <button type="button" disabled={phoneLandscape} onClick={onAgain}>Run again</button>
         <button type="button" onClick={onBack}>Back to Transit</button>
       </div>
     </section>

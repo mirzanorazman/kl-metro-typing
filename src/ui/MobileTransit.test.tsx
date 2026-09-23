@@ -19,6 +19,7 @@ function renderTransit(
   network: NetworkIndex = net,
   onStartQuick: (line: LineCode, toward: string) => void = () => {},
   onStartLine: (line: LineCode, from: string) => void = () => {},
+  phoneLandscape = false,
 ) {
   return render(
     <TypingInputProvider enabled>
@@ -26,6 +27,7 @@ function renderTransit(
         net={network}
         onStartQuick={onStartQuick}
         onStartLine={onStartLine}
+        phoneLandscape={phoneLandscape}
       />
     </TypingInputProvider>,
   );
@@ -68,6 +70,24 @@ afterEach(() => {
 });
 
 describe('MobileTransit', () => {
+  it('disables Quick and Line starts in phone landscape while keeping line browsing available', () => {
+    const onQuick = vi.fn();
+    const onLine = vi.fn();
+    renderTransit(net, onQuick, onLine, true);
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    for (const name of ['Start 45s Quick Run', 'Full Line Run']) {
+      const button = screen.getByRole('button', { name }) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      fireEvent.click(button);
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'KL Monorail' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Toward Titiwangsa' }));
+    expect(screen.getByRole('button', { name: 'Toward Titiwangsa' }).getAttribute('aria-pressed')).toBe('true');
+    expect(onQuick).not.toHaveBeenCalled();
+    expect(onLine).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(screen.getByRole('textbox', { name: 'Typing input for Station name' }));
+  });
+
   it('removes the map minimum height only for short coarse-pointer viewports', () => {
     expect(mobileStyles).toMatch(
       /\.mobile-map-region\s*\{[^}]*min-height:\s*8rem;/,

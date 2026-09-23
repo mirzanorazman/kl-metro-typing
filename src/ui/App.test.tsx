@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { App } from './App';
+import * as transit from './MobileTransit';
+import * as adventureSetup from './MobileAdventureSetup';
 
 // jsdom cannot produce a trusted keyboard event (see TypingInputProvider.test.tsx),
 // so a dispatched keydown always reports `isTrusted: false`. The end-to-end
@@ -47,6 +49,7 @@ const MR_ROUTE_FROM_KL_SENTRAL = [
 const originalMatchMedia = window.matchMedia;
 const originalVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
 const originalInnerHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+const originalInnerWidth = Object.getOwnPropertyDescriptor(window, 'innerWidth');
 const originalVisibility = Object.getOwnPropertyDescriptor(document, 'visibilityState');
 const originalScrollIntoView = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
 
@@ -82,6 +85,12 @@ function setPhoneLayout(matches: boolean) {
   for (const listener of phoneMedia.listeners) listener(new Event('change'));
 }
 
+function setViewport(width: number, height: number) {
+  Object.defineProperty(window, 'innerWidth', { configurable: true, value: width });
+  Object.defineProperty(window, 'innerHeight', { configurable: true, value: height });
+  window.dispatchEvent(new Event('resize'));
+}
+
 function installVisualViewport(initialHeight: number) {
   let height = initialHeight;
   const viewport = new EventTarget() as EventTarget & { height: number };
@@ -108,6 +117,7 @@ beforeEach(() => {
   localStorage.clear();
   document.documentElement.removeAttribute('data-theme');
   Element.prototype.scrollIntoView = () => {};
+  setViewport(390, 844);
 });
 
 afterEach(() => {
@@ -116,6 +126,7 @@ afterEach(() => {
   if (originalVisualViewport) Object.defineProperty(window, 'visualViewport', originalVisualViewport);
   else delete (window as unknown as Record<string, unknown>).visualViewport;
   if (originalInnerHeight) Object.defineProperty(window, 'innerHeight', originalInnerHeight);
+  if (originalInnerWidth) Object.defineProperty(window, 'innerWidth', originalInnerWidth);
   if (originalVisibility) Object.defineProperty(document, 'visibilityState', originalVisibility);
   if (originalScrollIntoView) Object.defineProperty(Element.prototype, 'scrollIntoView', originalScrollIntoView);
   else delete (Element.prototype as Partial<Element>).scrollIntoView;
@@ -124,6 +135,84 @@ afterEach(() => {
 
 describe('App', () => {
   beforeEach(() => installMatchMedia(false));
+
+  it('keeps phone navigation available while landscape disables all play starts', () => {
+    installMatchMedia(true);
+    setViewport(844, 390);
+    render(<App />);
+
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    for (const name of ['Start 45s Quick Run', 'Full Line Run']) {
+      expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'Adventure' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search stations' }), { target: { value: 'Imbi' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Imbi/ }));
+    expect((screen.getByRole('button', { name: 'Start Adventure' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Ranking' }));
+    expect(screen.getByRole('heading', { name: 'Leaderboard' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Transit' }));
+    act(() => setViewport(390, 844));
+    expect((screen.getByRole('button', { name: 'Start 45s Quick Run' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('refuses stale and programmatic start callbacks after rotating to landscape', () => {
+    installMatchMedia(true);
+    const transitRender = vi.spyOn(transit, 'MobileTransit');
+    const adventureRender = vi.spyOn(adventureSetup, 'MobileAdventureSetup');
+    render(<App />);
+    const { onStartQuick, onStartLine } = transitRender.mock.calls[transitRender.mock.calls.length - 1]![0];
+    fireEvent.click(screen.getByRole('button', { name: 'Adventure' }));
+    const { onStart } = adventureRender.mock.calls[adventureRender.mock.calls.length - 1]![0];
+    act(() => setViewport(844, 390));
+
+    for (const start of [() => onStartQuick('MR', 'titiwangsa'), () => onStartLine('MR', 'kl-sentral'), () => onStart('imbi')]) {
+      act(start);
+      expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
+      expect(screen.queryByLabelText(/^Type /)).toBeNull();
+    }
+  });
+
+  it('cancels a ready Quick Run to Transit on rotation without a summary', () => {
+    installMatchMedia(true);
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    act(() => setViewport(844, 390));
+
+    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    expect(screen.queryByRole('heading', { name: /run interrupted/i })).toBeNull();
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it.each(['Quick', 'Line', 'Adventure'])('passes the landscape gate to an active %s Run', (mode) => {
+    installMatchMedia(true);
+    render(<App />);
+    if (mode === 'Adventure') {
+      fireEvent.click(screen.getByRole('button', { name: 'Adventure' }));
+      fireEvent.change(screen.getByRole('textbox', { name: 'Search stations' }), { target: { value: 'Imbi' } });
+      fireEvent.click(screen.getByRole('button', { name: /^Imbi/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Start Adventure' }));
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: mode === 'Quick' ? 'Start 45s Quick Run' : 'Full Line Run' }));
+    }
+    fireEvent.input(screen.getByRole('textbox', { name: 'Typing input for Station name' }), { target: { value: 'a' } });
+    act(() => setViewport(844, 390));
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    expect(screen.queryByLabelText(/^Type /)).toBeNull();
+    act(() => setViewport(390, 844));
+    expect(screen.getByRole('heading', { name: mode === 'Quick' ? 'Run interrupted' : 'Journey complete' })).toBeTruthy();
+  });
+
+  it.each([[1024, 768], [1512, 982]])('allows desktop/tablet play in landscape at %sx%s', (width, height) => {
+    setViewport(width, height);
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
+    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
+    fireEvent.keyDown(window, { key: 'K' });
+    expect(screen.getByLabelText(/^Type /)).toBeTruthy();
+    expect(screen.queryByText('Rotate to portrait to play')).toBeNull();
+  });
 
   it('opens on the map', () => {
     const { container } = render(<App />);
@@ -197,22 +286,22 @@ describe('App', () => {
 
     const prompt = screen.getByLabelText('Type KL Sentral');
     expect(prompt.querySelector('[data-state="done"]')?.textContent).toBe('K');
-    const timer = screen.getByText('0:45', { selector: '.quick-run-timer' }).textContent;
+    const timer = screen.getByText('0:30', { selector: '.quick-run-timer' }).textContent;
 
     act(() => setPhoneLayout(true));
     expect((document.querySelector('.mobile-run-frame') as HTMLElement).style.height).toBe('700px');
     expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
-    expect(screen.getByText('0:45', { selector: '.quick-run-timer' }).textContent).toBe(timer);
+    expect(screen.getByText('0:30', { selector: '.quick-run-timer' }).textContent).toBe(timer);
 
     act(() => setPhoneLayout(false));
     expect(document.querySelector('.mobile-run-frame')).toBeNull();
     expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
-    expect(screen.getByText('0:45', { selector: '.quick-run-timer' }).textContent).toBe(timer);
+    expect(screen.getByText('0:30', { selector: '.quick-run-timer' }).textContent).toBe(timer);
 
     act(() => setPhoneLayout(true));
     expect((document.querySelector('.mobile-run-frame') as HTMLElement).style.height).toBe('700px');
     expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
-    expect(screen.getByText('0:45', { selector: '.quick-run-timer' }).textContent).toBe(timer);
+    expect(screen.getByText('0:30', { selector: '.quick-run-timer' }).textContent).toBe(timer);
   });
 
   it('starts phone home in Transit without the desktop line picker', () => {

@@ -81,6 +81,7 @@ function renderQuick({
   random = () => 0,
   providerEnabled = true,
   strict = false,
+  phoneLandscape = false,
 }: {
   line?: LineCode;
   toward?: string;
@@ -90,6 +91,7 @@ function renderQuick({
   random?: () => number;
   providerEnabled?: boolean;
   strict?: boolean;
+  phoneLandscape?: boolean;
 } = {}) {
   const content = (
     <TypingInputProvider enabled={providerEnabled}>
@@ -101,10 +103,24 @@ function renderQuick({
         onStartingStation={onStartingStation}
         onBack={onBack}
         random={random}
+        phoneLandscape={phoneLandscape}
       />
     </TypingInputProvider>
   );
-  return render(strict ? <StrictMode>{content}</StrictMode> : content);
+  const rendered = render(strict ? <StrictMode>{content}</StrictMode> : content);
+  return {
+    ...rendered,
+    rotate: (landscape: boolean) => {
+      const rotated = (
+        <TypingInputProvider enabled={providerEnabled}>
+          <QuickRunScreen net={net} line={line} toward={toward} previousStart={previousStart}
+            onStartingStation={onStartingStation} onBack={onBack} random={random}
+            phoneLandscape={landscape} />
+        </TypingInputProvider>
+      );
+      rendered.rerender(strict ? <StrictMode>{rotated}</StrictMode> : rotated);
+    },
+  };
 }
 
 function nativeInput(value: string) {
@@ -192,6 +208,71 @@ afterEach(() => {
 });
 
 describe('QuickRunScreen', () => {
+  it('cancels a ready run on phone rotation without a result or retained input', () => {
+    const onBack = vi.fn();
+    const { rotate, container } = renderQuick({ onBack, strict: true });
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+    const save = vi.spyOn(Storage.prototype, 'setItem');
+
+    rotate(true);
+    rotate(true);
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(document.body);
+    expect(container.querySelector('.quick-run, .quick-summary')).toBeNull();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it('interrupts running play once, releases input, and reveals the frozen result in portrait', () => {
+    saveProfile({ ...emptyProfile(), quickBestOverall: 100 });
+    const { rotate } = renderQuick({ strict: true });
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+    nativeInput('KL SentralT');
+    const save = vi.spyOn(Storage.prototype, 'setItem');
+    now = 2_000;
+
+    rotate(true);
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    expect(screen.queryByLabelText(/^Type /)).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Run interrupted' })).toBeNull();
+    expect(document.activeElement).toBe(document.body);
+    nativeInput('un Sambanthan');
+    tickAt(60_000);
+    rotate(true);
+    rotate(false);
+
+    expect(screen.getByRole('heading', { name: 'Run interrupted' })).toBeTruthy();
+    expect(stat('Stations completed')).toBe('1');
+    expect(stat('WPM')).toBe('132');
+    expect(loadProfile().visited).not.toContain('tun-sambanthan');
+    expect(loadProfile().quickBestOverall).toBe(100);
+    expect(save).not.toHaveBeenCalled();
+
+    rotate(true);
+    expect(screen.getByRole('heading', { name: 'Run interrupted' })).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Run again' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Run again' }));
+    expect(screen.queryByLabelText(/^Type /)).toBeNull();
+  });
+
+  it('keeps an already completed summary visible and blocks Run again in phone landscape', () => {
+    const { rotate } = renderQuick();
+    nativeInput('K');
+    tickAt(1_000 + QUICK_RUN_MS);
+    const save = vi.spyOn(Storage.prototype, 'setItem');
+
+    rotate(true);
+    expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
+    expect(screen.getByText('Rotate to portrait to play')).toBeTruthy();
+    expect((screen.getByRole('button', { name: 'Run again' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+    rotate(false);
+    fireEvent.click(screen.getByRole('button', { name: 'Run again' }));
+    expect(screen.getByLabelText(/^Type /)).toBeTruthy();
+  });
+
   it('renders each ordinary keystroke on the map without a stale render or a mirrored-state render', () => {
     const map = vi.spyOn(mapRendering, 'MapCanvas');
     renderQuick();

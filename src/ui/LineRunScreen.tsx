@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { loadNetworkData } from '../data/load';
 import { sound } from '../audio/sound';
 import { networkLayout, lineExtent } from '../geo/networkLayout';
@@ -16,6 +16,7 @@ import { Prompt } from '../render/Prompt';
 import { HUD } from '../render/HUD';
 import { LineStrip } from '../render/LineStrip';
 import { PlayLayout } from './PlayLayout';
+import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { useGameInput, useTypingInputControls } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
 import { SummaryScreen } from './SummaryScreen';
@@ -27,9 +28,10 @@ export interface LineRunScreenProps {
   line: LineCode;
   from: string;
   onExit: () => void;
+  phoneLandscape?: boolean;
 }
 
-export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
+export function LineRunScreen({ net, line, from, onExit, phoneLandscape = false }: LineRunScreenProps) {
   const data = useMemo(() => loadNetworkData(), []);
   const route = useMemo(() => lineRunRoute(net, line, from), [net, line, from]);
 
@@ -44,6 +46,20 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   const persistedCount = useRef(0);
   const { focusInput, blurInput } = useTypingInputControls();
   const phone = usePhoneLayout();
+  const [awaitingPortrait, setAwaitingPortrait] = useState(false);
+  const rotationEnded = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!phoneLandscape) {
+      setAwaitingPortrait(false);
+      return;
+    }
+    if (run.phase === 'ended' || rotationEnded.current) return;
+    rotationEnded.current = true;
+    blurInput();
+    setAwaitingPortrait(true);
+    setRun(endRun(run));
+  }, [phoneLandscape, run, blurInput]);
 
   // Sound is driven from effects, not from inside the setRun updater — a
   // state updater must stay pure, and React may invoke it more than once.
@@ -91,11 +107,12 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   }, [run.stationTimes, net]);
 
   const onKey = useCallback((key: string, source?: KeySource) => {
+    if (phoneLandscape || rotationEnded.current) return;
     const now = recorder.record(key, source);
     setRun((prev) => keyLineRun(net, route, prev, key, now));
-  }, [net, route, recorder]);
+  }, [net, route, recorder, phoneLandscape]);
 
-  useGameInput(onKey, run.phase === 'typing');
+  useGameInput(onKey, !phoneLandscape && run.phase === 'typing');
 
   useEffect(() => {
     if (run.phase === 'ended') blurInput();
@@ -119,13 +136,17 @@ export function LineRunScreen({ net, line, from, onExit }: LineRunScreenProps) {
   // plays on the map, then the summary. Skipped entirely under reduced motion.
   const [celebrating, setCelebrating] = useState(false);
   useEffect(() => {
-    if (run.phase !== 'ended') return;
+    if (run.phase !== 'ended' || rotationEnded.current) return;
     sound.complete();
     if (prefersReducedMotion()) return;
     setCelebrating(true);
     const t = setTimeout(() => setCelebrating(false), 1100);
     return () => clearTimeout(t);
   }, [run.phase]);
+
+  if (phoneLandscape && (run.phase !== 'ended' || awaitingPortrait)) {
+    return <PhoneLandscapeBlock fullScreen />;
+  }
 
   if (run.phase === 'ended' && !celebrating) {
     // Only a fully completed route is leaderboard-eligible — an early "End

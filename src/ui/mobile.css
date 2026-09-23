@@ -451,3 +451,17 @@
     font-size: var(--t-md);
   }
 }
+
+.phone-landscape-block {
+  margin: 0;
+  padding: var(--s);
+  text-align: center;
+  color: var(--ink);
+}
+
+.phone-landscape-block--full {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--s3);
+}
