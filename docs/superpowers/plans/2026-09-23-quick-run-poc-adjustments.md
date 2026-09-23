@@ -236,21 +236,21 @@ git commit -m "feat: add mode wide quick run best"
 - Modify: `src/render/Prompt.test.tsx`
 - Modify: `src/index.css`
 
-- [ ] **Step 1: Write failing state and rendering tests**
+- [x] **Step 1: Write failing state and rendering tests**
 
 Add a `mistyped` boolean to `TypingState`. Test that a wrong printable key sets it, repeated wrong keys keep it set, the correct expected character clears it, and a newly begun prompt starts clear. Render tests must find a current character with `data-miskey="true"` and a visible `role="status"` containing `Wrong key` only while `mistyped` is true.
 
-- [ ] **Step 2: Run focused tests and confirm red**
+- [x] **Step 2: Run focused tests and confirm red**
 
 Run: `npm test -- src/engine/typing.test.ts src/render/Prompt.test.tsx`
 
-- [ ] **Step 3: Implement persistent semantic feedback**
+- [x] **Step 3: Implement persistent semantic feedback**
 
 Set `mistyped: false` in `beginTyping`, set it true on wrong input, and false on the next correct input. Make Prompt use `state.mistyped` for persistent semantics while retaining `errorTick` only as the remount key that restarts the optional bounce.
 
 Add non-animated error colour and a double underline to the base `[data-miskey='true']` rule. Keep transform animation in its own rule and under the existing reduced-motion override; do not hide the colour, underline, or status in reduced motion.
 
-- [ ] **Step 4: Run tests and commit**
+- [x] **Step 4: Run tests and commit**
 
 Run: `npm test -- src/engine/typing.test.ts src/render/Prompt.test.tsx`
 
