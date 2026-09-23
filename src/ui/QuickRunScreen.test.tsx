@@ -6,6 +6,10 @@ import type { LineCode } from '../data/types';
 import { buildNetwork } from '../engine/network';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { QUICK_RUN_MS } from '../engine/quickRun';
+import * as replay from '../engine/replay';
+import * as geoFit from '../geo/fit';
+import { lineExtent } from '../geo/networkLayout';
+import * as mapRendering from '../render/MapCanvas';
 import { QuickRunScreen } from './QuickRunScreen';
 import { TypingInputProvider } from './TypingInputProvider';
 
@@ -36,6 +40,7 @@ const originalVisibility = Object.getOwnPropertyDescriptor(document, 'visibility
 let now = 1_000;
 let visibility: DocumentVisibilityState = 'visible';
 let phone = false;
+let reducedMotion = false;
 let viewport: EventTarget & { height: number };
 
 function installBrowserState() {
@@ -48,8 +53,8 @@ function installBrowserState() {
   });
   Object.defineProperty(window, 'matchMedia', {
     configurable: true,
-    value: vi.fn(() => ({
-      matches: phone,
+    value: vi.fn((query: string) => ({
+      matches: query.includes('prefers-reduced-motion') ? reducedMotion : phone,
       media: '',
       onchange: null,
       addEventListener: vi.fn(),
@@ -146,6 +151,11 @@ function currentStationName(): string {
   return label.replace(/^Type /, '');
 }
 
+function typeToFirstJump(type = typeQuickAsHuman) {
+  // The last eligible MR start, Raja Chulan, is four advances from Titiwangsa.
+  for (let station = 0; station < 5; station++) type(currentStationName());
+}
+
 function hidePage(at: number) {
   now = at;
   visibility = 'hidden';
@@ -162,6 +172,7 @@ beforeEach(() => {
   now = 1_000;
   visibility = 'visible';
   phone = false;
+  reducedMotion = false;
   installBrowserState();
   vi.spyOn(performance, 'now').mockImplementation(() => now);
 });
@@ -177,20 +188,173 @@ afterEach(() => {
 });
 
 describe('QuickRunScreen', () => {
+  it('samples integer live metrics once per second without refreshing on keystrokes', () => {
+    renderQuick();
+    nativeInput('xK');
+    now = 1_499;
+    act(() => vi.advanceTimersByTime(499));
+    nativeInput('L');
+    now = 1_999;
+    act(() => vi.advanceTimersByTime(500));
+
+    expect(stat('WPM')).toBe('—');
+    expect(stat('Accuracy')).toBe('—');
+
+    now = 2_000;
+    act(() => vi.advanceTimersByTime(1));
+    expect(stat('WPM')).toBe('24');
+    expect(stat('Accuracy')).toBe('67%');
+
+    nativeInput(' ');
+    now = 2_999;
+    act(() => vi.advanceTimersByTime(999));
+    expect(stat('WPM')).toBe('24');
+    expect(stat('Accuracy')).toBe('67%');
+
+    now = 3_000;
+    act(() => vi.advanceTimersByTime(1));
+    expect(stat('WPM')).toBe('18');
+    expect(stat('Accuracy')).toBe('75%');
+  });
+
+  it('changes jump context immediately and accepts input while the map fades and reframes', () => {
+    const random = vi.fn().mockReturnValueOnce(0.999).mockReturnValue(0);
+    const map = vi.spyOn(mapRendering, 'MapCanvas');
+    const { container } = renderQuick({ random, providerEnabled: false });
+    typeToFirstJump();
+
+    expect(random).toHaveBeenCalledTimes(3);
+    expect(screen.getByText('KJ · Kelana Jaya Line · toward Putra Heights')).toBeTruthy();
+    expect(screen.getByLabelText('Type Gombak')).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe('Jumped to KJ · Gombak');
+    expect(container.querySelector('.quick-run-map')?.getAttribute('data-jumping')).toBe('true');
+
+    fireEvent.keyDown(window, { key: 'x' });
+    expect(screen.getByText('Jumped to KJ · Gombak')).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'G' });
+    expect(screen.queryByText('Jumped to KJ · Gombak')).toBeNull();
+    expect(screen.getByLabelText('Type Gombak').querySelector('[data-state="done"]')?.textContent).toBe('G');
+
+    act(() => vi.advanceTimersByTime(99));
+    expect(container.querySelector('[data-station="titiwangsa"]')?.getAttribute('data-active')).toBe('true');
+    act(() => vi.advanceTimersByTime(1));
+    const mapProps = map.mock.calls[map.mock.calls.length - 1]![0];
+    expect(mapProps.emphasis).toBe('KJ');
+    expect(mapProps.trainColour).toBe(net.lines.get('KJ')!.colour);
+    expect(mapProps.fitTo).toEqual(lineExtent(net.lines.get('KJ')!.stations));
+    expect(mapProps.fitKey).toBe('quick:KJ:1');
+    expect(mapProps.previousStation).toBeNull();
+    expect(mapProps.travelled).toEqual(['gombak']);
+    expect(container.querySelector('.track-done')).toBeNull();
+    expect(container.querySelector('[data-line="MR"]')?.getAttribute('data-dim')).toBe('true');
+    expect(container.querySelector('.play-panel')?.getAttribute('style')).toContain(net.lines.get('KJ')!.colour);
+    act(() => vi.advanceTimersByTime(100));
+    expect(screen.getByLabelText('Type Gombak')).toBeTruthy();
+  });
+
+  it('reframes jumps instantly with reduced motion while retaining the announcement', () => {
+    reducedMotion = true;
+    const random = vi.fn().mockReturnValueOnce(0.999).mockReturnValue(0);
+    const { container } = renderQuick({ random, providerEnabled: false });
+    typeToFirstJump();
+
+    expect(screen.getByText('Jumped to KJ · Gombak')).toBeTruthy();
+    expect(container.querySelector('[data-station="gombak"]')?.getAttribute('data-active')).toBe('true');
+    expect(container.querySelector('.quick-run-map')?.getAttribute('data-jumping')).toBe('false');
+    expect(container.querySelector('.track-done')).toBeNull();
+  });
+
+  it('persists Stations from both legs before interruption without saving a personal best', () => {
+    const random = vi.fn().mockReturnValueOnce(0.999).mockReturnValue(0);
+    saveProfile({ ...emptyProfile(), quickBestOverall: 1, quickBest: { MR: 999 } });
+    renderQuick({ random, providerEnabled: false });
+    typeToFirstJump();
+    typeQuickAsHuman('Gombak');
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+
+    hidePage(now + 100);
+    tickAt(now + QUICK_RUN_MS);
+
+    expect(stat('Lines used')).toBe('MR → KJ');
+    expect(stat('Stations completed')).toBe('6');
+    expect(loadProfile().visited).toEqual(expect.arrayContaining(['raja-chulan', 'titiwangsa', 'gombak']));
+    expect(loadProfile().quickBestOverall).toBe(1);
+    expect(loadProfile().quickBest).toEqual({ MR: 999 });
+    expect(setItem).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Run interrupted' })).toBeTruthy();
+  });
+
+  it('frames one Station behind and two ahead of the active leg in either Direction', () => {
+    const follow = vi.spyOn(geoFit, 'followPoints');
+    renderQuick({ toward: 'kl-sentral', random: () => 0.999 });
+
+    const positions = lineExtent([...net.lines.get('MR')!.stations].reverse());
+    expect(follow).toHaveBeenLastCalledWith(positions, 0, { behind: 1, ahead: 2 });
+  });
+
+  it('replays jumped evidence and resets the leg trace, log, metrics, and announcement on Run again', () => {
+    const replayer = vi.spyOn(replay, 'replayQuickRun');
+    const random = vi.fn().mockReturnValueOnce(0.999).mockReturnValue(0);
+    renderQuick({ random, providerEnabled: false });
+    typeToFirstJump();
+    tickAt(now + QUICK_RUN_MS);
+
+    expect(stat('Lines used')).toBe('MR → KJ');
+    expect(loadProfile().quickBestOverall).toBeGreaterThan(0);
+    const first = replayer.mock.calls[0]![1];
+    expect(first.trace.legs.map((leg) => leg.line)).toEqual(['MR', 'KJ']);
+    const firstBest = loadProfile().quickBestOverall;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run again' }));
+    expect(screen.getByText('MR · KL Monorail · toward Titiwangsa')).toBeTruthy();
+    expect(currentStationName()).toBe('KL Sentral');
+    expect(stat('WPM')).toBe('—');
+    expect(stat('Accuracy')).toBe('—');
+    expect(screen.queryByText(/Jumped to/)).toBeNull();
+    typeQuickAsHuman('KL SentralTun Sambanthan');
+    tickAt(now + QUICK_RUN_MS);
+
+    const second = replayer.mock.calls[1]![1];
+    expect(second.keylog.t0).toBeGreaterThan(first.keylog.t0);
+    expect(second.keylog.events.map((event) => event.k).join('')).toBe('KL SentralTun Sambanthan');
+    expect(second.trace.legs).toEqual([{ line: 'MR', at: 'kl-sentral', toward: 'titiwangsa' }]);
+    expect(loadProfile().integrityFails ?? []).toHaveLength(0);
+    expect(loadProfile().quickBestOverall).toBe(firstBest);
+    expect(screen.getByRole('status').textContent).toBe(`Personal best: ${Math.round(firstBest!)}`);
+  });
+
+  it.each([null, { complete: false, stationsCompleted: 0, metrics: { wpm: 0, accuracy: 1, score: 0 } }])(
+    'rejects failed replay evidence without replacing the overall best', (replayed) => {
+      saveProfile({ ...emptyProfile(), quickBestOverall: 2, quickBest: { MR: 999 } });
+      vi.spyOn(replay, 'replayQuickRun').mockReturnValue(replayed);
+      renderQuick({ providerEnabled: false });
+      typeQuickAsHuman('KL SentralTun Sambanthan');
+      tickAt(now + QUICK_RUN_MS);
+
+      expect(loadProfile().quickBestOverall).toBe(2);
+      expect(loadProfile().quickBest).toEqual({ MR: 999 });
+      expect(loadProfile().integrityFails?.[0]?.reason).toBe('malformed-log');
+      expect(screen.getByRole('status').textContent).toBe('Personal best: 2');
+    },
+  );
   it('renders a ready run without starting the clock until printable input', () => {
     const onStartingStation = vi.fn();
     const { container } = renderQuick({ onStartingStation, providerEnabled: false });
 
-    expect(screen.getByText('KL Monorail · toward Titiwangsa')).toBeTruthy();
+    expect(screen.getByText('MR · KL Monorail · toward Titiwangsa')).toBeTruthy();
     expect(screen.getByLabelText('Type KL Sentral')).toBeTruthy();
-    expect(screen.getByText('0:45').getAttribute('data-final')).toBe('false');
+    expect(screen.getByText('0:30').getAttribute('data-final')).toBe('false');
+    expect(stat('WPM')).toBe('—');
+    expect(stat('Accuracy')).toBe('—');
     expect(screen.queryByRole('heading', { name: /run (?:interrupted|complete)/i })).toBeNull();
     expect(onStartingStation).toHaveBeenCalledWith('kl-sentral');
 
     fireEvent.keyDown(window, { key: 'Shift' });
     now = 20_000;
     act(() => vi.advanceTimersByTime(1_000));
-    expect(screen.getByText('0:45')).toBeTruthy();
+    expect(screen.getByText('0:30')).toBeTruthy();
+    expect(stat('WPM')).toBe('—');
+    expect(stat('Accuracy')).toBe('—');
     expect(container.querySelector('.prompt [data-state="current"]')?.textContent).toBe('K');
   });
 
@@ -198,14 +362,14 @@ describe('QuickRunScreen', () => {
     renderQuick();
 
     nativeInput('xK');
-    expect(screen.getByText('0:45')).toBeTruthy();
+    expect(screen.getByText('0:30')).toBeTruthy();
     expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
 
-    tickAt(36_000);
+    tickAt(21_000);
     const finalTimer = screen.getByText('0:10');
     expect(finalTimer.getAttribute('data-final')).toBe('true');
 
-    tickAt(46_000);
+    tickAt(31_000);
     expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
     expect(screen.queryByText('0:00')).toBeNull();
   });
@@ -247,7 +411,7 @@ describe('QuickRunScreen', () => {
   });
 
   it('persists a completed station before a later interruption without changing the existing PB', () => {
-    saveProfile({ ...emptyProfile(), quickBest: { MR: 999 } });
+    saveProfile({ ...emptyProfile(), quickBest: { MR: 999 }, quickBestOverall: 500 });
     renderQuick();
 
     nativeInput('KL Sentral');
@@ -256,6 +420,7 @@ describe('QuickRunScreen', () => {
     expect(screen.getByRole('heading', { name: 'Run interrupted' })).toBeTruthy();
     expect(loadProfile().visited).toContain('kl-sentral');
     expect(loadProfile().quickBest.MR).toBe(999);
+    expect(loadProfile().quickBestOverall).toBe(500);
   });
 
   it('persists every station completed in one batched native input event', () => {
@@ -266,7 +431,8 @@ describe('QuickRunScreen', () => {
     expect(loadProfile().visited).toEqual(expect.arrayContaining(['kl-sentral', 'tun-sambanthan']));
   });
 
-  it('records a strictly higher selected-line PB once and keeps the new-best label stable', () => {
+  it('records a strictly higher overall PB once and leaves legacy bests untouched', () => {
+    saveProfile({ ...emptyProfile(), quickBest: { MR: 999 } });
     renderQuick({ providerEnabled: false });
     // At least 20 keystrokes with varied intervals: the completion effect
     // now gates the PB write on the Verdict, and a single 'K' (as before
@@ -276,7 +442,8 @@ describe('QuickRunScreen', () => {
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
     tickAt(now + QUICK_RUN_MS + 5_000);
 
-    expect(loadProfile().quickBest.MR).toBeGreaterThan(0);
+    expect(loadProfile().quickBestOverall).toBeGreaterThan(0);
+    expect(loadProfile().quickBest).toEqual({ MR: 999 });
     expect(setItem).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('status').textContent).toBe('New personal best');
     act(() => vi.runOnlyPendingTimers());
@@ -284,14 +451,15 @@ describe('QuickRunScreen', () => {
   });
 
   it('does not replace an equal or lower PB', () => {
-    saveProfile({ ...emptyProfile(), quickBest: { MR: 999 } });
+    saveProfile({ ...emptyProfile(), quickBest: { MR: 42 }, quickBestOverall: 999 });
     renderQuick({ providerEnabled: false });
     typeQuickAsHuman('KL SentralTun Sambanthan');
 
     const setItem = vi.spyOn(Storage.prototype, 'setItem');
     tickAt(now + QUICK_RUN_MS + 5_000);
 
-    expect(loadProfile().quickBest.MR).toBe(999);
+    expect(loadProfile().quickBestOverall).toBe(999);
+    expect(loadProfile().quickBest.MR).toBe(42);
     expect(setItem).not.toHaveBeenCalled();
     expect(screen.getByRole('status').textContent).toBe('Personal best: 999');
   });
@@ -338,7 +506,7 @@ describe('QuickRunScreen', () => {
     expect(document.activeElement).toBe(input);
     nativeInput('K');
     tickAt(2_000);
-    expect(screen.getByText('0:44')).toBeTruthy();
+    expect(screen.getByText('0:29')).toBeTruthy();
 
     viewport.height = 430;
     act(() => viewport.dispatchEvent(new Event('resize')));
@@ -367,9 +535,9 @@ describe('QuickRunScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Run again' }));
 
     expect(onStartingStation).toHaveBeenLastCalledWith('tun-sambanthan');
-    expect(screen.getByText('KL Monorail · toward Titiwangsa')).toBeTruthy();
+    expect(screen.getByText('MR · KL Monorail · toward Titiwangsa')).toBeTruthy();
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
-    expect(screen.getByText('0:45')).toBeTruthy();
+    expect(screen.getByText('0:30')).toBeTruthy();
   });
 
   it('records the second Quick Run of a session as its own personal best, with no integrity failure', () => {
@@ -381,7 +549,7 @@ describe('QuickRunScreen', () => {
     tickAt(now + QUICK_RUN_MS + 5_000);
 
     expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
-    const firstBest = loadProfile().quickBest.MR;
+    const firstBest = loadProfile().quickBestOverall;
     expect(firstBest).toBeGreaterThan(0);
     expect(loadProfile().integrityFails ?? []).toHaveLength(0);
 
@@ -399,7 +567,7 @@ describe('QuickRunScreen', () => {
 
     expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
     expect(screen.getByRole('status').textContent).toBe('New personal best');
-    expect(loadProfile().quickBest.MR).toBeGreaterThan(firstBest!);
+    expect(loadProfile().quickBestOverall).toBeGreaterThan(firstBest!);
     expect(loadProfile().integrityFails ?? []).toHaveLength(0);
   });
 
@@ -412,7 +580,7 @@ describe('QuickRunScreen', () => {
     tickAt(now + QUICK_RUN_MS + 5_000);
 
     expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
-    const firstBest = loadProfile().quickBest.MR;
+    const firstBest = loadProfile().quickBestOverall;
     expect(firstBest).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Run again' }));
@@ -429,7 +597,7 @@ describe('QuickRunScreen', () => {
     tickAt(now + QUICK_RUN_MS + 5_000);
 
     expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
-    expect(loadProfile().quickBest.MR).toBe(firstBest);
+    expect(loadProfile().quickBestOverall).toBe(firstBest);
     const fails = loadProfile().integrityFails ?? [];
     expect(fails).toHaveLength(1);
     expect(fails[0]!.mode).toBe('quick');
@@ -453,7 +621,10 @@ describe('QuickRunScreen', () => {
     expect(mobileStyles).toMatch(/\.quick-run \.play-panel\s*\{[^}]*max-height:\s*none;[^}]*padding:\s*var\(--s2\);[^}]*gap:\s*var\(--s\);/);
     expect(mobileStyles).toMatch(/\.quick-run-timer\[data-final='true'\][^{]*\{[^}]*color:\s*var\(--error\);[^}]*font-weight:\s*700;/);
     expect(mobileStyles).toMatch(/@media\s*\(pointer:\s*coarse\)\s*and\s*\(max-height:\s*500px\)[\s\S]*\.quick-run \.play-panel\s*\{[^}]*padding:\s*var\(--s\);[^}]*gap:\s*var\(--s\);/);
-    expect(mobileStyles).not.toMatch(/quick-run[^}]*animation/i);
+    expect(mobileStyles).toMatch(/\.quick-run-map\[data-jumping='true'\]\s*\{[^}]*animation:\s*quick-jump\s*200ms/);
+    expect(mobileStyles).toMatch(/@keyframes quick-jump\s*\{[\s\S]*?50%\s*\{\s*opacity:\s*0;/);
+    expect(mobileStyles).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.quick-run-map\[data-jumping='true'\]\s*\{\s*animation:\s*none;/);
+    expect(mobileStyles).not.toMatch(/quick-run-timer[^}]*animation/i);
     expect(mobileStyles).not.toMatch(/quick-run[^}]*overflow(?:-[xy])?:\s*auto/i);
   });
 });

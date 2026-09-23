@@ -1,9 +1,10 @@
 import type { Metrics } from '../engine/metrics';
+import type { LineCode } from '../data/types';
 import { QUICK_RUN_MS } from '../engine/quickRun';
 import './mobile.css';
 
 export interface QuickRunSummaryProps {
-  lineName: string;
+  lines: readonly LineCode[];
   status: 'completed' | 'interrupted';
   stations: number;
   metrics: Metrics;
@@ -14,7 +15,7 @@ export interface QuickRunSummaryProps {
 }
 
 export function QuickRunSummary({
-  lineName,
+  lines,
   status,
   stations,
   metrics,
@@ -34,7 +35,7 @@ export function QuickRunSummary({
   return (
     <section className="quick-summary">
       <h2>{status === 'completed' ? 'Quick Run complete' : 'Run interrupted'}</h2>
-      <p>{`${lineName} · ${QUICK_RUN_MS / 1000} seconds`}</p>
+      <p>{`${QUICK_RUN_MS / 1000} seconds`}</p>
 
       <dl>
         <dt>Stations completed</dt>
@@ -45,6 +46,8 @@ export function QuickRunSummary({
         <dd>{(metrics.accuracy * 100).toFixed(1)}%</dd>
         <dt>Score</dt>
         <dd>{Math.round(metrics.score)}</dd>
+        <dt>Lines used</dt>
+        <dd className="quick-summary-lines">{lines.join(' → ')}</dd>
       </dl>
 
       {resultStatus && <p role="status">{resultStatus}</p>}
