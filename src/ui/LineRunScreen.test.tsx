@@ -77,6 +77,27 @@ afterEach(() => {
 });
 
 describe('LineRunScreen', () => {
+  it('retains native input batched with a rotation that ends the Line Run', () => {
+    const content = (phoneLandscape: boolean) => (
+      <TypingInputProvider enabled>
+        <LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}}
+          phoneLandscape={phoneLandscape} />
+      </TypingInputProvider>
+    );
+    const { rerender } = render(content(false));
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+
+    act(() => {
+      fireEvent.input(input, { target: { value: 'KL Sentral' } });
+      rerender(content(true));
+    });
+    rerender(content(false));
+
+    expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
+    expect(screen.getByText('1 station this run')).toBeTruthy();
+    expect(loadProfile().visited).toContain('kl-sentral');
+  });
+
   it('ends once on phone rotation and shows an incomplete summary only after portrait returns', () => {
     const onExit = vi.fn();
     const content = (phoneLandscape: boolean) => (

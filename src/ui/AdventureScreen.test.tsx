@@ -45,6 +45,26 @@ afterEach(() => {
 });
 
 describe('AdventureScreen', () => {
+  it('retains native input batched with a rotation that ends Adventure', () => {
+    const content = (phoneLandscape: boolean) => (
+      <TypingInputProvider enabled>
+        <AdventureScreen net={net} startAt="imbi" onExit={() => {}} phoneLandscape={phoneLandscape} />
+      </TypingInputProvider>
+    );
+    const { rerender } = render(content(false));
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+
+    act(() => {
+      fireEvent.input(input, { target: { value: 'Imbi' } });
+      rerender(content(true));
+    });
+    rerender(content(false));
+
+    expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
+    expect(screen.getByText('1 station this run')).toBeTruthy();
+    expect(loadProfile().visited).toContain('imbi');
+  });
+
   it.each(['typing', 'junction'])('ends a %s Adventure on rotation and retains its summary in later landscape', (phase) => {
     const content = (phoneLandscape: boolean) => (
       <TypingInputProvider enabled>

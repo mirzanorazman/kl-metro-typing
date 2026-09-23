@@ -185,6 +185,30 @@ describe('App', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
+  it('removes the landscape typing input and restores native typing after returning to portrait', () => {
+    installMatchMedia(true);
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    const originalInput = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    expect(document.activeElement).toBe(originalInput);
+
+    act(() => setViewport(844, 390));
+    expect(screen.queryByRole('textbox', { name: 'Typing input for Station name' })).toBeNull();
+    act(() => originalInput.focus());
+    expect(document.activeElement).toBe(document.body);
+
+    act(() => setViewport(390, 844));
+    const restoredInput = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    expect(restoredInput).not.toBe(originalInput);
+    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    expect(document.activeElement).toBe(restoredInput);
+    const prompt = screen.getByLabelText(/^Type /);
+    const firstCharacter = prompt.getAttribute('aria-label')!.replace(/^Type /, '')[0];
+    fireEvent.input(restoredInput, { target: { value: firstCharacter } });
+    expect(screen.getByLabelText(/^Type /).querySelector('[data-state="done"]')?.textContent).toBe(firstCharacter);
+  });
+
   it.each(['Quick', 'Line', 'Adventure'])('passes the landscape gate to an active %s Run', (mode) => {
     installMatchMedia(true);
     render(<App />);
@@ -196,10 +220,14 @@ describe('App', () => {
     } else {
       fireEvent.click(screen.getByRole('button', { name: mode === 'Quick' ? 'Start 45s Quick Run' : 'Full Line Run' }));
     }
-    fireEvent.input(screen.getByRole('textbox', { name: 'Typing input for Station name' }), { target: { value: 'a' } });
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    fireEvent.input(input, { target: { value: 'a' } });
     act(() => setViewport(844, 390));
     expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
     expect(screen.queryByLabelText(/^Type /)).toBeNull();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    act(() => input.focus());
+    expect(document.activeElement).toBe(document.body);
     act(() => setViewport(390, 844));
     expect(screen.getByRole('heading', { name: mode === 'Quick' ? 'Run interrupted' : 'Journey complete' })).toBeTruthy();
   });

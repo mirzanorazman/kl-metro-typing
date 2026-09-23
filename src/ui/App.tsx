@@ -220,7 +220,7 @@ export function App() {
 
   return (
     <VisualViewportProvider>
-      <TypingInputProvider enabled={phone}>{framedContent}</TypingInputProvider>
+      <TypingInputProvider enabled={phone && !phoneLandscape}>{framedContent}</TypingInputProvider>
     </VisualViewportProvider>
   );
 }

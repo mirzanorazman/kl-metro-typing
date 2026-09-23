@@ -69,7 +69,7 @@ export function AdventureScreen({ net, startAt, onExit, phoneLandscape = false }
     rotationEnded.current = true;
     blurInput();
     setAwaitingPortrait(true);
-    setRun(endRun(run));
+    setRun((previous) => endRun(previous));
   }, [phoneLandscape, run, blurInput]);
 
   // Sound is driven from effects, not from inside the setRun updater — a
