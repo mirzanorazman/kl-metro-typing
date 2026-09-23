@@ -195,15 +195,15 @@ git commit -m "feat: replay quick runs from leg traces"
 - Modify: `src/engine/progress.ts`
 - Modify: `src/engine/progress.test.ts`
 
-- [ ] **Step 1: Write failing migration and update tests**
+- [x] **Step 1: Write failing migration and update tests**
 
 Test that old profiles load with no mode-wide best, finite non-negative values survive, invalid values are discarded independently, and a higher score replaces the record while an equal/lower/invalid score preserves referential identity. Assert legacy `quickBest` remains stored and untouched.
 
-- [ ] **Step 2: Run the focused test and confirm red**
+- [x] **Step 2: Run the focused test and confirm red**
 
 Run: `npm test -- src/engine/progress.test.ts`
 
-- [ ] **Step 3: Implement the additive profile field**
+- [x] **Step 3: Implement the additive profile field**
 
 Add `quickBestOverall?: number`, sanitize it in `migrate`, and replace the Line-keyed writer used by new Runs with:
 
@@ -217,7 +217,7 @@ export function recordQuickBestOverall(profile: Profile, score: number): Profile
 
 Keep `quickBest` and its sanitizer for backward-compatible reads, but do not update it from the new Mode.
 
-- [ ] **Step 4: Run focused tests and commit**
+- [x] **Step 4: Run focused tests and commit**
 
 Run: `npm test -- src/engine/progress.test.ts`
 
