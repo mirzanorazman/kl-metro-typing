@@ -180,7 +180,7 @@ export function QuickRunScreen({
     // honest Run, and only the replayed figure is derived from the evidence
     // rather than believed.
     const log = recorder.snapshot();
-    const replayed = replayQuickRun(net, line, initialStart.current, run.initialToward, log);
+    const replayed = replayQuickRun(net, { keylog: log, trace: run.trace });
 
     if (!replayed || !replayed.complete) {
       const updated = recordIntegrityFail(profileRef.current, {

@@ -3,7 +3,14 @@ import { KEYLOG_VERSION, type KeyLog } from './keylog';
 import { keyLineRun, lineRunRoute } from './lineRun';
 import { computeMetrics, type Metrics } from './metrics';
 import type { NetworkIndex } from './network';
-import { advanceQuickRun, enterQuickCharacter, quickRunAt, quickRunMetrics } from './quickRun';
+import {
+  QUICK_LEG_TRACE_VERSION,
+  advanceQuickRun,
+  enterRecordedQuickCharacter,
+  quickRunAt,
+  quickRunMetrics,
+  type QuickLegTrace,
+} from './quickRun';
 import { startRun, type RunState } from './run';
 
 export interface ReplayResult {
@@ -11,6 +18,11 @@ export interface ReplayResult {
   stationsCompleted: number;
   /** True when the replay reached the terminal state a real Run would. */
   complete: boolean;
+}
+
+export interface QuickRunEvidence {
+  keylog: KeyLog;
+  trace: QuickLegTrace;
 }
 
 /**
@@ -57,30 +69,34 @@ export function replayLineRun(
 }
 
 /**
- * Drives a Keylog back through the Quick Run engine.
+ * Drives a Keylog and its recorded leg choices back through the Quick Run engine.
  *
- * The 45-second deadline needs no parameter: `enterQuickCharacter` derives it
+ * The 30-second deadline needs no parameter: the engine derives it
  * from the first keystroke. The run is advanced to that deadline afterwards,
  * because live it is the interval tick — not a keystroke — that completes it.
  */
 export function replayQuickRun(
   net: NetworkIndex,
-  line: LineCode,
-  start: string,
-  toward: string,
-  log: KeyLog,
+  evidence: QuickRunEvidence,
 ): ReplayResult | null {
-  if (log.v !== KEYLOG_VERSION) return null;
+  const log = evidence?.keylog;
+  const trace = evidence?.trace;
+  if (log?.v !== KEYLOG_VERSION || !Array.isArray(log.events)) return null;
+  if (trace?.version !== QUICK_LEG_TRACE_VERSION || !Array.isArray(trace.legs)) return null;
+  const first = trace.legs[0];
+  if (!first) return null;
 
-  let state = quickRunAt(net, line, start, toward);
+  let state = quickRunAt(net, first.line, first.at, first.toward);
   if (!state) return null;
 
   let now = log.t0;
   for (const event of log.events) {
     now += event.dt;
-    state = enterQuickCharacter(net, state, event.k, now);
+    state = enterRecordedQuickCharacter(net, state, event.k, now, trace.legs[state.trace.legs.length] ?? null);
+    if (state.status === 'interrupted') return null;
   }
   if (state.deadline !== null) state = advanceQuickRun(state, state.deadline);
+  if (state.trace.legs.length !== trace.legs.length) return null;
 
   return {
     metrics: quickRunMetrics(state, state.endedAt ?? now),
