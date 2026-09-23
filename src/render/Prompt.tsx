@@ -9,7 +9,7 @@ export function Prompt({
   errorTick?: number;
   onActivate?: () => void;
 }) {
-  const content = [...state.target].map((ch, i) => (
+  const content = [...state.target].flatMap((ch, i) => [
     <span
       // Keyed on the error count, NOT the index: advancing normally keeps
       // the same element (no flash), while a mistake remounts it and
@@ -19,11 +19,14 @@ export function Prompt({
       data-char
       data-space={ch === ' ' ? 'true' : undefined}
       data-state={i < state.cursor ? 'done' : i === state.cursor ? 'current' : 'pending'}
-      data-miskey={i === state.cursor && errorTick > 0 ? 'true' : undefined}
+      data-miskey={i === state.cursor && state.mistyped ? 'true' : undefined}
     >
       {ch}
-    </span>
-  ));
+    </span>,
+    ...(i === state.cursor && state.mistyped
+      ? [<span key="wrong-feedback" className="prompt-feedback" role="status">Wrong key</span>]
+      : []),
+  ]);
 
   if (onActivate) {
     return (

@@ -4,6 +4,7 @@ export interface TypingState {
   cursor: number;
   keystrokes: number;
   errors: number;
+  mistyped: boolean;
   done: boolean;
 }
 
@@ -13,7 +14,7 @@ export function isPrintable(key: string): boolean {
 }
 
 export function beginTyping(target: string): TypingState {
-  return { target, cursor: 0, keystrokes: 0, errors: 0, done: target.length === 0 };
+  return { target, cursor: 0, keystrokes: 0, errors: 0, mistyped: false, done: target.length === 0 };
 }
 
 /**
@@ -28,7 +29,7 @@ export function applyKey(state: TypingState, key: string): TypingState {
 
   const correct = key.toLowerCase() === expected.toLowerCase();
   if (!correct) {
-    return { ...state, keystrokes: state.keystrokes + 1, errors: state.errors + 1 };
+    return { ...state, keystrokes: state.keystrokes + 1, errors: state.errors + 1, mistyped: true };
   }
 
   const cursor = state.cursor + 1;
@@ -36,6 +37,7 @@ export function applyKey(state: TypingState, key: string): TypingState {
     ...state,
     cursor,
     keystrokes: state.keystrokes + 1,
+    mistyped: false,
     done: cursor === state.target.length,
   };
 }
