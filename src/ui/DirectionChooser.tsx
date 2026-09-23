@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { LineCode } from '../data/types';
 import { terminiOf } from '../engine/lineRun';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
+import { eligibleQuickLegs } from '../engine/quickRun';
 import { sound } from '../audio/sound';
 import { useKeyboard } from './useKeyboard';
 import { LineBadge } from './LineBadge';
@@ -21,7 +22,7 @@ export function DirectionChooser({ net, line, onChoose, onQuick, onCancel }: Dir
   const ends = [
     { from: head, toward: tail },
     { from: tail, toward: head },
-  ];
+  ].map((end) => ({ ...end, quickAvailable: eligibleQuickLegs(net, line, end.toward).length > 0 }));
 
   const onKey = useCallback(
     (key: string) => {
@@ -59,8 +60,10 @@ export function DirectionChooser({ net, line, onChoose, onQuick, onCancel }: Dir
               <button
                 type="button"
                 className="quick-run-option"
+                disabled={!e.quickAvailable}
                 aria-label={`30s Quick Run toward ${stationAt(net, e.toward)?.name ?? e.toward}`}
                 onClick={() => {
+                  if (!e.quickAvailable) return;
                   sound.select();
                   onQuick(e.toward);
                 }}
@@ -71,6 +74,9 @@ export function DirectionChooser({ net, line, onChoose, onQuick, onCancel }: Dir
           </li>
         ))}
       </ul>
+      {onQuick && ends.every((end) => !end.quickAvailable) && (
+        <p role="status">Quick Run needs at least five Stations in this Direction.</p>
+      )}
       <p className="hint"><kbd>Esc</kbd> to go back</p>
     </div>
   );

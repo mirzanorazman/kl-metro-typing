@@ -70,6 +70,38 @@ afterEach(() => {
 });
 
 describe('MobileTransit', () => {
+  it.each([false, true])('explains short-Line Quick Run unavailability with landscape=%s', (landscape) => {
+    const data = structuredClone(loadNetworkData());
+    const line = data.lines.find(({ code }) => code === 'KJ')!;
+    line.stations = line.stations.slice(0, 4);
+    line.termini = [data.stations.find(({ id }) => id === line.stations[0])!.name,
+      data.stations.find(({ id }) => id === line.stations[3])!.name];
+    const onQuick = vi.fn();
+    const onLine = vi.fn();
+    renderTransit(buildNetwork(data), onQuick, onLine, landscape);
+
+    for (const terminus of line.termini) {
+      fireEvent.click(screen.getByRole('button', { name: `Toward ${terminus}` }));
+      const quick = screen.getByRole('button', { name: 'Start 30s Quick Run' }) as HTMLButtonElement;
+      expect(quick.disabled).toBe(true);
+      expect(screen.getByText('Quick Run needs at least five Stations in this Direction.')).toBeTruthy();
+      fireEvent.click(quick);
+    }
+    expect(onQuick).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(screen.getByRole('textbox'));
+    const full = screen.getByRole('button', { name: 'Full Line Run' }) as HTMLButtonElement;
+    expect(full.disabled).toBe(landscape);
+    if (landscape) {
+      expect(screen.getByText('Rotate to portrait to play')).toBeTruthy();
+    } else {
+      fireEvent.click(full);
+      expect(onLine).toHaveBeenCalledWith('KJ', line.stations[0]);
+      fireEvent.click(screen.getByRole('button', { name: 'KL Monorail' }));
+      expect((screen.getByRole('button', { name: 'Start 30s Quick Run' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.queryByText('Quick Run needs at least five Stations in this Direction.')).toBeNull();
+    }
+  });
+
   it('disables Quick and Line starts in phone landscape while keeping line browsing available', () => {
     const onQuick = vi.fn();
     const onLine = vi.fn();

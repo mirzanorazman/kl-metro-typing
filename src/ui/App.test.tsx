@@ -4,6 +4,9 @@ import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { App } from './App';
 import * as transit from './MobileTransit';
 import * as adventureSetup from './MobileAdventureSetup';
+import * as homeMap from './HomeMap';
+import * as network from '../engine/network';
+import { loadNetworkData } from '../data/load';
 
 // jsdom cannot produce a trusted keyboard event (see TypingInputProvider.test.tsx),
 // so a dispatched keydown always reports `isTrusted: false`. The end-to-end
@@ -135,6 +138,28 @@ afterEach(() => {
 
 describe('App', () => {
   beforeEach(() => installMatchMedia(false));
+
+  it.each([false, true])('rejects programmatic Quick starts on a short Line with phone=%s', (phone) => {
+    installMatchMedia(phone);
+    const data = structuredClone(loadNetworkData());
+    const line = data.lines.find(({ code }) => code === 'KJ')!;
+    line.stations = line.stations.slice(0, 4);
+    line.termini = ['Gombak', 'Sri Rampai'];
+    const shortNetwork = network.buildNetwork(data);
+    vi.spyOn(network, 'buildNetwork').mockReturnValue(shortNetwork);
+    const transitRender = vi.spyOn(transit, 'MobileTransit');
+    const homeRender = vi.spyOn(homeMap, 'HomeMap');
+    // React reports the unhandled render error as well as throwing it in RED.
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { container } = render(<App />);
+    const onStartQuick = phone
+      ? transitRender.mock.calls[transitRender.mock.calls.length - 1]![0].onStartQuick
+      : homeRender.mock.calls[homeRender.mock.calls.length - 1]![0].onStartQuick!;
+
+    expect(() => act(() => onStartQuick('KJ', 'gombak'))).not.toThrow();
+    expect(container.querySelector('.quick-run')).toBeNull();
+    expect(container.querySelector(phone ? '.mobile-map-screen' : '.home-map')).toBeTruthy();
+  });
 
   it('keeps phone navigation available while landscape disables all play starts', () => {
     installMatchMedia(true);

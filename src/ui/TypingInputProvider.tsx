@@ -34,6 +34,14 @@ export function TypingInputProvider({
   const composingRef = useRef(false);
   const [inputFocused, setInputFocused] = useState(false);
 
+  useEffect(() => {
+    if (!enabled) {
+      // Removing the input need not dispatch blur or compositionend.
+      composingRef.current = false;
+      setInputFocused(false);
+    }
+  }, [enabled]);
+
   const register = useCallback((handler: InputHandler) => {
     handlerRef.current = handler;
     return () => {

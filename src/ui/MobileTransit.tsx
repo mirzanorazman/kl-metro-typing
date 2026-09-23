@@ -3,6 +3,7 @@ import { LINE_CODES, type LineCode } from '../data/types';
 import { terminiOf } from '../engine/lineRun';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
 import { loadProfile, saveProfile, saveSelectedLine } from '../engine/progress';
+import { eligibleQuickLegs } from '../engine/quickRun';
 import { networkLayout } from '../geo/networkLayout';
 import { MapCanvas } from '../render/MapCanvas';
 import { LineBadge } from './LineBadge';
@@ -53,6 +54,7 @@ export function MobileTransit({ net, onStartQuick, onStartLine, phoneLandscape =
     stationAt(net, firstTerminus) &&
     stationAt(net, secondTerminus),
   );
+  const quickAvailable = Boolean(selected && eligibleQuickLegs(net, selected, toward).length > 0);
 
   const fitTo = useMemo(
     () => selectedLine?.stations
@@ -77,7 +79,7 @@ export function MobileTransit({ net, onStartQuick, onStartLine, phoneLandscape =
   };
 
   const startQuick = () => {
-    if (phoneLandscape || !selected || !validTermini) return;
+    if (phoneLandscape || !selected || !validTermini || !quickAvailable) return;
     focusInput();
     onStartQuick(selected, toward);
   };
@@ -161,11 +163,14 @@ export function MobileTransit({ net, onStartQuick, onStartLine, phoneLandscape =
         )}
 
         {phoneLandscape && <PhoneLandscapeBlock />}
+        {validTermini && !quickAvailable && (
+          <p role="status">Quick Run needs at least five Stations in this Direction.</p>
+        )}
         <div className="mobile-run-actions">
           <button
             type="button"
             className="mobile-run-primary"
-            disabled={phoneLandscape || !validTermini}
+            disabled={phoneLandscape || !validTermini || !quickAvailable}
             onClick={startQuick}
           >
             Start 30s Quick Run

@@ -4,6 +4,7 @@ import { loadNetworkData } from '../data/load';
 import { validateNetworkData } from '../data/validate';
 import { buildNetwork } from '../engine/network';
 import { loadProfile, saveProfile, type Theme } from '../engine/progress';
+import { eligibleQuickLegs } from '../engine/quickRun';
 import { setMuted, installAudioUnlock } from '../audio/sound';
 import { HomeMap } from './HomeMap';
 import { LineRunScreen } from './LineRunScreen';
@@ -117,9 +118,10 @@ export function App() {
   };
 
   const startQuick = useCallback((code: LineCode, toward: string) => {
-    if (playBlocked.current) return;
+    if (playBlocked.current || eligibleQuickLegs(net, code, toward).length === 0) return;
+    setIntroSpent(true);
     setScreen({ kind: 'quick', code, toward });
-  }, []);
+  }, [net]);
 
   const startLine = (code: LineCode, from: string) => leaveHome({ kind: 'line', code, from });
   const startAdventure = (at: string) => leaveHome({ kind: 'adventure', at });
@@ -163,7 +165,7 @@ export function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onStartLine={startLine}
-        onStartQuick={(code, toward) => leaveHome({ kind: 'quick', code, toward })}
+        onStartQuick={startQuick}
         onPickStation={startAdventure}
         onOpenLeaderboard={() => leaveHome({ kind: 'leaderboard' })}
         intro={!introSpent}

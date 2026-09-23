@@ -159,6 +159,38 @@ describe('TypingInputProvider', () => {
     expect(onKey).not.toHaveBeenCalled();
   });
 
+  it('recovers ordinary input after disabling during composition', () => {
+    const onKey = vi.fn();
+    const probe = (enabled: boolean) => (
+      <TypingInputProvider enabled={enabled}>
+        <Probe onKey={onKey} />
+      </TypingInputProvider>
+    );
+    const { rerender } = render(probe(true));
+    const originalInput = screen.getByRole('textbox');
+    fireEvent.click(screen.getByRole('button', { name: 'Focus input' }));
+    fireEvent.compositionStart(originalInput);
+    fireEvent.input(originalInput, { target: { value: '東' } });
+    expect(screen.getByTestId('focus-state').textContent).toBe('focused');
+    expect(onKey).not.toHaveBeenCalled();
+
+    rerender(probe(false));
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect.soft(screen.getByTestId('focus-state').textContent).toBe('blurred');
+
+    rerender(probe(true));
+    const replacementInput = screen.getByRole('textbox');
+    expect(replacementInput).not.toBe(originalInput);
+    expect.soft(screen.getByTestId('focus-state').textContent).toBe('blurred');
+    fireEvent.input(replacementInput, { target: { value: 'a' } });
+
+    expect(onKey).toHaveBeenCalledTimes(1);
+    expect(onKey).toHaveBeenCalledWith('a', { trusted: false, batch: 1 });
+    expect((replacementInput as HTMLInputElement).value).toBe('');
+    fireEvent.click(screen.getByRole('button', { name: 'Focus input' }));
+    expect(screen.getByTestId('focus-state').textContent).toBe('focused');
+  });
+
   it('renders no input and falls back to window keydown when disabled', () => {
     const onKey = vi.fn();
     const focus = vi.spyOn(HTMLInputElement.prototype, 'focus');
