@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { StrictMode } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadNetworkData } from '../data/load';
@@ -79,6 +80,7 @@ function renderQuick({
   onBack = vi.fn(),
   random = () => 0,
   providerEnabled = true,
+  strict = false,
 }: {
   line?: LineCode;
   toward?: string;
@@ -87,8 +89,9 @@ function renderQuick({
   onBack?: () => void;
   random?: () => number;
   providerEnabled?: boolean;
+  strict?: boolean;
 } = {}) {
-  return render(
+  const content = (
     <TypingInputProvider enabled={providerEnabled}>
       <QuickRunScreen
         net={net}
@@ -99,8 +102,9 @@ function renderQuick({
         onBack={onBack}
         random={random}
       />
-    </TypingInputProvider>,
+    </TypingInputProvider>
   );
+  return render(strict ? <StrictMode>{content}</StrictMode> : content);
 }
 
 function nativeInput(value: string) {
@@ -188,6 +192,60 @@ afterEach(() => {
 });
 
 describe('QuickRunScreen', () => {
+  it('renders each ordinary keystroke on the map without a stale render or a mirrored-state render', () => {
+    const map = vi.spyOn(mapRendering, 'MapCanvas');
+    renderQuick();
+    map.mockClear();
+
+    nativeInput('K');
+
+    expect(map.mock.calls.map(([props]) => props.trainProgress)).toEqual([0.1]);
+    map.mockClear();
+    nativeInput('L');
+    expect(map.mock.calls.map(([props]) => props.trainProgress)).toEqual([0.2]);
+  });
+
+  it('keeps the departing map mounted until the fade midpoint', () => {
+    const random = vi.fn().mockReturnValueOnce(0.999).mockReturnValue(0);
+    const { container } = renderQuick({ random, providerEnabled: false });
+    for (let station = 0; station < 4; station++) typeQuickAsHuman(currentStationName());
+    typeQuickAsHuman('Titiwangs');
+    const departingMap = container.querySelector('.map-canvas');
+
+    typeQuickAsHuman('a');
+    expect(container.querySelector('.map-canvas')).toBe(departingMap);
+    expect(container.querySelector('.quick-run-map')?.getAttribute('data-phase')).toBe('out');
+    act(() => vi.advanceTimersByTime(99));
+    expect(container.querySelector('.map-canvas')).toBe(departingMap);
+    act(() => vi.advanceTimersByTime(1));
+    expect(container.querySelector('.map-canvas')).not.toBe(departingMap);
+    expect(container.querySelector('.quick-run-map')?.getAttribute('data-phase')).toBe('in');
+    act(() => vi.advanceTimersByTime(100));
+    expect(container.querySelector('.quick-run-map')?.getAttribute('data-jumping')).toBe('false');
+  });
+
+  it('consumes each jump draw once under StrictMode when a native batch crosses the Terminus', () => {
+    const random = vi.fn().mockReturnValue(0.999);
+    const replayer = vi.spyOn(replay, 'replayQuickRun');
+    renderQuick({ random, strict: true });
+    random.mockReset().mockReturnValueOnce(0).mockReturnValueOnce(0).mockReturnValue(0.999);
+
+    nativeInput('Raja ChulanBukit NanasMedan TuankuChow KitTitiwangsaG');
+
+    expect(random).toHaveBeenCalledTimes(2);
+    expect(currentStationName()).toBe('Gombak');
+    expect(screen.getByLabelText('Type Gombak').querySelector('[data-state="done"]')?.textContent).toBe('G');
+    expect(loadProfile().visited).toEqual(expect.arrayContaining(['raja-chulan', 'titiwangsa']));
+    tickAt(now + QUICK_RUN_MS);
+    expect(stat('Stations completed')).toBe('5');
+    expect(replayer).toHaveBeenCalledTimes(1);
+    expect(replayer.mock.calls[0]![1].trace.legs).toEqual([
+      { line: 'MR', at: 'raja-chulan', toward: 'titiwangsa' },
+      { line: 'KJ', at: 'gombak', toward: 'putra-heights' },
+    ]);
+    expect(replayer.mock.results[0]!.value?.complete).toBe(true);
+  });
+
   it('samples integer live metrics once per second without refreshing on keystrokes', () => {
     renderQuick();
     nativeInput('xK');
@@ -621,8 +679,8 @@ describe('QuickRunScreen', () => {
     expect(mobileStyles).toMatch(/\.quick-run \.play-panel\s*\{[^}]*max-height:\s*none;[^}]*padding:\s*var\(--s2\);[^}]*gap:\s*var\(--s\);/);
     expect(mobileStyles).toMatch(/\.quick-run-timer\[data-final='true'\][^{]*\{[^}]*color:\s*var\(--error\);[^}]*font-weight:\s*700;/);
     expect(mobileStyles).toMatch(/@media\s*\(pointer:\s*coarse\)\s*and\s*\(max-height:\s*500px\)[\s\S]*\.quick-run \.play-panel\s*\{[^}]*padding:\s*var\(--s\);[^}]*gap:\s*var\(--s\);/);
-    expect(mobileStyles).toMatch(/\.quick-run-map\[data-jumping='true'\]\s*\{[^}]*animation:\s*quick-jump\s*200ms/);
-    expect(mobileStyles).toMatch(/@keyframes quick-jump\s*\{[\s\S]*?50%\s*\{\s*opacity:\s*0;/);
+    expect(mobileStyles).toMatch(/\.quick-run-map\[data-phase='out'\]\s*\{[^}]*animation:\s*quick-jump-out\s*100ms/);
+    expect(mobileStyles).toMatch(/\.quick-run-map\[data-phase='in'\]\s*\{[^}]*animation:\s*quick-jump-in\s*100ms/);
     expect(mobileStyles).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.quick-run-map\[data-jumping='true'\]\s*\{\s*animation:\s*none;/);
     expect(mobileStyles).not.toMatch(/quick-run-timer[^}]*animation/i);
     expect(mobileStyles).not.toMatch(/quick-run[^}]*overflow(?:-[xy])?:\s*auto/i);

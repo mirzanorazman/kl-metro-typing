@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { sound } from '../audio/sound';
 import type { LineCode } from '../data/types';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
@@ -59,19 +59,35 @@ function QuickRunMap({ net, run, visited }: {
   visited: readonly string[];
 }) {
   const { geo: layout, backdrop, districts } = useMemo(() => networkLayout(), []);
-  const latestRun = useRef(run);
-  latestRun.current = run;
-  const [mapRun, setMapRun] = useState(run);
+  const previousRun = useRef(run);
+  const [jump, setJump] = useState<{ from: QuickRunState; phase: 'out' | 'in' } | null>(null);
   const reducedMotion = prefersReducedMotion();
+  const justJumped = previousRun.current.jumpRevision !== run.jumpRevision;
+  const outgoingRun = jump?.phase === 'out' ? jump.from : previousRun.current;
+  const phase = reducedMotion ? null : justJumped ? 'out' : jump?.phase ?? null;
+  const mapRun = phase === 'out' ? outgoingRun : run;
+
+  // Ordinary input renders directly from run. Only a new jump retains the
+  // departing snapshot, before layout effects advance the committed-run ref.
+  useLayoutEffect(() => {
+    if (justJumped && !reducedMotion) setJump({ from: outgoingRun, phase: 'out' });
+    previousRun.current = run;
+  }, [justJumped, outgoingRun, reducedMotion, run]);
 
   useEffect(() => {
-    if (mapRun.jumpRevision === run.jumpRevision || reducedMotion) setMapRun(run);
-  }, [mapRun.jumpRevision, reducedMotion, run]);
-
-  useEffect(() => {
-    if (run.jumpRevision === 0 || reducedMotion) return;
-    const timeout = window.setTimeout(() => setMapRun(latestRun.current), 100);
-    return () => window.clearTimeout(timeout);
+    if (reducedMotion) {
+      setJump(null);
+      return;
+    }
+    if (run.jumpRevision === 0) return;
+    const midpoint = window.setTimeout(() => {
+      setJump((previous) => previous && { ...previous, phase: 'in' });
+    }, 100);
+    const finished = window.setTimeout(() => setJump(null), 200);
+    return () => {
+      window.clearTimeout(midpoint);
+      window.clearTimeout(finished);
+    };
   }, [reducedMotion, run.jumpRevision]);
 
   const activeLine = lineAt(net, mapRun.line);
@@ -91,9 +107,9 @@ function QuickRunMap({ net, run, visited }: {
 
   return (
     <div
-      key={`${run.line}:${run.jumpRevision}`}
       className="quick-run-map"
-      data-jumping={String(run.jumpRevision > 0 && !reducedMotion)}
+      data-jumping={String(phase !== null)}
+      data-phase={phase ?? undefined}
     >
       <MapCanvas
         key={mapKey}
@@ -141,7 +157,13 @@ export function QuickRunScreen({
   const [displayNow, setDisplayNow] = useState(() => performance.now());
   const [liveMetrics, setLiveMetrics] = useState<Metrics | null>(null);
   const currentRun = useRef(run);
-  currentRun.current = run;
+  // Events advance this ref synchronously, including multiple characters in
+  // one native input batch. React receives values, so updater replay cannot
+  // consume random draws or change which leg the engine chose.
+  const commitRun = useCallback((next: QuickRunState) => {
+    currentRun.current = next;
+    setRun(next);
+  }, []);
   const [profile, setProfile] = useState<Profile>(() => loadProfile());
   const profileRef = useRef(profile);
   const persistedCount = useRef(0);
@@ -163,10 +185,11 @@ export function QuickRunScreen({
   }, []);
 
   const onKey = useCallback((key: string, source?: KeySource) => {
+    if (currentRun.current.status !== 'ready' && currentRun.current.status !== 'running') return;
     const keyNow = recorder.record(key, source);
     setDisplayNow(keyNow);
-    setRun((previous) => enterQuickCharacter(net, previous, key, keyNow, randomRef.current));
-  }, [net, recorder]);
+    commitRun(enterQuickCharacter(net, currentRun.current, key, keyNow, randomRef.current));
+  }, [commitRun, net, recorder]);
 
   useGameInput(onKey, run.status === 'ready' || run.status === 'running');
 
@@ -180,11 +203,11 @@ export function QuickRunScreen({
     const interval = window.setInterval(() => {
       const tickNow = performance.now();
       setDisplayNow(tickNow);
-      setRun((previous) => advanceQuickRun(previous, tickNow));
+      commitRun(advanceQuickRun(currentRun.current, tickNow));
     }, 100);
 
     return () => window.clearInterval(interval);
-  }, [run.status]);
+  }, [commitRun, run.status]);
 
   useEffect(() => {
     if (run.status !== 'running') return;
@@ -197,21 +220,21 @@ export function QuickRunScreen({
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState !== 'hidden') return;
-      if (run.status === 'ready') {
+      if (currentRun.current.status === 'ready') {
         setDismissed(true);
         onBack();
         return;
       }
-      if (run.status === 'running') {
+      if (currentRun.current.status === 'running') {
         const hiddenAt = performance.now();
         setDisplayNow(hiddenAt);
-        setRun((previous) => interruptQuickRun(previous, hiddenAt));
+        commitRun(interruptQuickRun(currentRun.current, hiddenAt));
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibility);
     return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [onBack, run.status]);
+  }, [commitRun, onBack]);
 
   useEffect(() => {
     const pending = run.completedStations.slice(persistedCount.current);
@@ -315,9 +338,9 @@ export function QuickRunScreen({
     setNewBest(false);
     setLiveMetrics(null);
     setDisplayNow(performance.now());
-    setRun(next);
+    commitRun(next);
     startingCallback.current(next.at);
-  }, [focusInput, line, net, toward, recorder]);
+  }, [commitRun, focusInput, line, net, toward, recorder]);
 
   if (dismissed) return null;
 

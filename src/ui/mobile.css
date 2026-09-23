@@ -313,13 +313,22 @@
   height: 100%;
 }
 
-.quick-run-map[data-jumping='true'] {
-  animation: quick-jump 200ms ease-in-out;
+.quick-run-map[data-phase='out'] {
+  animation: quick-jump-out 100ms ease-in forwards;
 }
 
-@keyframes quick-jump {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
+.quick-run-map[data-phase='in'] {
+  animation: quick-jump-in 100ms ease-out;
+}
+
+@keyframes quick-jump-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes quick-jump-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
