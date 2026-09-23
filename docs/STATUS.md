@@ -1,6 +1,6 @@
 # KL-Metro Typing — status and handoff
 
-**Last updated:** 2026-09-11
+**Last updated:** 2026-09-23
 
 A typing game on the Kuala Lumpur Rapid KL rail network. Type station names to
 drive a train across the Klang Valley.
@@ -11,23 +11,39 @@ drive a train across the Klang Valley.
 
 ## Getting started
 
-Everything is on `main`.
-
 ```bash
 npm install
 npm run dev
-npm test        # 560 tests
+npm test
 ```
 
-`npx tsc --noEmit` and `npm run build` are both clean. Build is ~122 kB gzipped.
+`npm run build` includes a TypeScript check and a Vite production build.
 
 ## What exists
 
-Two playable modes, both driven by the same engine.
+Three playable modes share the network and typing foundations.
 
 **Line Run** — the main entry point. Pick a line off the map (click, or type its
 two-letter code), choose which terminus to start from, and type the line end to
 end. Interchanges never prompt; the route is fixed.
+
+**Quick Run** — a 30-second challenge starting on a selected Line and Direction.
+The first Station is random and at least four Station advances from the selected
+Terminus. Finishing that Terminus before the deadline jumps immediately to an
+eligible Station on a different Line, also at least four advances from its
+Terminus. Selection prefers unused Lines and untyped landing Stations. The clock
+starts on the first printable character, even if it is wrong, and never pauses
+for a jump. The active panel shows WPM and Accuracy, refreshed once per second
+after typing starts. Wrong-key colour, double underline, and a visible status
+persist until the correct key is entered, including with reduced motion. The
+follow camera frames roughly one Station behind and two ahead.
+
+Quick Run has one mode-wide personal best in `quickBestOverall`, updated only
+after a normally completed Run passes replay and integrity checks. The older
+line-keyed `quickBest` values remain readable for compatibility but are not
+shown or updated. Each Run records a leg trace beside its Keylog; replay checks
+the initial leg and every jump against the eligibility and preference rules,
+and rejects missing, extra, or inconsistent entries.
 
 **Adventure** — free roam. Start anywhere, and choose a direction at every
 junction. Stations unlock permanently as you visit them, and a journey can be
@@ -35,6 +51,13 @@ resumed after closing the tab.
 
 The home screen *is* the map: the seven Rapid KL lines drawn over a real
 Klang Valley coastline, with per-line and overall progress.
+
+On phone-sized landscape screens, Run starts are disabled with the instruction
+`Rotate to portrait to play`. Rotating an active Quick Run interrupts it; its Summary is
+shown on return to portrait. The same phone-only guard applies to Line Run and
+Adventure. Tablet and desktop landscape are not blocked solely by orientation.
+iPad Mini landscape with the keyboard open remains a separate compatibility
+follow-up; the revised flow has not yet received browser or device verification.
 
 **Local leaderboard** — Line Run only. Completing a line end to end offers a
 name entry if the run's score would place in the top 20 overall or the top 20
@@ -45,8 +68,10 @@ Everything is kept in `localStorage`; there is no server.
 **Run integrity** — Line Run and Quick Run record a Keylog: every keystroke with
 its timing and how it arrived. Finishing a Line Run replays that log to derive
 the score, and a pure validator judges it before the leaderboard will take it.
+Quick Run replays its Keylog and explicit leg trace before a personal-best save.
 The input layer annotates keystrokes but never rejects them, so a false positive
-costs a leaderboard entry rather than the ability to play. Design and reasoning
+can cost a leaderboard entry or Quick Run personal best rather than the ability
+to play. Design and reasoning
 in `docs/superpowers/specs/2026-09-10-run-integrity-design.md`; what was
 actually built, and the handful of places it diverges, in
 `docs/superpowers/2026-09-11-run-integrity-execution-record.md`.
@@ -64,11 +89,12 @@ keyboards.
 ```
 src/
   data/      network JSON + types + validation + leaderboardStore   (154 stations, 7 lines, 5 walk links)
-  engine/    pure game logic: network, typing, metrics, run, lineRun, progress, leaderboard
+  engine/    game logic: network, typing, metrics, run, lineRun, quickRun, replay,
+             progress, leaderboard
   geo/       projection, schematic layout, fitting, shared networkLayout
   render/    SVG map, train marker, prompt, HUD, line strip, pan/zoom
-  ui/        screens: HomeMap, LineRunScreen, AdventureScreen, SummaryScreen,
-             LeaderboardScreen, LeaderboardPanel
+  ui/        screens: HomeMap, QuickRunScreen, LineRunScreen, AdventureScreen,
+             SummaryScreen, LeaderboardScreen, LeaderboardPanel
   audio/     Tone.js-backed synthesised sound, menu ambience, UI cues
 ```
 
@@ -182,7 +208,7 @@ this back?" answerable at all:
    false-positive rate is tolerable, what to check after deploying, what trips
    the kill switch.
 4. **CI.** There is none — no `.github/workflows`, no host config in the repo.
-   The 565 tests, `tsc --noEmit` and `npm run build` are all manual gates today.
+   The tests, TypeScript check and production build are all manual gates today.
 5. **A rollback runbook**, including the one piece of good news below.
 
 **Rollback is data-safe**, and that is a consequence of a deliberate decision
@@ -260,8 +286,10 @@ simply synchronous while the behaviour was animated.
 | `docs/superpowers/specs/2026-09-10-run-integrity-design.md` | Run integrity: the Keylog, replay, and the validator. Implemented; divergences marked inline. |
 | `docs/superpowers/plans/2026-09-11-run-integrity.md` | Plan 3 — 8 tasks, complete. Checkboxes left unticked on purpose; see the execution record. |
 | `docs/superpowers/2026-09-11-run-integrity-execution-record.md` | **What actually happened** building run integrity: rulings made on the user's behalf, where the code diverges from the spec, and the four defects a green test suite could not catch. |
+| `docs/superpowers/specs/2026-09-23-quick-run-poc-adjustments-design.md` | Revised 30-second, multi-Line Quick Run design and phone-landscape policy. |
+| `docs/superpowers/plans/2026-09-23-quick-run-poc-adjustments.md` | Implementation plan and remaining browser/device verification gate. |
 
-Work done after Plan 2 was driven by direct feedback rather than a plan: the
+Early work after Plan 2 was driven by direct feedback rather than a plan: the
 train being positioned by typing progress, error feedback, synthesised sound,
 the micro-animations, the line-completion sweep, and the journey shape on the
 summary screen. This file is the record of it.

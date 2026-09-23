@@ -75,7 +75,7 @@ describe('MobileTransit', () => {
     const onLine = vi.fn();
     renderTransit(net, onQuick, onLine, true);
     expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
-    for (const name of ['Start 45s Quick Run', 'Full Line Run']) {
+    for (const name of ['Start 30s Quick Run', 'Full Line Run']) {
       const button = screen.getByRole('button', { name }) as HTMLButtonElement;
       expect(button.disabled).toBe(true);
       fireEvent.click(button);
@@ -191,7 +191,7 @@ describe('MobileTransit', () => {
     });
     renderTransit(net, onStartQuick);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start 30s Quick Run' }));
 
     expect(onStartQuick).toHaveBeenCalledWith('KJ', 'gombak');
   });
@@ -201,7 +201,7 @@ describe('MobileTransit', () => {
     renderTransit(net, onStartQuick);
     fireEvent.click(screen.getByRole('button', { name: 'Toward Putra Heights' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start 30s Quick Run' }));
 
     expect(onStartQuick).toHaveBeenCalledWith('KJ', 'putra-heights');
   });
@@ -257,7 +257,7 @@ describe('MobileTransit', () => {
     renderTransit(invalidNetwork());
 
     expect(screen.getByRole('status').textContent).toBe('This Line is unavailable.');
-    expect((screen.getByRole('button', { name: 'Start 45s Quick Run' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Start 30s Quick Run' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Full Line Run' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

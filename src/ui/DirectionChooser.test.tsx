@@ -36,7 +36,7 @@ describe('DirectionChooser', () => {
   it('renders no quick-run actions without a quick callback', () => {
     render(<DirectionChooser net={net} line="MR" onChoose={() => {}} onCancel={() => {}} />);
 
-    expect(screen.queryByRole('button', { name: '45s Quick Run' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '30s Quick Run' })).toBeNull();
   });
 
   it('offers one compact quick-run action per direction', () => {
@@ -52,8 +52,8 @@ describe('DirectionChooser', () => {
     );
 
     const quickActions = [
-      screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }),
-      screen.getByRole('button', { name: '45s Quick Run toward KL Sentral' }),
+      screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }),
+      screen.getByRole('button', { name: '30s Quick Run toward KL Sentral' }),
     ];
 
     fireEvent.click(quickActions[0]!);

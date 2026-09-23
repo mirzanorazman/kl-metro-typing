@@ -59,13 +59,13 @@ export function DirectionChooser({ net, line, onChoose, onQuick, onCancel }: Dir
               <button
                 type="button"
                 className="quick-run-option"
-                aria-label={`45s Quick Run toward ${stationAt(net, e.toward)?.name ?? e.toward}`}
+                aria-label={`30s Quick Run toward ${stationAt(net, e.toward)?.name ?? e.toward}`}
                 onClick={() => {
                   sound.select();
                   onQuick(e.toward);
                 }}
               >
-                45s Quick Run
+                30s Quick Run
               </button>
             )}
           </li>

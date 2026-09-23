@@ -368,27 +368,27 @@ git commit -m "feat: block phone landscape play"
 - Modify: `docs/STATUS.md`
 - Modify: `docs/superpowers/specs/2026-09-23-quick-run-poc-adjustments-design.md`
 
-- [ ] **Step 1: Change all player-facing duration labels**
+- [x] **Step 1: Change all player-facing duration labels**
 
 Replace `45s Quick Run` and `Start 45s Quick Run` with their 30-second equivalents. Update accessible labels and assertions together.
 
-- [ ] **Step 2: Update implementation status documentation**
+- [x] **Step 2: Update implementation status documentation**
 
 Record the shipped 30-second multi-Line behavior, leg-trace integrity, mode-wide best, live metrics, error feedback, camera framing, and phone-landscape policy in `docs/STATUS.md`. Change the design spec status to `Implemented` only after verification succeeds.
 
-- [ ] **Step 3: Scan for stale product text**
+- [x] **Step 3: Scan for stale product text**
 
 Run: `rg -n "45s Quick Run|Start 45s|45-second|45 seconds|per-line Quick|per line Quick" src CONTEXT.md docs/STATUS.md docs/superpowers/specs/2026-09-23-quick-run-poc-adjustments-design.md`
 
 Expected: no stale active-product claims; historical comparison text in the design spec may remain.
 
-- [ ] **Step 4: Run the full test suite**
+- [x] **Step 4: Run the full test suite**
 
 Run: `npm test`
 
 Expected: all tests pass with no unhandled React warnings.
 
-- [ ] **Step 5: Run the production build and diff checks**
+- [x] **Step 5: Run the production build and diff checks**
 
 Run: `npm run build`
 

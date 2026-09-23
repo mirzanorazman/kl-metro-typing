@@ -168,7 +168,7 @@ export function MobileTransit({ net, onStartQuick, onStartLine, phoneLandscape =
             disabled={phoneLandscape || !validTermini}
             onClick={startQuick}
           >
-            Start 45s Quick Run
+            Start 30s Quick Run
           </button>
           <button type="button" disabled={phoneLandscape || !validTermini} onClick={startLine}>
             Full Line Run

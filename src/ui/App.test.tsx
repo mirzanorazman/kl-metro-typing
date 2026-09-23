@@ -142,7 +142,7 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
-    for (const name of ['Start 45s Quick Run', 'Full Line Run']) {
+    for (const name of ['Start 30s Quick Run', 'Full Line Run']) {
       expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
     }
     fireEvent.click(screen.getByRole('button', { name: 'Adventure' }));
@@ -153,7 +153,7 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Leaderboard' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Transit' }));
     act(() => setViewport(390, 844));
-    expect((screen.getByRole('button', { name: 'Start 45s Quick Run' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Start 30s Quick Run' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('refuses stale and programmatic start callbacks after rotating to landscape', () => {
@@ -176,7 +176,7 @@ describe('App', () => {
   it('cancels a ready Quick Run to Transit on rotation without a summary', () => {
     installMatchMedia(true);
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start 30s Quick Run' }));
     act(() => setViewport(844, 390));
 
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
@@ -189,7 +189,7 @@ describe('App', () => {
     installMatchMedia(true);
     vi.spyOn(Math, 'random').mockReturnValue(0);
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start 30s Quick Run' }));
     const originalInput = screen.getByRole('textbox', { name: 'Typing input for Station name' });
     expect(document.activeElement).toBe(originalInput);
 
@@ -201,7 +201,7 @@ describe('App', () => {
     act(() => setViewport(390, 844));
     const restoredInput = screen.getByRole('textbox', { name: 'Typing input for Station name' });
     expect(restoredInput).not.toBe(originalInput);
-    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start 30s Quick Run' }));
     expect(document.activeElement).toBe(restoredInput);
     const prompt = screen.getByLabelText(/^Type /);
     const firstCharacter = prompt.getAttribute('aria-label')!.replace(/^Type /, '')[0];
@@ -218,7 +218,7 @@ describe('App', () => {
       fireEvent.click(screen.getByRole('button', { name: /^Imbi/ }));
       fireEvent.click(screen.getByRole('button', { name: 'Start Adventure' }));
     } else {
-      fireEvent.click(screen.getByRole('button', { name: mode === 'Quick' ? 'Start 45s Quick Run' : 'Full Line Run' }));
+      fireEvent.click(screen.getByRole('button', { name: mode === 'Quick' ? 'Start 30s Quick Run' : 'Full Line Run' }));
     }
     const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
     fireEvent.input(input, { target: { value: 'a' } });
@@ -236,7 +236,7 @@ describe('App', () => {
     setViewport(width, height);
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
+    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
     fireEvent.keyDown(window, { key: 'K' });
     expect(screen.getByLabelText(/^Type /)).toBeTruthy();
     expect(screen.queryByText('Rotate to portrait to play')).toBeNull();
@@ -272,7 +272,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
+    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
 
     expect(document.querySelector('.quick-run')).toBeTruthy();
     expect(screen.getByText(/KL Monorail · toward/i)).toBeTruthy();
@@ -284,7 +284,7 @@ describe('App', () => {
     const viewport = installVisualViewport(700);
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start 30s Quick Run' }));
 
     const frame = document.querySelector('.mobile-run-frame') as HTMLElement;
     expect(frame.style.height).toBe('700px');
@@ -309,7 +309,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
+    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
     fireEvent.keyDown(window, { key: 'K' });
 
     const prompt = screen.getByLabelText('Type KL Sentral');
@@ -337,7 +337,7 @@ describe('App', () => {
     render(<App />);
 
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Start 45s Quick Run' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start 30s Quick Run' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /start anywhere/i })).toBeNull();
   });
 
@@ -353,7 +353,7 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: /back to the map/i })).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'Transit' }));
-    expect(screen.getByRole('button', { name: 'Start 45s Quick Run' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start 30s Quick Run' })).toBeTruthy();
   });
 
   it('returns a phone adventure setup to the desktop home when the layout widens', () => {
@@ -392,7 +392,7 @@ describe('App', () => {
     installMatchMedia(true);
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start 30s Quick Run' }));
     expect(document.querySelector('.quick-run')).toBeTruthy();
     expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
 
@@ -401,7 +401,7 @@ describe('App', () => {
 
     expect(document.querySelector('.quick-run')).toBeNull();
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Start 45s Quick Run' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Start 30s Quick Run' })).toBeTruthy();
   });
 
   it('retains the latest quick-run starting station for the next run', () => {
@@ -410,7 +410,7 @@ describe('App', () => {
     render(<App />);
 
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
+    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
     for (const key of 'KL Sentral') fireEvent.keyDown(window, { key });
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
 
@@ -419,7 +419,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /back to transit/i }));
 
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Titiwangsa' }));
+    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
 
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
   });
