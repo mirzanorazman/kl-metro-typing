@@ -402,7 +402,7 @@ Expected: no whitespace errors.
 
 Verify a desktop viewport, phone portrait, and phone landscape. Exercise one Quick Run through a jump; confirm prompt/context update immediately, no false path is drawn, WPM/Accuracy update once per second, the error state survives reduced motion, and returning to portrait after rotation shows an interrupted Summary. Record iPad Mini landscape as a separate compatibility follow-up, not a release blocker.
 
-- [ ] **Step 7: Commit final integration and docs**
+- [x] **Step 7: Commit final integration and docs**
 
 ```bash
 git add src/ui/DirectionChooser.tsx src/ui/DirectionChooser.test.tsx src/ui/MobileTransit.tsx src/ui/MobileTransit.test.tsx src/ui/HomeMap.test.tsx src/ui/App.test.tsx docs/STATUS.md docs/superpowers/specs/2026-09-23-quick-run-poc-adjustments-design.md
