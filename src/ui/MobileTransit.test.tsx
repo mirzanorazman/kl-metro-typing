@@ -19,6 +19,7 @@ function renderTransit(
   network: NetworkIndex = net,
   onStartQuick: (line: LineCode, toward: string) => void = () => {},
   onStartLine: (line: LineCode, from: string) => void = () => {},
+  phoneLandscape = false,
 ) {
   return render(
     <TypingInputProvider enabled>
@@ -26,6 +27,7 @@ function renderTransit(
         net={network}
         onStartQuick={onStartQuick}
         onStartLine={onStartLine}
+        phoneLandscape={phoneLandscape}
       />
     </TypingInputProvider>,
   );
@@ -68,6 +70,56 @@ afterEach(() => {
 });
 
 describe('MobileTransit', () => {
+  it.each([false, true])('explains short-Line Quick Run unavailability with landscape=%s', (landscape) => {
+    const data = structuredClone(loadNetworkData());
+    const line = data.lines.find(({ code }) => code === 'KJ')!;
+    line.stations = line.stations.slice(0, 4);
+    line.termini = [data.stations.find(({ id }) => id === line.stations[0])!.name,
+      data.stations.find(({ id }) => id === line.stations[3])!.name];
+    const onQuick = vi.fn();
+    const onLine = vi.fn();
+    renderTransit(buildNetwork(data), onQuick, onLine, landscape);
+
+    for (const terminus of line.termini) {
+      fireEvent.click(screen.getByRole('button', { name: `Toward ${terminus}` }));
+      const quick = screen.getByRole('button', { name: 'Start 30s Quick Run' }) as HTMLButtonElement;
+      expect(quick.disabled).toBe(true);
+      expect(screen.getByText('Quick Run needs at least five Stations in this Direction.')).toBeTruthy();
+      fireEvent.click(quick);
+    }
+    expect(onQuick).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(screen.getByRole('textbox'));
+    const full = screen.getByRole('button', { name: 'Full Line Run' }) as HTMLButtonElement;
+    expect(full.disabled).toBe(landscape);
+    if (landscape) {
+      expect(screen.getByText('Rotate to portrait to play')).toBeTruthy();
+    } else {
+      fireEvent.click(full);
+      expect(onLine).toHaveBeenCalledWith('KJ', line.stations[0]);
+      fireEvent.click(screen.getByRole('button', { name: 'KL Monorail' }));
+      expect((screen.getByRole('button', { name: 'Start 30s Quick Run' }) as HTMLButtonElement).disabled).toBe(false);
+      expect(screen.queryByText('Quick Run needs at least five Stations in this Direction.')).toBeNull();
+    }
+  });
+
+  it('disables Quick and Line starts in phone landscape while keeping line browsing available', () => {
+    const onQuick = vi.fn();
+    const onLine = vi.fn();
+    renderTransit(net, onQuick, onLine, true);
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    for (const name of ['Start 30s Quick Run', 'Full Line Run']) {
+      const button = screen.getByRole('button', { name }) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      fireEvent.click(button);
+    }
+    fireEvent.click(screen.getByRole('button', { name: 'KL Monorail' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Toward Titiwangsa' }));
+    expect(screen.getByRole('button', { name: 'Toward Titiwangsa' }).getAttribute('aria-pressed')).toBe('true');
+    expect(onQuick).not.toHaveBeenCalled();
+    expect(onLine).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(screen.getByRole('textbox', { name: 'Typing input for Station name' }));
+  });
+
   it('removes the map minimum height only for short coarse-pointer viewports', () => {
     expect(mobileStyles).toMatch(
       /\.mobile-map-region\s*\{[^}]*min-height:\s*8rem;/,
@@ -171,7 +223,7 @@ describe('MobileTransit', () => {
     });
     renderTransit(net, onStartQuick);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start 30s Quick Run' }));
 
     expect(onStartQuick).toHaveBeenCalledWith('KJ', 'gombak');
   });
@@ -181,7 +233,7 @@ describe('MobileTransit', () => {
     renderTransit(net, onStartQuick);
     fireEvent.click(screen.getByRole('button', { name: 'Toward Putra Heights' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start 45s Quick Run' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start 30s Quick Run' }));
 
     expect(onStartQuick).toHaveBeenCalledWith('KJ', 'putra-heights');
   });
@@ -237,7 +289,7 @@ describe('MobileTransit', () => {
     renderTransit(invalidNetwork());
 
     expect(screen.getByRole('status').textContent).toBe('This Line is unavailable.');
-    expect((screen.getByRole('button', { name: 'Start 45s Quick Run' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Start 30s Quick Run' }) as HTMLButtonElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Full Line Run' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

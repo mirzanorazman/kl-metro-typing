@@ -1,10 +1,11 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { loadProfile } from '../engine/progress';
 import { AdventureScreen } from './AdventureScreen';
 import { TypingInputProvider } from './TypingInputProvider';
+import * as runEngine from '../engine/run';
 
 const net = buildNetwork(loadNetworkData());
 const type = (text: string) => {
@@ -38,9 +39,64 @@ beforeEach(() => {
   })) as unknown as typeof window.matchMedia;
 });
 
-afterEach(() => { Element.prototype.getBoundingClientRect = originalRect; });
+afterEach(() => {
+  Element.prototype.getBoundingClientRect = originalRect;
+  vi.restoreAllMocks();
+});
 
 describe('AdventureScreen', () => {
+  it('retains native input batched with a rotation that ends Adventure', () => {
+    const content = (phoneLandscape: boolean) => (
+      <TypingInputProvider enabled>
+        <AdventureScreen net={net} startAt="imbi" onExit={() => {}} phoneLandscape={phoneLandscape} />
+      </TypingInputProvider>
+    );
+    const { rerender } = render(content(false));
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+
+    act(() => {
+      fireEvent.input(input, { target: { value: 'Imbi' } });
+      rerender(content(true));
+    });
+    rerender(content(false));
+
+    expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
+    expect(screen.getByText('1 station this run')).toBeTruthy();
+    expect(loadProfile().visited).toContain('imbi');
+  });
+
+  it.each(['typing', 'junction'])('ends a %s Adventure on rotation and retains its summary in later landscape', (phase) => {
+    const content = (phoneLandscape: boolean) => (
+      <TypingInputProvider enabled>
+        <AdventureScreen net={net} startAt="imbi" onExit={() => {}} phoneLandscape={phoneLandscape} />
+      </TypingInputProvider>
+    );
+    const { rerender } = render(content(false));
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+    fireEvent.input(input, { target: { value: phase === 'typing' ? 'I' : 'Imbi' } });
+    const end = vi.spyOn(runEngine, 'endRun');
+    const save = vi.spyOn(Storage.prototype, 'setItem');
+
+    rerender(content(true));
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    expect(screen.queryByLabelText(/^Type /)).toBeNull();
+    expect(screen.queryByRole('group', { name: /choose a direction/i })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Journey complete' })).toBeNull();
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.input(input, { target: { value: 'mbi' } });
+    rerender(content(true));
+    rerender(content(false));
+
+    expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
+    expect(screen.getByText(phase === 'typing' ? '0 stations this run' : '1 station this run')).toBeTruthy();
+    expect(end).toHaveBeenCalledTimes(1);
+    expect(save).not.toHaveBeenCalled();
+    rerender(content(true));
+    expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
+    expect(end).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the start station name to type', () => {
     renderAdventure({ startAt: 'imbi', onExit: () => {} });
     expect(screen.getByLabelText('Type Imbi')).toBeTruthy();

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { sound } from '../audio/sound';
 import { networkLayout } from '../geo/networkLayout';
 import {
@@ -17,6 +17,7 @@ import { HUD } from '../render/HUD';
 import { LineStrip } from '../render/LineStrip';
 import { useLayoutMode } from '../render/useLayoutMode';
 import { PlayLayout } from './PlayLayout';
+import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { JunctionPicker } from './JunctionPicker';
 import { useGameInput, useTypingInputControls } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
@@ -43,9 +44,10 @@ export interface AdventureScreenProps {
   net: NetworkIndex;
   startAt: string;
   onExit: () => void;
+  phoneLandscape?: boolean;
 }
 
-export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) {
+export function AdventureScreen({ net, startAt, onExit, phoneLandscape = false }: AdventureScreenProps) {
   const { geo, schematic, backdrop, districts } = networkLayout();
   const { mode, layout, setMode } = useLayoutMode(geo, schematic, 'schematic');
 
@@ -55,6 +57,20 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   const persistedCount = useRef(0);
   const phone = usePhoneLayout();
   const { focusInput, blurInput } = useTypingInputControls();
+  const [awaitingPortrait, setAwaitingPortrait] = useState(false);
+  const rotationEnded = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!phoneLandscape) {
+      setAwaitingPortrait(false);
+      return;
+    }
+    if (run.phase === 'ended' || rotationEnded.current) return;
+    rotationEnded.current = true;
+    blurInput();
+    setAwaitingPortrait(true);
+    setRun((previous) => endRun(previous));
+  }, [phoneLandscape, run, blurInput]);
 
   // Sound is driven from effects, not from inside the setRun updater — a
   // state updater must stay pure, and React may invoke it more than once.
@@ -105,26 +121,33 @@ export function AdventureScreen({ net, startAt, onExit }: AdventureScreenProps) 
   }, [run.at, run.arrivedFrom, run.line, run.stationTimes, net]);
 
   const onKey = useCallback((key: string) => {
+    if (phoneLandscape || rotationEnded.current) return;
     if (key === 'Backspace') {
       setRun((prev) => turnAround(net, prev, performance.now()));
       return;
     }
     setRun((prev) => (prev.phase === 'typing' ? keyRun(net, prev, key, performance.now()) : prev));
-  }, [net]);
+  }, [net, phoneLandscape]);
 
-  useGameInput(onKey, run.phase === 'typing');
+  useGameInput(onKey, !phoneLandscape && run.phase === 'typing');
 
   useEffect(() => {
     if (run.phase === 'ended') blurInput();
   }, [run.phase, blurInput]);
 
   const onChoose = useCallback((dir: Direction) => {
+    if (phoneLandscape || rotationEnded.current) return;
     setRun((prev) => chooseDirection(net, prev, dir, performance.now()));
-  }, [net]);
+  }, [net, phoneLandscape]);
 
   const onWalk = useCallback((to: string) => {
+    if (phoneLandscape || rotationEnded.current) return;
     setRun((prev) => walkTo(net, prev, to, performance.now()));
-  }, [net]);
+  }, [net, phoneLandscape]);
+
+  if (phoneLandscape && (run.phase !== 'ended' || awaitingPortrait)) {
+    return <PhoneLandscapeBlock fullScreen />;
+  }
 
   if (run.phase === 'ended') {
     return <SummaryScreen net={net} run={run} onExit={onExit} />;

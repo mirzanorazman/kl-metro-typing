@@ -10,10 +10,10 @@ import { TypingInputProvider } from './TypingInputProvider';
 const net = buildNetwork(loadNetworkData());
 const mobileStyles = readFileSync('src/ui/mobile.css', 'utf8');
 
-function renderSetup(onStart: (stationId: string) => void = () => {}) {
+function renderSetup(onStart: (stationId: string) => void = () => {}, phoneLandscape = false) {
   return render(
     <TypingInputProvider enabled>
-      <MobileAdventureSetup net={net} onStart={onStart} />
+      <MobileAdventureSetup net={net} onStart={onStart} phoneLandscape={phoneLandscape} />
     </TypingInputProvider>,
   );
 }
@@ -26,6 +26,22 @@ afterEach(() => {
 });
 
 describe('MobileAdventureSetup', () => {
+  it('disables resume and start in phone landscape while keeping station search available', () => {
+    saveProfile({ ...emptyProfile(), adventure: { at: 'imbi', arrivedFrom: null, line: null } });
+    const onStart = vi.fn();
+    renderSetup(onStart, true);
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    const resume = screen.getByRole('button', { name: 'Resume from Imbi' }) as HTMLButtonElement;
+    expect(resume.disabled).toBe(true);
+    fireEvent.click(resume);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search stations' }), { target: { value: 'Imbi' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Imbi/ }));
+    const start = screen.getByRole('button', { name: 'Start Adventure' }) as HTMLButtonElement;
+    expect(start.disabled).toBe(true);
+    fireEvent.click(start);
+    expect(onStart).not.toHaveBeenCalled();
+  });
+
   it('renders the geographic map and an expanded Adventure drawer', () => {
     const { container } = renderSetup();
 

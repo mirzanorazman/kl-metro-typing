@@ -4,6 +4,7 @@ import { loadProfile } from '../engine/progress';
 import { networkLayout } from '../geo/networkLayout';
 import { MapCanvas } from '../render/MapCanvas';
 import { MobileDrawer } from './MobileDrawer';
+import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { StationSearch } from './StationSearch';
 import { useTypingInputControls } from './TypingInputProvider';
 import './mobile.css';
@@ -11,9 +12,10 @@ import './mobile.css';
 export interface MobileAdventureSetupProps {
   net: NetworkIndex;
   onStart: (stationId: string) => void;
+  phoneLandscape?: boolean;
 }
 
-export function MobileAdventureSetup({ net, onStart }: MobileAdventureSetupProps) {
+export function MobileAdventureSetup({ net, onStart, phoneLandscape = false }: MobileAdventureSetupProps) {
   const profile = useMemo(() => loadProfile(), []);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { focusInput } = useTypingInputControls();
@@ -25,6 +27,7 @@ export function MobileAdventureSetup({ net, onStart }: MobileAdventureSetupProps
   const selectedStation = selectedId ? stationAt(net, selectedId) : undefined;
 
   const startAt = (stationId: string) => {
+    if (phoneLandscape) return;
     focusInput();
     onStart(stationId);
   };
@@ -46,8 +49,9 @@ export function MobileAdventureSetup({ net, onStart }: MobileAdventureSetupProps
 
       <MobileDrawer title="Adventure" subtitle="Choose a starting Station">
         <div className="mobile-adventure-content">
+          {phoneLandscape && <PhoneLandscapeBlock />}
           {resumeStation && (
-            <button type="button" onClick={() => startAt(resumeStation.id)}>
+            <button type="button" disabled={phoneLandscape} onClick={() => startAt(resumeStation.id)}>
               Resume from {resumeStation.name}
             </button>
           )}
@@ -55,7 +59,7 @@ export function MobileAdventureSetup({ net, onStart }: MobileAdventureSetupProps
           <StationSearch net={net} onPick={setSelectedId} />
 
           {selectedStation && (
-            <button type="button" onClick={() => startAt(selectedStation.id)}>
+            <button type="button" disabled={phoneLandscape} onClick={() => startAt(selectedStation.id)}>
               Start Adventure
             </button>
           )}

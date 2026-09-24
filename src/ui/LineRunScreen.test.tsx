@@ -5,6 +5,7 @@ import { buildNetwork } from '../engine/network';
 import { loadProfile } from '../engine/progress';
 import { LineRunScreen } from './LineRunScreen';
 import { TypingInputProvider } from './TypingInputProvider';
+import * as runEngine from '../engine/run';
 
 // jsdom cannot produce a trusted keyboard event (see TypingInputProvider.test.tsx),
 // so a dispatched keydown always reports `isTrusted: false`. The leaderboard
@@ -71,7 +72,69 @@ beforeEach(() => {
   })) as unknown as typeof window.matchMedia;
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('LineRunScreen', () => {
+  it('retains native input batched with a rotation that ends the Line Run', () => {
+    const content = (phoneLandscape: boolean) => (
+      <TypingInputProvider enabled>
+        <LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}}
+          phoneLandscape={phoneLandscape} />
+      </TypingInputProvider>
+    );
+    const { rerender } = render(content(false));
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+
+    act(() => {
+      fireEvent.input(input, { target: { value: 'KL Sentral' } });
+      rerender(content(true));
+    });
+    rerender(content(false));
+
+    expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
+    expect(screen.getByText('1 station this run')).toBeTruthy();
+    expect(loadProfile().visited).toContain('kl-sentral');
+  });
+
+  it('ends once on phone rotation and shows an incomplete summary only after portrait returns', () => {
+    const onExit = vi.fn();
+    const content = (phoneLandscape: boolean) => (
+      <TypingInputProvider enabled>
+        <LineRunScreen net={net} line="MR" from="kl-sentral" onExit={onExit}
+          phoneLandscape={phoneLandscape} />
+      </TypingInputProvider>
+    );
+    const { rerender } = render(content(false));
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+    act(() => input.focus());
+    fireEvent.input(input, { target: { value: 'KL SentralT' } });
+    const end = vi.spyOn(runEngine, 'endRun');
+    const save = vi.spyOn(Storage.prototype, 'setItem');
+
+    rerender(content(true));
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    expect(screen.queryByLabelText(/^Type /)).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Journey complete' })).toBeNull();
+    expect(document.activeElement).toBe(document.body);
+    fireEvent.input(input, { target: { value: 'un Sambanthan' } });
+    rerender(content(true));
+    rerender(content(false));
+
+    expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
+    expect(screen.getByText('1 station this run')).toBeTruthy();
+    expect(screen.queryByLabelText(/your name/i)).toBeNull();
+    expect(loadProfile().visited).not.toContain('tun-sambanthan');
+    expect(end).toHaveBeenCalledTimes(1);
+    expect(save).not.toHaveBeenCalled();
+    rerender(content(true));
+    expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
+    expect(end).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the map' }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
   it('starts at the chosen terminus', () => {
     renderLine({ line: 'MR', from: 'kl-sentral', onExit: () => {} });
     expect(screen.getByLabelText('Type KL Sentral')).toBeTruthy();

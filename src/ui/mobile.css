@@ -283,6 +283,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.quick-summary dd.quick-summary-lines {
+  max-width: 20ch;
+  font-size: var(--t-sm);
+  overflow-wrap: anywhere;
+}
+
 .quick-summary-actions {
   display: grid;
   gap: var(--s);
@@ -300,6 +306,35 @@
 .quick-run {
   height: 100%;
   overflow: hidden;
+}
+
+.quick-run-map {
+  width: 100%;
+  height: 100%;
+}
+
+.quick-run-map[data-phase='out'] {
+  animation: quick-jump-out 100ms ease-in forwards;
+}
+
+.quick-run-map[data-phase='in'] {
+  animation: quick-jump-in 100ms ease-out;
+}
+
+@keyframes quick-jump-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes quick-jump-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quick-run-map[data-jumping='true'] {
+    animation: none;
+  }
 }
 
 .quick-run .play-panel {
@@ -324,6 +359,29 @@
   font: var(--t-xs) var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+.quick-run-metrics {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s);
+  margin: 0;
+  font: var(--t-xs) var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.quick-run-metrics dt {
+  color: var(--ink-muted);
+}
+
+.quick-run-metrics dd {
+  min-width: 4ch;
+  margin: 0 var(--s) 0 0;
+}
+
+.quick-run-jump {
+  margin: 0;
+  font: var(--t-xs) var(--font-mono);
 }
 
 .quick-run-timer {
@@ -392,4 +450,18 @@
   .quick-run .prompt {
     font-size: var(--t-md);
   }
+}
+
+.phone-landscape-block {
+  margin: 0;
+  padding: var(--s);
+  text-align: center;
+  color: var(--ink);
+}
+
+.phone-landscape-block--full {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: var(--s3);
 }

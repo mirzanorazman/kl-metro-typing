@@ -3,10 +3,12 @@ import { LINE_CODES, type LineCode } from '../data/types';
 import { terminiOf } from '../engine/lineRun';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
 import { loadProfile, saveProfile, saveSelectedLine } from '../engine/progress';
+import { eligibleQuickLegs } from '../engine/quickRun';
 import { networkLayout } from '../geo/networkLayout';
 import { MapCanvas } from '../render/MapCanvas';
 import { LineBadge } from './LineBadge';
 import { MobileDrawer } from './MobileDrawer';
+import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { useTypingInputControls } from './TypingInputProvider';
 import './mobile.css';
 
@@ -14,6 +16,7 @@ interface MobileTransitProps {
   net: NetworkIndex;
   onStartQuick: (line: LineCode, toward: string) => void;
   onStartLine: (line: LineCode, from: string) => void;
+  phoneLandscape?: boolean;
 }
 
 function initialLine(net: NetworkIndex, savedLine: LineCode | undefined): LineCode | null {
@@ -22,7 +25,7 @@ function initialLine(net: NetworkIndex, savedLine: LineCode | undefined): LineCo
   return LINE_CODES.find((code) => lineAt(net, code)) ?? null;
 }
 
-export function MobileTransit({ net, onStartQuick, onStartLine }: MobileTransitProps) {
+export function MobileTransit({ net, onStartQuick, onStartLine, phoneLandscape = false }: MobileTransitProps) {
   const profile = useMemo(() => loadProfile(), []);
   const availableCodes = useMemo(
     () => LINE_CODES.filter((code) => lineAt(net, code) !== undefined),
@@ -51,6 +54,7 @@ export function MobileTransit({ net, onStartQuick, onStartLine }: MobileTransitP
     stationAt(net, firstTerminus) &&
     stationAt(net, secondTerminus),
   );
+  const quickAvailable = Boolean(selected && eligibleQuickLegs(net, selected, toward).length > 0);
 
   const fitTo = useMemo(
     () => selectedLine?.stations
@@ -75,13 +79,13 @@ export function MobileTransit({ net, onStartQuick, onStartLine }: MobileTransitP
   };
 
   const startQuick = () => {
-    if (!selected || !validTermini) return;
+    if (phoneLandscape || !selected || !validTermini || !quickAvailable) return;
     focusInput();
     onStartQuick(selected, toward);
   };
 
   const startLine = () => {
-    if (!selected || !validTermini) return;
+    if (phoneLandscape || !selected || !validTermini) return;
     focusInput();
     onStartLine(selected, toward === firstTerminus ? secondTerminus : firstTerminus);
   };
@@ -158,16 +162,20 @@ export function MobileTransit({ net, onStartQuick, onStartLine }: MobileTransitP
           <p role="status">This Line is unavailable.</p>
         )}
 
+        {phoneLandscape && <PhoneLandscapeBlock />}
+        {validTermini && !quickAvailable && (
+          <p role="status">Quick Run needs at least five Stations in this Direction.</p>
+        )}
         <div className="mobile-run-actions">
           <button
             type="button"
             className="mobile-run-primary"
-            disabled={!validTermini}
+            disabled={phoneLandscape || !validTermini || !quickAvailable}
             onClick={startQuick}
           >
-            Start 45s Quick Run
+            Start 30s Quick Run
           </button>
-          <button type="button" disabled={!validTermini} onClick={startLine}>
+          <button type="button" disabled={phoneLandscape || !validTermini} onClick={startLine}>
             Full Line Run
           </button>
         </div>

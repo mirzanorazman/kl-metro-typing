@@ -4,6 +4,7 @@ import { loadNetworkData } from '../data/load';
 import { validateNetworkData } from '../data/validate';
 import { buildNetwork } from '../engine/network';
 import { loadProfile, saveProfile, type Theme } from '../engine/progress';
+import { eligibleQuickLegs } from '../engine/quickRun';
 import { setMuted, installAudioUnlock } from '../audio/sound';
 import { HomeMap } from './HomeMap';
 import { LineRunScreen } from './LineRunScreen';
@@ -15,6 +16,7 @@ import { MobileTransit } from './MobileTransit';
 import { QuickRunScreen } from './QuickRunScreen';
 import { TypingInputProvider } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
+import { usePhoneLandscape } from './usePhoneLandscape';
 import { useVisualViewport, VisualViewportProvider } from './useVisualViewport';
 
 type Screen =
@@ -63,6 +65,10 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(() => resolveTheme(loadProfile().theme));
   const [mobileDestination, setMobileDestination] = useState<MobileDestination>('transit');
   const phone = usePhoneLayout();
+  const phoneLandscape = usePhoneLandscape(phone);
+  // Saved callbacks can outlive a setup render; guard them with the current gate.
+  const playBlocked = useRef(phoneLandscape);
+  playBlocked.current = phoneLandscape;
   const previousPhone = useRef(phone);
   const lastQuickStart = useRef<string | null>(null);
 
@@ -106,13 +112,19 @@ export function App() {
   const home = () => setScreen({ kind: 'home' });
 
   const leaveHome = (next: Screen) => {
+    if (playBlocked.current && (next.kind === 'quick' || next.kind === 'line' || next.kind === 'adventure')) return;
     setIntroSpent(true);
     setScreen(next);
   };
 
   const startQuick = useCallback((code: LineCode, toward: string) => {
+    if (playBlocked.current || eligibleQuickLegs(net, code, toward).length === 0) return;
+    setIntroSpent(true);
     setScreen({ kind: 'quick', code, toward });
-  }, []);
+  }, [net]);
+
+  const startLine = (code: LineCode, from: string) => leaveHome({ kind: 'line', code, from });
+  const startAdventure = (at: string) => leaveHome({ kind: 'adventure', at });
 
   const onStartingStation = useCallback((stationId: string) => {
     lastQuickStart.current = stationId;
@@ -130,14 +142,16 @@ export function App() {
           {mobileDestination === 'transit' && (
             <MobileTransit
               net={net}
+              phoneLandscape={phoneLandscape}
               onStartQuick={(code, toward) => startQuick(code, toward)}
-              onStartLine={(code, from) => setScreen({ kind: 'line', code, from })}
+              onStartLine={startLine}
             />
           )}
           {mobileDestination === 'adventure' && (
             <MobileAdventureSetup
               net={net}
-              onStart={(at) => setScreen({ kind: 'adventure', at })}
+              phoneLandscape={phoneLandscape}
+              onStart={startAdventure}
             />
           )}
           {mobileDestination === 'ranking' && <LeaderboardScreen net={net} embedded />}
@@ -150,9 +164,9 @@ export function App() {
         net={net}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onStartLine={(code, from) => leaveHome({ kind: 'line', code, from })}
-        onStartQuick={(code, toward) => leaveHome({ kind: 'quick', code, toward })}
-        onPickStation={(at) => leaveHome({ kind: 'adventure', at })}
+        onStartLine={startLine}
+        onStartQuick={startQuick}
+        onPickStation={startAdventure}
         onOpenLeaderboard={() => leaveHome({ kind: 'leaderboard' })}
         intro={!introSpent}
       />
@@ -168,10 +182,11 @@ export function App() {
         line={screen.code}
         from={screen.from}
         onExit={home}
+        phoneLandscape={phoneLandscape}
       />
     );
   } else if (screen.kind === 'adventure') {
-    content = <AdventureScreen net={net} startAt={screen.at} onExit={home} />;
+    content = <AdventureScreen net={net} startAt={screen.at} onExit={home} phoneLandscape={phoneLandscape} />;
   } else if (screen.kind === 'leaderboard') {
     content = <LeaderboardScreen net={net} onExit={home} />;
   } else if (screen.kind === 'quick') {
@@ -183,6 +198,7 @@ export function App() {
         previousStart={lastQuickStart.current}
         onStartingStation={onStartingStation}
         onBack={home}
+        phoneLandscape={phoneLandscape}
       />
     );
   } else if (screen.kind === 'adventure-setup') {
@@ -190,7 +206,8 @@ export function App() {
       <MobileShell active="adventure" onNavigate={navigateMobile}>
         <MobileAdventureSetup
           net={net}
-          onStart={(at) => setScreen({ kind: 'adventure', at })}
+          phoneLandscape={phoneLandscape}
+          onStart={startAdventure}
         />
       </MobileShell>
     );
@@ -205,7 +222,7 @@ export function App() {
 
   return (
     <VisualViewportProvider>
-      <TypingInputProvider enabled={phone}>{framedContent}</TypingInputProvider>
+      <TypingInputProvider enabled={phone && !phoneLandscape}>{framedContent}</TypingInputProvider>
     </VisualViewportProvider>
   );
 }

@@ -75,7 +75,7 @@ describe('HomeMap', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /kelana jaya/i }));
-    fireEvent.click(screen.getByRole('button', { name: '45s Quick Run toward Putra Heights' }));
+    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Putra Heights' }));
 
     expect(got).toEqual(['KJ', 'putra-heights']);
   });

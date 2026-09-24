@@ -11,7 +11,7 @@ const summarySource = readFileSync('src/ui/QuickRunSummary.tsx', 'utf8');
 function renderSummary(overrides: Partial<React.ComponentProps<typeof QuickRunSummary>> = {}) {
   return render(
     <QuickRunSummary
-      lineName="Kelana Jaya Line"
+      lines={['MR', 'SP', 'KJ']}
       status="completed"
       stations={6}
       metrics={metrics}
@@ -31,6 +31,20 @@ function expectStat(label: string, value: string) {
 }
 
 describe('QuickRunSummary', () => {
+  it('blocks Run again in phone landscape while keeping Back available', () => {
+    const onAgain = vi.fn();
+    const onBack = vi.fn();
+    renderSummary({ phoneLandscape: true, onAgain, onBack });
+
+    expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
+    const again = screen.getByRole('button', { name: 'Run again' }) as HTMLButtonElement;
+    expect(again.disabled).toBe(true);
+    fireEvent.click(again);
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Transit' }));
+    expect(onAgain).not.toHaveBeenCalled();
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
   it('derives its displayed duration from the shared Quick Run constant', () => {
     expect(summarySource).toMatch(
       /import\s*\{\s*QUICK_RUN_MS\s*\}\s*from\s*'\.\.\/engine\/quickRun'/,
@@ -57,7 +71,9 @@ describe('QuickRunSummary', () => {
 
     expect(container.querySelector('section.quick-summary')).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Quick Run complete' })).toBeTruthy();
-    expect(screen.getByText('Kelana Jaya Line · 45 seconds')).toBeTruthy();
+    expect(screen.getByText('30 seconds')).toBeTruthy();
+    expectStat('Lines used', 'MR → SP → KJ');
+    expect(screen.queryByText(/Kelana Jaya Line/)).toBeNull();
     expect(container.querySelector('dl')).toBeTruthy();
     expectStat('Stations completed', '6');
     expectStat('WPM', '51');
@@ -72,6 +88,12 @@ describe('QuickRunSummary', () => {
     renderSummary({ personalBest: 47.6, newBest: false });
 
     expect(screen.getByRole('status').textContent).toBe('Personal best: 48');
+  });
+
+  it('retains repeated Lines in leg order', () => {
+    renderSummary({ lines: ['MR', 'SP', 'MR'] });
+
+    expectStat('Lines used', 'MR → SP → MR');
   });
 
   it('omits the best line when a completed result has no personal best', () => {
@@ -121,7 +143,7 @@ describe('QuickRunSummary', () => {
 
     rerender(
       <QuickRunSummary
-        lineName="Kelana Jaya Line"
+        lines={['KJ']}
         status="completed"
         stations={1}
         metrics={metrics}

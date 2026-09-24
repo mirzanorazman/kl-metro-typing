@@ -67,12 +67,25 @@ body {
 
 /* A mistyped key must be seen, not merely counted. */
 @keyframes miskey {
-  0%   { color: var(--error); border-bottom-color: var(--error); transform: translateX(-2px); }
-  60%  { color: var(--error); border-bottom-color: var(--error); transform: translateX(2px); }
-  100% { color: var(--line-colour, var(--ink));
-         border-bottom-color: var(--line-colour, var(--ink)); transform: none; }
+  0%   { transform: translateX(-2px); }
+  60%  { transform: translateX(2px); }
+  100% { transform: none; }
 }
-.prompt [data-state='current'][data-miskey='true'] { animation: miskey 220ms ease-out; }
+.prompt [data-state='current'][data-miskey='true'] {
+  display: inline-block;
+  color: var(--error);
+  border-bottom: 3px double var(--error);
+  animation: miskey 220ms ease-out;
+}
+.prompt-feedback {
+  display: inline-block;
+  margin-inline-start: 0.75em;
+  color: var(--error);
+  font: 600 var(--t-sm)/1.2 var(--font-sans);
+  letter-spacing: normal;
+  text-transform: none;
+  vertical-align: middle;
+}
 
 /* --- home map --- */
 /* `overflow: hidden` because the opening settles the canvas from a hair

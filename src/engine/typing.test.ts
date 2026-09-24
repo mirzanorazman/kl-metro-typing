@@ -11,6 +11,7 @@ describe('beginTyping', () => {
     expect(s.keystrokes).toBe(0);
     expect(s.errors).toBe(0);
     expect(s.done).toBe(false);
+    expect(s.mistyped).toBe(false);
   });
 });
 
@@ -32,6 +33,30 @@ describe('applyKey', () => {
     expect(s.cursor).toBe(0);
     expect(s.keystrokes).toBe(1);
     expect(s.errors).toBe(1);
+    expect(s.mistyped).toBe(true);
+  });
+
+  it('keeps the mistake visible across repeated wrong keys', () => {
+    const first = applyKey(beginTyping('Imbi'), 'x');
+    const second = applyKey(first, 'y');
+
+    expect(second.mistyped).toBe(true);
+    expect(second.keystrokes).toBe(2);
+    expect(second.errors).toBe(2);
+  });
+
+  it('clears the mistake after the expected character is typed', () => {
+    const wrong = applyKey(beginTyping('Imbi'), 'x');
+    const correct = applyKey(wrong, 'I');
+
+    expect(correct.mistyped).toBe(false);
+    expect(correct.cursor).toBe(1);
+  });
+
+  it('begins a new prompt without mistake feedback', () => {
+    const wrong = applyKey(beginTyping('Imbi'), 'x');
+    expect(beginTyping('Bangsar')).toMatchObject({ mistyped: false });
+    expect(wrong.mistyped).toBe(true);
   });
 
   it('requires spaces to be typed', () => {
