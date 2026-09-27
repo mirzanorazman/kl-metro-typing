@@ -35,6 +35,31 @@ describe('Prompt', () => {
     expect(screen.getByRole('status').textContent).toBe('Wrong key');
   });
 
+  it('anchors wrong-key feedback to the current character', () => {
+    const mistyped = applyKey(beginTyping('Imbi'), 'x');
+    const { container } = render(<Prompt state={mistyped} />);
+    const current = container.querySelector('[data-state="current"]');
+    const status = screen.getByRole('status');
+    const anchor = status.closest('.prompt-miskey-anchor');
+
+    expect(anchor).not.toBeNull();
+    expect(anchor?.contains(current)).toBe(true);
+  });
+
+  it('positions wrong-key feedback below its character anchor', () => {
+    const css = readFileSync('src/index.css', 'utf8');
+    const anchorRule = css.match(/\.prompt-miskey-anchor\s*\{([^}]+)\}/)?.[1];
+    const feedbackRule = css.match(/\.prompt-miskey-anchor \.prompt-feedback\s*\{([^}]+)\}/)?.[1];
+
+    expect(anchorRule).toMatch(/position:\s*relative/);
+    expect(anchorRule).toMatch(/display:\s*inline-block/);
+    expect(feedbackRule).toMatch(/position:\s*absolute/);
+    expect(feedbackRule).toMatch(/inset-block-start:\s*calc\(100% \+ 0\.35em\)/);
+    expect(feedbackRule).toMatch(/inset-inline-start:\s*50%/);
+    expect(feedbackRule).toMatch(/transform:\s*translateX\(-50%\)/);
+    expect(feedbackRule).toMatch(/white-space:\s*nowrap/);
+  });
+
   it('clears wrong-key feedback after a correct character', () => {
     const mistyped = applyKey(beginTyping('Imbi'), 'x');
     const corrected = applyKey(mistyped, 'I');

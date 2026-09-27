@@ -77,15 +77,26 @@ body {
   border-bottom: 3px double var(--error);
   animation: miskey 220ms ease-out;
 }
+.prompt-miskey-anchor {
+  position: relative;
+  display: inline-block;
+}
 .prompt-feedback {
   display: inline-block;
-  margin-inline-start: 0.75em;
   color: var(--error);
   font: 600 var(--t-sm)/1.2 var(--font-sans);
   letter-spacing: normal;
   text-transform: none;
   vertical-align: middle;
 }
+.prompt-miskey-anchor .prompt-feedback {
+  position: absolute;
+  inset-block-start: calc(100% + 0.35em);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.prompt-recovery + .prompt-feedback { margin-inline-start: 0.75em; }
 
 /* --- home map --- */
 /* `overflow: hidden` because the opening settles the canvas from a hair

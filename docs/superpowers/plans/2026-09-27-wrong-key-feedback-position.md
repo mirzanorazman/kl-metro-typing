@@ -17,7 +17,7 @@
 - Modify: `src/render/Prompt.tsx`
 - Modify: `src/index.css`
 
-- [ ] **Step 1: Write the failing component regression test**
+- [x] **Step 1: Write the failing component regression test**
 
 Add a test that renders a mistyped prompt, finds the current character and status, and requires both to share the positioning anchor:
 
@@ -52,13 +52,13 @@ it('positions wrong-key feedback below its character anchor', () => {
 });
 ```
 
-- [ ] **Step 2: Run the focused test to verify it fails**
+- [x] **Step 2: Run the focused test to verify it fails**
 
 Run: `npm test -- src/render/Prompt.test.tsx`
 
 Expected: FAIL because `.prompt-miskey-anchor` and its positioning rules do not exist.
 
-- [ ] **Step 3: Add the current-character anchor in `Prompt`**
+- [x] **Step 3: Add the current-character anchor in `Prompt`**
 
 Change the character loop to return the following wrapper only for a mistyped normal prompt:
 
@@ -91,7 +91,7 @@ const content = [...state.target].map((ch, i) => {
 
 Leave the recovery-button status outside its button.
 
-- [ ] **Step 4: Position the status beneath the anchor in `src/index.css`**
+- [x] **Step 4: Position the status beneath the anchor in `src/index.css`**
 
 Replace the feedback's side margin with the anchor rules:
 
@@ -117,13 +117,13 @@ Replace the feedback's side margin with the anchor rules:
 }
 ```
 
-- [ ] **Step 5: Run the focused test to verify it passes**
+- [x] **Step 5: Run the focused test to verify it passes**
 
 Run: `npm test -- src/render/Prompt.test.tsx`
 
 Expected: PASS with all `Prompt` tests green.
 
-- [ ] **Step 6: Run the full automated verification**
+- [x] **Step 6: Run the full automated verification**
 
 Run: `npm test`
 
@@ -133,7 +133,7 @@ Run: `npm run build`
 
 Expected: TypeScript and Vite build exit successfully.
 
-- [ ] **Step 7: Verify the reported layout in a browser**
+- [x] **Step 7: Verify the reported layout in a browser**
 
 Start the Vite development server, open the game at the reported viewport, enter a wrong key on a station prompt, and confirm:
 
@@ -141,7 +141,7 @@ Start the Vite development server, open the game at the reported viewport, enter
 - The remaining station name does not move sideways.
 - The browser console contains no new errors.
 
-- [ ] **Step 8: Commit the implementation**
+- [x] **Step 8: Commit the implementation**
 
 ```bash
 git add src/render/Prompt.test.tsx src/render/Prompt.tsx src/index.css docs/superpowers/plans/2026-09-27-wrong-key-feedback-position.md
