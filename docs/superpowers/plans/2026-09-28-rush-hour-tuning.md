@@ -771,7 +771,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `newRushTips(prev: RushState, next: RushState, seen: ReadonlySet<string>): RushTipId[]` — moments between two states, in `RUSH_TIPS` order, minus `seen`. Never returns `'start'`.
   - `Profile.rushTipsSeen?: string[]`, `markRushTipSeen(profile: Profile, id: string): Profile`, `resetRushTips(profile: Profile): Profile`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `src/ui/rushTips.test.ts`:
 
@@ -852,12 +852,12 @@ describe('Rush Hour tips seen', () => {
 
 (Check how the existing theme tests in that file clear `localStorage` between tests and follow the same setup.)
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run src/ui/rushTips.test.ts src/engine/progress.test.ts`
 Expected: FAIL — `./rushTips` missing; `markRushTipSeen` not exported.
 
-- [ ] **Step 3: Implement the tips module**
+- [x] **Step 3: Implement the tips module**
 
 Create `src/ui/rushTips.ts`:
 
@@ -901,7 +901,7 @@ export function newRushTips(prev: RushState, next: RushState, seen: ReadonlySet<
 }
 ```
 
-- [ ] **Step 4: Add the Profile field and helpers**
+- [x] **Step 4: Add the Profile field and helpers**
 
 In `src/engine/progress.ts`, add to `Profile` after `integrityFails`:
 
@@ -935,12 +935,12 @@ export function resetRushTips(profile: Profile): Profile {
 }
 ```
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `npm test && npx tsc --noEmit`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/ui/rushTips.ts src/ui/rushTips.test.ts src/engine/progress.ts src/engine/progress.test.ts
