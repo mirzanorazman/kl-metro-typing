@@ -6,9 +6,9 @@
 (spec `docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`),
 executed subagent-driven. Ticked boxes in the plan = done and committed.
 
-- **Last done:** Task 1 (reviewed; last code commit `7ac4dfc`).
-- **Next:** Task 2 — new constants, planner typist, speed-rewards balance test.
-- **Open review notes:** Task 1 minors deferred to final review (see ledger).
+- **Last done:** Task 2 (reviewed; last code commit `f1b170b`).
+- **Next:** Task 3 — compact Junction rows with Walk keys.
+- **Open review notes:** Task 1–2 minors deferred to final review; balance leans noted in the Balance section below.
 
 To resume in a fresh session: "Read `docs/superpowers/rush-hour-handover.md`
 and continue the active plan subagent-driven." The controller's detailed
@@ -47,8 +47,23 @@ true only for an Overflow end at the recorded tick. Record keys with
 The user's playtest found Rush Hour confusing and not challenging. Root cause
 and the agreed fix (spawns centred on the train, 8-seat train, faster Day,
 arrival resets the ring, compact Junction rows, just-in-time tips) are in
-`docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`. Next step: an
-implementation plan for it, then merge.
+`docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`. Plan: `docs/superpowers/plans/2026-09-28-rush-hour-tuning.md`.
+
+Final survey after Task 2 (planner typist; constants unchanged from the spec):
+
+```
+median of 5 seeds — run s / delivered / first half-full Queue s; columns 40, 60, 90 WPM
+KJ        87s D1 28d c20        161s D2 81d c19       192s D2 140d c22
+MR        64s D1 12d c20        93s D1 33d c20        129s D2 75d c26
+KJ+AG+SP  146s D2 47d c28       190s D2 96d c25       240s D2 151d c35
+ALL       181s D2 31d c54       185s D2 53d c42       246s D2 96d c73
+greedy KJ 60 WPM: 50s 2d
+```
+
+Known leans left for playtesting (outside the plan's ±40% band, and
+predicted by the spec): KJ+AG+SP and all seven Lines lenient at 40 WPM, MR
+harsh at 90 WPM. Closing them likely needs Line-set-aware spawning, a logic
+change; decide after the user plays.
 
 ## Gotchas found
 

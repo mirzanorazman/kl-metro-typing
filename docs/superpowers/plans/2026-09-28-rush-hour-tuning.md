@@ -254,7 +254,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `DriveOptions.steer?: (s: RushState) => boolean` and `DriveOptions.watch?: (s: RushState) => void`.
   - `rushTypists.testutil.ts`: `greedyChoose(s: RushState): RushActionBody`, `plannerChoose(s: RushState): RushActionBody`, `plannerSteer(s: RushState): boolean`.
 
-- [ ] **Step 1: Update the tests that pin constants**
+- [x] **Step 1: Update the tests that pin constants**
 
 In `src/engine/rushHour.test.ts`, replace the body of `it('walks the day and escalates later Days', …)`:
 
@@ -284,7 +284,7 @@ Replace the FIFO test so the Queue is longer than the room left (it must not dep
   });
 ```
 
-- [ ] **Step 2: Add `steer` and `watch` to the driver**
+- [x] **Step 2: Add `steer` and `watch` to the driver**
 
 In `src/engine/rushDrive.testutil.ts`, add to `DriveOptions`:
 
@@ -308,7 +308,7 @@ In `drive`, add `let turnedAt = -1;` beside `let keys = 0;`. After `state = adva
 
 (`turnedAt` allows at most one turn between keys, so a typist cannot spin in place.)
 
-- [ ] **Step 3: Create the typists**
+- [x] **Step 3: Create the typists**
 
 Create `src/engine/rushTypists.testutil.ts`:
 
@@ -377,7 +377,7 @@ export function plannerSteer(s: RushState): boolean {
 }
 ```
 
-- [ ] **Step 4: Replace the balance test and the survey**
+- [x] **Step 4: Replace the balance test and the survey**
 
 Replace the whole of `src/engine/rushProbe.test.ts`:
 
@@ -457,12 +457,12 @@ describe('rush hour balance', () => {
 });
 ```
 
-- [ ] **Step 5: Run the new tests to verify they fail on the old constants**
+- [x] **Step 5: Run the new tests to verify they fail on the old constants**
 
 Run: `npx vitest run src/engine/rushProbe.test.ts src/engine/rushHour.test.ts`
 Expected: FAIL — the Day-phase test (old phases). The rewritten FIFO test is Capacity-independent and passes on both old and new values; the speed and crowding tests may already pass thanks to Task 1. That is fine: they guard the tuning in Step 9.
 
-- [ ] **Step 6: Set the new constants**
+- [x] **Step 6: Set the new constants**
 
 In `src/engine/rushBalance.ts`:
 
@@ -482,7 +482,7 @@ export const DAY_PHASES: readonly DayPhaseSpec[] = [
 
 Update the `CARRIAGE_CAPACITY` doc comment to "Passengers per carriage. v1 has one carriage of 8." Leave the other constants unchanged.
 
-- [ ] **Step 7: Show the real Capacity in the HUD**
+- [x] **Step 7: Show the real Capacity in the HUD**
 
 In `src/ui/RushHourScreen.tsx`, import `CARRIAGE_CAPACITY` alongside `OVERFLOW_MS` from `../engine/rushBalance` and change `<dd>{run.load.length}/4</dd>` to:
 
@@ -492,17 +492,17 @@ In `src/ui/RushHourScreen.tsx`, import `CARRIAGE_CAPACITY` alongside `OVERFLOW_M
 
 In `CONTEXT.md`, the **Capacity** entry: change "the train (4 per carriage)" to "the train (8 per carriage)".
 
-- [ ] **Step 8: Run everything**
+- [x] **Step 8: Run everything**
 
 Run: `npm test && npx tsc --noEmit`
 Expected: PASS. If `src/engine/rushReplay.test.ts` fails because the Run now ends before its `pauseAt: 30_000`, change that driver call to `pauseAt: 10_000, resumeAt: 20_000` and rerun. Do the same for any other test whose scripted Run now ends before the moment it scripts.
 
-- [ ] **Step 9: Tuning pass**
+- [x] **Step 9: Tuning pass**
 
 Run: `RUSH_PROBE=1 npx vitest run src/engine/rushProbe.test.ts`
 Compare against the spec's goal table (first half-full Queue under ~60 s; roughly 1.5 / 2.5 / 4 min at 40 / 60 / 90 WPM; Delivered rising with speed on every row). The spec's measured table is the expected ballpark. Adjust only constants in `rushBalance.ts`, one at a time, rerunning the survey and `npm test` each time. Stop when every row rises with speed and no Line set is far off the goal (within about ±40 %). Paste the final survey output into the handover under "Balance: decided after playtest".
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/engine src/ui/RushHourScreen.tsx CONTEXT.md docs/superpowers/rush-hour-handover.md
