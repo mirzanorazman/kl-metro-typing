@@ -52,6 +52,11 @@ export interface Profile {
    * server is built on the assumption it cannot happen.
    */
   integrityFails?: IntegrityFail[];
+  /**
+   * Rush Hour tips already shown, by id. Optional and additive, so older saves
+   * carry forward through migrate's spread, the path `theme` took.
+   */
+  rushTipsSeen?: string[];
   /** True when this profile replaced an unreadable saved record. */
   recovered?: boolean;
 }
@@ -104,6 +109,9 @@ function migrate(raw: unknown): Profile | null {
     quickBest: cleanQuickBest(rec.quickBest),
     quickBestOverall: cleanQuickBestOverall(rec.quickBestOverall),
     lastSelectedLine: isLineCode(rec.lastSelectedLine) ? rec.lastSelectedLine : undefined,
+    rushTipsSeen: Array.isArray(rec.rushTipsSeen)
+      ? rec.rushTipsSeen.filter((id): id is string => typeof id === 'string')
+      : undefined,
   };
 }
 
@@ -168,6 +176,16 @@ export function recordRushBest(profile: Profile, lineSetKey: string, delivered: 
   const best = typeof current === 'number' && Number.isFinite(current) && current >= 0 ? current : 0;
   if (!Number.isInteger(delivered) || delivered <= best) return profile;
   return { ...profile, rushHigh: { ...profile.rushHigh, [lineSetKey]: delivered } };
+}
+
+export function markRushTipSeen(profile: Profile, id: string): Profile {
+  const seen = profile.rushTipsSeen ?? [];
+  return seen.includes(id) ? profile : { ...profile, rushTipsSeen: [...seen, id] };
+}
+
+/** "How to play": every tip shows again on the next Run. */
+export function resetRushTips(profile: Profile): Profile {
+  return { ...profile, rushTipsSeen: [] };
 }
 
 export function saveSelectedLine(profile: Profile, line: LineCode): Profile {

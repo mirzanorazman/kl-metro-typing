@@ -8,6 +8,8 @@ import {
   recordQuickBestOverall,
   saveSelectedLine,
   recordIntegrityFail,
+  markRushTipSeen,
+  resetRushTips,
   INTEGRITY_FAIL_LIMIT,
   STORAGE_KEY,
   type Profile,
@@ -260,5 +262,26 @@ describe('recordIntegrityFail', () => {
     const loaded = loadProfile();
     expect(loaded.recovered).toBeUndefined();
     expect(loaded.integrityFails).toBeUndefined();
+  });
+});
+
+describe('Rush Hour tips seen', () => {
+  it('records each tip once and resets to none', () => {
+    let p = markRushTipSeen(emptyProfile(), 'junction');
+    p = markRushTipSeen(p, 'junction');
+    expect(p.rushTipsSeen).toEqual(['junction']);
+    expect(resetRushTips(p).rushTipsSeen).toEqual([]);
+  });
+
+  it('survives a save, and older saves load without it', () => {
+    saveProfile(markRushTipSeen(emptyProfile(), 'start'));
+    expect(loadProfile().rushTipsSeen).toEqual(['start']);
+    saveProfile(emptyProfile());
+    expect(loadProfile().rushTipsSeen).toBeUndefined();
+  });
+
+  it('drops junk from a stored list', () => {
+    saveProfile({ ...emptyProfile(), rushTipsSeen: ['walk', 7 as unknown as string] });
+    expect(loadProfile().rushTipsSeen).toEqual(['walk']);
   });
 });
