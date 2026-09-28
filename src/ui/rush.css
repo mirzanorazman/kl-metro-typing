@@ -47,8 +47,40 @@
   color: var(--ink-muted);
 }
 
-.junction-note {
+.rush-junction button {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.rush-junction-next {
+  flex: 1;
+}
+
+.rush-junction-off {
   font: var(--t-xs) var(--font-mono);
+}
+
+.rush-pips {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.rush-pips > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-muted);
+}
+
+.rush-pips > span[data-on='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.rush-pips[data-filling='true'] > span[data-on='true'] {
+  background: var(--error);
+  border-color: var(--error);
 }
 
 .rush-paused {

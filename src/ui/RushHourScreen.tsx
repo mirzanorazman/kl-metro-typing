@@ -9,7 +9,6 @@ import {
   RUSH_EVIDENCE_VERSION,
   advanceRush,
   applyRushAction,
-  deliverableAt,
   enterRushCharacter,
   rushDayPhase,
   rushLineSetKey,
@@ -24,10 +23,10 @@ import { networkLayout } from '../geo/networkLayout';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { RushQueues } from '../render/RushQueues';
-import { JunctionPicker } from './JunctionPicker';
 import { LineBadge } from './LineBadge';
 import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
+import { RushJunction } from './RushJunction';
 import { RushSummary } from './RushSummary';
 import { useGameInput } from './TypingInputProvider';
 import { useKeyboard } from './useKeyboard';
@@ -204,10 +203,6 @@ export function RushHourScreen({
 
   const onChoose = useCallback((dir: Direction) => act({ a: 'choose', line: dir.line, next: dir.next }), [act]);
   const onWalk = useCallback((to: string) => act({ a: 'walk', to }), [act]);
-  const deliveryNote = useCallback((dir: Direction) => {
-    const n = deliverableAt(net, currentRun.current, dir.next);
-    return n > 0 ? `delivers ${n}` : null;
-  }, [net]);
 
   if (phoneLandscape && run.status !== 'ended') return <PhoneLandscapeBlock fullScreen />;
 
@@ -301,14 +296,7 @@ export function RushHourScreen({
               </p>
             )}
             {run.stage === 'junction' && run.status !== 'paused' && (
-              <JunctionPicker
-                net={net}
-                options={run.options}
-                walk={run.walks}
-                onChoose={onChoose}
-                onWalk={onWalk}
-                note={deliveryNote}
-              />
+              <RushJunction net={net} run={run} onChoose={onChoose} onWalk={onWalk} />
             )}
 
             <p className="hint">

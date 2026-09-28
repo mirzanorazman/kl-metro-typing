@@ -3,7 +3,9 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { loadProfile } from '../engine/progress';
+import { enterRushCharacter, startRush, type RushState } from '../engine/rushHour';
 import { RushHourScreen } from './RushHourScreen';
+import { RushJunction } from './RushJunction';
 import { RushSetup } from './RushSetup';
 import { TypingInputProvider } from './TypingInputProvider';
 
@@ -80,5 +82,46 @@ describe('RushHourScreen', () => {
     expect(screen.getByRole('heading', { name: 'Run ended' })).toBeTruthy();
     expect(screen.getByText(/only a Run that ends in an Overflow can set a best/)).toBeTruthy();
     expect(loadProfile().rushHigh).toEqual({});
+  });
+});
+
+describe('RushJunction', () => {
+  /** A quiet KJ+KG Run standing at the KL Sentral Junction, which also offers a Walk. */
+  const atKlSentral = (): RushState => {
+    let s: RushState = { ...startRush(net, ['KJ', 'KG'], 'kl-sentral', 3), spawnDebt: -1e9 };
+    for (const ch of s.typing.target) s = enterRushCharacter(net, s, ch, 1_000);
+    return s;
+  };
+
+  it('shows one compact row per way, with Walks numbered after the rails', () => {
+    let run = atKlSentral();
+    const first = run.options[0]!;
+    run = {
+      ...run,
+      load: [{ id: 1, target: first.line }],
+      queues: { ...run.queues, [first.next]: { passengers: [{ id: 2, target: 'AG' }], overflowMs: 500 } },
+    };
+    const onChoose = vi.fn();
+    const onWalk = vi.fn();
+    render(
+      <TypingInputProvider enabled={false}>
+        <RushJunction net={net} run={run} onChoose={onChoose} onWalk={onWalk} />
+      </TypingInputProvider>,
+    );
+
+    const rows = screen.getAllByRole('button');
+    expect(rows).toHaveLength(run.options.length + 1);
+    expect(rows[0]!.textContent).toContain('↓1');
+    expect(screen.queryByText(/toward/)).toBeNull();
+    const pips = rows[0]!.querySelector('.rush-pips')!;
+    expect(pips.getAttribute('data-filling')).toBe('true');
+    expect(pips.getAttribute('aria-label')).toMatch(/^1 of \d+ waiting$/);
+
+    const walkKey = String(run.options.length + 1);
+    expect(rows[run.options.length]!.textContent).toContain(`${walkKey}🚶Walk to Muzium Negara`);
+    fireEvent.keyDown(window, { key: walkKey });
+    expect(onWalk).toHaveBeenCalledWith('muzium-negara');
+    fireEvent.keyDown(window, { key: '1' });
+    expect(onChoose).toHaveBeenCalledWith(first);
   });
 });
