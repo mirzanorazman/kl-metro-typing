@@ -135,9 +135,9 @@ Each tip shows once per profile, the first time its moment happens:
 | Id | Moment | Text |
 |---|---|---|
 | `start` | Run ready, before the first key | Type the station name to start. Passengers appear near your train. |
-| `board` | First arrival where anyone boards | Riders board automatically. The badge shows the line they want. |
-| `deliver` | First Delivered | Riders get off at any station on their line. |
-| `junction` | First Junction | Pick a way by its number. ↓ = riders getting off there, dots = people waiting. |
+| `board` | First arrival where anyone boards | Passengers board automatically. The badge shows the line they want. |
+| `deliver` | First Delivered | Passengers get off at any station on their line. |
+| `junction` | First Junction | Pick a way by its number. ↓ = passengers getting off there, dots = people waiting. |
 | `walk` | First Junction offering a Walk | Walk to switch lines. Typing locks for 5 s. |
 | `overflow` | First Overflow ring starts filling | A full station starts to overflow. Visit it to reset the ring — if it fills, the Run ends. |
 
