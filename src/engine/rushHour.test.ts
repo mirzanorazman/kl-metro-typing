@@ -6,6 +6,7 @@ import {
   CARRIAGE_CAPACITY,
   OVERFLOW_MS,
   QUEUE_CAPACITY,
+  SPAWN_FALLOFF_HOPS,
   TICK_MS,
   WALK_PENALTY_MS,
 } from './rushBalance';
@@ -17,10 +18,12 @@ import {
   enterRushCharacter,
   pauseRush,
   queueCapacity,
+  railHops,
   resumeRush,
   rushDayPhase,
   rushGeometry,
   rushMetrics,
+  rushSpawnWeights,
   startRush,
   turnRushAround,
   walkRush,
@@ -115,6 +118,41 @@ describe('rushGeometry', () => {
   });
 });
 
+describe('spawns centre on the train', () => {
+  it('counts rail hops over the Line set only', () => {
+    const hops = railHops(net, ['KJ'], 'gombak');
+    expect(hops.get('gombak')).toBe(0);
+    expect(hops.get('taman-melati')).toBe(1);
+    expect(hops.has('titiwangsa')).toBe(false);
+  });
+
+  it('weights a spawn Station by demand, falling off with hops from the train', () => {
+    const geo = rushGeometry(net, ['KJ']);
+    const hops = railHops(net, ['KJ'], 'gombak');
+    const weights = rushSpawnWeights(net, ['KJ'], 'gombak');
+    expect(weights).toHaveLength(geo.spawns.length);
+    geo.spawns.forEach((p, i) => {
+      expect(weights[i]).toBeCloseTo(p.weight * Math.exp(-hops.get(p.station)! / SPAWN_FALLOFF_HOPS));
+    });
+    const at = (id: string) => weights[geo.spawns.findIndex((p) => p.station === id)]!;
+    expect(at('taman-melati')).toBeGreaterThan(at('putra-heights'));
+  });
+
+  it('fills Queues near the train, not at the far end of the Line', () => {
+    const started = enterRushCharacter(net, startRush(net, ['KJ'], 'gombak', 11), 'g', 1_000);
+    const s = advanceRush(net, started, 1_000 + 60_000);
+    const hops = railHops(net, ['KJ'], 'gombak');
+    let near = 0;
+    let far = 0;
+    for (const [id, q] of Object.entries(s.queues)) {
+      const h = hops.get(id)!;
+      if (h <= 5) near += q.passengers.length;
+      else if (h >= 20) far += q.passengers.length;
+    }
+    expect(near).toBeGreaterThan(far);
+  });
+});
+
 describe('the sim', () => {
   const started = () => enterRushCharacter(net, startRush(net, ['KJ'], 'gombak', 11), 'g', 1_000);
 
@@ -189,6 +227,16 @@ describe('typing and movement', () => {
     expect(after.load.map((p) => p.id)).toEqual([2, 1000, 1001, 1002]);
     expect(after.load).toHaveLength(CARRIAGE_CAPACITY);
     expect(after.queues['gombak']!.passengers.map((p) => p.id)).toEqual([1003, 1004, 1005]);
+  });
+
+  it("arriving resets the Station's Overflow ring even when nobody can board", () => {
+    let s = begin(['KJ'], 'gombak');
+    s = { ...s, load: passengers(Array(CARRIAGE_CAPACITY).fill('AG'), 1) };
+    s = withQueue(s, 'gombak', Array(QUEUE_CAPACITY).fill('MR'));
+    s = { ...s, queues: { ...s.queues, gombak: { ...s.queues['gombak']!, overflowMs: 10_000 } } };
+    const [after] = typeStation(s, 1_000);
+    expect(after.queues['gombak']!.passengers).toHaveLength(QUEUE_CAPACITY);
+    expect(after.queues['gombak']!.overflowMs).toBe(0);
   });
 
   it('rolls on when only one Direction exists', () => {

@@ -19,6 +19,7 @@ import {
   OVERFLOW_DRAIN_FACTOR,
   OVERFLOW_MS,
   QUEUE_CAPACITY,
+  SPAWN_FALLOFF_HOPS,
   TICK_MS,
   WALK_PENALTY_MS,
   type DayPhaseName,
@@ -129,6 +130,49 @@ export function rushGeometry(net: NetworkIndex, lineSet: readonly LineCode[]): R
   return geometry;
 }
 
+const hopsCache = new WeakMap<NetworkIndex, Map<string, ReadonlyMap<string, number>>>();
+
+/** Rail hops over the Line set from `from` to every Station it reaches. Walk links excluded. */
+export function railHops(
+  net: NetworkIndex,
+  lineSet: readonly LineCode[],
+  from: string,
+): ReadonlyMap<string, number> {
+  const key = `${rushLineSetKey(lineSet)}|${from}`;
+  let perNet = hopsCache.get(net);
+  if (!perNet) hopsCache.set(net, (perNet = new Map()));
+  const cached = perNet.get(key);
+  if (cached) return cached;
+
+  const dist = new Map<string, number>([[from, 0]]);
+  const queue = [from];
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    for (const d of onwardOptions(net, cur, null)) {
+      if (!lineSet.includes(d.line) || dist.has(d.next)) continue;
+      dist.set(d.next, dist.get(cur)! + 1);
+      queue.push(d.next);
+    }
+  }
+  perNet.set(key, dist);
+  return dist;
+}
+
+/**
+ * Each spawn Station's weight with the train at `at`, in `rushGeometry` spawn
+ * order. Stations the train cannot reach by rail weigh 0; if none can be
+ * reached the weights fall back to plain `demand`.
+ */
+export function rushSpawnWeights(net: NetworkIndex, lineSet: readonly LineCode[], at: string): number[] {
+  const { spawns } = rushGeometry(net, lineSet);
+  const hops = railHops(net, lineSet, at);
+  const weights = spawns.map((p) => {
+    const h = hops.get(p.station);
+    return h === undefined ? 0 : p.weight * Math.exp(-h / SPAWN_FALLOFF_HOPS);
+  });
+  return weights.some((w) => w > 0) ? weights : spawns.map((p) => p.weight);
+}
+
 export function queueCapacity(net: NetworkIndex, id: string): number {
   const station = stationAt(net, id);
   return station && linesOf(station).length > 1 ? INTERCHANGE_QUEUE_CAPACITY : QUEUE_CAPACITY;
@@ -216,13 +260,13 @@ export function startRush(
   };
 }
 
-function pickWeighted<T extends { weight: number }>(items: readonly T[], total: number, r: number): T {
-  let x = r * total;
-  for (const item of items) {
-    if (x < item.weight) return item;
-    x -= item.weight;
+function pickIndex(weights: readonly number[], r: number): number {
+  let x = r * weights.reduce((n, w) => n + w, 0);
+  for (let i = 0; i < weights.length; i++) {
+    if (x < weights[i]!) return i;
+    x -= weights[i]!;
   }
-  return items[items.length - 1]!;
+  return weights.length - 1;
 }
 
 /** One fixed step of game time. Mutates a private copy made by the caller. */
@@ -244,7 +288,7 @@ function tick(net: NetworkIndex, s: RushState, geo: RushGeometry): void {
       s.spawnDebt -= 1;
       let r: number;
       [r, s.rng] = nextRandom(s.rng);
-      const point = pickWeighted(geo.spawns, geo.totalWeight, r);
+      const point = geo.spawns[pickIndex(rushSpawnWeights(net, s.lineSet, s.at), r)]!;
       [r, s.rng] = nextRandom(s.rng);
       const target = point.targets[Math.min(point.targets.length - 1, Math.floor(r * point.targets.length))]!;
       const queue = s.queues[point.station]!;
@@ -337,7 +381,10 @@ function arrive(net: NetworkIndex, state: RushState): RushState {
     ...state,
     load: [...staying, ...boarding],
     delivered,
-    queues: { ...state.queues, [at]: { ...queue, passengers: queue.passengers.slice(boarding.length) } },
+    queues: {
+      ...state.queues,
+      [at]: { passengers: queue.passengers.slice(boarding.length), overflowMs: 0 },
+    },
     visited: state.visited.includes(at) ? state.visited : [...state.visited, at],
   };
 

@@ -27,6 +27,13 @@ export const WALK_PENALTY_MS = 5_000;
  */
 export const BASE_SPAWN_PER_SECOND = 0.3;
 
+/**
+ * A spawn Station's weight is `demand × e^(−hops / SPAWN_FALLOFF_HOPS)`, hops
+ * counted by rail from the train. Crowding happens where the player can reach
+ * it, so typing speed, not a distant Station's luck, decides the Run.
+ */
+export const SPAWN_FALLOFF_HOPS = 3;
+
 export type DayPhaseName = 'Off-Peak' | 'Morning Peak' | 'Midday' | 'Evening Peak' | 'Late Night';
 
 export interface DayPhaseSpec {
