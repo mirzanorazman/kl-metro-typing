@@ -7,7 +7,7 @@ read only the section the next task needs. Branch `feat/rush-hour`.
 
 ## Current position
 
-All 12 tasks done. Remaining: the user's balance decision (below), then merge `feat/rush-hour`. Browser check used a CDP script driving headless Chrome (no Puppeteer in repo): `ws` from node_modules, Input.dispatchKeyEvent, Page.captureScreenshot.
+All 12 tasks done. Remaining: the tuning amendment (below), then merge `feat/rush-hour`. Browser check used a CDP script driving headless Chrome (no Puppeteer in repo): `ws` from node_modules, Input.dispatchKeyEvent, Page.captureScreenshot.
 
 Engine API (all pure, in `src/engine/rushHour.ts`): `startRush`, `advanceRush`,
 `enterRushCharacter`, `applyRushAction` (choose/turn/walk/pause/resume/abandon —
@@ -27,16 +27,13 @@ true only for an Overflow end at the recorded tick. Record keys with
 - Spawning is deterministic in *timing* (fractional spawn debt accrues per
   tick); only the Station and target are random.
 
-## OPEN: balance finding for the user
+## Balance: decided after playtest
 
-A scripted typist (greedy one-step Direction choice, never turns around) shows
-survival on long Lines (KJ) and on all seven Lines barely depends on typing
-speed: the one-carriage train (Capacity 4) fills with riders deliverable only at
-a few central Interchanges, stops boarding, and a far Queue overflows at roughly
-the same time regardless of WPM. On MR (short, interchange-dense) speed matters
-a lot. Capacity 8 helps modestly. Rerun: `RUSH_PROBE=1 npx vitest run
-src/engine/rushProbe.test.ts`. Needs a user decision (e.g. passengers who give
-up, larger capacity, spawn weighting toward reachable targets).
+The user's playtest found Rush Hour confusing and not challenging. Root cause
+and the agreed fix (spawns centred on the train, 8-seat train, faster Day,
+arrival resets the ring, compact Junction rows, just-in-time tips) are in
+`docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`. Next step: an
+implementation plan for it, then merge.
 
 ## Gotchas found
 
