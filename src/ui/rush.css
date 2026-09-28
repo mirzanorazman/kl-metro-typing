@@ -1,3 +1,8 @@
+.rush-hour {
+  height: 100%;
+  overflow: hidden;
+}
+
 .rush-day {
   display: flex;
   align-items: center;
@@ -57,13 +62,21 @@
   z-index: 10;
 }
 
-.rush-count {
+.rush-count rect {
+  fill: var(--panel);
+  stroke: var(--ink-muted);
+  stroke-width: 1px;
+  vector-effect: non-scaling-stroke;
+}
+
+.rush-count text {
   font-family: var(--font-mono);
+  font-weight: 600;
   fill: var(--ink);
-  paint-order: stroke;
-  stroke: var(--paper);
-  stroke-width: 3px;
-  stroke-linejoin: round;
+}
+
+[data-full='true'] .rush-count rect {
+  stroke: var(--error);
 }
 
 .rush-chip text {

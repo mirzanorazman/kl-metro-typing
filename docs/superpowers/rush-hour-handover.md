@@ -7,7 +7,7 @@ read only the section the next task needs. Branch `feat/rush-hour`.
 
 ## Current position
 
-Next task: **12. Browser check + docs**. UI: `ui/RushSetup.tsx`, `ui/RushHourScreen.tsx`, `ui/RushSummary.tsx`, `render/RushQueues.tsx`, `ui/rush.css`; `MapCanvas` gained `emphasisSet` and `overlay`.
+All 12 tasks done. Remaining: the user's balance decision (below), then merge `feat/rush-hour`. Browser check used a CDP script driving headless Chrome (no Puppeteer in repo): `ws` from node_modules, Input.dispatchKeyEvent, Page.captureScreenshot.
 
 Engine API (all pure, in `src/engine/rushHour.ts`): `startRush`, `advanceRush`,
 `enterRushCharacter`, `applyRushAction` (choose/turn/walk/pause/resume/abandon —

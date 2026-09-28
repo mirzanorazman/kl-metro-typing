@@ -35,8 +35,9 @@ export function RushQueues({ net, layout, markScale: m, queues }: RushQueuesProp
         const fill = Math.min(1, queue.overflowMs / OVERFLOW_MS);
         const chipH = 10 * m;
         const chipW = 26 * m;
-        const x0 = p.x + 10 * m;
-        const y0 = p.y - 16 * m;
+        const countW = 22 * m;
+        const x0 = p.x + 12 * m;
+        const y0 = p.y - chipH / 2;
 
         return (
           <g key={id} data-station={id} data-full={full ? 'true' : undefined}>
@@ -56,12 +57,15 @@ export function RushQueues({ net, layout, markScale: m, queues }: RushQueuesProp
                 />
               </>
             )}
-            <text className="rush-count" x={x0} y={y0 - 2 * m} fontSize={8 * m}>
-              {queue.passengers.length}/{capacity}
-            </text>
+            <g className="rush-count">
+              <rect x={x0} y={y0} width={countW} height={chipH} rx={2 * m} />
+              <text x={x0 + countW / 2} y={y0 + chipH * 0.75} fontSize={7 * m} textAnchor="middle">
+                {queue.passengers.length}/{capacity}
+              </text>
+            </g>
             {groupByTarget(queue).map(({ line, count }, i) => {
               const colour = net.lines.get(line)?.colour ?? '#888';
-              const x = x0 + i * (chipW + 2 * m);
+              const x = x0 + countW + 2 * m + i * (chipW + 2 * m);
               return (
                 <g key={line} className="rush-chip">
                   <rect x={x} y={y0} width={chipW} height={chipH} rx={2 * m} fill={colour} />

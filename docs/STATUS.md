@@ -1,6 +1,6 @@
 # KL-Metro Typing — status and handoff
 
-**Last updated:** 2026-09-23
+**Last updated:** 2026-09-28
 
 A typing game on the Kuala Lumpur Rapid KL rail network. Type station names to
 drive a train across the Klang Valley.
@@ -21,7 +21,7 @@ npm test
 
 ## What exists
 
-Three playable modes share the network and typing foundations.
+Four playable modes share the network and typing foundations.
 
 **Line Run** — the main entry point. Pick a line off the map (click, or type its
 two-letter code), choose which terminus to start from, and type the line end to
@@ -59,6 +59,19 @@ Adventure. Tablet and desktop landscape are not blocked solely by orientation.
 iPad Mini-sized landscape renders the desktop/tablet play layout without being
 blocked, including at a reduced-height browser viewport. A real iPad Mini check
 with its software keyboard open remains a separate compatibility follow-up.
+
+**Rush Hour** — survival, desktop and tablet (v1, on branch `feat/rush-hour`).
+Choose a Line set and a starting Station from the Rush Hour button on the home
+map. Passengers spawn in Queues and want a Line, not a Station; the one-carriage
+train (Capacity 4) delivers them at any Station serving it. A full Queue fills
+an Overflow ring; one full ring ends the Run. A Day cycles through five Day
+phases, each Day busier. The sim is a pure fixed-tick engine
+(`engine/rushHour.ts`, tuning in `engine/rushBalance.ts`) with a seeded RNG, so
+a Run replays exactly from its Keylog plus action log; only an Overflow-ended,
+Eligible Run updates `rushHigh`. Upgrades are deferred to a second plan. Spec:
+`docs/superpowers/specs/2026-09-28-rush-hour-design.md`. **Open:** the balance
+finding in `docs/superpowers/rush-hour-handover.md` — on long Lines, survival
+barely depends on typing speed.
 
 **Local leaderboard** — Line Run only. Completing a line end to end offers a
 name entry if the run's score would place in the top 20 overall or the top 20
@@ -164,6 +177,10 @@ Nothing here is blocking, but all of it is real.
 - **Three same-name station pairs** (Ampang Park, Bukit Bintang, Bandar Utama)
   are physically two stations joined by a walkway but collapse into one record,
   so they draw as a single dot and transfer is free.
+- **Station `arrive` animation scales in user units.** The keyframes animate
+  `r` from 8 to 14 absolute units, so at follow-camera zoom the new Station
+  balloons into a large disc for 250 ms. Seen in Rush Hour screenshots; the
+  same CSS drives every mode.
 - **One unexplained behaviour**: the map's framing effect did not apply its focus
   target on mount (StrictMode double-invoke is the likely cause). Worked around
   by seeding `usePanZoom`'s initial state from the same computed target, which is
@@ -221,8 +238,10 @@ Redeploying a previous build needs no migration and will not wipe anyone's
 leaderboard or profile. Keep it that way: the moment a schema version moves,
 this paragraph stops being true.
 
-**Rush Hour** — the survival mode from the original spec, and the only major
-piece never built. Passengers accumulate at stations; your typing speed is the
+**Rush Hour v2** — upgrades, phone support, and the balance decision above.
+v1 is built; the text below is the original framing.
+
+**Rush Hour (original framing)** — the survival mode from the original spec. Passengers accumulate at stations; your typing speed is the
 train's throughput; one overcrowded station ends the run. It is fully specified
 in `docs/superpowers/specs/2026-09-03-myrapid-typing-design.md` and was always
 intended as its own plan. The redesign it needs to sit on is now done.
@@ -289,6 +308,9 @@ simply synchronous while the behaviour was animated.
 | `docs/superpowers/2026-09-11-run-integrity-execution-record.md` | **What actually happened** building run integrity: rulings made on the user's behalf, where the code diverges from the spec, and the four defects a green test suite could not catch. |
 | `docs/superpowers/specs/2026-09-23-quick-run-poc-adjustments-design.md` | Revised 30-second, multi-Line Quick Run design and phone-landscape policy. |
 | `docs/superpowers/plans/2026-09-23-quick-run-poc-adjustments.md` | Implementation plan and remaining browser/device verification gate. |
+| `docs/superpowers/specs/2026-09-28-rush-hour-design.md` | Rush Hour v1 design, agreed in a grilling session. |
+| `docs/superpowers/plans/2026-09-28-rush-hour.md` | Rush Hour v1 plan, 12 tasks. |
+| `docs/superpowers/rush-hour-handover.md` | Rush Hour rulings, gotchas, and the open balance finding. |
 
 Early work after Plan 2 was driven by direct feedback rather than a plan: the
 train being positioned by typing progress, error feedback, synthesised sound,
