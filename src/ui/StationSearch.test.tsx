@@ -62,4 +62,21 @@ describe('StationSearch suggestion', () => {
     fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search stations' }), { key: 'Enter' });
     expect(onPick).not.toHaveBeenCalled();
   });
+
+  it('marks the suggested row so it stands out', () => {
+    render(<StationSearch net={net} onPick={() => {}} suggested="masjid-jamek" />);
+    expect(screen.getByRole('button', { name: /Masjid Jamek/ }).getAttribute('data-suggested')).toBe(
+      'true',
+    );
+  });
+
+  it('never marks a row as suggested when no suggestion is passed', () => {
+    render(<StationSearch net={net} onPick={() => {}} />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Search stations' }), {
+      target: { value: 'masjid' },
+    });
+    for (const button of screen.getAllByRole('button')) {
+      expect(button.getAttribute('data-suggested')).toBeNull();
+    }
+  });
 });

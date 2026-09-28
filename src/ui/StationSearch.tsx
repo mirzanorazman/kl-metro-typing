@@ -77,7 +77,13 @@ export function StationSearch({
       <ul>
         {results.map((s) => (
           <li key={s.id}>
-            <button type="button" onClick={() => pick(s.id)}>
+            <button
+              type="button"
+              data-suggested={
+                query.trim() === '' && suggested !== undefined && s.id === suggested ? 'true' : undefined
+              }
+              onClick={() => pick(s.id)}
+            >
               {s.name} <span className="codes">{linesOf(s).join(' · ')}</span>
             </button>
           </li>
