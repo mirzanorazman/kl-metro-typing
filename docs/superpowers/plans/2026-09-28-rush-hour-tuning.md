@@ -1342,7 +1342,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Modify: `docs/superpowers/rush-hour-handover.md`
 - Modify: this plan (tick boxes)
 
-- [ ] **Step 1: Browser check**
+- [x] **Step 1: Browser check**
 
 Follow the handover's method (a CDP script driving headless Chrome with `ws` from `node_modules`, `Input.dispatchKeyEvent`, `Page.captureScreenshot`; write the script in the scratchpad, not the repo). With `npm run dev` running and a clean `localStorage`:
 1. Rush Hour setup: headings "1 · Lines" and "2 · Start station", the suggested start and its hint, the How to play button.
@@ -1352,13 +1352,13 @@ Follow the handover's method (a CDP script driving headless Chrome with `ws` fro
 5. Play on for 60 s: Queues crowd near the train within the first minute, and a ring turns the pips red.
 Screenshot each; look at them. Fix anything broken, with a test where the break is testable.
 
-- [ ] **Step 2: Update docs**
+- [x] **Step 2: Update docs**
 
 - `docs/STATUS.md`: in the Rush Hour entry, replace the **Open:** balance sentence with one line naming the tuning spec (`docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`): spawns centre on the train, 8-seat train, 125 s Day, compact Junction rows, one-time tips. In the "Rush Hour v2" line, drop "and the balance decision above".
 - `docs/superpowers/rush-hour-handover.md`: "Current position" says the tuning plan is done and the branch is ready to finish; keep the final survey table from Task 2.
 - Tick every box in this plan.
 
-- [ ] **Step 3: Full verification and commit**
+- [x] **Step 3: Full verification and commit**
 
 Run: `npm test && npm run build`
 Expected: all tests pass; build succeeds.

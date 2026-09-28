@@ -6,9 +6,9 @@
 (spec `docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`),
 executed subagent-driven. Ticked boxes in the plan = done and committed.
 
-- **Last done:** Task 6 (reviewed; last code commit `c45a4c8`).
-- **Next:** Task 7 — browser check and docs, then final whole-branch review.
-- **Open review notes:** Task 1–6 minors deferred to final review (Task 5's Enter double-dismiss likely worth fixing); balance leans noted in the Balance section below.
+- **Last done:** Task 7 (reviewed; last code commit `b21bab7`).
+- **Next:** Final whole-branch review, then finishing the branch (merge/PR decision is the user's).
+- **Open review notes:** Deferred minors from Tasks 1–6 go to the final review for triage (see ledger).
 
 To resume in a fresh session: "Read `docs/superpowers/rush-hour-handover.md`
 and continue the active plan subagent-driven." The controller's detailed
