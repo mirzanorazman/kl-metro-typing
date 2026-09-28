@@ -67,8 +67,9 @@ export function appendKey(
   key: string,
   source: KeySource,
   now: number,
+  maxEvents: number = KEYLOG_MAX_EVENTS,
 ): KeyLog {
-  if (log.events.length >= KEYLOG_MAX_EVENTS) {
+  if (log.events.length >= maxEvents) {
     return log.truncated ? log : { ...log, truncated: true };
   }
 

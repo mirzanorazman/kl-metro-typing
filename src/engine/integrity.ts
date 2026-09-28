@@ -58,7 +58,11 @@ function coefficientOfVariation(values: number[]): number {
  * Checks run cheapest-and-most-certain first, so the reported Reason is the
  * most defensible one available.
  */
-export function verifyKeyLog(log: KeyLog, replayedWpm: number): Verdict {
+export function verifyKeyLog(
+  log: KeyLog,
+  replayedWpm: number,
+  maxEvents: number = KEYLOG_MAX_EVENTS,
+): Verdict {
   const t = INTEGRITY_THRESHOLDS;
 
   // Guard against structurally malformed input: null/undefined log or events.
@@ -67,7 +71,7 @@ export function verifyKeyLog(log: KeyLog, replayedWpm: number): Verdict {
   if (!Number.isFinite(replayedWpm)) return fail('malformed-log');
 
   if (log.v !== KEYLOG_VERSION) return fail('malformed-log');
-  if (log.events.length > KEYLOG_MAX_EVENTS) return fail('malformed-log');
+  if (log.events.length > maxEvents) return fail('malformed-log');
   // A capped log's length is exactly KEYLOG_MAX_EVENTS, indistinguishable
   // from an honest one by length alone — this flag is what appendKey leaves
   // behind so a truncated Run is refused rather than judged on a partial log.

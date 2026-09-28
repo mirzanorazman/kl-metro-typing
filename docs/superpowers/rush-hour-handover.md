@@ -7,7 +7,7 @@ read only the section the next task needs. Branch `feat/rush-hour`.
 
 ## Current position
 
-Next task: **2. Seeded RNG + balance**.
+Next task: **6. Keylog cap + action log + Replay**. Engine API is in `src/engine/rushHour.ts` (tasks 3–5 done together)..
 
 ## Rulings made during implementation (not in the spec)
 

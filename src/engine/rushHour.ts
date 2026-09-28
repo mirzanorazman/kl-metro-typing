@@ -418,3 +418,48 @@ export function rushMetrics(state: RushState, now: number): Metrics {
   const gameMs = state.status === 'running' ? Math.max(state.gameMs, gameTimeAt(state, now)) : state.gameMs;
   return computeMetrics(state.correctChars, state.keystrokes, gameMs - state.walkLockedMs);
 }
+
+// ---------------------------------------------------------------------------
+// Actions: every non-key input, logged beside the Keylog so Replay can
+// reproduce the Run. `i` is how many Keylog events preceded the action, which
+// orders it against keys even when both land on the same millisecond.
+
+export const RUSH_EVIDENCE_VERSION = 1;
+
+export type RushActionBody =
+  | { a: 'choose'; line: LineCode; next: string }
+  | { a: 'turn' }
+  | { a: 'walk'; to: string }
+  | { a: 'pause' }
+  | { a: 'resume' }
+  | { a: 'abandon' };
+
+export type RushAction = RushActionBody & { i: number; t: number };
+
+/**
+ * Applies one action. Returns the state unchanged when the action is not
+ * allowed now, so callers log an action only when the state actually moved.
+ */
+export function applyRushAction(
+  net: NetworkIndex,
+  state: RushState,
+  action: RushActionBody,
+  now: number,
+): RushState {
+  switch (action.a) {
+    case 'choose': {
+      const dir = state.options.find((o) => o.line === action.line && o.next === action.next);
+      return dir ? chooseRushDirection(net, state, dir, now) : state;
+    }
+    case 'turn':
+      return turnRushAround(net, state, now);
+    case 'walk':
+      return walkRush(net, state, action.to, now);
+    case 'pause':
+      return pauseRush(net, state, now);
+    case 'resume':
+      return resumeRush(state, now);
+    case 'abandon':
+      return abandonRush(net, state, now);
+  }
+}
