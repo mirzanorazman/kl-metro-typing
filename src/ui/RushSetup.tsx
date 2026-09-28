@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { LINE_CODES, type LineCode, type Station } from '../data/types';
 import { networkLayout } from '../geo/networkLayout';
-import { linesOf, type NetworkIndex } from '../engine/network';
-import { loadProfile } from '../engine/progress';
-import { rushLineSetKey } from '../engine/rushHour';
+import { linesOf, stationAt, type NetworkIndex } from '../engine/network';
+import { loadProfile, resetRushTips, saveProfile } from '../engine/progress';
+import { rushLineSetKey, rushSuggestedStart } from '../engine/rushHour';
 import { sound } from '../audio/sound';
 import { MapCanvas } from '../render/MapCanvas';
 import { LineBadge } from './LineBadge';
@@ -22,6 +22,7 @@ export function RushSetup({ net, onStart, onBack }: RushSetupProps) {
   const lines = useMemo(() => [...net.lines.values()], [net]);
   const [chosen, setChosen] = useState<LineCode[]>([]);
   const [picking, setPicking] = useState(false);
+  const [tipsReset, setTipsReset] = useState(false);
   const bests = useMemo(() => loadProfile().rushHigh ?? {}, []);
 
   const toggle = useCallback((code: LineCode) => {
@@ -62,6 +63,7 @@ export function RushSetup({ net, onStart, onBack }: RushSetupProps) {
   );
   const key = chosen.length > 0 ? rushLineSetKey(chosen) : null;
   const best = key ? bests[key] : undefined;
+  const suggested = chosen.length > 0 ? rushSuggestedStart(net, chosen) : null;
 
   return (
     <div className="home-map rush-setup">
@@ -85,7 +87,7 @@ export function RushSetup({ net, onStart, onBack }: RushSetupProps) {
         <div className="line-picker" role="group" aria-label="Choose a Line set">
           {!picking ? (
             <>
-              <h2>Which lines?</h2>
+              <h2>1 · Lines</h2>
               <div className="line-list">
                 {lines.map((line, i) => (
                   <button
@@ -114,7 +116,7 @@ export function RushSetup({ net, onStart, onBack }: RushSetupProps) {
           ) : (
             <>
               <h2>
-                Start where?{' '}
+                2 · Start station{' '}
                 {[...chosen].sort().map((c) => (
                   <LineBadge key={c} code={c} colour={net.lines.get(c)!.colour} />
                 ))}
@@ -123,14 +125,30 @@ export function RushSetup({ net, onStart, onBack }: RushSetupProps) {
                 net={net}
                 filter={onSet}
                 placeholder="Starting station on your lines"
+                suggested={suggested ?? undefined}
                 onPick={(id) => onStart([...chosen].sort(), id)}
               />
+              {suggested && (
+                <p className="hint">
+                  <kbd>Enter</kbd> starts at {stationAt(net, suggested)?.name}, or search for another station.
+                </p>
+              )}
               <button type="button" onClick={() => setPicking(false)}>
                 <span>Change lines</span>
               </button>
             </>
           )}
           {key && <p className="rush-best">Best for {key.replace(/\+/g, ' + ')}: {best ?? 0} delivered</p>}
+          <button
+            type="button"
+            onClick={() => {
+              saveProfile(resetRushTips(loadProfile()));
+              setTipsReset(true);
+            }}
+          >
+            <span>How to play</span>
+          </button>
+          {tipsReset && <p className="hint" role="status">Tips will show on your next Run.</p>}
           <button type="button" onClick={onBack}>
             <kbd>Esc</kbd>
             <span>Back to map</span>

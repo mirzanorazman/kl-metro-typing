@@ -46,3 +46,20 @@ describe('StationSearch', () => {
     expect(select).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('StationSearch suggestion', () => {
+  it('lists the suggested Station while the search is empty, and Enter picks it', () => {
+    const onPick = vi.fn();
+    render(<StationSearch net={net} onPick={onPick} suggested="masjid-jamek" />);
+    expect(screen.getByRole('button', { name: /Masjid Jamek/ })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search stations' }), { key: 'Enter' });
+    expect(onPick).toHaveBeenCalledWith('masjid-jamek');
+  });
+
+  it('does nothing on Enter without a suggestion', () => {
+    const onPick = vi.fn();
+    render(<StationSearch net={net} onPick={onPick} />);
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search stations' }), { key: 'Enter' });
+    expect(onPick).not.toHaveBeenCalled();
+  });
+});

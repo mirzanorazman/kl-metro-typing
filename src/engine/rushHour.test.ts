@@ -24,6 +24,7 @@ import {
   rushGeometry,
   rushMetrics,
   rushSpawnWeights,
+  rushSuggestedStart,
   startRush,
   turnRushAround,
   walkRush,
@@ -115,6 +116,20 @@ describe('rushGeometry', () => {
   it('gives Interchanges the larger Queue Capacity', () => {
     expect(queueCapacity(net, 'gombak')).toBe(QUEUE_CAPACITY);
     expect(queueCapacity(net, 'masjid-jamek')).toBeGreaterThan(QUEUE_CAPACITY);
+  });
+
+  it('suggests the busiest Interchange on the Line set as the start', () => {
+    for (const lineSet of [['KJ'], ['MR'], ['KJ', 'AG', 'SP']] as LineCode[][]) {
+      const id = rushSuggestedStart(net, lineSet);
+      const pick = stationAt(net, id)!;
+      expect(rushGeometry(net, lineSet).stations).toContain(id);
+      expect(linesOf(pick).length).toBeGreaterThan(1);
+      const busiest = Math.max(...rushGeometry(net, lineSet).stations
+        .map((s) => stationAt(net, s)!)
+        .filter((s) => linesOf(s).length > 1)
+        .map((s) => s.demand));
+      expect(pick.demand).toBe(busiest);
+    }
   });
 });
 

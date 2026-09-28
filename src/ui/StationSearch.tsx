@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Station } from '../data/types';
-import { linesOf, type NetworkIndex } from '../engine/network';
+import { linesOf, stationAt, type NetworkIndex } from '../engine/network';
 import { sound } from '../audio/sound';
 
 const MAX_RESULTS = 8;
@@ -37,15 +37,27 @@ export function StationSearch({
   onPick,
   filter,
   placeholder = 'Start from which station?',
+  suggested,
 }: {
   net: NetworkIndex;
   onPick: (id: string) => void;
   /** Restricts results, e.g. to a Rush Hour Line set. */
   filter?: (station: Station) => boolean;
   placeholder?: string;
+  /** Listed while the search is empty; Enter picks the top result. Rush Hour's start step. */
+  suggested?: string;
 }) {
   const [query, setQuery] = useState('');
-  const results = useMemo(() => searchStations(net, query, filter), [net, query, filter]);
+  const results = useMemo(() => {
+    const found = searchStations(net, query, filter);
+    if (found.length > 0 || query.trim() !== '' || suggested === undefined) return found;
+    const s = stationAt(net, suggested);
+    return s ? [s] : [];
+  }, [net, query, filter, suggested]);
+  const pick = (id: string) => {
+    sound.select();
+    onPick(id);
+  };
 
   return (
     <div className="station-search">
@@ -56,17 +68,16 @@ export function StationSearch({
         placeholder={placeholder}
         aria-label="Search stations"
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' || suggested === undefined || !results[0]) return;
+          e.preventDefault();
+          pick(results[0].id);
+        }}
       />
       <ul>
         {results.map((s) => (
           <li key={s.id}>
-            <button
-              type="button"
-              onClick={() => {
-                sound.select();
-                onPick(s.id);
-              }}
-            >
+            <button type="button" onClick={() => pick(s.id)}>
               {s.name} <span className="codes">{linesOf(s).join(' · ')}</span>
             </button>
           </li>

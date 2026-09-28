@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
-import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
-import { enterRushCharacter, startRush, type RushState } from '../engine/rushHour';
+import { emptyProfile, loadProfile, markRushTipSeen, saveProfile } from '../engine/progress';
+import { enterRushCharacter, rushSuggestedStart, startRush, type RushState } from '../engine/rushHour';
 import { RushHourScreen } from './RushHourScreen';
 import { RushJunction } from './RushJunction';
 import { RushSetup } from './RushSetup';
@@ -52,6 +52,25 @@ describe('RushSetup', () => {
     fireEvent.change(search, { target: { value: 'hang tuah' } });
     fireEvent.click(screen.getByRole('button', { name: /Hang Tuah/ }));
     expect(onStart).toHaveBeenCalledWith(['MR'], 'hang-tuah');
+  });
+
+  it('labels the steps and starts at the suggested Station on Enter', () => {
+    const onStart = vi.fn();
+    render(<RushSetup net={net} onStart={onStart} onBack={() => {}} />);
+    expect(screen.getByRole('heading', { name: '1 · Lines' })).toBeTruthy();
+    type('MR');
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(screen.getByRole('heading', { name: /2 · Start station/ })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search stations' }), { key: 'Enter' });
+    expect(onStart).toHaveBeenCalledWith(['MR'], rushSuggestedStart(net, ['MR']));
+  });
+
+  it('How to play brings the tips back', () => {
+    saveProfile(markRushTipSeen(emptyProfile(), 'junction'));
+    render(<RushSetup net={net} onStart={() => {}} onBack={() => {}} />);
+    fireEvent.click(screen.getByRole('button', { name: /How to play/ }));
+    expect(loadProfile().rushTipsSeen).toEqual([]);
+    expect(screen.getByText(/Tips will show on your next Run/)).toBeTruthy();
   });
 });
 
