@@ -7,7 +7,7 @@ read only the section the next task needs. Branch `feat/rush-hour`.
 
 ## Current position
 
-Next task: **8. Progress** (`rushLineSetKey` already exists in `engine/rushHour.ts`).
+Next task: **9. Setup UI**. Eligibility gate is `judgeRushRun` in `engine/rushJudge.ts`; `recordRushBest` in progress.
 
 Engine API (all pure, in `src/engine/rushHour.ts`): `startRush`, `advanceRush`,
 `enterRushCharacter`, `applyRushAction` (choose/turn/walk/pause/resume/abandon —

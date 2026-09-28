@@ -9,7 +9,7 @@ export const INTEGRITY_FAIL_LIMIT = 20;
 /** One Run that failed its Verdict. Kept so false positives are visible. */
 export interface IntegrityFail {
   t: number;
-  mode: 'line' | 'quick';
+  mode: 'line' | 'quick' | 'rush';
   reason: IntegrityReason;
 }
 
@@ -27,7 +27,7 @@ export interface Profile {
   visited: string[];
   bestWpm: Record<string, number>;
   adventure: AdventurePosition | null;
-  /** Rush Hour high scores, keyed by sorted line-set. Written by Plan 2. */
+  /** Rush Hour best Delivered, keyed by `rushLineSetKey` (e.g. `AG+KJ`). */
   rushHigh: Record<string, number>;
   /** Sound preference. Additive, so older saves migrate to unmuted. */
   muted: boolean;
@@ -161,6 +161,13 @@ export function recordQuickBestOverall(profile: Profile, score: number): Profile
   const best = typeof current === 'number' && Number.isFinite(current) && current >= 0 ? current : 0;
   if (!Number.isFinite(score) || score < 0 || score <= best) return profile;
   return { ...profile, quickBestOverall: score };
+}
+
+export function recordRushBest(profile: Profile, lineSetKey: string, delivered: number): Profile {
+  const current = profile.rushHigh?.[lineSetKey];
+  const best = typeof current === 'number' && Number.isFinite(current) && current >= 0 ? current : 0;
+  if (!Number.isInteger(delivered) || delivered <= best) return profile;
+  return { ...profile, rushHigh: { ...profile.rushHigh, [lineSetKey]: delivered } };
 }
 
 export function saveSelectedLine(profile: Profile, line: LineCode): Profile {
