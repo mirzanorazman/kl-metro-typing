@@ -373,22 +373,22 @@ export function enterRushCharacter(net: NetworkIndex, state: RushState, key: str
 
 export function chooseRushDirection(net: NetworkIndex, state: RushState, dir: Direction, now: number): RushState {
   const synced = advanceRush(net, state, now);
-  if (synced.status !== 'running' || synced.stage !== 'junction') return synced;
+  if (synced.status !== 'running' || synced.stage !== 'junction') return state;
   const offered = synced.options.find((o) => o.line === dir.line && o.next === dir.next);
   return offered ? moveTo(net, synced, offered.next, offered.line) : state;
 }
 
 export function turnRushAround(net: NetworkIndex, state: RushState, now: number): RushState {
   const synced = advanceRush(net, state, now);
-  if (synced.status !== 'running' || synced.stage !== 'typing') return synced;
-  if (synced.arrivedFrom === null || synced.line === null) return synced;
+  if (synced.status !== 'running' || synced.stage !== 'typing') return state;
+  if (synced.arrivedFrom === null || synced.line === null) return state;
   return moveTo(net, synced, synced.arrivedFrom, synced.line);
 }
 
 /** Takes a Walk link from a Junction; typing is locked for WALK_PENALTY_MS. */
 export function walkRush(net: NetworkIndex, state: RushState, to: string, now: number): RushState {
   const synced = advanceRush(net, state, now);
-  if (synced.status !== 'running' || synced.stage !== 'junction' || !synced.walks.includes(to)) return synced;
+  if (synced.status !== 'running' || synced.stage !== 'junction' || !synced.walks.includes(to)) return state;
   return { ...moveTo(net, synced, to, null), stage: 'walking', walkUntil: synced.gameMs + WALK_PENALTY_MS };
 }
 
@@ -397,7 +397,7 @@ export function walkRush(net: NetworkIndex, state: RushState, to: string, now: n
 
 export function pauseRush(net: NetworkIndex, state: RushState, now: number): RushState {
   const synced = advanceRush(net, state, now);
-  if (synced.status !== 'running') return synced;
+  if (synced.status !== 'running') return state;
   return { ...synced, status: 'paused', pausedAt: now };
 }
 
@@ -408,7 +408,7 @@ export function resumeRush(state: RushState, now: number): RushState {
 
 export function abandonRush(net: NetworkIndex, state: RushState, now: number): RushState {
   const synced = advanceRush(net, state, now);
-  if (synced.status !== 'running' && synced.status !== 'paused') return synced;
+  if (synced.status !== 'running' && synced.status !== 'paused') return state;
   return { ...synced, status: 'ended', endReason: 'abandoned', endedAt: now, pausedAt: null };
 }
 
@@ -437,8 +437,9 @@ export type RushActionBody =
 export type RushAction = RushActionBody & { i: number; t: number };
 
 /**
- * Applies one action. Returns the state unchanged when the action is not
- * allowed now, so callers log an action only when the state actually moved.
+ * Applies one action. Returns the very same object when the action is refused
+ * (every action function returns its input unsynced on refusal), so callers
+ * log an action only when it was taken.
  */
 export function applyRushAction(
   net: NetworkIndex,

@@ -7,7 +7,7 @@ read only the section the next task needs. Branch `feat/rush-hour`.
 
 ## Current position
 
-Next task: **9. Setup UI**. Eligibility gate is `judgeRushRun` in `engine/rushJudge.ts`; `recordRushBest` in progress.
+Next task: **12. Browser check + docs**. UI: `ui/RushSetup.tsx`, `ui/RushHourScreen.tsx`, `ui/RushSummary.tsx`, `render/RushQueues.tsx`, `ui/rush.css`; `MapCanvas` gained `emphasisSet` and `overlay`.
 
 Engine API (all pure, in `src/engine/rushHour.ts`): `startRush`, `advanceRush`,
 `enterRushCharacter`, `applyRushAction` (choose/turn/walk/pause/resume/abandon —
@@ -43,3 +43,8 @@ up, larger capacity, spawn weighting toward reachable targets).
 - `onwardOptions` with `arrivedFrom === null` returns every Direction, so the
   starting Station always offers a Junction if it has several.
 - zsh does not word-split `$var` in `set -- $cfg`; run such loops under bash.
+- Home-map Rush Hour button has no number shortcut: digits 1–9 are taken and
+  any letter would collide with typing a Line code. Desktop only; phone shell
+  has no entry yet.
+- A Rush Hour Run adds its visited Stations to Unlocked but records no
+  per-Station best WPM.

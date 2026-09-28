@@ -21,6 +21,8 @@ export interface HomeMapProps {
   onStartQuick?: (code: LineCode, toward: string) => void;
   onPickStation: (stationId: string) => void;
   onOpenLeaderboard: () => void;
+  /** Opens Rush Hour setup. Omitted where Rush Hour is not offered. */
+  onOpenRush?: () => void;
   /**
    * Whether to play the opening draw-on. App withholds it on the returns
    * from a run, so the animation opens the session rather than taxing every
@@ -37,6 +39,7 @@ export function HomeMap({
   onStartQuick,
   onPickStation,
   onOpenLeaderboard,
+  onOpenRush,
   intro = true,
 }: HomeMapProps) {
   const { geo: layout, backdrop, districts, pxPerKm } = networkLayout();
@@ -249,6 +252,18 @@ export function HomeMap({
               <kbd data-testid="menu-key">{searchKey}</kbd>
               <span>Start anywhere</span>
             </button>
+
+            {onOpenRush && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.select();
+                  onOpenRush();
+                }}
+              >
+                <span>Rush Hour</span>
+              </button>
+            )}
 
             <button type="button" onClick={openLeaderboard}>
               <kbd data-testid="menu-key">{leaderboardKey}</kbd>

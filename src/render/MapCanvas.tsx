@@ -86,6 +86,13 @@ export interface MapCanvasProps {
   backdrop?: BoundaryPath[];
   /** When set, this line is emphasised and the others are dimmed. */
   emphasis?: LineCode | null;
+  /** When set, lines outside it and stations serving none of it are dimmed. */
+  emphasisSet?: ReadonlySet<LineCode> | null;
+  /**
+   * Extra marks drawn in layout coordinates above the stations and beneath
+   * the train. `markScale` converts nominal radii to the current zoom.
+   */
+  overlay?: (ctx: { layout: Layout; markScale: number }) => React.ReactNode;
   /** When set, a pulse sweeps the length of this line. Set on completion. */
   celebrate?: LineCode | null;
   /** Stations already typed this run, in order. Inks the stretch behind you. */
@@ -122,6 +129,8 @@ export function MapCanvas({
   focusKey,
   backdrop,
   emphasis,
+  emphasisSet,
+  overlay,
   celebrate,
   travelled,
   trainColour = null,
@@ -366,7 +375,11 @@ export function MapCanvas({
           <polyline
             key={line.code}
             data-line={line.code}
-            data-dim={emphasis && line.code !== emphasis ? 'true' : undefined}
+            data-dim={
+              (emphasis && line.code !== emphasis) || (emphasisSet && !emphasisSet.has(line.code))
+                ? 'true'
+                : undefined
+            }
             data-draw={draw ? 'true' : undefined}
             pathLength={draw ? 1 : undefined}
             style={
@@ -421,7 +434,11 @@ export function MapCanvas({
           const first = codes[0];
           const colour = first ? net.lines.get(first)?.colour : undefined;
           const r = (isActive ? 8 : isInterchange ? 6 : 4) * markScale;
-          const dim = emphasis && !codes.includes(emphasis) ? 'true' : undefined;
+          const dim =
+            (emphasis && !codes.includes(emphasis)) ||
+            (emphasisSet && !codes.some((c) => emphasisSet.has(c)))
+              ? 'true'
+              : undefined;
           const pop = entrance?.station.get(station.id);
           const popStyle =
             pop === undefined
@@ -606,6 +623,8 @@ export function MapCanvas({
             />
           );
         })()}
+
+      {overlay?.({ layout, markScale })}
 
       <TrainMarker
         from={previousStation ? layout.get(previousStation) ?? null : null}

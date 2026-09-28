@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import {
+  KEYLOG_MAX_EVENTS,
   PLAIN_SOURCE,
   appendKey,
   beginLog,
@@ -33,7 +34,7 @@ export interface RunRecorder {
  * recording one must not re-render anything. This is the only impure unit in
  * the integrity design — everything that judges is pure and lives in engine/.
  */
-export function useRunRecorder(startedAt: number): RunRecorder {
+export function useRunRecorder(startedAt: number, maxEvents: number = KEYLOG_MAX_EVENTS): RunRecorder {
   const logRef = useRef<KeyLog | null>(null);
   if (logRef.current === null) logRef.current = beginLog(startedAt);
 
@@ -48,10 +49,10 @@ export function useRunRecorder(startedAt: number): RunRecorder {
   const record = useCallback((key: string, source: KeySource = PLAIN_SOURCE) => {
     const now = runTick();
     if (isPrintable(key)) {
-      logRef.current = appendKey(logRef.current!, key, source, now);
+      logRef.current = appendKey(logRef.current!, key, source, now, maxEvents);
     }
     return now;
-  }, []);
+  }, [maxEvents]);
 
   const snapshot = useCallback(() => logRef.current!, []);
 

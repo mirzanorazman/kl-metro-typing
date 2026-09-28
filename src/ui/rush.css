@@ -1,0 +1,106 @@
+.rush-day {
+  display: flex;
+  align-items: center;
+  gap: var(--s);
+  font: var(--t-xs) var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.rush-day-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--paper-edge);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rush-day-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--line-colour, var(--ink));
+  transition: width 0.1s linear;
+}
+
+.rush-load {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s);
+  margin: 0;
+  font: var(--t-xs) var(--font-mono);
+}
+
+.rush-load-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.rush-walking {
+  margin: 0;
+  font: var(--t-xs) var(--font-mono);
+  color: var(--ink-muted);
+}
+
+.junction-note {
+  font: var(--t-xs) var(--font-mono);
+}
+
+.rush-paused {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--s);
+  background: color-mix(in srgb, var(--paper) 80%, transparent);
+  z-index: 10;
+}
+
+.rush-count {
+  font-family: var(--font-mono);
+  fill: var(--ink);
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.rush-chip text {
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.rush-ring-track {
+  fill: none;
+  stroke: var(--paper-edge);
+  stroke-width: 3px;
+  vector-effect: non-scaling-stroke;
+}
+
+.rush-ring {
+  fill: none;
+  stroke: var(--ink-muted);
+  stroke-width: 3px;
+  transition: stroke-dasharray 0.1s linear;
+}
+
+.rush-ring[data-critical='true'] {
+  stroke: var(--error);
+}
+
+.rush-setup .line-list button[data-chosen='true'] {
+  outline: 2px solid var(--line-colour);
+  outline-offset: -2px;
+}
+
+.rush-summary-stats {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: var(--s) calc(var(--s) * 3);
+  font-family: var(--font-mono);
+}
+
+.rush-summary-stats dd {
+  margin: 0;
+}

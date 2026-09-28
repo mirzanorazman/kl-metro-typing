@@ -6,12 +6,17 @@ import { sound } from '../audio/sound';
 const MAX_RESULTS = 8;
 
 /** Matches on name or official code. Prefix matches rank first. */
-export function searchStations(net: NetworkIndex, query: string): Station[] {
+export function searchStations(
+  net: NetworkIndex,
+  query: string,
+  filter?: (station: Station) => boolean,
+): Station[] {
   const q = query.trim().toLowerCase();
   if (q === '') return [];
 
   const scored: { station: Station; score: number }[] = [];
   for (const station of net.stations.values()) {
+    if (filter && !filter(station)) continue;
     const name = station.name.toLowerCase();
     const codes = Object.values(station.codes).map((c) => c.toLowerCase());
 
@@ -30,12 +35,17 @@ export function searchStations(net: NetworkIndex, query: string): Station[] {
 export function StationSearch({
   net,
   onPick,
+  filter,
+  placeholder = 'Start from which station?',
 }: {
   net: NetworkIndex;
   onPick: (id: string) => void;
+  /** Restricts results, e.g. to a Rush Hour Line set. */
+  filter?: (station: Station) => boolean;
+  placeholder?: string;
 }) {
   const [query, setQuery] = useState('');
-  const results = useMemo(() => searchStations(net, query), [net, query]);
+  const results = useMemo(() => searchStations(net, query, filter), [net, query, filter]);
 
   return (
     <div className="station-search">
@@ -43,7 +53,7 @@ export function StationSearch({
         type="text"
         value={query}
         autoFocus
-        placeholder="Start from which station?"
+        placeholder={placeholder}
         aria-label="Search stations"
         onChange={(e) => setQuery(e.target.value)}
       />

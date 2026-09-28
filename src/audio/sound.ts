@@ -183,6 +183,19 @@ export const sound = {
     });
   }),
 
+  /** Rush Hour passengers alighting at their Line: a bright three-note chime. */
+  delivered: () => play(({ complete }) => {
+    ['G5', 'B5', 'D6'].forEach((note, index) => {
+      complete.triggerAttackRelease(note, 0.08, `+${(index * 0.06).toFixed(3)}`);
+    });
+  }),
+
+  /** A Rush Hour Overflow ring passing halfway: two low, insistent pulses. */
+  warning: () => play(({ error }) => {
+    error.triggerAttackRelease('A1', 0.12);
+    error.triggerAttackRelease('A1', 0.12, '+0.18');
+  }),
+
   /** Choosing a button or opening a panel: quick and light. */
   select: () => play(({ ui }) => {
     ui.triggerAttackRelease('E5', 0.08);

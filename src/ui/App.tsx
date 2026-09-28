@@ -14,6 +14,8 @@ import { MobileAdventureSetup } from './MobileAdventureSetup';
 import { MobileShell, type MobileDestination } from './MobileShell';
 import { MobileTransit } from './MobileTransit';
 import { QuickRunScreen } from './QuickRunScreen';
+import { RushHourScreen } from './RushHourScreen';
+import { RushSetup } from './RushSetup';
 import { TypingInputProvider } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
 import { usePhoneLandscape } from './usePhoneLandscape';
@@ -25,7 +27,9 @@ type Screen =
   | { kind: 'line'; code: LineCode; from: string }
   | { kind: 'adventure'; at: string }
   | { kind: 'leaderboard' }
-  | { kind: 'quick'; code: LineCode; toward: string };
+  | { kind: 'quick'; code: LineCode; toward: string }
+  | { kind: 'rush-setup' }
+  | { kind: 'rush'; lineSet: LineCode[]; at: string };
 
 function MobileRunFrame({ children, phone }: { children: JSX.Element; phone: boolean }) {
   const { height } = useVisualViewport();
@@ -112,7 +116,10 @@ export function App() {
   const home = () => setScreen({ kind: 'home' });
 
   const leaveHome = (next: Screen) => {
-    if (playBlocked.current && (next.kind === 'quick' || next.kind === 'line' || next.kind === 'adventure')) return;
+    if (
+      playBlocked.current &&
+      (next.kind === 'quick' || next.kind === 'line' || next.kind === 'adventure' || next.kind === 'rush')
+    ) return;
     setIntroSpent(true);
     setScreen(next);
   };
@@ -168,6 +175,7 @@ export function App() {
         onStartQuick={startQuick}
         onPickStation={startAdventure}
         onOpenLeaderboard={() => leaveHome({ kind: 'leaderboard' })}
+        onOpenRush={() => leaveHome({ kind: 'rush-setup' })}
         intro={!introSpent}
       />
     );
@@ -201,6 +209,25 @@ export function App() {
         phoneLandscape={phoneLandscape}
       />
     );
+  } else if (screen.kind === 'rush-setup') {
+    content = (
+      <RushSetup
+        net={net}
+        onStart={(lineSet, at) => leaveHome({ kind: 'rush', lineSet, at })}
+        onBack={home}
+      />
+    );
+  } else if (screen.kind === 'rush') {
+    content = (
+      <RushHourScreen
+        net={net}
+        lineSet={screen.lineSet}
+        startAt={screen.at}
+        onExit={home}
+        onAgain={() => setScreen({ kind: 'rush-setup' })}
+        phoneLandscape={phoneLandscape}
+      />
+    );
   } else if (screen.kind === 'adventure-setup') {
     content = (
       <MobileShell active="adventure" onNavigate={navigateMobile}>
@@ -215,7 +242,8 @@ export function App() {
     content = renderHome();
   }
 
-  const activeRun = screen.kind === 'line' || screen.kind === 'adventure' || screen.kind === 'quick';
+  const activeRun =
+    screen.kind === 'line' || screen.kind === 'adventure' || screen.kind === 'quick' || screen.kind === 'rush';
   const framedContent = activeRun
     ? <MobileRunFrame phone={phone}>{content}</MobileRunFrame>
     : content;
