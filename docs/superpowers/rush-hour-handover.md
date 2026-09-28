@@ -6,9 +6,9 @@
 (spec `docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`),
 executed subagent-driven. Ticked boxes in the plan = done and committed.
 
-- **Last done:** Task 4 (reviewed; last code commit `09a59d1`).
-- **Next:** Task 5 — tips in the run screen, freezing the Run.
-- **Open review notes:** Task 1–4 minors deferred to final review; balance leans noted in the Balance section below.
+- **Last done:** Task 5 (reviewed; last code commit `8be56fe`).
+- **Next:** Task 6 — setup: step labels, suggested start, How to play.
+- **Open review notes:** Task 1–5 minors deferred to final review (Task 5's Enter double-dismiss likely worth fixing); balance leans noted in the Balance section below.
 
 To resume in a fresh session: "Read `docs/superpowers/rush-hour-handover.md`
 and continue the active plan subagent-driven." The controller's detailed

@@ -962,7 +962,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Consumes: `newRushTips`, `rushTipText`, `RUSH_TIPS`, `RushTipId` (Task 4); `markRushTipSeen`, `loadProfile`, `saveProfile`, `emptyProfile` (Task 4 / existing).
 - Produces: a tip card with `role="dialog"` and name "Tip"; the ready hint "Type the station name to start".
 
-- [ ] **Step 1: Keep the existing screen tests tip-free**
+- [x] **Step 1: Keep the existing screen tests tip-free**
 
 In `src/ui/RushHour.test.tsx`, add imports `emptyProfile, saveProfile` from `../engine/progress` and `RUSH_TIPS` from `./rushTips`, then add a helper below `type`:
 
@@ -972,7 +972,7 @@ const seeAllTips = () => saveProfile({ ...emptyProfile(), rushTipsSeen: RUSH_TIP
 
 Call `seeAllTips();` as the first line of both existing `RushHourScreen` tests.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 In the `RushHourScreen` describe block, add:
 
@@ -1004,12 +1004,12 @@ In the `RushHourScreen` describe block, add:
   });
 ```
 
-- [ ] **Step 3: Run it to verify it fails**
+- [x] **Step 3: Run it to verify it fails**
 
 Run: `npx vitest run src/ui/RushHour.test.tsx`
 Expected: FAIL — no start tip text, no Tip dialog.
 
-- [ ] **Step 4: Implement the tip card and tip state**
+- [x] **Step 4: Implement the tip card and tip state**
 
 In `src/ui/RushHourScreen.tsx`, add `markRushTipSeen` to the `../engine/progress` import, and add:
 
@@ -1053,7 +1053,7 @@ Inside `RushHourScreen`, after the `actions` ref:
   const dismissTip = useCallback(() => setTips((queue) => queue.slice(1)), []);
 ```
 
-- [ ] **Step 5: Route keys: a tip swallows one key; the first key marks `start` seen**
+- [x] **Step 5: Route keys: a tip swallows one key; the first key marks `start` seen**
 
 In `onKey`, directly after the `if (phoneLandscape || cur.status === 'ended') return;` line, add:
 
@@ -1064,7 +1064,7 @@ In `onKey`, directly after the `if (phoneLandscape || cur.status === 'ended') re
 
 and add `dismissTip, markSeen` to its dependency array.
 
-- [ ] **Step 6: Detect moments, pause, and resume when the queue empties**
+- [x] **Step 6: Detect moments, pause, and resume when the queue empties**
 
 After the sounds effect, add:
 
@@ -1093,7 +1093,7 @@ After the sounds effect, add:
   }, [tips, act]);
 ```
 
-- [ ] **Step 7: Render the start tip, the tip card, and the new ready hint**
+- [x] **Step 7: Render the start tip, the tip card, and the new ready hint**
 
 Just above `{run.stage === 'typing' && <Prompt … />}`, add:
 
@@ -1115,7 +1115,7 @@ Replace `{run.status === 'paused' && <PauseOverlay onResume={() => act({ a: 'res
             )}
 ```
 
-- [ ] **Step 8: Style**
+- [x] **Step 8: Style**
 
 In `src/ui/rush.css`, add:
 
@@ -1136,12 +1136,12 @@ In `src/ui/rush.css`, add:
 }
 ```
 
-- [ ] **Step 9: Run the tests**
+- [x] **Step 9: Run the tests**
 
 Run: `npm test && npx tsc --noEmit`
 Expected: PASS. If the new test sees a `board` tip before the Junction tip (a Passenger spawned during typing), dismiss tips in a loop until the Junction tip is shown, rather than changing the engine.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/ui/RushHourScreen.tsx src/ui/rush.css src/ui/RushHour.test.tsx
