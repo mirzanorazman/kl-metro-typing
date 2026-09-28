@@ -63,7 +63,7 @@ with its software keyboard open remains a separate compatibility follow-up.
 **Rush Hour** — survival, desktop and tablet (v1, on branch `feat/rush-hour`).
 Choose a Line set and a starting Station from the Rush Hour button on the home
 map. Passengers spawn in Queues and want a Line, not a Station; the one-carriage
-train (Capacity 4) delivers them at any Station serving it. A full Queue fills
+train (Capacity 8) delivers them at any Station serving it. A full Queue fills
 an Overflow ring; one full ring ends the Run. A Day cycles through five Day
 phases, each Day busier. The sim is a pure fixed-tick engine
 (`engine/rushHour.ts`, tuning in `engine/rushBalance.ts`) with a seeded RNG, so
