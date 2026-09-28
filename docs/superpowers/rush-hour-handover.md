@@ -8,12 +8,12 @@ executed subagent-driven. Ticked boxes in the plan = done and committed.
 
 - **Last done:** All 7 tasks plus the final whole-branch review. Its one
   Important finding (TipCard Enter double-dismiss) is fixed in `94a83ec`.
+- **Since then (`46b1db9`, user request):** Rush Hour music (upbeat Setup loop; calm/tense Run tracks keyed on any Overflow ring showing), and Setup's Start picks a random Station, replacing the start-station step.
 - **Next:** Finish the branch (the user decides between merge and PR), then playtest.
 - **Deferred minors (the final review said none block merge):**
   - `RushGeometry.totalWeight` unused; `rushSpawnWeights` recomputed per spawn draw; no test for its all-zero fallback; `railHops` repeats the WeakMap cache scaffold.
   - `rushTipText` uses `find()!` rather than a `Record<RushTipId,string>`.
   - Tips are marked seen when queued, so they're lost if the Run ends with tips still queued. Only the button dismisses a tip (the spec says any click). About 45 lines of tip state could move into a `useRushTips` hook. Tests don't cover pause/resume logging or coinciding tips.
-  - In Setup, Enter picks `results[0]` even after a query is typed while a suggestion is set.
   - No automated test for the `.junction.rush-junction` specificity fix (browser-checked only).
 
 To resume in a fresh session: "Read `docs/superpowers/rush-hour-handover.md`
