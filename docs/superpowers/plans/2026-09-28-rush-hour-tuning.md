@@ -525,7 +525,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Consumes: `deliverableAt`, `queueCapacity`, `RushState` from `../engine/rushHour`.
 - Produces: `RushJunction({ net, run, onChoose, onWalk })` rendering `role="group"` named "Choose a direction"; `rushJunctionChoices(run): RushJunctionChoice[]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In `src/ui/RushHour.test.tsx`, add imports:
 
@@ -579,12 +579,12 @@ describe('RushJunction', () => {
 });
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `npx vitest run src/ui/RushHour.test.tsx -t RushJunction`
 Expected: FAIL — cannot resolve `./RushJunction`.
 
-- [ ] **Step 3: Create the component**
+- [x] **Step 3: Create the component**
 
 Create `src/ui/RushJunction.tsx`:
 
@@ -688,7 +688,7 @@ export function RushJunction({ net, run, onChoose, onWalk }: RushJunctionProps) 
 
 If `React.CSSProperties` does not resolve, match `JunctionPicker.tsx`, which uses the same expression.
 
-- [ ] **Step 4: Use it in the run screen**
+- [x] **Step 4: Use it in the run screen**
 
 In `src/ui/RushHourScreen.tsx`:
 - Replace the `JunctionPicker` import with `import { RushJunction } from './RushJunction';`.
@@ -699,7 +699,7 @@ In `src/ui/RushHourScreen.tsx`:
               <RushJunction net={net} run={run} onChoose={onChoose} onWalk={onWalk} />
 ```
 
-- [ ] **Step 5: Style the rows**
+- [x] **Step 5: Style the rows**
 
 In `src/ui/rush.css`, delete the `.junction-note` rule and add:
 
@@ -741,12 +741,12 @@ In `src/ui/rush.css`, delete the `.junction-note` rule and add:
 }
 ```
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `npm test && npx tsc --noEmit`
 Expected: PASS, including the existing `RushHourScreen` test that reaches the Junction.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/ui/RushJunction.tsx src/ui/RushHourScreen.tsx src/ui/rush.css src/ui/RushHour.test.tsx

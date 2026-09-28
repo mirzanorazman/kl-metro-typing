@@ -6,8 +6,8 @@
 (spec `docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`),
 executed subagent-driven. Ticked boxes in the plan = done and committed.
 
-- **Last done:** Task 2 (reviewed; last code commit `f1b170b`).
-- **Next:** Task 3 — compact Junction rows with Walk keys.
+- **Last done:** Task 3 (reviewed; last code commit `9680641`).
+- **Next:** Task 4 — tip copy, detection, and the seen list.
 - **Open review notes:** Task 1–2 minors deferred to final review; balance leans noted in the Balance section below.
 
 To resume in a fresh session: "Read `docs/superpowers/rush-hour-handover.md`
