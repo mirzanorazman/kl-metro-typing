@@ -61,8 +61,8 @@ blocked, including at a reduced-height browser viewport. A real iPad Mini check
 with its software keyboard open remains a separate compatibility follow-up.
 
 **Rush Hour** — survival, desktop and tablet (v1, on branch `feat/rush-hour`).
-Choose a Line set and a starting Station from the Rush Hour button on the home
-map. Passengers spawn in Queues and want a Line, not a Station; the one-carriage
+Choose a Line set from the Rush Hour button on the home map; Start begins at a
+random Station on it. Passengers spawn in Queues and want a Line, not a Station; the one-carriage
 train (Capacity 8) delivers them at any Station serving it. A full Queue fills
 an Overflow ring; one full ring ends the Run. A Day cycles through five Day
 phases, each Day busier. The sim is a pure fixed-tick engine
@@ -72,7 +72,9 @@ Eligible Run updates `rushHigh`. Upgrades are deferred to a second plan. Spec:
 `docs/superpowers/specs/2026-09-28-rush-hour-design.md`. Tuned per
 `docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`: spawns centre
 on the train, an 8-seat train, a 125 s Day, compact Junction rows, and
-one-time tips.
+one-time tips. Music: an upbeat loop on Setup, and during a Run a calm pulse
+that turns tense while any Overflow ring shows (`music.play` tracks in
+`audio/sound.ts`).
 
 **Local leaderboard** — Line Run only. Completing a line end to end offers a
 name entry if the run's score would place in the top 20 overall or the top 20

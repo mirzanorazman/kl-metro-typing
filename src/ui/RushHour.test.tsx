@@ -3,7 +3,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { emptyProfile, loadProfile, markRushTipSeen, saveProfile } from '../engine/progress';
-import { enterRushCharacter, rushSuggestedStart, startRush, type RushState } from '../engine/rushHour';
+import { enterRushCharacter, rushGeometry, startRush, type RushState } from '../engine/rushHour';
+import { music } from '../audio/sound';
 import { RushHourScreen } from './RushHourScreen';
 import { RushJunction } from './RushJunction';
 import { RushSetup } from './RushSetup';
@@ -36,33 +37,40 @@ afterEach(() => {
 });
 
 describe('RushSetup', () => {
-  it('toggles Lines by code, then offers only Stations on the Line set', () => {
+  it('toggles Lines by code, then Start begins at a random Station on the Line set', () => {
     const onStart = vi.fn();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
     render(<RushSetup net={net} onStart={onStart} onBack={() => {}} />);
-    const start = screen.getByRole('button', { name: /Choose a starting station/ });
+    expect(screen.getByRole('heading', { name: 'Lines' })).toBeTruthy();
+    const start = screen.getByRole('button', { name: /^Enter\s*Start$/ });
     expect((start as HTMLButtonElement).disabled).toBe(true);
 
     type('MR');
     expect(screen.getByRole('button', { name: /Monorail/ }).getAttribute('aria-pressed')).toBe('true');
-    fireEvent.keyDown(window, { key: 'Enter' });
-
-    const search = screen.getByRole('textbox', { name: 'Search stations' });
-    fireEvent.change(search, { target: { value: 'gombak' } });
-    expect(screen.queryByRole('button', { name: /Gombak/ })).toBeNull();
-    fireEvent.change(search, { target: { value: 'hang tuah' } });
-    fireEvent.click(screen.getByRole('button', { name: /Hang Tuah/ }));
-    expect(onStart).toHaveBeenCalledWith(['MR'], 'hang-tuah');
+    fireEvent.click(start);
+    expect(onStart).toHaveBeenCalledWith(['MR'], rushGeometry(net, ['MR']).stations[0]);
   });
 
-  it('labels the steps and starts at the suggested Station on Enter', () => {
+  it('Enter starts too, but only once a Line is chosen', () => {
     const onStart = vi.fn();
     render(<RushSetup net={net} onStart={onStart} onBack={() => {}} />);
-    expect(screen.getByRole('heading', { name: '1 · Lines' })).toBeTruthy();
-    type('MR');
     fireEvent.keyDown(window, { key: 'Enter' });
-    expect(screen.getByRole('heading', { name: /2 · Start station/ })).toBeTruthy();
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search stations' }), { key: 'Enter' });
-    expect(onStart).toHaveBeenCalledWith(['MR'], rushSuggestedStart(net, ['MR']));
+    expect(onStart).not.toHaveBeenCalled();
+    type('KJ');
+    fireEvent.keyDown(window, { key: 'Enter' });
+    expect(onStart).toHaveBeenCalledTimes(1);
+    const [lineSet, at] = onStart.mock.calls[0]!;
+    expect(lineSet).toEqual(['KJ']);
+    expect(rushGeometry(net, ['KJ']).stations).toContain(at);
+  });
+
+  it('plays the Rush Hour setup music while open', () => {
+    const play = vi.spyOn(music, 'play').mockImplementation(() => {});
+    const stop = vi.spyOn(music, 'stop').mockImplementation(() => {});
+    const { unmount } = render(<RushSetup net={net} onStart={() => {}} onBack={() => {}} />);
+    expect(play).toHaveBeenCalledWith('rushSetup');
+    unmount();
+    expect(stop).toHaveBeenCalledWith('rushSetup');
   });
 
   it('How to play brings the tips back', () => {
@@ -95,6 +103,24 @@ describe('RushHourScreen', () => {
     expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
     type(' Tuah');
     expect(screen.getByRole('group', { name: 'Choose a direction' })).toBeTruthy();
+  });
+
+  it('plays the calm track only while the Run is running', () => {
+    const play = vi.spyOn(music, 'play').mockImplementation(() => {});
+    const stop = vi.spyOn(music, 'stop').mockImplementation(() => {});
+    seeAllTips();
+    renderRun();
+    expect(play).not.toHaveBeenCalled();
+    type('H');
+    expect(play).toHaveBeenLastCalledWith('rushCalm');
+    stop.mockClear();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(stop).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: /Resume/ }));
+    expect(play).toHaveBeenLastCalledWith('rushCalm');
+    stop.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'End run' }));
+    expect(stop).toHaveBeenCalled();
   });
 
   it('shows a summary and never saves a best for an abandoned Run', () => {

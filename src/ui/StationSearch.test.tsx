@@ -46,37 +46,3 @@ describe('StationSearch', () => {
     expect(select).toHaveBeenCalledTimes(1);
   });
 });
-
-describe('StationSearch suggestion', () => {
-  it('lists the suggested Station while the search is empty, and Enter picks it', () => {
-    const onPick = vi.fn();
-    render(<StationSearch net={net} onPick={onPick} suggested="masjid-jamek" />);
-    expect(screen.getByRole('button', { name: /Masjid Jamek/ })).toBeTruthy();
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search stations' }), { key: 'Enter' });
-    expect(onPick).toHaveBeenCalledWith('masjid-jamek');
-  });
-
-  it('does nothing on Enter without a suggestion', () => {
-    const onPick = vi.fn();
-    render(<StationSearch net={net} onPick={onPick} />);
-    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Search stations' }), { key: 'Enter' });
-    expect(onPick).not.toHaveBeenCalled();
-  });
-
-  it('marks the suggested row so it stands out', () => {
-    render(<StationSearch net={net} onPick={() => {}} suggested="masjid-jamek" />);
-    expect(screen.getByRole('button', { name: /Masjid Jamek/ }).getAttribute('data-suggested')).toBe(
-      'true',
-    );
-  });
-
-  it('never marks a row as suggested when no suggestion is passed', () => {
-    render(<StationSearch net={net} onPick={() => {}} />);
-    fireEvent.change(screen.getByRole('textbox', { name: 'Search stations' }), {
-      target: { value: 'masjid' },
-    });
-    for (const button of screen.getAllByRole('button')) {
-      expect(button.getAttribute('data-suggested')).toBeNull();
-    }
-  });
-});

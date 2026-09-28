@@ -336,9 +336,6 @@ body {
 .station-search button:hover, .station-search button:focus-visible {
   background: var(--paper-sub);
 }
-.station-search button[data-suggested='true'] {
-  border: 1px solid var(--focus-ring); background: var(--paper-sub);
-}
 .station-search .codes {
   color: var(--ink-muted); font-family: var(--font-mono); font-size: var(--t-xs);
 }

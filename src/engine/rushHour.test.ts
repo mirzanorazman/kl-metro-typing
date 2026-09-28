@@ -24,7 +24,8 @@ import {
   rushGeometry,
   rushMetrics,
   rushSpawnWeights,
-  rushSuggestedStart,
+  rushOvercrowded,
+  rushRandomStart,
   startRush,
   turnRushAround,
   walkRush,
@@ -118,18 +119,11 @@ describe('rushGeometry', () => {
     expect(queueCapacity(net, 'masjid-jamek')).toBeGreaterThan(QUEUE_CAPACITY);
   });
 
-  it('suggests the busiest Interchange on the Line set as the start', () => {
-    for (const lineSet of [['KJ'], ['MR'], ['KJ', 'AG', 'SP']] as LineCode[][]) {
-      const id = rushSuggestedStart(net, lineSet);
-      const pick = stationAt(net, id)!;
-      expect(rushGeometry(net, lineSet).stations).toContain(id);
-      expect(linesOf(pick).length).toBeGreaterThan(1);
-      const busiest = Math.max(...rushGeometry(net, lineSet).stations
-        .map((s) => stationAt(net, s)!)
-        .filter((s) => linesOf(s).length > 1)
-        .map((s) => s.demand));
-      expect(pick.demand).toBe(busiest);
-    }
+  it('picks a random start anywhere on the Line set', () => {
+    const stations = rushGeometry(net, ['KJ', 'MR']).stations;
+    expect(rushRandomStart(net, ['KJ', 'MR'], () => 0)).toBe(stations[0]);
+    expect(rushRandomStart(net, ['KJ', 'MR'], () => 0.999999)).toBe(stations[stations.length - 1]);
+    for (let i = 0; i < 20; i++) expect(stations).toContain(rushRandomStart(net, ['KJ', 'MR']));
   });
 });
 
@@ -343,5 +337,15 @@ describe('pause, abandon, metrics', () => {
     expect(m.accuracy).toBe(1);
     // 6 correct chars over ~1.2 s of game time, not 61 s.
     expect(m.wpm).toBeGreaterThan(30);
+  });
+});
+
+describe('rushOvercrowded', () => {
+  it('is true while any Overflow ring is filling or draining', () => {
+    const run = startRush(net, ['MR'], 'hang-tuah', 1);
+    expect(rushOvercrowded(run)).toBe(false);
+    const id = Object.keys(run.queues)[0]!;
+    const crowded = { ...run, queues: { ...run.queues, [id]: { ...run.queues[id]!, overflowMs: 1 } } };
+    expect(rushOvercrowded(crowded)).toBe(true);
   });
 });

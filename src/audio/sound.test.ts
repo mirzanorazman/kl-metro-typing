@@ -178,4 +178,62 @@ describe('sound', () => {
     await flushPromises();
     expect(toneMock.synthTrigger).toHaveBeenCalledTimes(2);
   });
+  it('plays one music track at a time and switches on request', async () => {
+    vi.useFakeTimers();
+    const sound = await loadSound();
+
+    sound.installAudioUnlock();
+    window.dispatchEvent(new Event('pointerdown'));
+    await flushPromises();
+
+    sound.music.play('rushCalm');
+    await flushPromises();
+    expect(sound.music.current()).toBe('rushCalm');
+    const calmNotes = toneMock.synthTrigger.mock.calls.length + toneMock.membraneTrigger.mock.calls.length;
+    expect(calmNotes).toBeGreaterThan(0);
+
+    sound.music.play('rushTense');
+    await flushPromises();
+    expect(sound.music.current()).toBe('rushTense');
+
+    sound.music.stop();
+    toneMock.synthTrigger.mockClear();
+    toneMock.membraneTrigger.mockClear();
+    vi.advanceTimersByTime(5000);
+    await flushPromises();
+    expect(sound.music.current()).toBeNull();
+    expect(toneMock.synthTrigger).not.toHaveBeenCalled();
+    expect(toneMock.membraneTrigger).not.toHaveBeenCalled();
+  });
+
+  it('keeps the tense track faster than the calm one', async () => {
+    vi.useFakeTimers();
+    const sound = await loadSound();
+
+    sound.installAudioUnlock();
+    window.dispatchEvent(new Event('pointerdown'));
+    await flushPromises();
+
+    const notesIn = async (track: 'rushCalm' | 'rushTense') => {
+      sound.music.play(track);
+      await flushPromises();
+      toneMock.synthTrigger.mockClear();
+      toneMock.membraneTrigger.mockClear();
+      vi.advanceTimersByTime(8000);
+      await flushPromises();
+      const n = toneMock.synthTrigger.mock.calls.length + toneMock.membraneTrigger.mock.calls.length;
+      sound.music.stop();
+      return n;
+    };
+    expect(await notesIn('rushTense')).toBeGreaterThan(await notesIn('rushCalm'));
+  });
+
+  it('stopping a track that is not playing leaves the current one alone', async () => {
+    const sound = await loadSound();
+    sound.music.play('rushSetup');
+    sound.music.stop('menu');
+    expect(sound.music.current()).toBe('rushSetup');
+    sound.music.stop('rushSetup');
+    expect(sound.music.current()).toBeNull();
+  });
 });

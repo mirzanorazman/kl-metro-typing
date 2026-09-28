@@ -178,17 +178,19 @@ export function queueCapacity(net: NetworkIndex, id: string): number {
   return station && linesOf(station).length > 1 ? INTERCHANGE_QUEUE_CAPACITY : QUEUE_CAPACITY;
 }
 
-/** The start Setup offers first: Interchanges before ordinary stops, then higher demand, then name. */
-export function rushSuggestedStart(net: NetworkIndex, lineSet: readonly LineCode[]): string {
-  const rank = (id: string) => {
-    const s = stationAt(net, id)!;
-    return { hub: linesOf(s).length > 1 ? 1 : 0, demand: s.demand, name: s.name };
-  };
-  return [...rushGeometry(net, lineSet).stations].sort((a, b) => {
-    const x = rank(a);
-    const y = rank(b);
-    return y.hub - x.hub || y.demand - x.demand || x.name.localeCompare(y.name);
-  })[0]!;
+/** A Station on the Line set, chosen at random, for Setup's Start. */
+export function rushRandomStart(
+  net: NetworkIndex,
+  lineSet: readonly LineCode[],
+  random: () => number = Math.random,
+): string {
+  const stations = rushGeometry(net, lineSet).stations;
+  return stations[Math.floor(random() * stations.length)]!;
+}
+
+/** Whether any Station's Overflow ring is showing, which is when the music turns tense. */
+export function rushOvercrowded(state: RushState): boolean {
+  return Object.values(state.queues).some((q) => q.overflowMs > 0);
 }
 
 // ---------------------------------------------------------------------------

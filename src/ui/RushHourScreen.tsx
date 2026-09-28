@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { sound } from '../audio/sound';
+import { music, sound } from '../audio/sound';
 import type { LineCode, Point } from '../data/types';
 import { lineAt, stationAt, type Direction, type NetworkIndex } from '../engine/network';
 import { loadProfile, markRushTipSeen, recordIntegrityFail, recordRushBest, saveProfile } from '../engine/progress';
@@ -13,6 +13,7 @@ import {
   rushDayPhase,
   rushLineSetKey,
   rushMetrics,
+  rushOvercrowded,
   startRush,
   type RushAction,
   type RushActionBody,
@@ -194,6 +195,14 @@ export function RushHourScreen({
     h.visited = run.visited.length;
     h.delivered = run.delivered;
   }, [run]);
+
+  // Music only while the train runs; it turns tense while any Station overcrowds.
+  const track = run.status !== 'running' ? null : rushOvercrowded(run) ? 'rushTense' : 'rushCalm';
+  useEffect(() => {
+    if (track) music.play(track);
+    else music.stop();
+  }, [track]);
+  useEffect(() => () => music.stop(), []);
 
   // Tips freeze the Run with the ordinary pause action, so Replay and bests
   // see nothing unusual.
