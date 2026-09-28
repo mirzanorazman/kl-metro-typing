@@ -15,8 +15,8 @@ describe('replayRushHour', () => {
     start: 'masjid-jamek',
     seed: 99,
     msPerKey: 350,
-    pauseAt: 30_000,
-    resumeAt: 50_000,
+    pauseAt: 5_000,
+    resumeAt: 10_000,
   });
 
   it('reproduces a live Run exactly', () => {
