@@ -4,7 +4,7 @@ import type { LineCode, Point } from '../data/types';
 import { lineAt, stationAt, type Direction, type NetworkIndex } from '../engine/network';
 import { loadProfile, recordIntegrityFail, recordRushBest, saveProfile } from '../engine/progress';
 import type { KeySource } from '../engine/keylog';
-import { OVERFLOW_MS, RUSH_KEYLOG_MAX_EVENTS } from '../engine/rushBalance';
+import { CARRIAGE_CAPACITY, OVERFLOW_MS, RUSH_KEYLOG_MAX_EVENTS } from '../engine/rushBalance';
 import {
   RUSH_EVIDENCE_VERSION,
   advanceRush,
@@ -280,7 +280,7 @@ export function RushHourScreen({
               <dt>WPM</dt>
               <dd>{run.status === 'ready' ? '—' : Math.round(metrics.wpm)}</dd>
               <dt>Load</dt>
-              <dd>{run.load.length}/4</dd>
+              <dd>{run.load.length}/{CARRIAGE_CAPACITY}</dd>
             </dl>
             <p className="rush-load" aria-label="Passengers aboard, by the line they want">
               {run.load.length === 0 ? (

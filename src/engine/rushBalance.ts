@@ -6,8 +6,8 @@
 /** Fixed simulation step, in milliseconds of game time. */
 export const TICK_MS = 100;
 
-/** Passengers per carriage. v1 has one carriage. */
-export const CARRIAGE_CAPACITY = 4;
+/** Passengers per carriage. v1 has one carriage of 8. */
+export const CARRIAGE_CAPACITY = 8;
 
 export const QUEUE_CAPACITY = 6;
 export const INTERCHANGE_QUEUE_CAPACITY = 8;
@@ -25,7 +25,7 @@ export const WALK_PENALTY_MS = 5_000;
  * Spread over Stations by `demand`, so a bigger Line set is harder because
  * the same passengers are further apart, not because there are more of them.
  */
-export const BASE_SPAWN_PER_SECOND = 0.3;
+export const BASE_SPAWN_PER_SECOND = 0.6;
 
 /**
  * A spawn Station's weight is `demand × e^(−hops / SPAWN_FALLOFF_HOPS)`, hops
@@ -43,15 +43,15 @@ export interface DayPhaseSpec {
 }
 
 export const DAY_PHASES: readonly DayPhaseSpec[] = [
-  { name: 'Off-Peak', ms: 40_000, multiplier: 0.5 },
-  { name: 'Morning Peak', ms: 60_000, multiplier: 1.6 },
-  { name: 'Midday', ms: 40_000, multiplier: 0.8 },
-  { name: 'Evening Peak', ms: 60_000, multiplier: 1.8 },
-  { name: 'Late Night', ms: 40_000, multiplier: 0.4 },
+  { name: 'Off-Peak', ms: 10_000, multiplier: 0.8 },
+  { name: 'Morning Peak', ms: 40_000, multiplier: 1.8 },
+  { name: 'Midday', ms: 20_000, multiplier: 1.0 },
+  { name: 'Evening Peak', ms: 40_000, multiplier: 2.0 },
+  { name: 'Late Night', ms: 15_000, multiplier: 0.6 },
 ];
 
 /** Day N multiplies the whole cycle by 1 + DAY_ESCALATION × (N − 1). */
-export const DAY_ESCALATION = 0.3;
+export const DAY_ESCALATION = 0.5;
 
 /** A Rush Hour Keylog can run far longer than the other modes'. */
 export const RUSH_KEYLOG_MAX_EVENTS = 60_000;

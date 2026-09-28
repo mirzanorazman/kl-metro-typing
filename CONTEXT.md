@@ -93,7 +93,7 @@ on them, and `Profile.rushHigh` keys its best by them.
 The Passengers waiting at one Station in Rush Hour, first in, first out.
 
 **Capacity**:
-How many Passengers a Queue (6, or 8 at an Interchange) or the train (4 per
+How many Passengers a Queue (6, or 8 at an Interchange) or the train (8 per
 carriage) can hold.
 
 **Load**:

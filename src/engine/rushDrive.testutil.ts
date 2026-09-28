@@ -31,6 +31,10 @@ export interface DriveOptions {
   resumeAt?: number;
   /** Chooses among Junction options; default takes the first. */
   choose?: (s: RushState) => RushActionBody;
+  /** Before the first key of each Station; returning true turns the train around. */
+  steer?: (s: RushState) => boolean;
+  /** Sees the state after every sim advance, e.g. to time the first crowding. */
+  watch?: (s: RushState) => void;
 }
 
 /** Plays a Run the way the screen does: rAF advances, keys and actions logged. */
@@ -41,6 +45,7 @@ export function drive(o: DriveOptions): { state: RushState; evidence: RushEviden
   let state = startRush(net, o.lineSet, o.start, o.seed);
   let now = t0;
   let keys = 0;
+  let turnedAt = -1;
   const limit = o.limitMs ?? 60 * 60_000;
 
   const act = (body: RushActionBody) => {
@@ -51,6 +56,7 @@ export function drive(o: DriveOptions): { state: RushState; evidence: RushEviden
 
   while (state.status !== 'ended' && now < limit) {
     state = advanceRush(net, state, now);
+    o.watch?.(state);
     if (state.status === 'ended') break;
     if (o.pauseAt !== undefined && state.status === 'running' && now >= o.pauseAt && now < (o.resumeAt ?? Infinity)) {
       act({ a: 'pause' });
@@ -58,6 +64,12 @@ export function drive(o: DriveOptions): { state: RushState; evidence: RushEviden
       act({ a: 'resume' });
     } else if (state.status !== 'paused' && state.stage === 'junction') {
       act(o.choose ? o.choose(state) : { a: 'choose', line: state.options[0]!.line, next: state.options[0]!.next });
+    } else if (
+      state.status !== 'paused' && state.stage === 'typing' && state.typing.cursor === 0 &&
+      state.arrivedFrom !== null && turnedAt !== keys && o.steer?.(state)
+    ) {
+      turnedAt = keys;
+      act({ a: 'turn' });
     } else if (state.status !== 'paused' && state.stage === 'typing') {
       keys += 1;
       // Every 23rd key is a typo; human-ish jitter keeps the Verdict happy.

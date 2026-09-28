@@ -83,13 +83,13 @@ describe('startRush', () => {
 
 describe('rushDayPhase', () => {
   it('walks the day and escalates later Days', () => {
-    expect(rushDayPhase(0)).toMatchObject({ day: 1, name: 'Off-Peak', multiplier: 0.5 });
-    expect(rushDayPhase(40_000)).toMatchObject({ day: 1, name: 'Morning Peak', multiplier: 1.6 });
-    expect(rushDayPhase(239_999)).toMatchObject({ day: 1, name: 'Late Night' });
-    const day2 = rushDayPhase(240_000);
+    expect(rushDayPhase(0)).toMatchObject({ day: 1, name: 'Off-Peak', multiplier: 0.8 });
+    expect(rushDayPhase(10_000)).toMatchObject({ day: 1, name: 'Morning Peak', multiplier: 1.8 });
+    expect(rushDayPhase(124_999)).toMatchObject({ day: 1, name: 'Late Night' });
+    const day2 = rushDayPhase(125_000);
     expect(day2).toMatchObject({ day: 2, name: 'Off-Peak' });
-    expect(day2.multiplier).toBeCloseTo(0.5 * 1.3);
-    expect(rushDayPhase(20_000).progress).toBeCloseTo(0.5);
+    expect(day2.multiplier).toBeCloseTo(0.8 * 1.5);
+    expect(rushDayPhase(5_000).progress).toBeCloseTo(0.5);
   });
 });
 
@@ -220,13 +220,14 @@ describe('typing and movement', () => {
 
   it('arriving delivers matching Load, then boards the Queue first-in-first-out', () => {
     let s = begin(['KJ'], 'gombak');
-    s = { ...s, load: passengers(['KJ', 'AG'], 1) };
+    const staying = Array(CARRIAGE_CAPACITY - 2).fill('AG') as LineCode[];
+    s = { ...s, load: passengers(['KJ', ...staying], 1) };
     s = withQueue(s, 'gombak', ['AG', 'MR', 'SP', 'AG', 'MR', 'SP']);
     const [after] = typeStation(s, 1_000);
     expect(after.delivered).toBe(1);
-    expect(after.load.map((p) => p.id)).toEqual([2, 1000, 1001, 1002]);
     expect(after.load).toHaveLength(CARRIAGE_CAPACITY);
-    expect(after.queues['gombak']!.passengers.map((p) => p.id)).toEqual([1003, 1004, 1005]);
+    expect(after.load.slice(-2).map((p) => p.id)).toEqual([1000, 1001]);
+    expect(after.queues['gombak']!.passengers.map((p) => p.id)).toEqual([1002, 1003, 1004, 1005]);
   });
 
   it("arriving resets the Station's Overflow ring even when nobody can board", () => {
