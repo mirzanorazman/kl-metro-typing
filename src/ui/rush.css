@@ -47,7 +47,17 @@
   color: var(--ink-muted);
 }
 
-.rush-junction button {
+/*
+ * `.junction button` (src/index.css) sets `display: grid;
+ * grid-template-columns: auto 1fr auto` at the same specificity as
+ * `.rush-junction button` below. Because Rush Hour's screen module (and this
+ * stylesheet) is evaluated before `index.css` in the bundle (see
+ * `src/main.tsx`'s import order), the shared rule would otherwise win by
+ * load order and wrap this row onto a second line. `.junction.rush-junction`
+ * raises specificity so this flex layout always wins regardless of bundle
+ * order, without touching Adventure's plain `.junction` grid.
+ */
+.junction.rush-junction button {
   display: flex;
   align-items: center;
   gap: var(--s2);
