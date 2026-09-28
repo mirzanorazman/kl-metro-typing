@@ -1,5 +1,20 @@
 # Rush Hour — handover
 
+## Resume here (updated after every task)
+
+**Active plan:** `docs/superpowers/plans/2026-09-28-rush-hour-tuning.md`
+(spec `docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`),
+executed subagent-driven. Ticked boxes in the plan = done and committed.
+
+- **Last done:** planning (commit `8e4d973`).
+- **Next:** Task 1 — spawns centre on the train; arrival resets the ring.
+- **Open review notes:** none.
+
+To resume in a fresh session: "Read `docs/superpowers/rush-hour-handover.md`
+and continue the active plan subagent-driven." The controller's detailed
+ledger is `.superpowers/sdd/2026-09-28-rush-hour-tuning/progress.md`
+(git-ignored; if missing, trust this block and `git log`).
+
 To resume: read this file, then the plan
 `docs/superpowers/plans/2026-09-28-rush-hour.md` (ticked boxes = done and
 committed). The spec is `docs/superpowers/specs/2026-09-28-rush-hour-design.md`;
