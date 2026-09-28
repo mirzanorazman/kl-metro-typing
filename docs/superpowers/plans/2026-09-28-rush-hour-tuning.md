@@ -1164,7 +1164,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Consumes: `resetRushTips` (Task 4).
 - Produces: `rushSuggestedStart(net: NetworkIndex, lineSet: readonly LineCode[]): string`; `StationSearch` prop `suggested?: string`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/engine/rushHour.test.ts`, import `rushSuggestedStart` and add to the `rushGeometry` block:
 
@@ -1228,12 +1228,12 @@ In `src/ui/RushHour.test.tsx`, import `rushSuggestedStart` from `../engine/rushH
   });
 ```
 
-- [ ] **Step 2: Run them to verify they fail**
+- [x] **Step 2: Run them to verify they fail**
 
 Run: `npx vitest run src/engine/rushHour.test.ts src/ui/StationSearch.test.tsx src/ui/RushHour.test.tsx`
 Expected: FAIL — `rushSuggestedStart` missing, no `suggested` behaviour, headings not found, no How to play button.
 
-- [ ] **Step 3: Implement `rushSuggestedStart`**
+- [x] **Step 3: Implement `rushSuggestedStart`**
 
 In `src/engine/rushHour.ts`, after `queueCapacity`:
 
@@ -1252,7 +1252,7 @@ export function rushSuggestedStart(net: NetworkIndex, lineSet: readonly LineCode
 }
 ```
 
-- [ ] **Step 4: Add `suggested` to `StationSearch`**
+- [x] **Step 4: Add `suggested` to `StationSearch`**
 
 In `src/ui/StationSearch.tsx`, add `stationAt` to the `../engine/network` import. Add the prop to the destructuring and type:
 
@@ -1288,7 +1288,7 @@ On the `<input>`, add:
 
 and change the result button's `onClick` to `() => pick(s.id)`.
 
-- [ ] **Step 5: Update `RushSetup`**
+- [x] **Step 5: Update `RushSetup`**
 
 In `src/ui/RushSetup.tsx`:
 - Imports: add `rushSuggestedStart` to the existing `../engine/rushHour` import (the one that brings `rushLineSetKey`), `resetRushTips` and `saveProfile` to the `../engine/progress` import, and `stationAt` to the `../engine/network` import.
@@ -1319,12 +1319,12 @@ In `src/ui/RushSetup.tsx`:
           {tipsReset && <p className="hint" role="status">Tips will show on your next Run.</p>}
 ```
 
-- [ ] **Step 6: Run the tests**
+- [x] **Step 6: Run the tests**
 
 Run: `npm test && npx tsc --noEmit`
 Expected: PASS, including the original `RushSetup` test (its button name "Choose a starting station" is unchanged).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/engine/rushHour.ts src/engine/rushHour.test.ts src/ui/StationSearch.tsx src/ui/StationSearch.test.tsx src/ui/RushSetup.tsx src/ui/RushHour.test.tsx
