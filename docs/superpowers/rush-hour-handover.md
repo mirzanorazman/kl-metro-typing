@@ -6,9 +6,9 @@
 (spec `docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`),
 executed subagent-driven. Ticked boxes in the plan = done and committed.
 
-- **Last done:** planning (commit `8e4d973`).
-- **Next:** Task 1 — spawns centre on the train; arrival resets the ring.
-- **Open review notes:** none.
+- **Last done:** Task 1 (reviewed; last code commit `7ac4dfc`).
+- **Next:** Task 2 — new constants, planner typist, speed-rewards balance test.
+- **Open review notes:** Task 1 minors deferred to final review (see ledger).
 
 To resume in a fresh session: "Read `docs/superpowers/rush-hour-handover.md`
 and continue the active plan subagent-driven." The controller's detailed

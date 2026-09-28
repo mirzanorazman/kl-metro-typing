@@ -59,7 +59,7 @@
   - `railHops(net: NetworkIndex, lineSet: readonly LineCode[], from: string): ReadonlyMap<string, number>` — rail hops over the Line set, Walk links excluded, cached.
   - `rushSpawnWeights(net: NetworkIndex, lineSet: readonly LineCode[], at: string): number[]` — one weight per `rushGeometry(net, lineSet).spawns` entry, same order.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/engine/rushHour.test.ts`, add `SPAWN_FALLOFF_HOPS` to the `./rushBalance` import and `railHops, rushSpawnWeights` to the `./rushHour` import. Add after the `rushGeometry` describe block:
 
@@ -114,12 +114,12 @@ In the `typing and movement` describe block, add:
   });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `npx vitest run src/engine/rushHour.test.ts`
 Expected: FAIL — `railHops` / `rushSpawnWeights` / `SPAWN_FALLOFF_HOPS` are not exported; the ring test fails with `overflowMs` 10 000-plus.
 
-- [ ] **Step 3: Add the constant**
+- [x] **Step 3: Add the constant**
 
 In `src/engine/rushBalance.ts`, after `BASE_SPAWN_PER_SECOND`:
 
@@ -132,7 +132,7 @@ In `src/engine/rushBalance.ts`, after `BASE_SPAWN_PER_SECOND`:
 export const SPAWN_FALLOFF_HOPS = 3;
 ```
 
-- [ ] **Step 4: Implement rail hops and spawn weights**
+- [x] **Step 4: Implement rail hops and spawn weights**
 
 In `src/engine/rushHour.ts`, add `SPAWN_FALLOFF_HOPS` to the `./rushBalance` import. After `rushGeometry`, add:
 
@@ -181,7 +181,7 @@ export function rushSpawnWeights(net: NetworkIndex, lineSet: readonly LineCode[]
 }
 ```
 
-- [ ] **Step 5: Use the weights in the tick**
+- [x] **Step 5: Use the weights in the tick**
 
 Replace `pickWeighted` with an index picker:
 
@@ -210,7 +210,7 @@ with
 
 The PRNG draw count is unchanged (one for the Station, one for the target).
 
-- [ ] **Step 6: Reset the ring on arrival**
+- [x] **Step 6: Reset the ring on arrival**
 
 In `arrive`, change the `queues` line to:
 
@@ -221,12 +221,12 @@ In `arrive`, change the `queues` line to:
     },
 ```
 
-- [ ] **Step 7: Run the tests**
+- [x] **Step 7: Run the tests**
 
 Run: `npx vitest run src/engine/rushHour.test.ts && npx tsc --noEmit`
 Expected: PASS, no type errors. Then `npm test`. If `src/engine/rushProbe.test.ts` "lets a 60 WPM typist…" now fails, leave it: Task 2 replaces that test. Everything else must pass.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/engine/rushBalance.ts src/engine/rushHour.ts src/engine/rushHour.test.ts
