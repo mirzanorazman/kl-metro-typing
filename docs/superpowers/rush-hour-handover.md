@@ -7,7 +7,7 @@ read only the section the next task needs. Branch `feat/rush-hour`.
 
 ## Current position
 
-Next task: **1. Vocabulary**.
+Next task: **2. Seeded RNG + balance**.
 
 ## Rulings made during implementation (not in the spec)
 

@@ -80,17 +80,38 @@ Jump adds the Leg that becomes active.
 The mode where the player roams freely and chooses a Direction at every junction.
 
 **Rush Hour**:
-The survival mode: passengers accumulate at stations, the player's typing speed
-is the train's throughput, and one overcrowded station ends the Run.
-**Designed but never built** — it is specified in
-`docs/superpowers/specs/2026-09-03-myrapid-typing-design.md` and nothing in
-`src/` implements it. Passenger, Demand and Day phase below belong to it and are
-likewise unbuilt; `Profile.rushHigh` is a field reserved for it and never
-written.
+The survival mode: passengers accumulate in Queues at stations, the player's
+typing speed is the train's throughput, and one Overflow ends the Run. The
+train roams the chosen Line set as in Adventure. Score is passengers Delivered.
+Specified in `docs/superpowers/specs/2026-09-28-rush-hour-design.md`.
+
+**Line set**:
+The Lines chosen for a Rush Hour Run — one or more. The train may only travel
+on them, and `Profile.rushHigh` keys its best by them.
+
+**Queue**:
+The Passengers waiting at one Station in Rush Hour, first in, first out.
+
+**Capacity**:
+How many Passengers a Queue (6, or 8 at an Interchange) or the train (4 per
+carriage) can hold.
+
+**Load**:
+The Passengers aboard the train.
+_Avoid_: cargo, riders
+
+**Overflow**:
+A full Queue whose ring is filling. The ring drains once the Queue drops below
+Capacity; a ring that fills ends the Run.
+
+**Delivered**:
+A Passenger who has alighted at a Station served by their target Line. The
+Rush Hour score is the count of them.
 
 **Status**:
 Where a Run is right now. A Line Run or Adventure is typing, at a junction, or
-ended; a Quick Run is ready, running, completed, or interrupted.
+ended; a Quick Run is ready, running, completed, or interrupted; a Rush Hour Run
+is ready, running, paused, or ended.
 _Avoid_: phase, state
 
 The code honours neither half of this yet: `RunState` calls the field `phase`,
@@ -181,6 +202,6 @@ Three different things are called a line, and the distinction matters:
 
 1. The line a train travels on **now**, which changes during a Run.
 2. The line chosen before a Line Run or Quick Run starts. It stays fixed for a
-   Line Run, while a Quick Run can Jump to another Line. (Rush Hour, when built,
-   chooses a *set* of them.)
+   Line Run, while a Quick Run can Jump to another Line. (Rush Hour chooses a
+   Line set.)
 3. Line Run, the name of a mode.
