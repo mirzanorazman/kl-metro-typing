@@ -69,9 +69,10 @@ phases, each Day busier. The sim is a pure fixed-tick engine
 (`engine/rushHour.ts`, tuning in `engine/rushBalance.ts`) with a seeded RNG, so
 a Run replays exactly from its Keylog plus action log; only an Overflow-ended,
 Eligible Run updates `rushHigh`. Upgrades are deferred to a second plan. Spec:
-`docs/superpowers/specs/2026-09-28-rush-hour-design.md`. **Open:** the balance
-finding in `docs/superpowers/rush-hour-handover.md` — on long Lines, survival
-barely depends on typing speed.
+`docs/superpowers/specs/2026-09-28-rush-hour-design.md`. Tuned per
+`docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`: spawns centre
+on the train, an 8-seat train, a 125 s Day, compact Junction rows, and
+one-time tips.
 
 **Local leaderboard** — Line Run only. Completing a line end to end offers a
 name entry if the run's score would place in the top 20 overall or the top 20
@@ -238,7 +239,7 @@ Redeploying a previous build needs no migration and will not wipe anyone's
 leaderboard or profile. Keep it that way: the moment a schema version moves,
 this paragraph stops being true.
 
-**Rush Hour v2** — upgrades, phone support, and the balance decision above.
+**Rush Hour v2** — upgrades and phone support.
 v1 is built; the text below is the original framing.
 
 **Rush Hour (original framing)** — the survival mode from the original spec. Passengers accumulate at stations; your typing speed is the
