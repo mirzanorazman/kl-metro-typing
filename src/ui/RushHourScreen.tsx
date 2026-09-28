@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { sound } from '../audio/sound';
 import type { LineCode, Point } from '../data/types';
 import { lineAt, stationAt, type Direction, type NetworkIndex } from '../engine/network';
-import { loadProfile, recordIntegrityFail, recordRushBest, saveProfile } from '../engine/progress';
+import { loadProfile, markRushTipSeen, recordIntegrityFail, recordRushBest, saveProfile } from '../engine/progress';
 import type { KeySource } from '../engine/keylog';
 import { CARRIAGE_CAPACITY, OVERFLOW_MS, RUSH_KEYLOG_MAX_EVENTS } from '../engine/rushBalance';
 import {
@@ -27,6 +27,7 @@ import { LineBadge } from './LineBadge';
 import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
 import { RushJunction } from './RushJunction';
+import { newRushTips, rushTipText, type RushTipId } from './rushTips';
 import { RushSummary } from './RushSummary';
 import { useGameInput } from './TypingInputProvider';
 import { useKeyboard } from './useKeyboard';
@@ -58,6 +59,18 @@ function PauseOverlay({ onResume }: { onResume: () => void }) {
   );
 }
 
+/** A one-time tip. The Run is paused while it shows; any key or click dismisses it. */
+function TipCard({ id, onDismiss }: { id: RushTipId; onDismiss: () => void }) {
+  return (
+    <div className="rush-paused rush-tip" role="dialog" aria-label="Tip">
+      <p>{rushTipText(id)}</p>
+      <button type="button" onClick={onDismiss}>
+        <kbd>any key</kbd> Got it
+      </button>
+    </div>
+  );
+}
+
 /** Stations up to `reach` stops either side of `at` on `line`, for framing. */
 function nearby(net: NetworkIndex, line: LineCode | null, at: string, reach: number): string[] {
   if (!line) return [];
@@ -76,6 +89,22 @@ export function RushHourScreen({
   const [openedAt] = useState(runTick);
   const recorder = useRunRecorder(openedAt, RUSH_KEYLOG_MAX_EVENTS);
   const actions = useRef<RushAction[]>([]);
+
+  // Tips: the seen list is read once; a tip is marked seen when it is shown.
+  const seenTips = useRef(new Set(loadProfile().rushTipsSeen ?? []));
+  const [tips, setTips] = useState<RushTipId[]>([]);
+  const tipsShowing = useRef(false);
+  tipsShowing.current = tips.length > 0;
+  const tipPaused = useRef(false);
+  const markSeen = useCallback((ids: RushTipId[]) => {
+    let profile = loadProfile();
+    for (const id of ids) {
+      seenTips.current.add(id);
+      profile = markRushTipSeen(profile, id);
+    }
+    saveProfile(profile);
+  }, []);
+  const dismissTip = useCallback(() => setTips((queue) => queue.slice(1)), []);
 
   // Events advance the ref synchronously, and React only ever receives
   // values, so a re-run updater can never apply an input twice.
@@ -98,6 +127,8 @@ export function RushHourScreen({
   const onKey = useCallback((key: string, source?: KeySource) => {
     const cur = currentRun.current;
     if (phoneLandscape || cur.status === 'ended') return;
+    if (tipsShowing.current) return dismissTip();
+    if (cur.status === 'ready' && !seenTips.current.has('start') && key.length === 1) markSeen(['start']);
     if (key === 'Escape') return act({ a: 'pause' });
     if (cur.status === 'paused') return;
     if (key === 'Backspace') return act({ a: 'turn' });
@@ -105,7 +136,7 @@ export function RushHourScreen({
     if (cur.stage !== 'typing') return;
     const now = recorder.record(key, source);
     commit(enterRushCharacter(net, currentRun.current, key, now));
-  }, [act, commit, net, phoneLandscape, recorder]);
+  }, [act, commit, dismissTip, markSeen, net, phoneLandscape, recorder]);
 
   useGameInput(onKey, !phoneLandscape && run.status !== 'ended');
 
@@ -163,6 +194,29 @@ export function RushHourScreen({
     h.visited = run.visited.length;
     h.delivered = run.delivered;
   }, [run]);
+
+  // Tips freeze the Run with the ordinary pause action, so Replay and bests
+  // see nothing unusual.
+  const tipPrev = useRef(run);
+  useEffect(() => {
+    const prev = tipPrev.current;
+    tipPrev.current = run;
+    if (run.status === 'ended' || run.status === 'ready') return;
+    const fresh = newRushTips(prev, run, seenTips.current);
+    if (fresh.length === 0) return;
+    markSeen(fresh);
+    setTips((queue) => [...queue, ...fresh]);
+    if (currentRun.current.status === 'running') {
+      tipPaused.current = true;
+      act({ a: 'pause' });
+    }
+  }, [run, act, markSeen]);
+
+  useEffect(() => {
+    if (tips.length > 0 || !tipPaused.current) return;
+    tipPaused.current = false;
+    if (currentRun.current.status === 'paused') act({ a: 'resume' });
+  }, [tips, act]);
 
   // Judge once, at the end: only an Eligible Run may move the best.
   const lineSetKey = rushLineSetKey(run.lineSet);
@@ -289,6 +343,9 @@ export function RushHourScreen({
               )}
             </p>
 
+            {run.status === 'ready' && !seenTips.current.has('start') && (
+              <p className="rush-tip-inline" role="note">{rushTipText('start')}</p>
+            )}
             {run.stage === 'typing' && <Prompt state={run.typing} errorTick={run.errors} />}
             {run.stage === 'walking' && (
               <p className="rush-walking" role="status">
@@ -301,7 +358,7 @@ export function RushHourScreen({
 
             <p className="hint">
               {run.status === 'ready'
-                ? 'Start typing to open the doors. '
+                ? 'Type the station name to start · '
                 : run.arrivedFrom && run.stage === 'typing'
                   ? <><kbd>Backspace</kbd> to turn around · </>
                   : null}
@@ -310,7 +367,11 @@ export function RushHourScreen({
             <button type="button" onClick={() => act({ a: 'abandon' })} disabled={run.status === 'ready'}>
               End run
             </button>
-            {run.status === 'paused' && <PauseOverlay onResume={() => act({ a: 'resume' })} />}
+            {tips.length > 0 ? (
+              <TipCard id={tips[0]!} onDismiss={dismissTip} />
+            ) : (
+              run.status === 'paused' && <PauseOverlay onResume={() => act({ a: 'resume' })} />
+            )}
           </>
         }
       />

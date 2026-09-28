@@ -2,17 +2,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
-import { loadProfile } from '../engine/progress';
+import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { enterRushCharacter, startRush, type RushState } from '../engine/rushHour';
 import { RushHourScreen } from './RushHourScreen';
 import { RushJunction } from './RushJunction';
 import { RushSetup } from './RushSetup';
+import { RUSH_TIPS } from './rushTips';
 import { TypingInputProvider } from './TypingInputProvider';
 
 const net = buildNetwork(loadNetworkData());
 const type = (text: string) => {
   for (const ch of text) fireEvent.keyDown(window, { key: ch });
 };
+const seeAllTips = () => saveProfile({ ...emptyProfile(), rushTipsSeen: RUSH_TIPS.map((t) => t.id) });
 const originalRect = Element.prototype.getBoundingClientRect;
 
 beforeEach(() => {
@@ -61,6 +63,7 @@ describe('RushHourScreen', () => {
   );
 
   it('starts on the first key and pauses on blur until resumed', () => {
+    seeAllTips();
     renderRun();
     expect(screen.getByText(/Day 1 · Off-Peak/)).toBeTruthy();
     type('Hang');
@@ -76,12 +79,39 @@ describe('RushHourScreen', () => {
   });
 
   it('shows a summary and never saves a best for an abandoned Run', () => {
+    seeAllTips();
     renderRun();
     type('Hang');
     fireEvent.click(screen.getByRole('button', { name: 'End run' }));
     expect(screen.getByRole('heading', { name: 'Run ended' })).toBeTruthy();
     expect(screen.getByText(/only a Run that ends in an Overflow can set a best/)).toBeTruthy();
     expect(loadProfile().rushHigh).toEqual({});
+  });
+
+  it('shows the start tip, then freezes on the first Junction until a key dismisses the tip', () => {
+    renderRun();
+    expect(screen.getByText('Type the station name to start. Passengers appear near your train.')).toBeTruthy();
+    type('Hang Tuah');
+    expect(screen.queryByText(/Passengers appear near your train/)).toBeNull();
+
+    const tip = screen.getByRole('dialog', { name: 'Tip' });
+    expect(tip.textContent).toMatch(/Pick a way by its number/);
+    expect(screen.queryByRole('group', { name: 'Choose a direction' })).toBeNull();
+    expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
+
+    fireEvent.keyDown(window, { key: 'x' });
+    expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
+    expect(screen.getByRole('group', { name: 'Choose a direction' })).toBeTruthy();
+    expect(loadProfile().rushTipsSeen).toEqual(expect.arrayContaining(['start', 'junction']));
+  });
+
+  it('shows each tip only once', () => {
+    saveProfile({ ...emptyProfile(), rushTipsSeen: ['start', 'junction'] });
+    renderRun();
+    expect(screen.queryByText(/Passengers appear near your train/)).toBeNull();
+    type('Hang Tuah');
+    expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
+    expect(screen.getByRole('group', { name: 'Choose a direction' })).toBeTruthy();
   });
 });
 

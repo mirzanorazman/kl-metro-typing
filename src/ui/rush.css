@@ -149,3 +149,18 @@
 .rush-summary-stats dd {
   margin: 0;
 }
+
+.rush-tip p {
+  max-width: 32ch;
+  margin: 0;
+  text-align: center;
+}
+
+.rush-tip-inline {
+  margin: 0;
+  padding: var(--s) var(--s2);
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  background: var(--panel);
+  font-size: var(--t-sm);
+}
