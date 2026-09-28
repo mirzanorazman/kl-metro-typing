@@ -132,6 +132,35 @@ describe('RushHourScreen', () => {
     expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
     expect(screen.getByRole('group', { name: 'Choose a direction' })).toBeTruthy();
   });
+
+  it('gives the next queued tip a fresh button, so it cannot inherit focus from the last one', () => {
+    // A KJ+KG Run from kl-sentral reaches a Junction that also offers a Walk
+    // (see the RushJunction suite below), queueing 'junction' and 'walk'
+    // together. If TipCard is rendered without a key, the same <button>
+    // survives from one tip to the next: after a click on "Got it" leaves it
+    // focused, a real Enter both dismisses the tip (the window keydown
+    // listener) and re-clicks the still-focused button (the browser's
+    // default action for Enter on a focused button), silently skipping the
+    // tip after it. Keying TipCard by the tip id forces a fresh, unfocused
+    // button per tip instead.
+    saveProfile({ ...emptyProfile(), rushTipsSeen: ['start'] });
+    render(
+      <TypingInputProvider enabled={false}>
+        <RushHourScreen net={net} lineSet={['KJ', 'KG']} startAt="kl-sentral" onExit={() => {}} onAgain={() => {}} />
+      </TypingInputProvider>,
+    );
+    type('KL Sentral');
+
+    const firstTip = screen.getByRole('dialog', { name: 'Tip' });
+    expect(firstTip.textContent).toMatch(/Pick a way by its number/);
+    const gotIt = screen.getByRole('button', { name: /Got it/ });
+    fireEvent.click(gotIt);
+
+    const secondTip = screen.getByRole('dialog', { name: 'Tip' });
+    expect(secondTip.textContent).toMatch(/Walk to switch lines/);
+    expect(screen.getByRole('button', { name: /Got it/ })).not.toBe(gotIt);
+    expect(document.activeElement).not.toBe(gotIt);
+  });
 });
 
 describe('RushJunction', () => {

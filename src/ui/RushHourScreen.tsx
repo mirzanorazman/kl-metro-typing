@@ -368,7 +368,7 @@ export function RushHourScreen({
               End run
             </button>
             {tips.length > 0 ? (
-              <TipCard id={tips[0]!} onDismiss={dismissTip} />
+              <TipCard key={tips[0]} id={tips[0]!} onDismiss={dismissTip} />
             ) : (
               run.status === 'paused' && <PauseOverlay onResume={() => act({ a: 'resume' })} />
             )}
