@@ -1,11 +1,14 @@
 import type { CSSProperties } from 'react';
-import type { Point } from '../data/types';
+import type { LineCode, Point } from '../data/types';
 import type { Layout } from '../geo/layout';
 import type { NetworkIndex } from '../engine/network';
 import type { CareerState } from '../engine/dispatch';
 import { bunchedTrains, heldTrains } from '../engine/dispatchSim';
 import { sameRef, type Target, type TargetRef } from '../engine/dispatchTargets';
-import { incidentBadge, overlayLayout, SIGNAL_HALF_W, SIGNAL_LEN, SIGNAL_POST } from './dispatchLayout';
+import {
+  chipBox, incidentBadge, layoutPops, overlayLayout, POP_LINE_EM, SIGNAL_HALF_W, SIGNAL_LEN, SIGNAL_POST,
+  type Box, type OverlayFrame,
+} from './dispatchLayout';
 import { contrastText } from './contrast';
 import { INCIDENT_GLYPH } from './incidentGlyphs';
 import { NO_MOMENTS, type DispersalPop, type ExchangePop, type PassengerMoments } from './usePassengerMoments';
@@ -21,6 +24,10 @@ export interface DispatchOverlayProps {
   aimed: readonly Target[];
   /** Calls and dispersals to pop up beside their Stations. */
   moments?: PassengerMoments;
+  /** The visible map and the panels over it: chips and pops stay on the one, out from under the others. */
+  frame?: OverlayFrame | null;
+  /** Each Line's track as the map draws it, side by side on shared track; null when it runs through its Stations. */
+  tracks?: ReadonlyMap<LineCode, readonly Point[]> | null;
 }
 
 const CROSS_ICON = 'M-0.55,-0.55 L0.55,0.55 M0.55,-0.55 L-0.55,0.55';
@@ -34,26 +41,33 @@ const PERSON = 'M0,-6.5 V-1 M-2.8,-4.5 H2.8 M0,-1 L-2.2,4 M0,-1 L2.2,4';
 /** How many people stream away from a dispersal: enough to read as a crowd, never a swarm. */
 const peopleFor = (count: number) => Math.max(4, Math.min(10, Math.round(count / 4)));
 
+/** The lines of a pop: who boarded and, when anyone did, who got off. */
+const popText = (pop: ExchangePop) =>
+  pop.alighted > 0 ? [`+${pop.boarded} boarded`, `−${pop.alighted} off`] : [`+${pop.boarded} boarded`];
+
 /**
  * The pops beside Stations where a Train the player cleared just called: who
- * boarded and, when anyone did, who got off. Pops at one Station stack upward.
+ * boarded and, when anyone did, who got off. Pops at one Station stack
+ * upward, and every pop keeps clear of the chips, which are drawn over them.
  */
-function ExchangePops({ pops, layout, m }: { pops: readonly ExchangePop[]; layout: Layout; m: number }) {
-  const fontSize = 12 * m;
-  return <>{pops.map((pop, i) => {
-    const p = layout.get(pop.station);
-    if (!p) return null;
-    const stacked = pops.slice(0, i).filter((other) => other.station === pop.station).length;
-    const lines = pop.alighted > 0 ? 2 : 1;
-    const y = p.y - 16 * m - stacked * 2.4 * fontSize - (lines - 1) * fontSize * 1.1;
+function ExchangePops({ pops, layout, m, chips, frame }: {
+  pops: readonly ExchangePop[]; layout: Layout; m: number; chips: readonly Box[]; frame: OverlayFrame | null;
+}) {
+  const shown = pops.filter((pop) => layout.has(pop.station));
+  const places = layoutPops(
+    shown.map((pop) => ({ key: pop.key, at: layout.get(pop.station)!, text: popText(pop), own: pop.own })),
+    m, chips, frame,
+  );
+  return <>{shown.map((pop, i) => {
+    const place = places[i]!;
     return (
       // Keyed on the call, so a Train's next call restarts its pop.
       <g key={`pop-${pop.key}`} data-testid="exchange-pop" data-train={pop.train} data-station={pop.station}
-        data-own={pop.own ? 'true' : undefined} className="exchange-pop" transform={`translate(${p.x} ${y})`}>
-        <text className="exchange-pop-text" fontSize={fontSize} textAnchor="middle">
+        data-own={pop.own ? 'true' : undefined} className="exchange-pop" transform={`translate(${place.x} ${place.y})`}>
+        <text className="exchange-pop-text" fontSize={place.fontSize} textAnchor="middle">
           <tspan className="exchange-pop-boarded">+{pop.boarded} boarded</tspan>
           {pop.alighted > 0 && (
-            <tspan className="exchange-pop-off" x={0} dy={fontSize * 1.1}>−{pop.alighted} off</tspan>
+            <tspan className="exchange-pop-off" x={0} dy={place.fontSize * POP_LINE_EM}>−{pop.alighted} off</tspan>
           )}
         </text>
       </g>
@@ -108,8 +122,21 @@ function Dispersal({ pop, layout, m }: { pop: DispersalPop; layout: Layout; m: n
   );
 }
 
-const pointsOf = (layout: Layout, ids: readonly string[]) => ids.map((id) => layout.get(id))
-  .filter((p): p is Point => !!p).map((p) => `${p.x},${p.y}`).join(' ');
+/**
+ * A stretch of `line` through these Stations, as the map draws it: on its own
+ * lane where Lines share track, through the Stations otherwise.
+ */
+function linePoints(
+  net: NetworkIndex, layout: Layout, tracks: ReadonlyMap<LineCode, readonly Point[]> | null,
+  line: LineCode, ids: readonly string[],
+): string {
+  const lane = tracks?.get(line);
+  const stations = net.lines.get(line)!.stations;
+  return ids.map((id) => {
+    const i = stations.indexOf(id);
+    return lane && i >= 0 ? lane[i] : layout.get(id);
+  }).filter((p): p is Point => !!p).map((p) => `${p.x},${p.y}`).join(' ');
+}
 
 /**
  * The live Shift on the map: Trains with their Line code, each waiting Train's
@@ -122,7 +149,7 @@ const pointsOf = (layout: Layout, ids: readonly string[]) => ids.map((id) => lay
  * crowd draining away.
  */
 export function DispatchOverlay({
-  net, layout, markScale: m, career, targets, aimed, moments = NO_MOMENTS,
+  net, layout, markScale: m, career, targets, aimed, moments = NO_MOMENTS, frame = null, tracks = null,
 }: DispatchOverlayProps) {
   const { sim, aim } = career;
   const { marks, pulse } = useSignalMarks(net, career, targets);
@@ -131,7 +158,7 @@ export function DispatchOverlay({
   const typed = aim.typed.length;
   const isAimed = (ref: TargetRef) => aimed.some((t) => sameRef(t.ref, ref));
   const isLocked = (ref: TargetRef) => aim.lock !== null && sameRef(aim.lock, ref);
-  const { trains, marks: placed, chips, fontSize } = overlayLayout(net, layout, career, targets, marks, m);
+  const { trains, marks: placed, chips, fontSize } = overlayLayout(net, layout, career, targets, marks, m, frame);
 
   const heldStretches = sim.incidents.filter((inc) => inc.kind === 'signal-fault');
 
@@ -174,8 +201,7 @@ export function DispatchOverlay({
         <polyline
           key={`held-${inc.id}`}
           className="dispatch-held-stretch"
-          points={inc.stations.map((id) => layout.get(id)).filter((p): p is Point => !!p)
-            .map((p) => `${p.x},${p.y}`).join(' ')}
+          points={linePoints(net, layout, tracks, inc.line, inc.stations)}
           vectorEffect="non-scaling-stroke"
         />
       ))}
@@ -184,7 +210,7 @@ export function DispatchOverlay({
         // Keyed on the wave, so each new one replays from its origin.
         <g key={`wave-${pulse.wave}`} data-testid="wave-pulse" data-line={pulse.line} className="wave-pulse">
           {pulse.runs.map((run) => {
-            const points = pointsOf(layout, run.stations);
+            const points = linePoints(net, layout, tracks, pulse.line, run.stations);
             return (
               // No non-scaling-stroke here: Chrome then measures dashes in
               // screen pixels and ignores pathLength, so widths scale by hand.
@@ -295,7 +321,8 @@ export function DispatchOverlay({
 
       {/* Keyed on the event, so a new dispersal replays from the start. */}
       {moments.dispersal && <Dispersal key={moments.dispersal.key} pop={moments.dispersal} layout={layout} m={m} />}
-      <ExchangePops pops={moments.pops} layout={layout} m={m} />
+      {/* After the chips are laid out and before they are drawn: pops yield to chips, and chips stay on top. */}
+      <ExchangePops pops={moments.pops} layout={layout} m={m} chips={chips.map(chipBox)} frame={frame} />
 
       {chips.map((chip) => {
         const aimedHere = isAimed(chip.ref);

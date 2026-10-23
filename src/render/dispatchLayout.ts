@@ -1,4 +1,4 @@
-import type { Point } from '../data/types';
+import type { Point, ViewBox } from '../data/types';
 import type { EdgePadding } from '../geo/fit';
 import type { Layout } from '../geo/layout';
 import { linesOf, type NetworkIndex } from '../engine/network';
@@ -7,6 +7,7 @@ import { trainPosition, type Train } from '../engine/dispatchSim';
 import type { Target, TargetRef } from '../engine/dispatchTargets';
 import type { SignalMark } from './useSignalMarks';
 import { placeLabels } from './labels';
+import { pxPerUnit } from './mapMarks';
 
 /**
  * Where the Dispatcher overlay puts things, as pure geometry. The overlay
@@ -89,7 +90,7 @@ export const chipClearance = (c: Chip, m: number): Box =>
   ({ x0: c.x - 2 * m, y0: c.y - 2 * m, x1: c.x + c.w + 2 * m, y1: c.y + c.h + 2 * m });
 
 /** Distances tried for a chip, as multiples of its 15-unit gap, nearest first. */
-const CHIP_RINGS = [1, 1.8, 2.8, 4, 5.5, 7.5, 10] as const;
+const CHIP_RINGS = [1, 1.8, 2.8, 4, 5.5, 7.5, 10, 13, 17, 22, 28] as const;
 
 /** Fixes outrank Signals, which outrank express skips, for the nearer spots. */
 const CHIP_PRIORITY: Record<TargetRef['kind'], number> = { fix: 2, signal: 1, skip: 0 };
@@ -98,7 +99,9 @@ const CHIP_PRIORITY: Record<TargetRef['kind'], number> = { fix: 2, signal: 1, sk
  * Lays chips out with the label placer: each takes the first free corner
  * beside its anchor, preferring its own side, ring by ring outward, clear of
  * every chip already placed and every box to `avoid`. A chip pushed out
- * keeps a leader line back to its anchor. With nowhere free at all it still
+ * keeps a leader line back to its anchor. With a `frame`, every chip stays
+ * on the visible map and out from under its panels, even when that means
+ * sitting on a mark or another chip. With nowhere free at all it still
  * shows, on its first corner.
  */
 export function layoutChips(
@@ -106,6 +109,7 @@ export function layoutChips(
   m: number,
   fontSize: number,
   avoid: readonly Box[] = [],
+  frame: OverlayFrame | null = null,
 ): Chip[] {
   const h = fontSize * 1.5;
   const pad = fontSize * 0.45;
@@ -116,7 +120,10 @@ export function layoutChips(
       id: item.key, at: item.from, text: item.text, priority: CHIP_PRIORITY[item.kind], required: true,
       size: { w: width(item), h }, prefer: item.side.x >= 0 ? 'right' as const : 'left' as const,
     })),
-    { charWidth: fontSize * CHAR_EM, lineHeight: h, offset: 15 * m, boxes: avoid, rings: CHIP_RINGS },
+    {
+      charWidth: fontSize * CHAR_EM, lineHeight: h, offset: 15 * m, boxes: avoid, rings: CHIP_RINGS,
+      within: frame?.view, hard: frame?.panels,
+    },
   );
   const chips = new Map(placed.map((label) => {
     const item = byKey.get(label.id)!;
@@ -127,6 +134,91 @@ export function layoutChips(
   }));
   // In the order asked for, so the render order stays stable.
   return wanted.map((item) => chips.get(item.key)!);
+}
+
+/** A pop beside a Station after a call: who boarded and, on a second line, who got off. */
+export interface PopWant {
+  key: string;
+  /** The Station. */
+  at: Point;
+  /** Its lines of text, top first. */
+  text: readonly string[];
+  /** The player's own Clear: placed first, so it keeps the nearer spot. */
+  own: boolean;
+}
+
+/** Where a pop is drawn: its text centred on `x`, the first line's baseline at `y`. */
+export interface PopPlace { key: string; x: number; y: number; w: number; lines: number; fontSize: number }
+
+/** Font size of the pops, in layout units. */
+export const popFontSize = (m: number) => 12 * m;
+
+/** Line spacing of a two-line pop, as a fraction of its font size. */
+export const POP_LINE_EM = 1.1;
+
+/** Cap height above a baseline, and descent below the last, as fractions of the font size. */
+const POP_CAP_EM = 0.8;
+const POP_DESCENT_EM = 0.25;
+
+export const popBox = (p: PopPlace): Box => ({
+  x0: p.x - p.w / 2, x1: p.x + p.w / 2,
+  y0: p.y - p.fontSize * POP_CAP_EM,
+  y1: p.y + p.fontSize * ((p.lines - 1) * POP_LINE_EM + POP_DESCENT_EM),
+});
+
+/** Distances tried for a pop pushed off its usual spot, as multiples of a 12-unit gap. */
+const POP_RINGS = [1, 2, 3.2, 4.6, 6.4] as const;
+
+/**
+ * Lays pops out after the chips, which stay on top and win: a pop takes its
+ * usual spot, centred above its Station and stacked over earlier pops there,
+ * when that is clear of every chip and pop; otherwise the label placer finds
+ * it the nearest free corner. Every pop shows (the player's own Clear always
+ * has one, and a Delivered chime always has its pop), so with nowhere free it
+ * still goes on its usual spot. With a `frame`, pops stay on the visible map
+ * and out from under its panels.
+ */
+export function layoutPops(
+  wanted: readonly PopWant[],
+  m: number,
+  chips: readonly Box[],
+  frame: OverlayFrame | null = null,
+): PopPlace[] {
+  const fontSize = popFontSize(m);
+  const order = [...wanted].sort((a, b) => Number(b.own) - Number(a.own));
+  const taken: Box[] = [...chips];
+  const inside = (b: Box) => !frame
+    || (b.x0 >= frame.view.x0 && b.x1 <= frame.view.x1 && b.y0 >= frame.view.y0 && b.y1 <= frame.view.y1);
+  const clear = (b: Box) => inside(b) && !taken.some((t) => hits(t, b)) && !(frame?.panels ?? []).some((p) => hits(p, b));
+  const placed = new Map<string, PopPlace>();
+  const stacked = new Map<string, number>();
+  for (const pop of order) {
+    const lines = pop.text.length;
+    const w = Math.max(...pop.text.map((t) => t.length)) * fontSize * CHAR_EM;
+    const h = fontSize * (POP_CAP_EM + (lines - 1) * POP_LINE_EM + POP_DESCENT_EM);
+    const at = `${pop.at.x},${pop.at.y}`;
+    const below = stacked.get(at) ?? pop.at.y - 16 * m;
+    // The usual spot: its bottom just above the Station, or above the pop before.
+    const usual: PopPlace = { key: pop.key, x: pop.at.x, y: below - h + fontSize * POP_CAP_EM, w, lines, fontSize };
+    let chosen: PopPlace | null = clear(popBox(usual)) ? usual : null;
+    if (!chosen) {
+      const [label] = placeLabels(
+        [{ id: pop.key, at: pop.at, text: pop.text[0] ?? '', priority: 0, size: { w, h } }],
+        { charWidth: fontSize * CHAR_EM, lineHeight: h, offset: 12 * m, boxes: taken, rings: POP_RINGS,
+          within: frame?.view, hard: frame?.panels },
+      );
+      if (label) {
+        const x0 = label.textAnchor === 'start' ? label.x : label.x - w;
+        chosen = { key: pop.key, x: x0 + w / 2, y: label.y - h + fontSize * POP_CAP_EM, w, lines, fontSize };
+      }
+    }
+    chosen ??= usual;
+    const box = popBox(chosen);
+    taken.push(box);
+    if (chosen === usual) stacked.set(at, box.y0 - fontSize * 0.2);
+    placed.set(pop.key, chosen);
+  }
+  return wanted.map((pop) => placed.get(pop.key)!);
 }
 
 /** A signal post in nominal units, its foot at the origin and its head up -y: a pole and a footing. */
@@ -171,6 +263,46 @@ export function incidentBadge(p: Point, m: number): { x: number; y: number; r: n
 export const circleBox = (c: { x: number; y: number; r: number }): Box =>
   ({ x0: c.x - c.r, y0: c.y - c.r, x1: c.x + c.r, y1: c.y + c.r });
 
+/** A panel floating over the map, in screen pixels from the map's top-left corner. */
+export interface ScreenRect { x: number; y: number; w: number; h: number }
+
+/**
+ * What of the map the player can actually see, in layout units: the visible
+ * view (the SVG letterboxes its viewBox, so this is usually larger) and the
+ * panels floating over it. Chips and pops stay inside the one and out from
+ * under the others.
+ */
+export interface OverlayFrame { view: Box; panels: Box[] }
+
+/** Clearance kept between a chip and a panel's edge or the screen's, in screen pixels. */
+export const FRAME_MARGIN_PX = 6;
+
+/**
+ * The frame for a viewBox shown on a `screen` of this size, with `panels`
+ * (in screen pixels) over it, each edge moved `marginPx` towards the free
+ * map. Null until the screen has been measured.
+ */
+export function overlayFrame(
+  view: ViewBox,
+  screen: { w: number; h: number },
+  panels: readonly ScreenRect[],
+  marginPx = FRAME_MARGIN_PX,
+): OverlayFrame | null {
+  if (screen.w <= 0 || screen.h <= 0 || view.w <= 0 || view.h <= 0) return null;
+  const px = pxPerUnit(view, screen);
+  // `xMidYMid meet`: the viewBox is centred, and the long axis shows more.
+  const left = view.x + view.w / 2 - screen.w / (2 * px);
+  const top = view.y + view.h / 2 - screen.h / (2 * px);
+  const margin = marginPx / px;
+  return {
+    view: { x0: left + margin, y0: top + margin, x1: left + (screen.w / px) - margin, y1: top + (screen.h / px) - margin },
+    panels: panels.map((r) => ({
+      x0: left + r.x / px - margin, y0: top + r.y / px - margin,
+      x1: left + (r.x + r.w) / px + margin, y1: top + (r.y + r.h) / px + margin,
+    })),
+  };
+}
+
 /** Font size of the overlay's chips, in layout units. */
 export const chipFontSize = (m: number) => 13 * m;
 
@@ -184,7 +316,8 @@ export interface OverlayLayout {
 /**
  * The overlay's Trains, Signal marks and chips: one chip per Target, beside
  * its Train (or above its Incident's place), stepped clear of the waiting
- * trains' marks and of `avoid`.
+ * trains' marks and the Incident badges, and, given a `frame`, kept on the
+ * visible map and out from under its panels.
  */
 export function overlayLayout(
   net: NetworkIndex,
@@ -193,6 +326,7 @@ export function overlayLayout(
   targets: readonly Target[],
   marks: readonly SignalMark[],
   m: number,
+  frame: OverlayFrame | null = null,
 ): OverlayLayout {
   const { sim } = career;
   const fontSize = chipFontSize(m);
@@ -227,7 +361,7 @@ export function overlayLayout(
       return p ? [circleBox(incidentBadge(p, m))] : [];
     });
   const chips = layoutChips(wanted, m, fontSize,
-    [...marks.filter((mark) => !mark.cleared).flatMap((mark) => placed.get(mark.key)?.box ?? []), ...badges]);
+    [...marks.filter((mark) => !mark.cleared).flatMap((mark) => placed.get(mark.key)?.box ?? []), ...badges], frame);
   return { trains, marks: placed, chips, fontSize };
 }
 
@@ -244,8 +378,9 @@ export function overlayObstacles(
   targets: readonly Target[],
   marks: readonly SignalMark[],
   m: number,
+  frame: OverlayFrame | null = null,
 ): Box[] {
-  const { trains, marks: placed, chips } = overlayLayout(net, layout, career, targets, marks, m);
+  const { trains, marks: placed, chips } = overlayLayout(net, layout, career, targets, marks, m, frame);
   const { sim } = career;
   const around = (p: Point, r: number) => circleBox({ x: p.x, y: p.y, r });
   return [

@@ -48,6 +48,16 @@ export interface PlaceOptions {
    * all four corners before the next ring out. Default: just the one.
    */
   rings?: readonly number[];
+  /** When set, a label is placed only wholly inside this box: the visible map, say. */
+  within?: Box;
+  /**
+   * Rectangles nothing may be placed under, not even a required label while
+   * any corner in any ring clears them: panels floating over the map, say.
+   * With no corner free of everything, a required label takes the first one
+   * clear of these and of the labels already placed, then the first clear
+   * of these alone, and only then its first corner.
+   */
+  hard?: readonly Box[];
 }
 
 /** A circle labels route around. */
@@ -129,13 +139,18 @@ export function placeLabels(
     y1: o.y + o.r,
   }));
   taken.push(...(opts.boxes ?? []));
+  const hard = opts.hard ?? [];
+  taken.push(...hard);
   const rings = opts.rings ?? [1];
+  const inside = (box: Box) => opts.within === undefined
+    || (box.x0 >= opts.within.x0 && box.x1 <= opts.within.x1 && box.y0 >= opts.within.y0 && box.y1 <= opts.within.y1);
 
   // Near the right edge the text would run off screen, so try that side last.
   const nearRightEdge = (p: Point) =>
     opts.bounds !== undefined && p.x > opts.bounds.x + opts.bounds.w * 0.75;
 
   const placed: PlacedLabel[] = [];
+  const placedBoxes: Box[] = [];
   for (const candidate of order) {
     const first = candidate.prefer ?? (nearRightEdge(candidate.at) ? 'left' : 'right');
     const sides: Side[] = first === 'left' ? ['left', 'right'] : ['right', 'left'];
@@ -143,16 +158,21 @@ export function placeLabels(
       [side, 'up'],
       [side, 'down'],
     ]);
-
-    let chosen: ReturnType<typeof boxFor> | null = null;
-    search: for (const ring of rings) {
-      for (const [side, rung] of corners) {
-        const option = boxFor(candidate, side, rung, opts, ring);
-        if (!taken.some((t) => hits(t, option.box))) {
-          chosen = option;
-          break search;
+    const firstClear = (avoid: readonly Box[]) => {
+      for (const ring of rings) {
+        for (const [side, rung] of corners) {
+          const option = boxFor(candidate, side, rung, opts, ring);
+          if (inside(option.box) && !avoid.some((t) => hits(t, option.box))) return option;
         }
       }
+      return null;
+    };
+
+    let chosen = firstClear(taken);
+    // A required label never goes under a panel or off the map while any
+    // spot clears them, even if it has to sit on lesser things to do so.
+    if (!chosen && candidate.required && (hard.length > 0 || opts.within)) {
+      chosen = firstClear([...hard, ...placedBoxes]) ?? firstClear(hard);
     }
 
     // The station being typed wears the beacon ring, so every corner of it is
@@ -162,6 +182,7 @@ export function placeLabels(
     if (!chosen) continue;
 
     taken.push(chosen.box);
+    placedBoxes.push(chosen.box);
     placed.push({
       id: candidate.id,
       x: chosen.x,

@@ -87,4 +87,29 @@ describe('placeLabels', () => {
     expect(placed).toHaveLength(1);
     expect(placed[0]!.id).toBe('active');
   });
+
+  it('with `within`, a label takes a corner wholly inside the box', () => {
+    // The usual spot, up and right, runs past the right edge at x 30.
+    const within = { x0: -100, y0: -100, x1: 30, y1: 100 };
+    const [label] = placeLabels([at('a', 20, 0)], { ...opts, within });
+    expect(label!.textAnchor).toBe('end');
+    expect(label!.x).toBeLessThanOrEqual(30);
+  });
+
+  it('a required label with no corner free of everything still keeps out from under a `hard` box', () => {
+    // A soft box blocks every corner of the first ring; a hard one (a panel)
+    // covers the right-hand side. The label goes left, onto the soft box, not
+    // under the panel.
+    const soft = { x0: -40, y0: -40, x1: 40, y1: 40 };
+    const panel = { x0: 0, y0: -100, x1: 100, y1: 100 };
+    const [label] = placeLabels([{ ...at('a', 0, 0), required: true }], { ...opts, boxes: [soft], hard: [panel] });
+    expect(label!.textAnchor).toBe('end');
+    expect(label!.x).toBeLessThanOrEqual(0);
+  });
+
+  it('a `hard` box is avoided by an ordinary label too, ring by ring', () => {
+    const panel = { x0: 0, y0: -100, x1: 100, y1: 100 };
+    const [label] = placeLabels([at('a', -2, 0)], { ...opts, hard: [panel], rings: [1, 2] });
+    expect(label!.textAnchor).toBe('end');
+  });
 });

@@ -62,7 +62,9 @@ function resolveTheme(stored: Theme | undefined): Theme {
 
 /**
  * Dev only: `?dispatch=full` opens a Dispatcher Career on the full network at
- * a busy peak, for checking the map's readability in the browser. Vite
+ * a busy peak, for checking the map's readability in the browser.
+ * `&seed=2&flow=90&hold=40` picks the peak's seed and its flowing and held
+ * seconds (see `fullNetworkPeak`). Vite
  * replaces `import.meta.env.DEV` with false in a production build, so this
  * and the helper it calls are stripped there.
  */
@@ -73,7 +75,13 @@ export function App() {
   const data = useMemo(() => loadNetworkData(), []);
   const net = useMemo(() => buildNetwork(data), [data]);
   const [screen, setScreen] = useState<Screen>(() => (devFullDispatch() ? { kind: 'dispatch' } : { kind: 'home' }));
-  const devInitial = useMemo(() => (devFullDispatch() ? fullNetworkPeak(net) : undefined), [net]);
+  const devInitial = useMemo(() => {
+    if (!devFullDispatch()) return undefined;
+    const params = new URLSearchParams(window.location.search);
+    const num = (key: string) => (params.has(key) ? Number(params.get(key)) : undefined);
+    const secs = (key: string) => (num(key) === undefined ? undefined : num(key)! * 1000);
+    return fullNetworkPeak(net, num('seed'), secs('flow'), secs('hold'));
+  }, [net]);
   // The map draws itself on when the session opens, and not on the returns
   // from a run or the leaderboard. Owned here rather than in HomeMap because
   // this is where "have we been anywhere yet" is already known: HomeMap

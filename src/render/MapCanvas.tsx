@@ -6,7 +6,7 @@ import { usePanZoom, viewBoxString } from './usePanZoom';
 import {
   clampSpan, coverAspect, fitViewBox, scaleToContain, type EdgePadding,
 } from '../geo/fit';
-import type { Point, LineCode } from '../data/types';
+import type { Point, LineCode, ViewBox } from '../data/types';
 import type { BoundaryPath } from '../geo/boundaries';
 import { type District } from '../geo/networkLayout';
 import type { Box, Obstacle } from './labels';
@@ -40,6 +40,19 @@ const FOLLOW_MIN_SPAN = 160;
 const FOLLOW_EDGE_MARGIN = 0.06;
 
 const FOLLOW_MAX_SPAN = 240;
+
+/**
+ * What an overlay may need to know of the map as drawn: the live viewBox, the
+ * measured size of the map on screen (0 by 0 until measured), and each
+ * Line's track points as drawn — side by side on shared track when
+ * `laneOffsetPx` is set, otherwise null and the track runs through its
+ * Stations.
+ */
+export interface OverlayView {
+  view: ViewBox;
+  screen: { w: number; h: number };
+  tracks: ReadonlyMap<LineCode, readonly Point[]> | null;
+}
 
 export interface MapCanvasProps {
   net: NetworkIndex;
@@ -95,14 +108,14 @@ export interface MapCanvasProps {
   /**
    * Rectangles, in layout units, that station names must keep off at this
    * `markScale` — an overlay's own text, which outranks them. A name with no
-   * free corner is dropped.
+   * free corner is dropped. `view` and `screen` are as the overlay gets them.
    */
-  labelAvoid?: (markScale: number) => readonly Box[];
+  labelAvoid?: (markScale: number, ctx: OverlayView) => readonly Box[];
   /**
    * Extra marks drawn in layout coordinates above the stations and beneath
    * the train. `markScale` converts nominal radii to the current zoom.
    */
-  overlay?: (ctx: { layout: Layout; markScale: number }) => React.ReactNode;
+  overlay?: (ctx: { layout: Layout; markScale: number } & OverlayView) => React.ReactNode;
   /** When set, a pulse sweeps the length of this line. Set on completion. */
   celebrate?: LineCode | null;
   /** Stations already typed this run, in order. Inks the stretch behind you. */
@@ -498,7 +511,7 @@ export function MapCanvas({
 
         const { labels, fontSize, text: named } = mapLabels({
           net, layout, view, markScale, activeStation, labelled, tiers, inView, obstacles: furniture,
-          boxes: labelAvoid?.(markScale),
+          boxes: labelAvoid?.(markScale, { view, screen, tracks }),
         });
 
         return (
@@ -577,7 +590,7 @@ export function MapCanvas({
           );
         })()}
 
-      {overlay?.({ layout, markScale })}
+      {overlay?.({ layout, markScale, view, screen, tracks })}
 
       <TrainMarker
         from={previousStation ? layout.get(previousStation) ?? null : null}

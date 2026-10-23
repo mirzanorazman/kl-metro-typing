@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import {
+  useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject,
+} from 'react';
 import { music, sound } from '../audio/sound';
 import type { Point } from '../data/types';
 import type { KeySource } from '../engine/keylog';
@@ -28,7 +30,8 @@ import type { TypingState } from '../engine/typing';
 import { networkLayout } from '../geo/networkLayout';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import {
-  DISPATCH_FIT_PADDING, DISPATCH_LANE_PX, DISPATCH_MIN_MARK_PX, dispatchLabelled, overlayObstacles,
+  DISPATCH_FIT_PADDING, DISPATCH_LANE_PX, DISPATCH_MIN_MARK_PX, dispatchLabelled, overlayFrame, overlayObstacles,
+  type ScreenRect,
 } from '../render/dispatchLayout';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
@@ -139,6 +142,55 @@ function leanIn(
     stations: [...new Set([...near, ...waiting])],
     key: `fix:${incident.id}:${[...waiting].sort().join(',')}`,
   };
+}
+
+/** The panels floating over the Dispatcher's map: the top bar, the Incidents panel and the typing panel. */
+const PANELS = ['.dispatch-bar', '.dispatch-side', '.play-panel'] as const;
+
+const sameRects = (a: readonly ScreenRect[], b: readonly ScreenRect[]) => a.length === b.length
+  && a.every((r, i) => ['x', 'y', 'w', 'h'].every((k) =>
+    Math.abs(r[k as keyof ScreenRect] - b[i]![k as keyof ScreenRect]) < 0.5));
+
+/**
+ * Where the panels over the map are, in screen pixels from the map's corner,
+ * so chips can keep out from under them. Measured after every render, before
+ * paint, so a panel that just grew (the Incidents panel grows with every
+ * card) never shows a chip under it even for a frame; and again whenever a
+ * panel or the window changes size by itself.
+ */
+function usePanelRects(root: RefObject<HTMLElement | null>, live: boolean): ScreenRect[] {
+  const [rects, setRects] = useState<ScreenRect[]>([]);
+  const remeasure = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => remeasure.current?.());
+  useLayoutEffect(() => {
+    const el = root.current;
+    if (!live || !el) return;
+    const measure = () => {
+      const map = el.querySelector('.map-canvas')?.getBoundingClientRect();
+      if (!map || map.width <= 0 || map.height <= 0) return;
+      const next = PANELS.flatMap((selector) => {
+        const r = el.querySelector(selector)?.getBoundingClientRect();
+        // A panel as wide as the map is no floating panel: nothing is laid out yet.
+        if (!r || r.width <= 0 || r.height <= 0 || r.width >= map.width) return [];
+        return [{ x: r.left - map.left, y: r.top - map.top, w: r.width, h: r.height }];
+      });
+      setRects((prev) => (sameRects(prev, next) ? prev : next));
+    };
+    measure();
+    remeasure.current = measure;
+    window.addEventListener('resize', measure);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    for (const selector of PANELS) {
+      const panel = el.querySelector(selector);
+      if (panel) observer?.observe(panel);
+    }
+    return () => {
+      remeasure.current = null;
+      window.removeEventListener('resize', measure);
+      observer?.disconnect();
+    };
+  }, [root, live]);
+  return rects;
 }
 
 /** How long the streak count flashes when a Green wave fires. */
@@ -432,6 +484,8 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     [served, offered, layout],
   );
   const frameKey = offers ? `dispatch:${key}:offers` : `dispatch:${key}`;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panels = usePanelRects(rootRef, !phoneLandscape && run.status !== 'ended');
 
   if (phoneLandscape && run.status !== 'ended') return <PhoneLandscapeBlock fullScreen />;
   if (run.status === 'ended') {
@@ -461,8 +515,11 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
   const labelled = dispatchLabelled(net, run, served, targets);
   const leanFrame = lean?.stations.map((id) => layout.get(id)).filter((p): p is Point => p !== undefined);
 
+  // The urgent edge holds off behind the Pause and Tip dialogs.
+  const urgent = fixing && run.status === 'running' && tips.length === 0;
+
   return (
-    <div className="dispatcher" data-urgent={fixing ? 'true' : undefined}>
+    <div className="dispatcher" ref={rootRef} data-urgent={urgent ? 'true' : undefined}>
       <PlayLayout
         lineColour={lineColour}
         map={
@@ -473,7 +530,8 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
             labelled={labelled}
             minMarkPx={DISPATCH_MIN_MARK_PX}
             laneOffsetPx={DISPATCH_LANE_PX}
-            labelAvoid={(markScale) => overlayObstacles(net, layout, run, targets, liveMarks(net, run, targets), markScale)}
+            labelAvoid={(markScale, { view, screen }) => overlayObstacles(net, layout, run, targets,
+              liveMarks(net, run, targets), markScale, overlayFrame(view, screen, panels))}
             activeStation={null}
             backdrop={backdrop}
             districts={districts}
@@ -481,9 +539,9 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
             fitTo={leanFrame ?? frame}
             fitKey={lean?.key ?? frameKey}
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
-            overlay={({ layout: l, markScale }) => (
+            overlay={({ layout: l, markScale, view, screen, tracks }) => (
               <DispatchOverlay net={net} layout={l} markScale={markScale} career={run} targets={targets} aimed={aimed}
-                moments={moments} />
+                moments={moments} frame={overlayFrame(view, screen, panels)} tracks={tracks} />
             )}
           />
         }

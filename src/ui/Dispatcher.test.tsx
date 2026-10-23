@@ -24,8 +24,13 @@ import { DispatchSummary } from './DispatchSummary';
 import { closureText, failureText } from './dispatchTips';
 import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
-import { RIPPLE_LEAD_MS, RIPPLE_STEP_MS } from '../render/useSignalMarks';
+import { liveMarks, RIPPLE_LEAD_MS, RIPPLE_STEP_MS } from '../render/useSignalMarks';
 import { MapCanvas } from '../render/MapCanvas';
+import { DispatchOverlay } from '../render/DispatchOverlay';
+import { chipBox, hits, layoutPops, overlayLayout, popBox } from '../render/dispatchLayout';
+import type { ExchangePop } from '../render/usePassengerMoments';
+import { networkLayout } from '../geo/networkLayout';
+import { trackLines } from '../render/mapMarks';
 import { readFileSync } from 'node:fs';
 
 // Pass-through spy: the screen's judged evidence is observed, never altered.
@@ -721,6 +726,46 @@ describe('DispatcherScreen', () => {
       expect(streak().getAttribute('data-wave')).toBeNull();
     });
 
+    it('on shared track the pulse and a held stretch run along their own Line\'s lane, as the map draws it', () => {
+      allowMotion();
+      const { geo } = networkLayout();
+      const tracks = trackLines(net, geo, 8);
+      const sp = net.lines.get('SP')!.stations;
+      const served: Served = [{ line: 'SP', from: 0, to: sp.length - 1 }];
+      const jamek = idOf('Masjid Jamek');
+      const origin = sp.indexOf(jamek);
+      const before = careerWith([waiting(1, 'SP', 'Bandaraya')], served);
+      const fault: Incident = {
+        id: 1, kind: 'signal-fault', place: jamek, stations: [idOf('Plaza Rakyat'), jamek, idOf('Bandaraya')],
+        line: 'SP', train: null, startedMs: 0, step: 0, extra: 0,
+      };
+      before.sim.incidents = [fault];
+      const draw = (career: CareerState) => (
+        <svg>
+          <DispatchOverlay net={net} layout={geo} markScale={1} career={career}
+            targets={visibleTargets(net, career.sim)} aimed={[]} tracks={tracks} />
+        </svg>
+      );
+      const { container, rerender } = render(draw(before));
+      // A wave from Masjid Jamek that found nothing waiting runs out both ways.
+      const after: CareerState = {
+        ...before, sim: { ...before.sim, trains: [] }, streak: 0, waves: 1,
+        lastWave: { id: 1, line: 'SP', origin: jamek, cleared: [], atMs: 0 },
+      };
+      rerender(draw(after));
+      const pulse = screen.getByTestId('wave-pulse');
+      const lane = (ids: readonly string[]) => ids.map((id) => tracks.get('SP')![sp.indexOf(id)]!)
+        .map((p) => `${p.x},${p.y}`).join(' ');
+      const plain = (ids: readonly string[]) => ids.map((id) => geo.get(id)!).map((p) => `${p.x},${p.y}`).join(' ');
+      const down = sp.slice(0, origin + 1).reverse();
+      const heads = [...pulse.querySelectorAll('.wave-pulse-head')].map((el) => el.getAttribute('points'));
+      expect(heads).toContain(lane(down));
+      expect(heads).not.toContain(plain(down));
+      const held = container.querySelector('.dispatch-held-stretch')!.getAttribute('points');
+      expect(held).toBe(lane(fault.stations));
+      expect(held).not.toBe(plain(fault.stations));
+    });
+
     it('a wave from an earlier Shift does not replay', () => {
       allowMotion();
       renderShift({
@@ -842,6 +887,47 @@ describe('DispatcherScreen', () => {
       type('B');
       expect(pops()).toHaveLength(4);
       expect(popOf(6)).toBeTruthy();
+    });
+
+    it('a pop whose usual spot is under a chip moves clear of every chip; the chips stay on top', () => {
+      const { geo } = networkLayout();
+      const popFor = (station: string): ExchangePop => ({
+        key: `9-${station}`, train: 9, station, boarded: 12, alighted: 3, delivered: 3, own: true, atMs: 0,
+      });
+      const want = (pop: ExchangePop) => ({
+        key: pop.key, at: geo.get(pop.station)!, text: [`+${pop.boarded} boarded`, `−${pop.alighted} off`], own: pop.own,
+      });
+      // A waiting Train whose chip lands on the usual spot of a pop at its Station.
+      const kj = net.lines.get('KJ')!.stations;
+      const served = new Set(servedStations(net, STARTING_NETWORK));
+      const found = kj.slice(1, -1).filter((id) => served.has(id)).flatMap((id) => {
+        const career = careerWith([waiting(1, 'KJ', net.stations.get(id)!.name)]);
+        const targets = visibleTargets(net, career.sim);
+        const { chips } = overlayLayout(net, geo, career, targets, liveMarks(net, career, targets), 1);
+        const usual = popBox(layoutPops([want(popFor(id))], 1, [])[0]!);
+        return chips.some((chip) => hits(chipBox(chip), usual)) ? [{ id, career, targets }] : [];
+      })[0];
+      expect(found, 'a Station whose chip covers its pop').toBeTruthy();
+      const { id, career, targets } = found!;
+      const pop = popFor(id);
+      const { container } = render(
+        <svg>
+          <DispatchOverlay net={net} layout={geo} markScale={1} career={career} targets={targets} aimed={[]}
+            moments={{ pops: [pop], dispersal: null }} />
+        </svg>,
+      );
+      const drawn = container.querySelector('[data-testid="exchange-pop"]')!;
+      const [, x, y] = /translate\(([-\d.e]+) ([-\d.e]+)\)/.exec(drawn.getAttribute('transform')!)!.map(Number);
+      const box = popBox({ ...layoutPops([want(pop)], 1, [])[0]!, x: x!, y: y! });
+      const chipRects = [...container.querySelectorAll('.dispatch-chip rect')].map((r) => {
+        const n = (a: string) => Number(r.getAttribute(a));
+        return { x0: n('x'), y0: n('y'), x1: n('x') + n('width'), y1: n('y') + n('height') };
+      });
+      expect(chipRects.length).toBeGreaterThan(0);
+      for (const chip of chipRects) expect(hits(box, chip)).toBe(false);
+      // Chips are drawn after the pops, so they stay on top.
+      const order = [...container.querySelectorAll('[data-testid="exchange-pop"], .dispatch-chip')];
+      expect(order[order.length - 1]!.classList.contains('dispatch-chip')).toBe(true);
     });
 
     it("a Crowd surge's card shows how many wait at its place", () => {
@@ -1009,6 +1095,36 @@ describe('Leaning in on an Incident fix', () => {
     expect(mapProps().fitKey).toBe(normalKey);
   });
 
+  it('the urgent edge holds off while the Pause dialog shows, and comes back on resuming', () => {
+    const { container } = renderShift(surgeWithWaiting());
+    type('C');
+    expect(root(container).getAttribute('data-urgent')).toBe('true');
+    press('Escape');
+    expect(screen.getByRole('dialog', { name: 'Paused' })).toBeTruthy();
+    expect(root(container).getAttribute('data-urgent')).toBeNull();
+    press('Enter');
+    expect(root(container).getAttribute('data-urgent')).toBe('true');
+  });
+
+  it('the urgent edge holds off while a Tip shows', () => {
+    seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
+    const clock = fakeClock();
+    const initial = surgeWithWaiting();
+    initial.sim.platforms[idOf('KLCC')] = {
+      waiting: { [idOf('KL Sentral')]: 200 }, fullMs: OOS_CROWD_MS - 100, lastCall: {},
+    };
+    const { container } = renderShift(initial);
+    type('C');
+    expect(root(container).getAttribute('data-urgent')).toBe('true');
+    clock.now += 100;
+    type('r');
+    expect(screen.getByRole('dialog', { name: 'Tip' })).toBeTruthy();
+    expect(root(container).getAttribute('data-urgent')).toBeNull();
+    type('x');
+    expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
+    expect(root(container).getAttribute('data-urgent')).toBe('true');
+  });
+
   it('the edge pulse and the glow hold still under reduced motion', () => {
     const css = readFileSync('src/ui/dispatch.css', 'utf8');
     expect(css).toMatch(/\.dispatcher\[data-urgent='true'\]::after\s*\{[^}]*animation:\s*urgent-edge/);
@@ -1021,6 +1137,76 @@ describe('Leaning in on an Incident fix', () => {
     expect(reduced).toBeDefined();
     expect(reduced).toMatch(/\.dispatcher\[data-urgent='true'\]::after\s*\{[^}]*animation:\s*none/);
     expect(reduced).toMatch(/\.incident-glow\s*\{[^}]*animation:\s*none/);
+  });
+});
+
+describe('Chips and the panels over the map', () => {
+  /** The map is 1512×690 at the origin (see beforeEach); this panel sits where it is told. */
+  const panelAt = (selector: string, rect: { x: number; y: number; w: number; h: number }) => {
+    const full = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (this.matches(selector)) {
+        return { x: rect.x, y: rect.y, left: rect.x, top: rect.y, right: rect.x + rect.w, bottom: rect.y + rect.h,
+          width: rect.w, height: rect.h, toJSON: () => ({}) } as DOMRect;
+      }
+      return full.call(this);
+    };
+  };
+  /** A chip's box on screen, from its rect in layout units and the map's viewBox. */
+  const onScreen = (container: HTMLElement, name: string) => {
+    const [x, y, w, h] = container.querySelector('svg.map-canvas')!.getAttribute('viewBox')!.split(' ').map(Number) as
+      [number, number, number, number];
+    const px = Math.min(1512 / w, 690 / h);
+    const left = x + w / 2 - 1512 / (2 * px);
+    const top = y + h / 2 - 690 / (2 * px);
+    const rect = labelFor(name)!.querySelector('rect')!;
+    const at = (attr: string) => Number(rect.getAttribute(attr));
+    return {
+      x0: (at('x') - left) * px, y0: (at('y') - top) * px,
+      x1: (at('x') + at('width') - left) * px, y1: (at('y') + at('height') - top) * px,
+    };
+  };
+  const overlaps = (a: { x0: number; y0: number; x1: number; y1: number }, r: { x: number; y: number; w: number; h: number }) =>
+    a.x0 < r.x + r.w && r.x < a.x1 && a.y0 < r.y + r.h && r.y < a.y1;
+
+  it('a chip whose spot goes under the Incidents panel as it grows moves out from under it', () => {
+    const { container } = renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    const free = onScreen(container, 'Jelatek');
+    // The panel grows down over the chip, as a new card would make it.
+    const panel = { x: free.x0 - 20, y: free.y0 - 40, w: free.x1 - free.x0 + 40, h: free.y1 - free.y0 + 80 };
+    expect(overlaps(free, panel)).toBe(true);
+    panelAt('.dispatch-side', panel);
+    act(() => { window.dispatchEvent(new Event('resize')); });
+    const moved = onScreen(container, 'Jelatek');
+    expect(overlaps(moved, panel)).toBe(false);
+  });
+
+  it('a panel that grows on a render is measured again before paint, with no resize', () => {
+    const { container } = renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    const free = onScreen(container, 'Jelatek');
+    const grown = { x: free.x0 - 20, y: free.y0 - 10, w: free.x1 - free.x0 + 40, h: 690 - free.y0 };
+    // The typing panel is a strip at the bottom until it holds the Pause dialog.
+    const full = Element.prototype.getBoundingClientRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      if (!this.matches('.play-panel')) return full.call(this);
+      const r = this.querySelector('.dispatch-paused') ? grown : { x: 100, y: 670, w: 300, h: 20 };
+      return { x: r.x, y: r.y, left: r.x, top: r.y, right: r.x + r.w, bottom: r.y + r.h,
+        width: r.w, height: r.h, toJSON: () => ({}) } as DOMRect;
+    };
+    type('J');
+    expect(overlaps(onScreen(container, 'Jelatek'), grown)).toBe(true);
+    press('Escape');
+    expect(screen.getByRole('dialog', { name: 'Paused' })).toBeTruthy();
+    expect(overlaps(onScreen(container, 'Jelatek'), grown)).toBe(false);
+  });
+
+  it('a chip keeps out from under the typing panel too', () => {
+    const { container } = renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    const free = onScreen(container, 'Jelatek');
+    const panel = { x: free.x0 - 20, y: free.y0 - 10, w: free.x1 - free.x0 + 40, h: 690 - free.y0 };
+    panelAt('.play-panel', panel);
+    act(() => { window.dispatchEvent(new Event('resize')); });
+    expect(overlaps(onScreen(container, 'Jelatek'), panel)).toBe(false);
   });
 });
 
