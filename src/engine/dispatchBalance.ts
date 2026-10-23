@@ -7,7 +7,7 @@ export const TRAVEL_MS = 5_000;
 /** Minimum Station dwell before Passenger movement adds time. */
 export const DWELL_BASE_MS = 1_500;
 /** Added dwell per Passenger boarding or alighting. */
-export const DWELL_PER_PASSENGER_MS = 40;
+export const DWELL_PER_PASSENGER_MS = 60;
 /** Time to reverse at the end of a served range. */
 export const TURNAROUND_MS = 3_000;
 /** Trains on a Line are max(2, round(served Stations / this)). */
@@ -21,7 +21,7 @@ export const OOS_CROWD_MS = 20_000;
 /** This share of served Stations Out of service fails a Shift. */
 export const OOS_FAIL_SHARE = 0.25;
 /** Passengers per second per demand unit at multiplier 1. */
-export const PASSENGER_RATE = 0.08;
+export const PASSENGER_RATE = 0.105;
 /** Destination weight boost towards or away from the centre at peak. */
 export const CENTRAL_PULL = 3;
 /** Stations treated as central when weighting peak travel flows. */

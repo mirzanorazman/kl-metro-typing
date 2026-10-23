@@ -1,4 +1,16 @@
 import type { LineCode } from '../data/types';
+import {
+  DISPATCH_EVIDENCE_VERSION,
+  advanceCareer,
+  applyDispatchAction,
+  careerMetrics,
+  careerScore,
+  careerTotals,
+  enterDispatchCharacter,
+  startCareer,
+  type CareerState,
+  type DispatchAction,
+} from './dispatch';
 import { KEYLOG_VERSION, type KeyLog } from './keylog';
 import { keyLineRun, lineRunRoute } from './lineRun';
 import { computeMetrics, type Metrics } from './metrics';
@@ -190,4 +202,85 @@ export function replayRushHour(net: NetworkIndex, evidence: RushEvidence): RushR
     overflowedAt: state.overflowedAt,
     complete: state.status === 'ended' && state.endReason === 'overflow' && state.endedAt === evidence.endedAt,
   };
+}
+
+export interface DispatchEvidence {
+  v: number;
+  seed: number;
+  keylog: KeyLog;
+  actions: DispatchAction[];
+  /** The Career clock time the live Career ended at. */
+  endedAt: number;
+}
+
+export interface DispatchReplayResult {
+  metrics: Metrics;
+  delivered: number;
+  cleared: number;
+  score: number;
+  complete: boolean;
+}
+
+const DISPATCH_ACTIONS: readonly string[] = ['unlock', 'expand', 'pause', 'resume', 'abandon', 'confirm'];
+
+/**
+ * Rebuilds a Dispatcher Career from its seed, Keylog and action log.
+ *
+ * `null` means the evidence cannot describe a Career at all: malformed, out of
+ * order, or an action the engine would have refused. `complete` is true only
+ * when the Career failed at exactly the recorded tick — an abandoned Career
+ * replays but is never complete.
+ */
+export function replayDispatch(net: NetworkIndex, evidence: DispatchEvidence): DispatchReplayResult | null {
+  const log = evidence?.keylog;
+  const actions = evidence?.actions;
+  if (evidence?.v !== DISPATCH_EVIDENCE_VERSION) return null;
+  if (log?.v !== KEYLOG_VERSION || !Array.isArray(log.events) || !Array.isArray(actions)) return null;
+  if (!Number.isFinite(evidence.endedAt) || !Number.isFinite(evidence.seed) || !Number.isFinite(log.t0)) return null;
+
+  try {
+    let state: CareerState = startCareer(net, evidence.seed);
+    let now = log.t0;
+    let next = 0;
+    const applyActionsBefore = (index: number): boolean => {
+      while (next < actions.length && actions[next]!.i === index) {
+        const action = actions[next]!;
+        if (!DISPATCH_ACTIONS.includes(action.a) || !Number.isFinite(action.t) || action.t < now) return false;
+        now = action.t;
+        // The live screen ticks continuously; an Expansion needs the Shift end it reached.
+        const synced = advanceCareer(net, state, now);
+        const after = applyDispatchAction(net, synced, action, now);
+        if (after === synced) return false;
+        state = after;
+        next += 1;
+      }
+      return true;
+    };
+
+    let keyAt = log.t0;
+    for (let i = 0; i < log.events.length; i++) {
+      if (!applyActionsBefore(i)) return null;
+      const event = log.events[i]!;
+      if (typeof event.k !== 'string' || !Number.isFinite(event.dt)) return null;
+      keyAt += event.dt;
+      if (keyAt < now) return null;
+      now = keyAt;
+      state = enterDispatchCharacter(net, state, event.k, now);
+    }
+    if (!applyActionsBefore(log.events.length)) return null;
+    if (next !== actions.length) return null;
+    if (evidence.endedAt < now) return null;
+
+    state = advanceCareer(net, state, evidence.endedAt);
+
+    return {
+      metrics: careerMetrics(state, evidence.endedAt),
+      delivered: careerTotals(state).delivered,
+      cleared: state.cleared,
+      score: careerScore(state),
+      complete: state.status === 'ended' && state.endReason === 'failed' && state.endedAt === evidence.endedAt,
+    };
+  } catch {
+    return null;
+  }
 }
