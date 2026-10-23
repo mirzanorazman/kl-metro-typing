@@ -450,6 +450,78 @@
   .dispatch-streak[data-wave='true'] { animation: none; }
 }
 
+/* ---- Passenger moments ---- */
+
+/* Words over the map, haloed in paper so they read over track and labels. */
+.exchange-pop text,
+.dispersal text {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 0.3em;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  pointer-events: none;
+}
+
+.exchange-pop .exchange-pop-off { fill: var(--ink-muted); }
+
+/* A call's pop rises in, holds, and fades: about a second in all (POP_MS). */
+.exchange-pop-text { animation: exchange-pop 1.1s ease-out forwards; }
+
+@keyframes exchange-pop {
+  0% { opacity: 0; transform: translateY(4px); }
+  15% { opacity: 1; transform: translateY(0); }
+  75% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
+}
+
+.dispersal-person { pointer-events: none; }
+.dispersal-person circle { fill: var(--ink-muted); }
+.dispersal-person path { fill: none; stroke: var(--ink-muted); stroke-width: 1.5px; stroke-linecap: round; }
+
+/* People stream away from the Station while the waiting count drops. */
+.dispersal-person { animation: dispersal-walk 0.9s ease-out var(--delay, 0ms) both; }
+
+@keyframes dispersal-walk {
+  from { opacity: 0.95; transform: translate(0, 0); }
+  to { opacity: 0; transform: translate(var(--dx), var(--dy)); }
+}
+
+.dispersal-from { animation: dispersal-out 0.4s ease-in 0.15s both; }
+.dispersal-to { animation: dispersal-in 0.4s ease-out 0.15s both; }
+.dispersal { animation: dispersal-fade 1.1s linear forwards; }
+
+@keyframes dispersal-out {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-6px); }
+}
+
+@keyframes dispersal-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dispersal-fade {
+  0%, 80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The counts stand still until they are removed. */
+  .exchange-pop-text,
+  .dispersal,
+  .dispersal-to { animation: none; }
+}
+
+/* A Crowd surge's card counts who waits at its place. */
+.dispatch-crowd {
+  margin: 0;
+  font: 700 var(--t-xs) var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- Between Shifts: the Expansion picker ---- */
 
 .dispatch-expansion {
@@ -459,6 +531,18 @@
 }
 
 .dispatch-expansion h2 { margin: 0; }
+
+/* The beat before the offers: the Shift's passengers moved, and its on-time %. */
+.dispatch-moved {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s2);
+}
+
+.dispatch-moved p { margin: 0; font-variant-numeric: tabular-nums; }
+.dispatch-moved-count { font: 700 var(--t-md) var(--font-mono); }
+.dispatch-moved-on-time { font: var(--t-sm) var(--font-mono); color: var(--ink-muted); }
 
 .dispatch-era {
   margin: 0;

@@ -2,7 +2,7 @@ import type { NetworkIndex } from '../engine/network';
 import type { CareerState } from '../engine/dispatch';
 import { INCIDENT_LIMIT_MS } from '../engine/dispatchBalance';
 import { fixItems } from '../engine/dispatchIncidents';
-import type { IncidentKind } from '../engine/dispatchSim';
+import { crowdAt, type IncidentKind } from '../engine/dispatchSim';
 import { INCIDENT_GLYPH } from '../render/incidentGlyphs';
 import { LineBadge } from './LineBadge';
 
@@ -14,7 +14,8 @@ export const INCIDENT_KIND_NAME: Record<IncidentKind, string> = {
 
 /**
  * The active Incidents as cards: kind, Line, place, what to type to fix it,
- * and a bar that fills as the place nears going Out of service.
+ * and a bar that fills as the place nears going Out of service. A Crowd
+ * surge's card also counts who is waiting at its place.
  */
 export function DispatchIncidents({ net, career }: { net: NetworkIndex; career: CareerState }) {
   const { sim } = career;
@@ -38,6 +39,9 @@ export function DispatchIncidents({ net, career }: { net: NetworkIndex; career: 
               {line && <LineBadge code={line.code} colour={line.colour} />}
               <span>{place}</span>
             </p>
+            {inc.kind === 'crowd-surge' && (
+              <p className="dispatch-crowd" data-testid="crowd-count">{crowdAt(sim, inc.place)} waiting</p>
+            )}
             <p className="dispatch-fix-items">
               <span className="dispatch-fix-label">Type</span>
               {items.map((text, i) => (

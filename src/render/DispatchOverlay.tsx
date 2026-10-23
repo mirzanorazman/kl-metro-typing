@@ -7,6 +7,7 @@ import { bunchedTrains, heldTrains, trainPosition, type Train } from '../engine/
 import { sameRef, type Target, type TargetRef } from '../engine/dispatchTargets';
 import { contrastText } from './contrast';
 import { INCIDENT_GLYPH } from './incidentGlyphs';
+import { NO_MOMENTS, type DispersalPop, type ExchangePop, type PassengerMoments } from './usePassengerMoments';
 import { useSignalMarks, type SignalMark } from './useSignalMarks';
 
 export interface DispatchOverlayProps {
@@ -17,6 +18,8 @@ export interface DispatchOverlayProps {
   targets: readonly Target[];
   /** Targets still matching what has been typed; empty when nothing is. */
   aimed: readonly Target[];
+  /** Calls and dispersals to pop up beside their Stations. */
+  moments?: PassengerMoments;
 }
 
 /** Monospace advance plus the label letter-spacing, as a fraction of the font size. */
@@ -146,6 +149,86 @@ function placeMark(net: NetworkIndex, layout: Layout, mark: SignalMark, m: numbe
   return { at, angle, box: { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) } };
 }
 
+/** A person, about 12 nominal units tall, standing on the origin: a head, arms and legs. */
+const PERSON = 'M0,-6.5 V-1 M-2.8,-4.5 H2.8 M0,-1 L-2.2,4 M0,-1 L2.2,4';
+
+/** How many people stream away from a dispersal: enough to read as a crowd, never a swarm. */
+const peopleFor = (count: number) => Math.max(4, Math.min(10, Math.round(count / 4)));
+
+/**
+ * The pops beside Stations where a Train the player cleared just called: who
+ * boarded and, when anyone did, who got off. Pops at one Station stack upward.
+ */
+function ExchangePops({ pops, layout, m }: { pops: readonly ExchangePop[]; layout: Layout; m: number }) {
+  const fontSize = 12 * m;
+  return <>{pops.map((pop, i) => {
+    const p = layout.get(pop.station);
+    if (!p) return null;
+    const stacked = pops.slice(0, i).filter((other) => other.station === pop.station).length;
+    const lines = pop.alighted > 0 ? 2 : 1;
+    const y = p.y - 16 * m - stacked * 2.4 * fontSize - (lines - 1) * fontSize * 1.1;
+    return (
+      // Keyed on the call, so a Train's next call restarts its pop.
+      <g key={`pop-${pop.key}`} data-testid="exchange-pop" data-train={pop.train} data-station={pop.station}
+        data-own={pop.own ? 'true' : undefined} className="exchange-pop" transform={`translate(${p.x} ${y})`}>
+        <text className="exchange-pop-text" fontSize={fontSize} textAnchor="middle">
+          <tspan className="exchange-pop-boarded">+{pop.boarded} boarded</tspan>
+          {pop.alighted > 0 && (
+            <tspan className="exchange-pop-off" x={0} dy={fontSize * 1.1}>−{pop.alighted} off</tspan>
+          )}
+        </text>
+      </g>
+    );
+  })}</>;
+}
+
+/**
+ * A fixed Crowd surge's crowd draining at its Station: the waiting count drops
+ * to its new value while small people stream away. Under reduced motion the
+ * new count stands still and nobody moves.
+ */
+function Dispersal({ pop, layout, m }: { pop: DispersalPop; layout: Layout; m: number }) {
+  const p = layout.get(pop.station);
+  if (!p) return null;
+  const fontSize = 12 * m;
+  const people = pop.still ? 0 : peopleFor(pop.count);
+  const countY = p.y - 22 * m;
+  return (
+    <g data-testid="dispersal" data-station={pop.station}
+      data-still={pop.still ? 'true' : undefined} className="dispersal">
+      {Array.from({ length: people }, (_, i) => {
+        // Spread round the Station, a little uneven so they read as people, not a dial.
+        const angle = (i / people) * Math.PI * 2 + (i % 2 ? 0.25 : -0.1);
+        const reach = (30 + (i % 3) * 7) * m;
+        const style = {
+          '--dx': `${Math.cos(angle) * reach}px`, '--dy': `${Math.sin(angle) * reach}px`, '--delay': `${(i % 4) * 60}ms`,
+        } as CSSProperties;
+        return (
+          <g key={i} transform={`translate(${p.x} ${p.y})`}>
+            <g data-testid="person" className="dispersal-person" style={style}>
+              <g transform={`scale(${m})`}>
+                <circle cy={-8.5} r={2} />
+                <path d={PERSON} vectorEffect="non-scaling-stroke" />
+              </g>
+            </g>
+          </g>
+        );
+      })}
+      {!pop.still && (
+        <text className="dispersal-count dispersal-from" x={p.x} y={countY} fontSize={fontSize} textAnchor="middle">
+          <tspan data-count="from">{pop.from}</tspan> waiting
+        </text>
+      )}
+      <text className="dispersal-count dispersal-to" x={p.x} y={countY} fontSize={fontSize} textAnchor="middle">
+        <tspan data-count="to">{pop.to}</tspan> waiting
+      </text>
+      <text className="dispersal-gone" x={p.x} y={countY - fontSize * 1.15} fontSize={fontSize} textAnchor="middle">
+        −{pop.count} dispersed
+      </text>
+    </g>
+  );
+}
+
 const pointsOf = (layout: Layout, ids: readonly string[]) => ids.map((id) => layout.get(id))
   .filter((p): p is Point => !!p).map((p) => `${p.x},${p.y}`).join(' ');
 
@@ -155,9 +238,13 @@ const pointsOf = (layout: Layout, ids: readonly string[]) => ids.map((id) => lay
  * kind (signal head, Train front, crowd) and their current fix, and Out of service Stations crossed out. Every state has a
  * shape or text as well as a colour. Each waiting train has a Signal mark, a
  * post whose lamp turns from red to green when it is Cleared, and a Green wave
- * sends a pulse along its Line.
+ * sends a pulse along its Line. Passenger moments pop up beside their
+ * Stations: who moved at a call the player cleared, and a fixed Crowd surge's
+ * crowd draining away.
  */
-export function DispatchOverlay({ net, layout, markScale: m, career, targets, aimed }: DispatchOverlayProps) {
+export function DispatchOverlay({
+  net, layout, markScale: m, career, targets, aimed, moments = NO_MOMENTS,
+}: DispatchOverlayProps) {
   const { sim, aim } = career;
   const { marks, pulse } = useSignalMarks(net, career, targets);
   const held = heldTrains(net, sim);
@@ -346,6 +433,10 @@ export function DispatchOverlay({ net, layout, markScale: m, career, targets, ai
           </g>
         );
       })}
+
+      {/* Keyed on the event, so a new dispersal replays from the start. */}
+      {moments.dispersal && <Dispersal key={moments.dispersal.key} pop={moments.dispersal} layout={layout} m={m} />}
+      <ExchangePops pops={moments.pops} layout={layout} m={m} />
 
       {chips.map((chip) => {
         const aimedHere = isAimed(chip.ref);

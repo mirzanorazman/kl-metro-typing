@@ -15,8 +15,9 @@ export interface DispatchExpansionProps {
 }
 
 /**
- * Between Shifts: the offered Expansions, picked by typing an offer's far-end
- * Station or clicking it. Typing narrows exactly as Signals do, and Enter
+ * Between Shifts: first a beat for the Shift just cleared (how many
+ * passengers moved, and its on-time %), then the offered Expansions, picked
+ * by typing an offer's far-end Station or clicking it. Typing narrows exactly as Signals do, and Enter
  * picks an exact shorter name while a longer one still matches. These keys
  * choose, they are not part of the Career, so none are recorded; the pick is
  * logged as an action by the screen.
@@ -59,6 +60,7 @@ export function DispatchExpansion({ net, career, onPick, active = true }: Dispat
   useGameInput(onKey, active);
 
   const era = ERAS[eraFor(career.cleared)]!;
+  const record = career.history.find((entry) => entry.shift === career.shift);
   const aimed = aim.typed !== '' || aim.lock ? candidates(targets, aim) : [];
   const typed = aim.typed.toLowerCase();
   const exact = aimed.find((t) => t.text.toLowerCase() === typed);
@@ -67,6 +69,16 @@ export function DispatchExpansion({ net, career, onPick, active = true }: Dispat
   return (
     <section className="dispatch-expansion" role="region" aria-label="Expansion">
       <h2>Shift {career.shift} cleared</h2>
+      {record && (
+        <div className="dispatch-moved" data-testid="shift-moved">
+          <p className="dispatch-moved-count">
+            {record.delivered.toLocaleString('en-US')} passenger{record.delivered === 1 ? '' : 's'} moved this Shift
+          </p>
+          <p className="dispatch-moved-on-time">
+            {Math.round(record.calls > 0 ? (100 * record.onTimeCalls) / record.calls : 100)}% on time
+          </p>
+        </div>
+      )}
       <p className="dispatch-era">Era: {era.label}</p>
       {offers.length === 0 ? (
         <>

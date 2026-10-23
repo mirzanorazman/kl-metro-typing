@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { LineCode } from '../data/types';
 import type { CareerState, Wave } from '../engine/dispatch';
-import type { Dir } from '../engine/dispatchSim';
+import type { Dir, SimState } from '../engine/dispatchSim';
 import type { Target } from '../engine/dispatchTargets';
 import type { NetworkIndex } from '../engine/network';
 import { prefersReducedMotion } from './useLayoutMode';
@@ -35,6 +35,21 @@ export interface SignalMark {
 /** One direction of a Green wave's pulse: Station ids from the origin outward. */
 export interface PulseRun { stations: string[]; ms: number }
 export interface Pulse { wave: number; line: LineCode; runs: PulseRun[] }
+
+/**
+ * The Trains whose Signal was Cleared between two states of one Shift: each
+ * was waiting at a Signal and has gone, and its Station is not Out of service
+ * (a closed Station waves its train through; that is not a Clear). Only a
+ * Target the player completed, or a Green wave it set off, clears a Signal.
+ */
+export function clearedSignals(net: NetworkIndex, prev: SimState, next: SimState): number[] {
+  const waiting = new Map(prev.trains.filter((t) => t.stage === 'signal').map((t) => [t.id, t]));
+  return next.trains.filter((t) => {
+    const before = waiting.get(t.id);
+    return before !== undefined && (t.stage !== 'signal' || t.at !== before.at)
+      && !next.outOfService[net.lines.get(before.line)!.stations[before.at]!];
+  }).map((t) => t.id);
+}
 
 /** When the mark a Green wave cleared `order`-th turns green. */
 const flipDelay = (order: number) => RIPPLE_LEAD_MS + order * RIPPLE_STEP_MS;

@@ -74,6 +74,15 @@ const START_TIP = "Each red signal is a train waiting for you. Type the station 
 const ALL_TIPS = ['start', 'incident', 'bunching', 'late', 'out-of-service', 'expansion'];
 const seenTips = (ids: string[]) => saveProfile({ ...emptyProfile(), dispatchTipsSeen: ids });
 
+/** Motion allowed: only the reduced-motion query is false. */
+const allowMotion = () => {
+  window.matchMedia = ((q: string) => ({
+    matches: q !== '(prefers-reduced-motion: reduce)', media: q, onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {},
+    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+};
+
 /** Controls `performance.now`, which `runTick` reads. */
 function fakeClock(start = 1_000) {
   const clock = { now: start };
@@ -589,14 +598,6 @@ describe('DispatcherScreen', () => {
     const markOf = (train: number) => marks().find((el) => el.getAttribute('data-train') === String(train));
     const lampOf = (train: number) => markOf(train)?.querySelector('[data-lamp]')?.getAttribute('data-lamp');
     const later = (ms: number) => act(() => { vi.advanceTimersByTime(ms); });
-    /** Motion allowed: only the reduced-motion query is false. */
-    const allowMotion = () => {
-      window.matchMedia = ((q: string) => ({
-        matches: q !== '(prefers-reduced-motion: reduce)', media: q, onchange: null,
-        addEventListener: () => {}, removeEventListener: () => {},
-        addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
-      })) as unknown as typeof window.matchMedia;
-    };
     /** Damai triggers; the wave clears Jelatek (2 away) then Pasar Seni (6 away). */
     const waveCareer = () => ({
       ...careerWith([waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Pasar Seni'), waiting(3, 'KJ', 'Jelatek')]),
@@ -719,6 +720,178 @@ describe('DispatcherScreen', () => {
       expect(screen.queryByTestId('wave-pulse')).toBeNull();
       expect(screen.getByTestId('streak').getAttribute('data-wave')).toBeNull();
       expect(lampOf(1)).toBe('red');
+    });
+  });
+
+  describe('Passenger moments', () => {
+    const later = (ms: number) => act(() => { vi.advanceTimersByTime(ms); });
+    const pops = () => screen.queryAllByTestId('exchange-pop');
+    const popOf = (train: number) => pops().find((el) => el.getAttribute('data-train') === String(train));
+    const boardedIn = (el: Element) => Number(/\+(\d+) boarded/.exec(el.textContent ?? '')?.[1] ?? NaN);
+
+    /** Jelatek's Train carries `load`; 18 wait at Jelatek for KLCC, which it serves. */
+    const callCareer = (load: Record<string, number> = { [idOf('Jelatek')]: 6 }) => {
+      const initial = careerWith([{ ...waiting(1, 'KJ', 'Jelatek'), load }, waiting(2, 'KJ', 'Pasar Seni')]);
+      initial.sim.platforms[idOf('Jelatek')] = { waiting: { [idOf('KLCC')]: 18 }, fullMs: 0, lastCall: {} };
+      return initial;
+    };
+
+    /** A Crowd surge at Ampang Park: 40 wait there, `extra` of them because of the surge. */
+    const surgeCareer = (extra = 30) => {
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+      initial.sim.incidents = [{ id: 1, kind: 'crowd-surge', place: idOf('Ampang Park'), stations: [idOf('Ampang Park')],
+        line: 'KJ', train: null, startedMs: 0, step: 0, extra }];
+      initial.sim.nextIncidentId = 2;
+      initial.sim.platforms[idOf('Ampang Park')] = { waiting: { [idOf('KLCC')]: 40 }, fullMs: 0, lastCall: {} };
+      return initial;
+    };
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('a Train the player cleared shows who moved when it calls, and the pop fades after about a second', () => {
+      vi.useFakeTimers();
+      const clock = fakeClock();
+      renderShift(callCareer());
+      type('Jelatek');
+      expect(pops()).toHaveLength(0);
+      clock.now += 100;
+      type('P');
+      const pop = popOf(1)!;
+      expect(pop).toBeTruthy();
+      expect(pop.getAttribute('data-station')).toBe(idOf('Jelatek'));
+      expect(boardedIn(pop)).toBeGreaterThanOrEqual(18);
+      expect(pop.textContent).toContain('−6 off');
+      later(800);
+      expect(popOf(1)).toBeTruthy();
+      later(500);
+      expect(popOf(1)).toBeUndefined();
+    });
+
+    it('with nobody alighting, the pop shows only who boarded', () => {
+      vi.useFakeTimers();
+      const clock = fakeClock();
+      renderShift(callCareer({}));
+      type('Jelatek');
+      clock.now += 100;
+      type('P');
+      expect(boardedIn(popOf(1)!)).toBeGreaterThanOrEqual(18);
+      expect(popOf(1)!.textContent).not.toContain('off');
+    });
+
+    it('the Delivered chime plays with a pop that delivered someone', () => {
+      vi.useFakeTimers();
+      const clock = fakeClock();
+      const delivered = vi.spyOn(sound, 'delivered').mockImplementation(() => {});
+      renderShift(callCareer());
+      type('Jelatek');
+      expect(delivered).not.toHaveBeenCalled();
+      clock.now += 100;
+      type('P');
+      expect(popOf(1)).toBeTruthy();
+      expect(delivered).toHaveBeenCalledTimes(1);
+      clock.now += 100;
+      type('a');
+      expect(delivered).toHaveBeenCalledTimes(1);
+    });
+
+    it('no chime for a pop that delivered nobody, nor for a call the player did not clear', () => {
+      vi.useFakeTimers();
+      const clock = fakeClock();
+      const delivered = vi.spyOn(sound, 'delivered').mockImplementation(() => {});
+      const klcc = idOf('KLCC');
+      const initial = callCareer({});
+      // Already on its way in: it calls and Delivers, but nobody cleared it.
+      initial.sim.trains.push({ ...waiting(3, 'KJ', 'KLCC'), stage: 'cleared', load: { [klcc]: 5 } });
+      initial.sim.nextTrainId = 4;
+      renderShift(initial);
+      type('Jelatek');
+      clock.now += 100;
+      type('P');
+      expect(popOf(1)).toBeTruthy();
+      expect(popOf(3)).toBeUndefined();
+      expect(delivered).not.toHaveBeenCalled();
+    });
+
+    it("at peak, at most 4 pops show, and the player's own Clear always has its pop", () => {
+      vi.useFakeTimers();
+      const clock = fakeClock();
+      // KLCC completes a streak of 12: a wave of 4 clears the nearest waiting
+      // Signals on KJ, so five Trains call on the same tick. The player's own
+      // Train is last in the list.
+      renderShift({
+        ...careerWith([
+          waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Damai'), waiting(3, 'KJ', 'Dang Wangi'),
+          waiting(4, 'KJ', 'Pasar Seni'), waiting(5, 'KJ', 'Bangsar'), waiting(6, 'KJ', 'KLCC'),
+        ]),
+        streak: 11,
+      });
+      type('KLCC');
+      clock.now += 100;
+      type('B');
+      expect(pops()).toHaveLength(4);
+      expect(popOf(6)).toBeTruthy();
+    });
+
+    it("a Crowd surge's card shows how many wait at its place", () => {
+      renderShift(surgeCareer());
+      const card = within(screen.getByRole('list', { name: 'Incidents' })).getByRole('listitem');
+      expect(within(card).getByTestId('crowd-count').textContent).toBe('40 waiting');
+    });
+
+    it('fixing a Crowd surge drains its crowd: the count drops and people stream away, for about a second', () => {
+      allowMotion();
+      vi.useFakeTimers();
+      fakeClock();
+      renderShift(surgeCareer());
+      type('Crowd control at Ampang Park');
+      const burst = screen.getByTestId('dispersal');
+      expect(burst.getAttribute('data-station')).toBe(idOf('Ampang Park'));
+      expect(burst.querySelector('[data-count="from"]')!.textContent).toBe('40');
+      expect(burst.querySelector('[data-count="to"]')!.textContent).toBe('10');
+      expect(burst.textContent).toContain('−30 dispersed');
+      expect(within(burst as unknown as HTMLElement).getAllByTestId('person').length).toBeGreaterThanOrEqual(3);
+      later(800);
+      expect(screen.getByTestId('dispersal')).toBeTruthy();
+      later(500);
+      expect(screen.queryByTestId('dispersal')).toBeNull();
+    });
+
+    it('under reduced motion, a fixed Crowd surge shows a static count and no burst', () => {
+      vi.useFakeTimers();
+      fakeClock();
+      renderShift(surgeCareer());
+      type('Crowd control at Ampang Park');
+      const burst = screen.getByTestId('dispersal');
+      expect(burst.querySelector('[data-count="from"]')).toBeNull();
+      expect(burst.querySelector('[data-count="to"]')!.textContent).toBe('10');
+      expect(burst.textContent).toContain('−30 dispersed');
+      expect(within(burst as unknown as HTMLElement).queryAllByTestId('person')).toHaveLength(0);
+    });
+
+    it('a fixed Crowd surge with nobody to disperse shows nothing', () => {
+      vi.useFakeTimers();
+      fakeClock();
+      renderShift(surgeCareer(0));
+      type('Crowd control at Ampang Park');
+      expect(screen.queryByTestId('dispersal')).toBeNull();
+    });
+
+    it('Shift cleared: before the offers, says how many passengers moved this Shift and its on-time %', () => {
+      renderShift({
+        ...startCareer(net, 7), status: 'between', shift: 2, cleared: 2, startedAt: 1_000, stoppedAt: 2_000,
+        offers: [offerAt('AG', 'Ampang')],
+        history: [
+          { shift: 1, delivered: 900, calls: 50, onTimeCalls: 50, cleared: true },
+          { shift: 2, delivered: 4210, calls: 200, onTimeCalls: 180, cleared: true },
+        ],
+      });
+      const region = screen.getByRole('region', { name: 'Expansion' });
+      const moved = within(region).getByText('4,210 passengers moved this Shift');
+      expect(within(region).getByText('90% on time')).toBeTruthy();
+      const offer = within(region).getByRole('button', { name: /Ampang/ });
+      expect(moved.compareDocumentPosition(offer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
   });
 

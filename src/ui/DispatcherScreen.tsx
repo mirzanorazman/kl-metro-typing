@@ -28,7 +28,8 @@ import { networkLayout } from '../geo/networkLayout';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
-import { useFreshWave } from '../render/useSignalMarks';
+import { usePassengerMoments } from '../render/usePassengerMoments';
+import { clearedSignals, useFreshWave } from '../render/useSignalMarks';
 import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
@@ -294,11 +295,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     if (run.errors > prev.errors) sound.error();
     else if (run.correctChars > prev.correctChars) sound.key();
     if (prev.shift !== run.shift) return;
-    const wasWaiting = new Map(prev.sim.trains.filter((t) => t.stage === 'signal').map((t) => [t.id, t]));
-    const cleared = run.sim.trains.some((t) => {
-      const before = wasWaiting.get(t.id);
-      return before && t.stage !== 'signal' && !run.sim.outOfService[net.lines.get(before.line)!.stations[before.at]!];
-    });
+    const cleared = clearedSignals(net, prev.sim, run.sim).length > 0;
     const fixed = prev.sim.incidents.some((inc) => {
       const now = run.sim.incidents.find((i) => i.id === inc.id);
       return now ? now.step > inc.step : !run.sim.outOfService[inc.place];
@@ -306,6 +303,15 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     if (cleared || fixed) sound.arrive();
     if (run.sim.nextIncidentId > prev.sim.nextIncidentId) sound.warning();
   }, [run, net]);
+
+  // The Delivered chime only ever sounds with a pop that shows someone home.
+  const moments = usePassengerMoments(net, run);
+  const chimed = useRef(new Set<string>());
+  useEffect(() => {
+    const fresh = moments.pops.some((pop) => !chimed.current.has(pop.key) && pop.delivered > 0);
+    chimed.current = new Set(moments.pops.map((pop) => pop.key));
+    if (fresh) sound.delivered();
+  }, [moments.pops]);
 
   // Music while the Shift runs, tense while anything is wrong; the setup
   // theme while choosing an Expansion.
@@ -435,7 +441,8 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
             fitKey={frameKey}
             fitPadding={{ top: 0.12, right: 0.24, bottom: offers ? 0.7 : 0.3, left: 0.06 }}
             overlay={({ layout: l, markScale }) => (
-              <DispatchOverlay net={net} layout={l} markScale={markScale} career={run} targets={targets} aimed={aimed} />
+              <DispatchOverlay net={net} layout={l} markScale={markScale} career={run} targets={targets} aimed={aimed}
+                moments={moments} />
             )}
           />
         }
