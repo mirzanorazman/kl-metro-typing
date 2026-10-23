@@ -369,6 +369,13 @@
 
 .dispatch-summary-stats dd { margin: 0; }
 
+.dispatch-closures {
+  margin: 0;
+  padding-left: 1.5em;
+  font-size: var(--t-sm);
+  color: var(--ink-muted);
+}
+
 .dispatch-summary-lines {
   display: flex;
   flex-wrap: wrap;

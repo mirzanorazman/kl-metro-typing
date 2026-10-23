@@ -11,7 +11,9 @@ import { isPrintable } from './typing';
 export type CareerStatus = 'ready' | 'running' | 'paused' | 'between' | 'ended';
 export type CareerEnd = 'failed' | 'abandoned';
 export interface ShiftRecord { shift: number; delivered: number; calls: number; onTimeCalls: number; cleared: boolean }
-export interface Failure { shift: number; station: string; cause: OosCause }
+export interface Closure { station: string; cause: OosCause }
+/** A failed Shift's closures in the order they happened; the first started the collapse. */
+export interface Failure { shift: number; closures: Closure[] }
 export interface CareerState {
   seed: number; status: CareerStatus; endReason: CareerEnd | null; failure: Failure | null;
   startedAt: number | null; stoppedAt: number | null; pausedMs: number; endedAt: number | null;
@@ -88,9 +90,9 @@ export function advanceCareer(net: NetworkIndex, state: CareerState, now: number
     s.gameMs += TICK_MS;
     s.aim = reconcileAim(visibleTargets(net, s.sim), s.aim);
     if (s.sim.oosOrder.length >= failCount) {
-      const station = s.sim.oosOrder[s.sim.oosOrder.length - 1]!;
       s.status = 'ended'; s.endReason = 'failed';
-      s.failure = { shift: s.shift, station, cause: s.sim.outOfService[station]! };
+      s.failure = { shift: s.shift,
+        closures: s.sim.oosOrder.map((station) => ({ station, cause: s.sim.outOfService[station]! })) };
       s.endedAt = s.startedAt! + s.pausedMs + s.gameMs;
       s.history.push(record(s, false));
       break;

@@ -375,7 +375,9 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   export type CareerStatus = 'ready' | 'running' | 'paused' | 'between' | 'ended';
   export type CareerEnd = 'failed' | 'abandoned';
   export interface ShiftRecord { shift: number; delivered: number; calls: number; onTimeCalls: number; cleared: boolean }
-  export interface Failure { shift: number; station: string; cause: OosCause }
+  export interface Closure { station: string; cause: OosCause }
+  /** Closures in order; the first started the collapse. (Final review: was { station, cause } of the last.) */
+  export interface Failure { shift: number; closures: Closure[] }
   export interface CareerState {
     seed: number; status: CareerStatus; endReason: CareerEnd | null; failure: Failure | null;
     startedAt: number | null; stoppedAt: number | null; pausedMs: number; endedAt: number | null;
@@ -410,7 +412,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - `a Shift clears after SHIFT_MS and offers Expansions`: to keep the network alive, use a helper that clears every Signal and fix each tick. `advanceCareer` past `SHIFT_MS` gives `status === 'between'`, `cleared === 1`, `offers.length >= 1`, one `history` record with `cleared: true`, and `stoppedAt` equal to the Shift's end on the Run clock.
   - `no game time passes between Shifts or in the next ready` (Review Focus 4): wait 60 s in `'between'`, `expand`, wait 30 s, then type the first key. `gameMs` resumes from `SHIFT_MS` exactly, and `pausedMs` grew by 90 s.
   - `expand applies the pick and starts a fresh Shift`: `served` contains the offer's Stations, `shift === 2`, `status === 'ready'`, and `sim.outOfService` is empty. `pick` out of range is refused. `pick: -1` is refused while offers exist and accepted when `offers` is empty.
-  - `a Shift fails when enough Stations are Out of service`: force Out of service on `ceil(OOS_FAIL_SHARE × 14)` Stations through crowding (helper that never clears). `status === 'ended'`, `endReason === 'failed'`, and `failure.station` is the last to go, with its cause. `endedAt` is exact.
+  - `a Shift fails when enough Stations are Out of service`: force Out of service on `ceil(OOS_FAIL_SHARE × 14)` Stations through crowding (helper that never clears). `status === 'ended'`, `endReason === 'failed'`, and `failure.closures[0]` is the first to go, with its cause, followed by every closure of that Shift in order (changed by the final review: it used to name the last to go, but the spec says the summary names what started the collapse). `endedAt` is exact.
   - `pause and resume freeze the clock`, and `abandon` works from `'running'`, `'paused'`, `'between'` and a later Shift's `'ready'`. It is refused before the first key.
   - `careerScore` is `round(delivered × accuracy)`. With 100 delivered and accuracy 0.9 (via counters), the score is 90.
   - `metrics count running time only`.
@@ -599,8 +601,9 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   export type DispatchTipId = (typeof DISPATCH_TIPS)[number]['id'];
   export function newDispatchTips(prev: CareerState, next: CareerState, seen: ReadonlySet<string>): DispatchTipId[];
   export function failureText(net: NetworkIndex, f: Failure): string;
-  // e.g. "Shift 3 ended: Masjid Jamek went out of service after a signal fault was left unfixed."
-  //      "Shift 2 ended: KLCC went out of service when its platform overflowed."
+  // e.g. "Shift 3 ended: it started when Masjid Jamek went out of service after a signal fault was left unfixed."
+  //      "Shift 2 ended: it started when KLCC went out of service because its platform overflowed."
+  // Final review: leads with the first closure; closureText(net, c) names each closure for the summary's list.
   ```
   Tip copy (exact):
   - start: "Type a waiting station's name to clear its signal. Trains you don't clear wait."

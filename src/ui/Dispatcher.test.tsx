@@ -21,7 +21,7 @@ import { music, sound } from '../audio/sound';
 import { DispatcherScreen } from './DispatcherScreen';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchSummary } from './DispatchSummary';
-import { failureText } from './dispatchTips';
+import { closureText, failureText } from './dispatchTips';
 import { TypingInputProvider } from './TypingInputProvider';
 
 // Pass-through spy: the screen's judged evidence is observed, never altered.
@@ -446,7 +446,10 @@ describe('DispatcherScreen', () => {
       const replayed = replayDispatch(net, evidence);
       expect(replayed).not.toBeNull();
       expect(replayed!.complete).toBe(true);
-      expect(screen.getByText(/went out of service after a signal fault was left unfixed/)).toBeTruthy();
+      // The summary leads with the first closure: what started the collapse.
+      expect(screen.getByText(
+        'Shift 1 ended: it started when Masjid Jamek went out of service after a train fault was left unfixed.',
+      )).toBeTruthy();
     });
 
     it('an ineligible failed Career records an integrity fail for Dispatcher', () => {
@@ -549,7 +552,10 @@ describe('DispatchExpansion', () => {
 
 describe('DispatchSummary', () => {
   const metrics = { wpm: 52.4, accuracy: 0.953, score: 47.6 };
-  const failure = { shift: 2, station: idOf('KLCC'), cause: 'crowding' as const };
+  const failure = { shift: 2, closures: [
+    { station: idOf('KLCC'), cause: 'signal-fault' as const },
+    { station: idOf('Masjid Jamek'), cause: 'crowding' as const },
+  ] };
   const served: Served = [{ line: 'KJ', from: 2, to: 17 }];
   const failed = (): CareerState => {
     const base = startCareer(net, 7);
@@ -591,6 +597,9 @@ describe('DispatchSummary', () => {
     expect(row('WPM')).toBe('52');
     expect(row('Accuracy')).toBe('95%');
     expect(screen.getByText(failureText(net, failure))).toBeTruthy();
+    expect(failureText(net, failure)).toMatch(/it started when KLCC went out of service after a signal fault/);
+    const closures = within(screen.getByRole('list', { name: 'Out of service, in order' })).getAllByRole('listitem');
+    expect(closures.map((item) => item.textContent)).toEqual(failure.closures.map((c) => closureText(net, c)));
     expect(screen.getByText('Ridership estimates informed by data.gov.my (CC BY 4.0)')).toBeTruthy();
   });
 

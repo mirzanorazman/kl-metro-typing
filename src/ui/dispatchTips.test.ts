@@ -3,8 +3,8 @@ import type { LineCode } from '../data/types';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { startCareer, type CareerState } from '../engine/dispatch';
-import { cloneSim, type Dir, type Incident, type Train } from '../engine/dispatchSim';
-import { DISPATCH_TIPS, dispatchTipText, failureText, newDispatchTips } from './dispatchTips';
+import { cloneSim, type Dir, type Incident, type OosCause, type Train } from '../engine/dispatchSim';
+import { DISPATCH_TIPS, closureText, dispatchTipText, failureText, newDispatchTips } from './dispatchTips';
 
 const net = buildNetwork(loadNetworkData());
 const none = new Set<string>();
@@ -118,14 +118,20 @@ describe('newDispatchTips', () => {
 });
 
 describe('failureText', () => {
-  it('names the Station and the cause', () => {
-    expect(failureText(net, { shift: 3, station: idOf('Masjid Jamek'), cause: 'signal-fault' }))
-      .toBe('Shift 3 ended: Masjid Jamek went out of service after a signal fault was left unfixed.');
-    expect(failureText(net, { shift: 2, station: idOf('KLCC'), cause: 'crowding' }))
-      .toBe('Shift 2 ended: KLCC went out of service when its platform overflowed.');
-    expect(failureText(net, { shift: 1, station: idOf('KLCC'), cause: 'train-fault' }))
-      .toBe('Shift 1 ended: KLCC went out of service after a train fault was left unfixed.');
-    expect(failureText(net, { shift: 1, station: idOf('KLCC'), cause: 'crowd-surge' }))
-      .toBe('Shift 1 ended: KLCC went out of service after a crowd surge was left unfixed.');
+  const at = (name: string, cause: OosCause) => ({ station: idOf(name), cause });
+
+  it('leads with the first closure as what started the collapse', () => {
+    expect(failureText(net, { shift: 3, closures: [at('Masjid Jamek', 'signal-fault'), at('KLCC', 'crowding')] }))
+      .toBe('Shift 3 ended: it started when Masjid Jamek went out of service after a signal fault was left unfixed.');
+    expect(failureText(net, { shift: 2, closures: [at('KLCC', 'crowding')] }))
+      .toBe('Shift 2 ended: it started when KLCC went out of service because its platform overflowed.');
+  });
+
+  it('names each closure with its cause', () => {
+    expect(closureText(net, at('Masjid Jamek', 'signal-fault')))
+      .toBe('Masjid Jamek went out of service after a signal fault was left unfixed.');
+    expect(closureText(net, at('KLCC', 'crowding'))).toBe('KLCC went out of service because its platform overflowed.');
+    expect(closureText(net, at('KLCC', 'train-fault'))).toBe('KLCC went out of service after a train fault was left unfixed.');
+    expect(closureText(net, at('KLCC', 'crowd-surge'))).toBe('KLCC went out of service after a crowd surge was left unfixed.');
   });
 });

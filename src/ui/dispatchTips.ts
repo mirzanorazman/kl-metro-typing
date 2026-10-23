@@ -1,5 +1,5 @@
 import type { NetworkIndex } from '../engine/network';
-import type { CareerState, Failure } from '../engine/dispatch';
+import type { CareerState, Closure, Failure } from '../engine/dispatch';
 import { bunchedTrains, type OosCause } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
 
@@ -55,14 +55,24 @@ export function newDispatchTips(
 }
 
 const CAUSE_TEXT: Record<OosCause, string> = {
-  crowding: 'when its platform overflowed',
+  crowding: 'because its platform overflowed',
   'signal-fault': 'after a signal fault was left unfixed',
   'train-fault': 'after a train fault was left unfixed',
   'crowd-surge': 'after a crowd surge was left unfixed',
 };
 
-/** What ended the Career, in one sentence. */
+function closureClause(net: NetworkIndex, c: Closure): string {
+  const name = net.stations.get(c.station)?.name ?? c.station;
+  return `${name} went out of service ${CAUSE_TEXT[c.cause]}`;
+}
+
+/** One Station's closure and its cause, as a sentence. */
+export function closureText(net: NetworkIndex, c: Closure): string {
+  return `${closureClause(net, c)}.`;
+}
+
+/** What ended the Career, in one sentence: the first closure, which started the collapse. */
 export function failureText(net: NetworkIndex, f: Failure): string {
-  const name = net.stations.get(f.station)?.name ?? f.station;
-  return `Shift ${f.shift} ended: ${name} went out of service ${CAUSE_TEXT[f.cause]}.`;
+  const first = f.closures[0];
+  return first ? `Shift ${f.shift} ended: it started when ${closureClause(net, first)}.` : `Shift ${f.shift} ended.`;
 }

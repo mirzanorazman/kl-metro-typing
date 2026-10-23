@@ -129,12 +129,18 @@ describe('Dispatcher career', () => {
     const sim = cloneSim(base.sim);
     const ids = servedStations(net, base.served);
     const count = Math.ceil(OOS_FAIL_SHARE * ids.length);
-    for (const id of ids.slice(0, count)) closeStation(sim, id, 'crowding');
+    const closed = ids.slice(0, count);
+    closeStation(sim, closed[0]!, 'signal-fault');
+    for (const id of closed.slice(1)) closeStation(sim, id, 'crowding');
     const s = advanceCareer(net, { ...base, sim, gameMs: SHIFT_MS - TICK_MS,
       shiftStartMs: 0 }, 1_000 + SHIFT_MS);
     expect(s.status).toBe('ended');
     expect(s.endReason).toBe('failed');
-    expect(s.failure).toEqual({ shift: 1, station: ids[count - 1], cause: 'crowding' });
+    // The first closure started the collapse; every closure follows, in order.
+    expect(s.failure).toEqual({ shift: 1, closures: [
+      { station: closed[0], cause: 'signal-fault' },
+      ...closed.slice(1).map((station) => ({ station, cause: 'crowding' })),
+    ] });
     expect(s.endedAt).toBe(1_000 + SHIFT_MS);
     expect(s.cleared).toBe(0);
     expect(s.history).toHaveLength(1);

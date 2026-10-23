@@ -10,7 +10,7 @@ import type { DispatchJudgement } from '../engine/dispatchJudge';
 import { servedLines, servedStations } from '../engine/dispatchNetwork';
 import type { Metrics } from '../engine/metrics';
 import type { NetworkIndex } from '../engine/network';
-import { failureText } from './dispatchTips';
+import { closureText, failureText } from './dispatchTips';
 import { LineBadge } from './LineBadge';
 
 export interface DispatchSummaryProps {
@@ -110,6 +110,13 @@ export function DispatchSummary({ net, career, metrics, judgement, onAgain, onBa
     <div className="summary dispatch-summary" role="region" aria-label="Career summary">
       <h1>{abandoned ? 'Career ended' : 'Shift failed'}</h1>
       {career.failure && <p className="dispatch-failure">{failureText(net, career.failure)}</p>}
+      {career.failure && career.failure.closures.length > 0 && (
+        <ol className="dispatch-closures" aria-label="Out of service, in order">
+          {career.failure.closures.map((closure) => (
+            <li key={closure.station}>{closureText(net, closure)}</li>
+          ))}
+        </ol>
+      )}
       {abandoned && <p>Ended early — an abandoned Career can't enter the leaderboard.</p>}
       <dl className="dispatch-summary-stats">
         <dt>Score</dt>

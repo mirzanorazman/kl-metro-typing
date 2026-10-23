@@ -25,7 +25,7 @@ describe('dispatcher balance', () => {
     console.log('median of 5 seeds — shifts cleared / delivered / score / failure cause; columns 40, 60, 90 WPM');
     const cells = [SLOW, MID, FAST].map((ms) => {
       const runs = [1, 2, 3, 4, 5].map((seed) => play(seed, ms));
-      const causes = runs.map((s) => s.failure?.cause ?? s.status).join(',');
+      const causes = runs.map((s) => s.failure?.closures[0]?.cause ?? s.status).join(',');
       return `${median(runs.map((s) => s.cleared))}c ${median(runs.map((s) => careerTotals(s).delivered))}d `
         + `${median(runs.map(careerScore))}pts [${causes}]`;
     });
