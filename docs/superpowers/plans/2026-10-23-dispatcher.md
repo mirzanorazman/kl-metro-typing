@@ -403,7 +403,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   export const DISPATCH_EVIDENCE_VERSION = 1;
   ```
 
-- [ ] **Step 1: Write the failing tests.** Use clock values like `1_000 + ms`.
+- [x] **Step 1: Write the failing tests.** Use clock values like `1_000 + ms`.
   - `the first printable key starts the clock and is typed`: `startCareer(net, 1)` is `'ready'`. Typing the first letter of a visible target makes it `'running'`, with `startedAt === now` and `correctChars === 1`. A non-printable key changes nothing.
   - `Clearing a Signal through typing`: typing a whole visible signal target's text Clears that Train (its stage leaves `'signal'`).
   - `unlock releases the aim`: the `{ a: 'unlock' }` action empties `typed` and `lock`, and is refused (same object) when the aim is already empty.
@@ -416,18 +416,18 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - `metrics count running time only`.
   - `escalation applies only after the network is full`.
 
-- [ ] **Step 2: Run them and confirm they fail.**
+- [x] **Step 2: Run them and confirm they fail.**
 
-- [ ] **Step 3: Implement**, following `rushHour.ts`:
+- [x] **Step 3: Implement**, following `rushHour.ts`:
   - `advanceCareer` syncs in whole ticks on one `cloneSim` copy.
   - Each tick: `stepWorld` with `PhaseNow` from `shiftPhase(gameMs - shiftStartMs)` and `shiftEscalation`, then `reconcileAim` against `visibleTargets`.
   - **Fail check:** `oosOrder.length >= Math.ceil(OOS_FAIL_SHARE × servedStations.length)`.
   - **Shift end:** `drawOffers(net, served, eraFor(cleared), offerRng)`.
   - `enterDispatchCharacter` syncs first. Then `aimKey`; counted keys update `correctChars`/`keystrokes`/`errors`. A completed ref calls `clearSignal`/`skipSignal`/`advanceFix`.
 
-- [ ] **Step 4: Run them and confirm they pass.**
+- [x] **Step 4: Run them and confirm they pass.**
 
-- [ ] **Step 5: Commit.** `git commit -m "feat: dispatcher career state machine"`
+- [x] **Step 5: Commit.** `git commit -m "feat: dispatcher career state machine"`
 
 ---
 
