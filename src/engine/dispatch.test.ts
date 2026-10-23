@@ -233,4 +233,11 @@ describe('Dispatcher career', () => {
     const stale = { ...confirmed, aim: { typed: 'Missing', lock: null, mistyped: false, stallUntil: 0 } };
     expect(applyDispatchAction(net, stale, { a: 'confirm' }, 1_000)).toBe(stale);
   });
+
+  it('returns the original object for a refused confirm after a simulation tick', () => {
+    const s = running();
+    expect(s.aim.typed).not.toBe('');
+    expect(advanceCareer(net, s, 1_100)).not.toBe(s);
+    expect(applyDispatchAction(net, s, { a: 'confirm' }, 1_100)).toBe(s);
+  });
 });
