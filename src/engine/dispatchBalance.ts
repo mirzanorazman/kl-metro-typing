@@ -65,6 +65,8 @@ export const INCIDENT_MAX = 3;
 export const INCIDENT_FIRST_MS = 20_000;
 /** Unfixed Incidents put their place Out of service after this long. */
 export const INCIDENT_LIMIT_MS = 40_000;
+/** Passenger arrival multiplier at a crowd surge's place. */
+export const CROWD_SURGE_MULTIPLIER = 4;
 /** Crowding contribution when weighting Incident locations. */
 export const STRAIN_CROWD_WEIGHT = 4;
 /** Held Train contribution when weighting Incident locations. */

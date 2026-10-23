@@ -1,7 +1,7 @@
 import type { LineCode } from '../data/types';
 import {
   BUNCH_BLOCKS, CENTRAL_PULL, CENTRAL_STATIONS, DWELL_BASE_MS, DWELL_PER_PASSENGER_MS,
-  LATE_FACTOR, ON_TIME_FACTOR, OOS_CROWD_MS, PASSENGER_RATE, PLATFORM_CAPACITY,
+  CROWD_SURGE_MULTIPLIER, LATE_FACTOR, ON_TIME_FACTOR, OOS_CROWD_MS, PASSENGER_RATE, PLATFORM_CAPACITY,
   STATIONS_PER_TRAIN, TICK_MS, TRAIN_CAPACITY, TRAVEL_MS, TURNAROUND_MS,
   type ShiftFlow,
 } from './dispatchBalance';
@@ -28,6 +28,19 @@ export interface Train {
 export type IncidentKind = 'signal-fault' | 'train-fault' | 'crowd-surge';
 export type OosCause = 'crowding' | IncidentKind;
 
+export interface Incident {
+  id: number;
+  kind: IncidentKind;
+  /** Station closed if the incident escalates. */
+  place: string;
+  /** Signal stretch, surge place, or empty for a train fault. */
+  stations: string[];
+  line: LineCode;
+  train: number | null;
+  startedMs: number;
+  step: number;
+}
+
 export interface Platform {
   waiting: Record<string, number>;
   fullMs: number;
@@ -49,6 +62,9 @@ export interface SimState {
   calls: number;
   onTimeCalls: number;
   spawnDebt: Record<string, number>;
+  incidents: Incident[];
+  nextIncidentId: number;
+  incidentDebt: number;
 }
 
 export interface PhaseNow {
@@ -77,6 +93,25 @@ export function targetHeadwayMs(range: ServedRange): number {
 
 export function crowdAt(s: SimState, id: string): number {
   return Object.values(s.platforms[id]?.waiting ?? {}).reduce((total, count) => total + count, 0);
+}
+
+export function heldStations(s: SimState): Set<string> {
+  return new Set(s.incidents.filter((inc) => inc.kind === 'signal-fault').flatMap((inc) => inc.stations));
+}
+
+/** The next Station a Train will call or approach, including a terminal reversal. */
+export function nextStationId(net: NetworkIndex, t: Train): string | null {
+  const ids = net.lines.get(t.line)!.stations;
+  const at = t.stage === 'signal' || t.stage === 'cleared' ? t.at
+    : t.stage === 'turnaround' ? t.at - t.dir : t.at + t.dir;
+  return ids[at] ?? null;
+}
+
+/** Numeric Train.at indices require NetworkIndex to resolve shared Station IDs. */
+export function heldTrains(net: NetworkIndex, s: SimState): Set<number> {
+  const stations = heldStations(s);
+  const faults = new Set(s.incidents.filter((inc) => inc.kind === 'train-fault').map((inc) => inc.train));
+  return new Set(s.trains.filter((t) => faults.has(t.id) || stations.has(nextStationId(net, t) ?? '')).map((t) => t.id));
 }
 
 export function originWeight(net: NetworkIndex, id: string, flow: ShiftFlow): number {
@@ -115,7 +150,9 @@ function spawnPassengers(net: NetworkIndex, s: SimState, phase: PhaseNow): void 
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i]!;
     s.spawnDebt[id] = (s.spawnDebt[id] ?? 0)
-      + PASSENGER_RATE * originWeight(net, id, phase.flow) * phase.multiplier * phase.escalation * TICK_MS / 1000;
+      + PASSENGER_RATE * originWeight(net, id, phase.flow) * phase.multiplier * phase.escalation
+      * (s.incidents.some((inc) => inc.kind === 'crowd-surge' && inc.place === id) ? CROWD_SURGE_MULTIPLIER : 1)
+      * TICK_MS / 1000;
     while (s.spawnDebt[id]! >= 1) {
       s.spawnDebt[id]!--;
       let random: number;
@@ -182,25 +219,34 @@ function exchangePassengers(net: NetworkIndex, s: SimState, t: Train, outgoing: 
   return exchanged * DWELL_PER_PASSENGER_MS;
 }
 
+/** Close once and strand all trips from or to the Station, regardless of cause. */
+export function closeStation(s: SimState, id: string, cause: OosCause): boolean {
+  const platform = s.platforms[id];
+  if (!platform || s.outOfService[id]) return false;
+  s.outOfService[id] = cause;
+  s.oosOrder.push(id);
+  s.spawnDebt[id] = 0;
+  s.stranded += crowdAt(s, id);
+  platform.waiting = {};
+  for (const other of Object.values(s.platforms)) {
+    s.stranded += other.waiting[id] ?? 0;
+    delete other.waiting[id];
+  }
+  for (const t of s.trains) {
+    s.stranded += t.load[id] ?? 0;
+    delete t.load[id];
+  }
+  // A closed place cannot remain an active repair target.
+  s.incidents = s.incidents.filter((inc) => inc.place !== id);
+  return true;
+}
+
 function closeCrowdedPlatforms(s: SimState): void {
   for (const [id, platform] of Object.entries(s.platforms)) {
     if (s.outOfService[id]) continue;
     platform.fullMs = crowdAt(s, id) >= PLATFORM_CAPACITY ? platform.fullMs + TICK_MS : 0;
     if (platform.fullMs < OOS_CROWD_MS) continue;
-    s.outOfService[id] = 'crowding';
-    s.oosOrder.push(id);
-    s.spawnDebt[id] = 0;
-    s.stranded += crowdAt(s, id);
-    platform.waiting = {};
-    // Trips to a closed destination can no longer be delivered anywhere.
-    for (const other of Object.values(s.platforms)) {
-      s.stranded += other.waiting[id] ?? 0;
-      delete other.waiting[id];
-    }
-    for (const t of s.trains) {
-      s.stranded += t.load[id] ?? 0;
-      delete t.load[id];
-    }
+    closeStation(s, id, 'crowding');
   }
 }
 
@@ -276,7 +322,7 @@ export function startShiftSim(net: NetworkIndex, served: Served, rng: number): S
   const s: SimState = {
     served: served.map((r) => ({ ...r })), trains: [], nextTrainId: 1, rng, shiftMs: 0,
     platforms: {}, outOfService: {}, oosOrder: [], delivered: 0, stranded: 0,
-    calls: 0, onTimeCalls: 0, spawnDebt: {},
+    calls: 0, onTimeCalls: 0, spawnDebt: {}, incidents: [], nextIncidentId: 1, incidentDebt: 0,
   };
   for (const id of servedStations(net, served)) {
     s.platforms[id] = { waiting: {}, fullMs: 0, lastCall: {} };
@@ -303,9 +349,9 @@ export function startShiftSim(net: NetworkIndex, served: Served, rng: number): S
   return s;
 }
 
-export function clearSignal(_net: NetworkIndex, s: SimState, trainId: number): boolean {
+export function clearSignal(net: NetworkIndex, s: SimState, trainId: number): boolean {
   const t = s.trains.find((candidate) => candidate.id === trainId);
-  if (!t || t.stage !== 'signal') return false;
+  if (!t || t.stage !== 'signal' || heldTrains(net, s).has(trainId)) return false;
   t.stage = 'cleared';
   t.ms = 0;
   return true;
@@ -315,7 +361,9 @@ export function clearSignal(_net: NetworkIndex, s: SimState, trainId: number): b
 export function stepSim(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
   s.shiftMs += TICK_MS;
   spawnPassengers(net, s, phase);
+  const held = heldTrains(net, s);
   for (const t of [...s.trains]) {
+    if (held.has(t.id)) continue;
     const range = s.served.find((r) => r.line === t.line)!;
     const id = net.lines.get(t.line)!.stations[t.at]!;
     const closed = !!s.outOfService[id];
@@ -412,6 +460,7 @@ export function cloneSim(s: SimState): SimState {
     outOfService: { ...s.outOfService },
     oosOrder: [...s.oosOrder],
     spawnDebt: { ...s.spawnDebt },
+    incidents: s.incidents.map((inc) => ({ ...inc, stations: [...inc.stations] })),
   };
 }
 
