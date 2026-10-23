@@ -20,7 +20,7 @@ Implementation uses a fresh implementer per task, followed by spec and quality r
 - [x] 2. Trains, blocks and Signals
 - [x] 3. Passengers, crowding, on-time and Out of service
 - [x] 4. Incidents
-- [ ] 5. Targets and narrowing
+- [x] 5. Targets and narrowing
 - [ ] 6. Career
 - [ ] 7. Replay, judge and scripted typist
 - [ ] 8. Leaderboard store, profile fields and vocabulary
@@ -36,3 +36,4 @@ Implementation uses a fresh implementer per task, followed by spec and quality r
 - Task 2: `d4317c5` plus `33be372`; initial quality review caught a shared-track reinforcement deadlock. Fix has 26 simulation tests and 83 relevant tests passing, with red reproductions of full deadlock and reinforcement starvation. Spec and quality re-reviews approved; quality reviewer additionally swept 3,000 overlapping range combinations with phase fleet changes without a stalled surviving train.
 - Task 3: `9149d89`; 49 simulation tests, full suite 806 passed / 1 skipped, TypeScript passed. Spec and quality approved. Quality probes checked 908 shared-track/OOS configurations and conserved 77,347 passengers over 75,000 ticks across 25 seeds, including clone determinism.
 - Task 4: `9829c8e`; 9 Incident tests plus 49 simulation regressions passed; full suite 815 passed / 1 skipped and TypeScript passed. Spec and quality reviews approved without findings.
+- Task 5: `e67c53d`; 32 targeting/express tests, 104 Dispatcher tests overall, TypeScript and whitespace checks passed. Spec and quality reviews approved, including exact-prefix confirmation and physical express circulation.

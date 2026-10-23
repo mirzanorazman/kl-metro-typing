@@ -337,7 +337,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   export function skipSignal(net: NetworkIndex, s: SimState, trainId: number, toIndex: number): boolean;
   ```
 
-- [ ] **Step 1: Write the failing tests.** Use hand-built `Target[]` for the narrowing tests and a real sim for `visibleTargets`.
+- [x] **Step 1: Write the failing tests.** Use hand-built `Target[]` for the narrowing tests and a real sim for `visibleTargets`.
   - `narrowing, not first-key locking`: targets KLCC, KL Sentral, Kampung Baru and Kerinchi. After `k`: four candidates, `lock === null`. After `kl`: two. After `klc`: locked to KLCC.
   - `a wrong key is an error that persists and stalls`: after `kx`, `correct === false`, `counted === true` and `mistyped === true`. Another key before `stallUntil` has `counted === false`. After the stall, `l` is correct and clears `mistyped`.
   - `a key matching no target is an error`: `z` with no Z target → `counted`, `!correct`.
@@ -349,16 +349,16 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - `Skip-stop is offered only when late and never collides`: a late Train approaching X offers a `skip` with the name 2 Stations ahead. If that text equals another visible target's text, it offers 3 ahead. If that collides too, or is past the served range or Out of service, there is no skip.
   - `skipSignal runs express`: after `skipSignal`, the Train neither dwells nor boards at X, and its next Signal is past X.
 
-- [ ] **Step 2: Run them and confirm they fail.**
+- [x] **Step 2: Run them and confirm they fail.**
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
   - On a correct key, `typed` grows by the expected character, taken from the first candidate's text (preserving its case).
   - It locks once all candidates share one text. Among those, the lock goes to the highest `delayMs`, ties to the lowest train id or incident id.
   - Completion happens when `typed` equals the locked text in full.
 
-- [ ] **Step 4: Run them and confirm they pass.**
+- [x] **Step 4: Run them and confirm they pass.**
 
-- [ ] **Step 5: Commit.** `git commit -m "feat: dispatcher targets and narrowing"`
+- [x] **Step 5: Commit.** `git commit -m "feat: dispatcher targets and narrowing"`
 
 ---
 
