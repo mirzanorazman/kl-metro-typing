@@ -457,30 +457,30 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   export function drive(o: DriveOptions): { state: CareerState; evidence: DispatchEvidence };
   ```
 
-- [ ] **Step 1: Write the failing replay tests** in `dispatchReplay.test.ts`:
+- [x] **Step 1: Write the failing replay tests** in `dispatchReplay.test.ts`:
   - `a driven Career replays to the same result`: `drive({ seed: 3, msPerKey: 200, limitMs: 30 * 60_000 })` ends `'failed'`. `replayDispatch` gives `complete: true`, plus the same `delivered`, `cleared`, `score` and `metrics.wpm` (to 1e-9).
   - `pauses and Expansion picks replay` (Review Focus 4): the same, with `pauseAt`/`resumeAt` set, and a `pick` that always takes the last offer.
   - `an abandoned Career replays but is never complete`.
   - `forged evidence is refused`: wrong `v`, actions out of order, an `expand` pick the engine refuses, or a non-finite `endedAt` → `null`.
   - `judgeCareer`: eligible for the driven Career, with a `verdict.ok` result. Ineligible for abandoned and forged evidence.
 
-- [ ] **Step 2: Run them and confirm they fail.**
+- [x] **Step 2: Run them and confirm they fail.**
 
-- [ ] **Step 3: Implement `replayDispatch`**, in the shape of `replayRushHour`: actions are applied before the Keylog event whose index they carry, and refusal (same object) means `null`. `complete` is true only for `endReason === 'failed'` with `endedAt === evidence.endedAt`. Implement `judgeCareer` with `verifyKeyLog(keylog, metrics.wpm, DISPATCH_KEYLOG_MAX_EVENTS)`.
+- [x] **Step 3: Implement `replayDispatch`**, in the shape of `replayRushHour`: actions are applied before the Keylog event whose index they carry, and refusal (same object) means `null`. `complete` is true only for `endReason === 'failed'` with `endedAt === evidence.endedAt`. Implement `judgeCareer` with `verifyKeyLog(keylog, metrics.wpm, DISPATCH_KEYLOG_MAX_EVENTS)`.
   - **The typist in `drive`:** if the aim is locked, it types the locked text's next character. Otherwise it picks the Target to start, in this order: a fix whose Incident is older than `INCIDENT_LIMIT_MS / 2`, then the highest `delayMs`. It keeps typing that Target's text until done.
   - Every 23rd key is `#`, and key timing gets the same jitter as `rushDrive.testutil.ts`.
   - In `'between'` it applies `{ a: 'expand', pick: o.pick?.(s) ?? 0 }` (or -1 with no offers). It records keys only while `'ready'`/`'running'`.
 
-- [ ] **Step 4: Run them and confirm they pass.**
+- [x] **Step 4: Run them and confirm they pass.**
 
-- [ ] **Step 5: Write the balance tests** in `dispatchProbe.test.ts`, in the shape of `rushProbe.test.ts`. 300/200/133 ms per key ≈ 40/60/90 WPM.
+- [x] **Step 5: Write the balance tests** in `dispatchProbe.test.ts`, in the shape of `rushProbe.test.ts`. 300/200/133 ms per key ≈ 40/60/90 WPM.
   - `rewards speed`: the median `cleared` over seeds 1–3 at 90 WPM is greater than at 40 WPM.
   - `the first Shift is winnable`: at 60 WPM, seeds 1–3 all reach `cleared >= 1`.
   - Opt-in survey (`DISPATCH_PROBE=1`): print median Shifts cleared, delivered, score and the failure cause, for 5 seeds × three speeds.
 
-- [ ] **Step 6: Run** `npx vitest run src/engine/dispatchReplay.test.ts src/engine/dispatchProbe.test.ts`. Expected: PASS. If the balance tests fail, adjust only `dispatchBalance.ts`.
+- [x] **Step 6: Run** `npx vitest run src/engine/dispatchReplay.test.ts src/engine/dispatchProbe.test.ts`. Expected: PASS. If the balance tests fail, adjust only `dispatchBalance.ts`.
 
-- [ ] **Step 7: Commit.** `git commit -m "feat: dispatcher replay, judge and balance probe"`
+- [x] **Step 7: Commit.** `git commit -m "feat: dispatcher replay, judge and balance probe"`
 
 ---
 
@@ -506,17 +506,17 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   export function submitDispatchEntry(board: DispatchBoard, p: { name: string; score: number; delivered: number; shifts: number; metrics: Metrics; playedAt: number; verified: boolean }): { board: DispatchBoard; rank: number | null };
   ```
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - The board sorts by score descending, with ties going to the earlier `playedAt`.
   - It caps at `LEADERBOARD_LIMIT`.
   - `dispatchQualifies` is true while the board isn't full, and otherwise only above the cutoff.
   - Submitting trims the name, saves, and returns the 1-indexed rank.
   - Garbage in storage loads as empty.
   - Profile: `markDispatchTipSeen` is idempotent; `migrate` keeps only string ids in `dispatchTipsSeen`.
-- [ ] **Step 2: Run them and confirm they fail.** Run: `npx vitest run src/data/dispatchBoardStore.test.ts src/engine/progress.test.ts`.
-- [ ] **Step 3: Implement**, mirroring `leaderboardStore.ts`'s load/save guards, and update `CONTEXT.md` and `types.ts`.
-- [ ] **Step 4: Run them and confirm they pass.**
-- [ ] **Step 5: Commit.** `git commit -m "feat: dispatcher leaderboard store, profile tips and vocabulary"`
+- [x] **Step 2: Run them and confirm they fail.** Run: `npx vitest run src/data/dispatchBoardStore.test.ts src/engine/progress.test.ts`.
+- [x] **Step 3: Implement**, mirroring `leaderboardStore.ts`'s load/save guards, and update `CONTEXT.md` and `types.ts`.
+- [x] **Step 4: Run them and confirm they pass.**
+- [x] **Step 5: Commit.** `git commit -m "feat: dispatcher leaderboard store, profile tips and vocabulary"`
 
 ---
 
@@ -545,7 +545,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   ```
   This task renders `'ready'`/`'running'`/`'paused'`. For `'between'` and `'ended'` it renders placeholders; Task 10 replaces them.
 
-- [ ] **Step 1: Write the failing UI tests**, with the harness setup from `src/ui/RushHour.test.tsx` (`getBoundingClientRect` and `matchMedia` stubs; tips pre-seen):
+- [x] **Step 1: Write the failing UI tests**, with the harness setup from `src/ui/RushHour.test.tsx` (`getBoundingClientRect` and `matchMedia` stubs; tips pre-seen):
   - `shows the whole Served network, not a follow camera`: an SVG label for every `servedStations(net, STARTING_NETWORK)` name is in the document.
   - `each Held Train shows its Signal's Station name`: for every signal target in `visibleTargets` of the initial state, its text appears inside the overlay (`data-testid="dispatch-signal"`).
   - `typing narrows and highlights candidates`: after typing `k`, the K-named signal labels carry `data-candidate="true"` and others don't. The typing line shows the typed `k`.
@@ -561,25 +561,25 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - `top bar shows Shift number, phase with direction, Delivered and on-time %`.
   - `music: calm while running, tense while any Incident or Out of service` (the `rushCalm`/`rushTense` tracks; spy on `music.play`).
 
-- [ ] **Step 2: Run them and confirm they fail.** Run: `npx vitest run src/ui/Dispatcher.test.tsx`.
+- [x] **Step 2: Run them and confirm they fail.** Run: `npx vitest run src/ui/Dispatcher.test.tsx`.
 
-- [ ] **Step 3: Implement `DispatcherScreen`** by following `RushHourScreen`'s structure: the ref-backed `commit`, `act` logging only taken actions, the rAF advance loop, blur/visibility pause, effects-only sounds, and music.
+- [x] **Step 3: Implement `DispatcherScreen`** by following `RushHourScreen`'s structure: the ref-backed `commit`, `act` logging only taken actions, the rAF advance loop, blur/visibility pause, effects-only sounds, and music.
   - **Map:** `MapCanvas` gets `fitTo` = the Served Stations' layout points, `fitKey = 'dispatch:' + servedKey`, `activeStation={null}`, `emphasisSet` = served Lines, and `visited` = the served Stations.
   - **Overlay:** draws Trains at `trainPosition` (lerp between layout points). Each signal/skip target is a label beside its Train; fix targets are a pulse at the place; Out of service is a cross icon; Held stretches and bunched Trains get a glow class.
   - **Typing line:** a `Prompt` built from the aim (`target` = locked text or first candidate text, `cursor = typed.length`, `mistyped`).
   - **Keys:** Escape pauses and Backspace unlocks, recorded as actions. Printable keys are recorded with `recorder.record` only while `'ready'`/`'running'`, then `enterDispatchCharacter`.
   - **Sounds:** `sound.arrive` on a Clear, `sound.delivered` when Delivered rises, `sound.warning` on a new Incident, `sound.error` on an error.
 
-- [ ] **Step 4: Run them and confirm they pass.**
+- [x] **Step 4: Run them and confirm they pass.**
 
-- [ ] **Step 5: Browser check.** `npm run dev`, then open Dispatcher from the home map. Type through a minute and check:
+- [x] **Step 5: Browser check.** `npm run dev`, then open Dispatcher from the home map. Type through a minute and check:
   - labels are readable at the starting zoom;
   - there are no overlapping labels at Masjid Jamek or KL Sentral (offset rule is the builder's choice);
   - a full-network screenshot is legible.
 
   Note the findings in the commit message body.
 
-- [ ] **Step 6: Commit.** `git commit -m "feat: dispatcher shift screen"`
+- [x] **Step 6: Commit.** `git commit -m "feat: dispatcher shift screen"`
 
 ---
 
@@ -613,7 +613,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - out-of-service: "A station is out of service. Lose a quarter of your network and the shift fails."
   - expansion: "Shift cleared. Choose where your network grows. Type a station's name or click it."
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `newDispatchTips`: each moment fires once and respects `seen`. `start` is shown inline while `'ready'`, not as a moment.
   - The Expansion screen lists each offer's `farEnd` name and the Era label (`ERAS[eraFor(cleared)].label`). Typing an offer's name (narrowing via `candidates`/`aimKey` over offer names, *not* recorded in the Keylog) or clicking it calls `onPick` with its index. With no offers, it shows "Your network is complete" and a Continue button that picks `-1`.
   - The summary shows score, Shifts cleared, network size, Delivered, on-time %, WPM, accuracy, `failureText`, and the credit line.
@@ -622,18 +622,18 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - An ineligible failed Career records `recordIntegrityFail(..., { mode: 'dispatch' })`.
   - The Leaderboard "Dispatcher" tab lists stored entries.
 
-- [ ] **Step 2: Run them and confirm they fail.** Run: `npx vitest run src/ui`.
+- [x] **Step 2: Run them and confirm they fail.** Run: `npx vitest run src/ui`.
 
-- [ ] **Step 3: Implement.** Tips pause the Career with the ordinary pause action and resume when dismissed, exactly as `RushHourScreen` does. Judge once at `'ended'` with `judgeCareer`. Play the `rushSetup` music on the Expansion screen.
+- [x] **Step 3: Implement.** Tips pause the Career with the ordinary pause action and resume when dismissed, exactly as `RushHourScreen` does. Judge once at `'ended'` with `judgeCareer`. Play the `rushSetup` music on the Expansion screen.
 
-- [ ] **Step 4: Run `npm test` and `npm run build`.** Expected: all pass, no type errors.
+- [x] **Step 4: Run `npm test` and `npm run build`.** Expected: all pass, no type errors.
 
-- [ ] **Step 5: Browser check.** Play a full Career at a comfortable pace. Clear Shift 1, pick an Expansion, then check:
+- [x] **Step 5: Browser check.** Play a full Career at a comfortable pace. Clear Shift 1, pick an Expansion, then check:
   - the map reframes to the bigger network;
   - fail a Shift on purpose, and the summary names the cause;
   - name entry works.
 
-- [ ] **Step 6: Commit.** `git commit -m "feat: dispatcher expansion, summary, tips and leaderboard tab"`
+- [x] **Step 6: Commit.** `git commit -m "feat: dispatcher expansion, summary, tips and leaderboard tab"`
 
 ---
 
@@ -644,10 +644,10 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
 - Create: `docs/superpowers/dispatcher-handover.md`
 - Modify: `docs/STATUS.md` (Dispatcher section; Rush Hour marked "being replaced")
 
-- [ ] **Step 1: Run the survey.** Run: `DISPATCH_PROBE=1 npx vitest run src/engine/dispatchProbe.test.ts`. Record the table.
-- [ ] **Step 2: Tune constants towards the spec's targets.** 40 WPM should clear 2–3 Shifts and 90 WPM 6–8. Off-peak Signal load should be about half of a 60 WPM typist's capacity (compute: Signals per second × mean name length / 5 chars per second at 60 WPM). Every failure must have a cause. Change only `dispatchBalance.ts`. Re-run until it lands within ±1 Shift, or record why not.
-- [ ] **Step 3: Run `npm test`.** Expected: PASS, including `dispatchProbe.test.ts`.
-- [ ] **Step 4: Write `docs/superpowers/dispatcher-handover.md`.** Include:
+- [x] **Step 1: Run the survey.** Run: `DISPATCH_PROBE=1 npx vitest run src/engine/dispatchProbe.test.ts`. Record the table.
+- [x] **Step 2: Tune constants towards the spec's targets.** 40 WPM should clear 2–3 Shifts and 90 WPM 6–8. Off-peak Signal load should be about half of a 60 WPM typist's capacity (compute: Signals per second × mean name length / 5 chars per second at 60 WPM). Every failure must have a cause. Change only `dispatchBalance.ts`. Re-run until it lands within ±1 Shift, or record why not.
+- [x] **Step 3: Run `npm test`.** Expected: PASS, including `dispatchProbe.test.ts`.
+- [x] **Step 4: Write `docs/superpowers/dispatcher-handover.md`.** Include:
   - a "Resume here" block, in the style of `rush-hour-handover.md`;
   - the final survey table;
   - leans left for playtesting;
@@ -655,7 +655,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - the deviations from the spec made during implementation.
 
   Also update `docs/STATUS.md`.
-- [ ] **Step 5: Commit.** `git commit -m "docs: dispatcher balance survey and handover"`
+- [x] **Step 5: Commit.** `git commit -m "docs: dispatcher balance survey and handover"`
 
 ---
 

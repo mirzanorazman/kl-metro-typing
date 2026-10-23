@@ -23,12 +23,14 @@ Implementation uses a fresh implementer per task, followed by spec and quality r
 - [x] 4. Incidents
 - [x] 5. Targets and narrowing
 - [x] 6. Career
-- [ ] 7. Replay, judge and scripted typist
-- [ ] 8. Leaderboard store, profile fields and vocabulary
-- [ ] 9. Shift screen
-- [ ] 10. Expansion screen, summary, tips and wiring
-- [ ] 11. Balance pass and handover
+- [x] 7. Replay, judge and scripted typist
+- [x] 8. Leaderboard store, profile fields and vocabulary
+- [x] 9. Shift screen
+- [x] 10. Expansion screen, summary, tips and wiring
+- [x] 11. Balance pass and handover
 - [ ] 12. Retire Rush Hour — awaits playtest and explicit user instruction
+
+Tasks 7–11 ran in the Claude session on `feat/dispatcher`, subagent-driven, with spec and quality reviews after each task (the controller's ledger is `.superpowers/sdd/2026-10-23-dispatcher/progress.md`; commits `10a892d` to `d74e14b`). A final whole-branch review followed; its fixes are listed in `dispatcher-handover.md` under "Final review changes". Task 12 stays unticked and is gated on the user.
 
 ## Verification and review
 

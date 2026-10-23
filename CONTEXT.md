@@ -46,7 +46,9 @@ time in Rush Hour.
 ## Playing
 
 **Run**:
-One play session, from a starting station until the game ends it.
+One play session, from a starting station until the game ends it. A Dispatcher
+**Career** is a kind of Run: it starts on the first key rather than at a
+station, and ends when a Shift fails or the player ends it.
 _Avoid_: journey, session, game, play
 
 **Mode**:

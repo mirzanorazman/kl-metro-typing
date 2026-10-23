@@ -6,12 +6,13 @@
 (spec `docs/superpowers/specs/2026-10-23-dispatcher-design.md`), executed
 subagent-driven on branch `feat/dispatcher`. Tasks 1–6 were run by a Codex
 agent; their boxes are ticked and their record is
-`docs/superpowers/2026-10-23-dispatcher-execution-record.md`. Tasks 7–11 are
-done and committed but their plan boxes were left unticked; trust `git log`
-and the ledger instead.
+`docs/superpowers/2026-10-23-dispatcher-execution-record.md`. Tasks 7–11 ran
+in the Claude session with per-task reviews; their boxes are ticked too. A
+final whole-branch review followed; see "Final review changes" below.
 
-- **Last done:** Task 11, the balance pass and this handover. Seven constants
-  changed in `src/engine/dispatchBalance.ts`; see "Balance" below.
+- **Last done:** the final whole-branch review's fixes (see "Final review
+  changes"), after Task 11's balance pass. Seven constants changed in Task 11
+  in `src/engine/dispatchBalance.ts`; see "Balance" below.
 - **Next:** The user playtests Dispatcher. Task 12 (retire Rush Hour) is
   **gated**: do not start it until the user has played Dispatcher and says to
   retire Rush Hour. Ask them. Rush Hour stays playable until then.
@@ -23,7 +24,7 @@ and the ledger instead.
     timeouts are 120–900 s against about 2.5 s actual. The typist's `unlock`
     path has no test.
   - Task 8: the `CONTEXT.md` Demand entry still says Rush Hour spawn weight
-    (fix at Rush retirement), and its Run entry doesn't mention Career.
+    (fix at Rush retirement). (Its Run entry now mentions Career.)
     `submitDispatchEntry` doesn't guard an empty trimmed name; the UI must.
   - Task 9: the fixed and cleared sound heuristics can misfire if the sim
     resolves something itself. Signal chips can cover nearby Station labels.
@@ -213,8 +214,10 @@ Incident-caused failures come from neglect instead:
     later networks. It now scans seeds 1–25 with a 60-minute cap. Its intent is
     unchanged: a driven Career with a confirm replays identically.
   - `Dispatcher.test.tsx`, "a live failed Career is judged once…": the
-    neglected seed-7 Career now fails from a signal fault, not crowding. The
-    summary assertion now expects that sentence.
+    neglected seed-7 Career now fails from Incidents, not crowding. Since the
+    final review the summary names the first closure, so the assertion expects
+    "Shift 1 ended: it started when Masjid Jamek went out of service after a
+    train fault was left unfixed."
 
   The other replay tests (seed 3 at 60 WPM must fail within 30 minutes) still
   pass unchanged.
@@ -278,3 +281,38 @@ From Task 11:
     after playtest.
   - Every failure has a named cause in the summary. Neglect fails by Incident;
     a player who keeps typing fails by crowding.
+
+## Final review changes
+
+The final whole-branch review found five issues. Each was fixed test-first on
+`feat/dispatcher`:
+
+1. **The summary names what started the collapse.** `Failure` was
+   `{ shift, station, cause }` for the *last* Station to close. The spec says
+   the summary names "the Incident, Bunching or crowding that started it". It
+   is now `{ shift, closures }`: every closure of the failed Shift, in order,
+   each with its cause. `failureText` leads with the first ("Shift 3 ended: it
+   started when Masjid Jamek went out of service after a signal fault was left
+   unfixed."), and the summary lists every closure with `closureText`.
+   `Failure` is built only from `sim.oosOrder` and `sim.outOfService`, so
+   Replay stays deterministic. The crowding wording is now "because its
+   platform overflowed".
+2. **The Keylog holds a long Career.** `DISPATCH_KEYLOG_MAX_EVENTS` went from
+   60,000 to 200,000, over five hours at 120 WPM. At 60,000 a 120 WPM player
+   truncated at about 108 minutes, and an honest Career was then recorded as an
+   integrity fail. Appending one key at the ceiling measured about 0.5 ms (the
+   log is copied per key). The judge now waits for the summary to paint (a
+   frame, then a task), and the summary says "Checking your Career…" until the
+   judgement arrives.
+3. **Each Incident kind has its own glyph:** a signal head for a signal fault,
+   a Train front for a train fault and a crowd of three for a crowd surge
+   (`src/render/incidentGlyphs.ts`). They appear on the map, on a paper badge,
+   and on the Incident cards. Before, every kind drew the same triangle.
+4. **End Career between Shifts.** The Expansion screen now has an End Career
+   button. It abandons the Career, which `applyDispatchAction` already allowed
+   in `'between'`.
+5. **The wrong-key stall shows.** The engine rule is unchanged: keys inside the
+   500 ms stall are dropped. While `gameMs < aim.stallUntil` the typing line
+   now dims, carries `data-stalled="true"` and shows a "Wait…" status with a
+   draining bar. Under reduced motion the bar holds still.
+
