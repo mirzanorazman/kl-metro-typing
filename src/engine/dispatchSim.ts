@@ -2,7 +2,7 @@ import type { LineCode } from '../data/types';
 import {
   BUNCH_BLOCKS, CENTRAL_PULL, CENTRAL_STATIONS, DWELL_BASE_MS, DWELL_PER_PASSENGER_MS,
   CROWD_SURGE_MULTIPLIER, LATE_FACTOR, ON_TIME_FACTOR, OOS_CROWD_MS, PASSENGER_RATE, PLATFORM_CAPACITY,
-  STATIONS_PER_TRAIN, TICK_MS, TRAIN_CAPACITY, TRAVEL_MS, TURNAROUND_MS,
+  SKIP_MAX_AHEAD, SKIP_MIN_AHEAD, STATIONS_PER_TRAIN, TICK_MS, TRAIN_CAPACITY, TRAVEL_MS, TURNAROUND_MS,
   type ShiftFlow,
 } from './dispatchBalance';
 import { servedDistances, servedStations, type Served, type ServedRange } from './dispatchNetwork';
@@ -276,12 +276,11 @@ function platformKey(net: NetworkIndex, t: Train, at: number): string {
 function nextResource(net: NetworkIndex, s: SimState, t: Train): string {
   if (t.stage === 'dwell') return `block:${blockKey(net, t.line, t.at, t.at + t.dir)}`;
   if (t.stage === 'turnaround') return `block:${blockKey(net, t.line, t.at, t.at - t.dir)}`;
-  // Running, signal and cleared all retain their incoming block until the
-  // approached directional platform is available, even after a Signal is cleared.
+  // A bypass needs the next physical block, rather than the skipped platform.
   const at = t.stage === 'running' ? t.at + t.dir : t.at;
   const id = net.lines.get(t.line)!.stations[at]!;
   const range = s.served.find((r) => r.line === t.line)!;
-  if (s.outOfService[id] && at !== range.from && at !== range.to) {
+  if ((s.outOfService[id] || (t.skipTo !== null && at !== t.skipTo)) && at !== range.from && at !== range.to) {
     return `block:${blockKey(net, t.line, at, at + t.dir)}`;
   }
   return platformKey(net, t, at);
@@ -357,6 +356,21 @@ export function clearSignal(net: NetworkIndex, s: SimState, trainId: number): bo
   return true;
 }
 
+/** Set an express call without releasing the incoming block or exchanging Passengers. */
+export function skipSignal(net: NetworkIndex, s: SimState, trainId: number, toIndex: number): boolean {
+  const t = s.trains.find((candidate) => candidate.id === trainId);
+  if (!t || t.stage !== 'signal' || heldTrains(net, s).has(trainId) || !isLate(net, s, t)) return false;
+  const range = s.served.find((r) => r.line === t.line)!;
+  const ahead = (toIndex - t.at) * t.dir;
+  const id = net.lines.get(t.line)!.stations[toIndex];
+  if (!Number.isInteger(toIndex) || ahead < SKIP_MIN_AHEAD || ahead > SKIP_MAX_AHEAD
+    || toIndex < range.from || toIndex > range.to || id === undefined || s.outOfService[id]) return false;
+  t.skipTo = toIndex;
+  t.stage = 'cleared';
+  t.ms = 0;
+  return true;
+}
+
 /** Advances one fixed tick in array order, reserving every move before the next Train moves. */
 export function stepSim(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
   s.shiftMs += TICK_MS;
@@ -374,7 +388,7 @@ export function stepSim(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
         t.ms += TICK_MS;
         break;
       case 'cleared':
-        if (closed && !terminal) {
+        if ((closed || (t.skipTo !== null && t.at !== t.skipTo)) && !terminal) {
           if (blockFree(net, s, t.line, t.at, t.at + t.dir) && canMove(net, s, t, 'running')) {
             t.stage = 'running';
             t.ms = 0;
@@ -402,7 +416,9 @@ export function stepSim(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
         t.ms += TICK_MS;
         if (t.ms >= TRAVEL_MS) {
           t.at += t.dir;
-          t.stage = s.outOfService[net.lines.get(t.line)!.stations[t.at]!] ? 'cleared' : 'signal';
+          if (t.at === t.skipTo) t.skipTo = null;
+          t.stage = s.outOfService[net.lines.get(t.line)!.stations[t.at]!]
+            || t.skipTo !== null ? 'cleared' : 'signal';
           t.ms = 0;
         }
         break;

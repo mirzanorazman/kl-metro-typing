@@ -73,7 +73,9 @@ export const STRAIN_CROWD_WEIGHT = 4;
 export const STRAIN_HELD_WEIGHT = 2;
 /** Number of Stations affected by a signal fault. */
 export const SIGNAL_FAULT_STATIONS = 3;
-/** Furthest Station ahead considered for Skip-stop, starting two ahead. */
+/** First Station ahead considered for Skip-stop. */
+export const SKIP_MIN_AHEAD = 2;
+/** Furthest Station ahead considered for Skip-stop. */
 export const SKIP_MAX_AHEAD = 3;
 /** Trains on the same Line and direction this many blocks apart are bunched. */
 export const BUNCH_BLOCKS = 1;
