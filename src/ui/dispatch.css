@@ -149,6 +149,45 @@
   color: var(--ink-muted);
 }
 
+/* A wrong key's stall: the line dims and a bar drains while keys are dropped. */
+.dispatch-typing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dispatch-typing[data-stalled='true'] .prompt,
+.dispatch-typing[data-stalled='true'] .dispatch-idle {
+  opacity: 0.55;
+}
+
+.dispatch-stall {
+  margin: 0;
+  font: 600 var(--t-xs) var(--font-mono);
+  color: var(--ink-muted);
+}
+
+.dispatch-stall::after {
+  content: '';
+  display: block;
+  width: 4rem;
+  height: 2px;
+  margin-top: 2px;
+  background: currentColor;
+  transform-origin: left;
+  animation: dispatch-stall var(--stall-ms, 500ms) linear forwards;
+}
+
+@keyframes dispatch-stall {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The words carry the stall; the bar holds still. */
+  .dispatch-stall::after { animation: none; }
+}
+
 .dispatch-confirm {
   margin: 0;
   font: var(--t-xs) var(--font-mono);

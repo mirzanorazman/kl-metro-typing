@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { music, sound } from '../audio/sound';
 import type { Point } from '../data/types';
 import type { KeySource } from '../engine/keylog';
@@ -104,31 +104,50 @@ function ShiftBar({ career }: { career: CareerState }) {
   );
 }
 
-/** The typing line: the aimed text with the usual typed/current/pending treatment. */
+/**
+ * The typing line: the aimed text with the usual typed/current/pending
+ * treatment. While a wrong key's stall runs, keys are dropped, so the line
+ * says so: it dims and shows "Wait…" until the Shift clock passes the stall.
+ */
 function TypingLine({ career, aimed }: { career: CareerState; aimed: readonly Target[] }) {
   const { aim } = career;
+  const stalled = career.gameMs < aim.stallUntil;
   const target = aim.lock ? aimed.find((t) => sameRef(t.ref, aim.lock!)) : aimed[0];
+  let body: ReactNode;
   if (!target) {
-    return (
+    body = (
       <p className="dispatch-idle">
         {career.status === 'ready' ? "Type a waiting Station's name to start the Shift" : "Type a waiting Station's name"}
         {aim.mistyped && <span className="prompt-feedback" role="status">Wrong key</span>}
       </p>
     );
+  } else {
+    const state: TypingState = {
+      target: target.text, cursor: aim.typed.length, keystrokes: 0, errors: 0, mistyped: aim.mistyped, done: false,
+    };
+    const typed = aim.typed.toLowerCase();
+    const exact = aimed.find((t) => t.text.toLowerCase() === typed);
+    const longer = aimed.some((t) => t.text.length > typed.length);
+    body = (
+      <>
+        <Prompt state={state} errorTick={career.errors} />
+        {exact && longer && (
+          <p className="dispatch-confirm" role="note"><kbd>Enter</kbd> to clear {exact.text}</p>
+        )}
+      </>
+    );
   }
-  const state: TypingState = {
-    target: target.text, cursor: aim.typed.length, keystrokes: 0, errors: 0, mistyped: aim.mistyped, done: false,
-  };
-  const typed = aim.typed.toLowerCase();
-  const exact = aimed.find((t) => t.text.toLowerCase() === typed);
-  const longer = aimed.some((t) => t.text.length > typed.length);
   return (
-    <>
-      <Prompt state={state} errorTick={career.errors} />
-      {exact && longer && (
-        <p className="dispatch-confirm" role="note"><kbd>Enter</kbd> to clear {exact.text}</p>
+    <div className="dispatch-typing" data-testid="dispatch-typing" data-stalled={stalled ? 'true' : undefined}>
+      {body}
+      {stalled && (
+        // Keyed on the stall, so each one restarts its countdown bar.
+        <p key={aim.stallUntil} className="dispatch-stall" role="status"
+          style={{ '--stall-ms': `${aim.stallUntil - career.gameMs}ms` } as CSSProperties}>
+          Wait…
+        </p>
       )}
-    </>
+    </div>
   );
 }
 

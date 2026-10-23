@@ -203,6 +203,30 @@ describe('DispatcherScreen', () => {
     });
   });
 
+  it('a wrong key visibly stalls the typing line until the stall ends', async () => {
+    const clock = fakeClock();
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    const line = () => screen.getByTestId('dispatch-typing');
+    const done = () => line().querySelectorAll('[data-state="done"]').length;
+    type('J');
+    expect(line().getAttribute('data-stalled')).toBeNull();
+    expect(screen.queryByText('Wait…')).toBeNull();
+    type('z');
+    expect(line().getAttribute('data-stalled')).toBe('true');
+    expect(screen.getByText('Wait…').getAttribute('role')).toBe('status');
+    // A key inside the stall is dropped, and the line still says so.
+    clock.now = 1_200;
+    type('e');
+    expect(done()).toBe(1);
+    expect(line().getAttribute('data-stalled')).toBe('true');
+    // Once the Shift clock passes the stall, the line is live again.
+    clock.now = 1_700;
+    await waitFor(() => expect(line().getAttribute('data-stalled')).toBeNull());
+    expect(screen.queryByText('Wait…')).toBeNull();
+    type('e');
+    expect(done()).toBe(2);
+  });
+
   it('Incidents are listed with kind, place and a timer', () => {
     const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
     initial.sim.incidents = [signalFault()];
