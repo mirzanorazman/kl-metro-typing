@@ -49,11 +49,11 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
 
 **Interfaces:** Produces only constant values.
 
-- [ ] **Step 1: Run the failing tests.** Run `npx vitest run src/engine/dispatchReplay.test.ts src/engine/dispatchProbe.test.ts src/ui/Dispatcher.test.tsx`. Expected: the 8 failures from the user's change.
-- [ ] **Step 2: Rescale the three failure clocks.** Re-run the command above until it passes. Prefer changing constants over changing tests. If a test must change, write why in the commit body.
-- [ ] **Step 3: Run `npm test` and `npx tsc --noEmit`.** Expected: all pass.
-- [ ] **Step 4: Record a provisional survey.** Run `DISPATCH_PROBE=1 npx vitest run src/engine/dispatchProbe.test.ts` and paste the table into the commit body.
-- [ ] **Step 5: Commit** `feat: adopt the 90-second Dispatcher Shift`. This commit includes the user's `SHIFT_PHASES`.
+- [x] **Step 1: Run the failing tests.** Run `npx vitest run src/engine/dispatchReplay.test.ts src/engine/dispatchProbe.test.ts src/ui/Dispatcher.test.tsx`. Expected: the 8 failures from the user's change.
+- [x] **Step 2: Rescale the three failure clocks.** Re-run the command above until it passes. Prefer changing constants over changing tests. If a test must change, write why in the commit body.
+- [x] **Step 3: Run `npm test` and `npx tsc --noEmit`.** Expected: all pass.
+- [x] **Step 4: Record a provisional survey.** Run `DISPATCH_PROBE=1 npx vitest run src/engine/dispatchProbe.test.ts` and paste the table into the commit body.
+- [x] **Step 5: Commit** `feat: adopt the 90-second Dispatcher Shift`. This commit includes the user's `SHIFT_PHASES`.
 
 ---
 
@@ -73,16 +73,16 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
   ```
   The idle state is a button labelled "End Career". Clicking it shows the text "End Career?" with the buttons "Yes, end it" and "Keep playing". It reverts after `END_CONFIRM_MS`, or on Keep playing. Only "Yes, end it" calls `onConfirm`.
 
-- [ ] **Step 1: Write the failing tests** in `src/ui/Dispatcher.test.tsx`:
+- [x] **Step 1: Write the failing tests** in `src/ui/Dispatcher.test.tsx`:
   - `one click on End Career doesn't end the Career`: after one click, the Career is still running and "Yes, end it" is shown.
   - `Yes, end it ends it`: the abandoned summary appears.
   - `the question goes away by itself`: with fake timers, advancing `END_CONFIRM_MS` brings back "End Career", and the Career is still running.
   - `Enter and Space never answer it` (Review Focus 4): focus "Yes, end it", then `fireEvent.keyDown` Enter and Space. Assert `defaultPrevented` is true and the Career is not ended.
   - `the Expansion screen asks too`: with `initial` in `'between'`, one click doesn't end it, and Yes does.
-- [ ] **Step 2: Run them and confirm they fail.** Run `npx vitest run src/ui/Dispatcher.test.tsx`.
-- [ ] **Step 3: Implement `ConfirmEndButton`** and use it in both places. Every button involved stays inside the existing button shield.
-- [ ] **Step 4: Run them and confirm they pass.** Then run `npm test`.
-- [ ] **Step 5: Commit** `fix: End Career asks before ending a Dispatcher Career`.
+- [x] **Step 2: Run them and confirm they fail.** Run `npx vitest run src/ui/Dispatcher.test.tsx`.
+- [x] **Step 3: Implement `ConfirmEndButton`** and use it in both places. Every button involved stays inside the existing button shield.
+- [x] **Step 4: Run them and confirm they pass.** Then run `npm test`.
+- [x] **Step 5: Commit** `fix: End Career asks before ending a Dispatcher Career`.
 
 ---
 
@@ -102,7 +102,7 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
   ```
   `dispatchOvercrowded` is removed, and its callers and tests are updated.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `Prompt`: a mistyped space keeps its width. Render target "Crowd control at Damai" with cursor 13 (the space) and `mistyped: true`. The current character element has the text " " and a computed or inline `white-space` of `pre` or `pre-wrap` (jsdom can't measure width, so assert the style that guarantees it). The "Wrong key" status is present.
   - `dispatchTense`:
     - false with only an Out-of-service Station and calm platforms;
@@ -111,10 +111,10 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
   - Screen:
     - the music returns to `rushCalm` after a missed Incident leaves a Station Out of service and no Incident remains (spy on `music.play`);
     - `sound.delivered` is never called while passengers are delivered with no pop (spy).
-- [ ] **Step 2: Run them and confirm they fail.**
-- [ ] **Step 3: Implement.** For the space, give the prompt's character spans `white-space: pre`, or render the mistyped space as a non-breaking space while keeping its `data-space` styling. Check that Line Run and Quick Run still render a wrong space correctly; they share `Prompt`.
-- [ ] **Step 4: Run `npm test`.** Expected: PASS.
-- [ ] **Step 5: Commit** `fix: mistyped spaces stay visible; Dispatcher music calms after an Incident`.
+- [x] **Step 2: Run them and confirm they fail.**
+- [x] **Step 3: Implement.** For the space, give the prompt's character spans `white-space: pre`, or render the mistyped space as a non-breaking space while keeping its `data-space` styling. Check that Line Run and Quick Run still render a wrong space correctly; they share `Prompt`.
+- [x] **Step 4: Run `npm test`.** Expected: PASS.
+- [x] **Step 5: Commit** `fix: mistyped spaces stay visible; Dispatcher music calms after an Incident`.
 
 ---
 
@@ -134,7 +134,7 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
   ```
   This uses the Station data's own `geo` coordinates, so the engine imports nothing from `geo/` and `startShiftSim`'s signature does not change. The spec says "layout distance"; geographic distance gives the same answer for this purpose.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `outerEnds`:
     - for the starting network, KJ 4–17 (passes through KLCC and Masjid Jamek), it is `['from', 'to']`;
     - for a range with no central Station, it is the single end further from Masjid Jamek;
@@ -149,13 +149,13 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
     - two entries at the same end are at least `targetHeadwayMs(range) / outerEnds.length` apart.
   - `after an Expansion the next Shift's ready still has a typeable Signal`: drive a Career to `'between'`, apply `expand`, and check `visibleTargets` is non-empty.
   - `block exclusivity still holds`: the existing shared-track tests still pass, plus one on AG+SP served together.
-- [ ] **Step 2: Run them and confirm they fail.** Run `npx vitest run src/engine/dispatchSim.test.ts`.
-- [ ] **Step 3: Implement.**
+- [x] **Step 2: Run them and confirm they fail.** Run `npx vitest run src/engine/dispatchSim.test.ts`.
+- [x] **Step 3: Implement.**
   - At shift start, place one waiting train per outer end.
   - Reinforcement adds the remaining trains only at outer ends, heading inward, with the spacing above. Keep the existing reinforcement safety checks.
   - For phases with a lower `trainFactor`, surplus trains leave as before.
-- [ ] **Step 4: Run `npm test`.** Some balance-coupled tests may shift. Adjust their seeds or limits only, keep their intent, and note it in the commit body.
-- [ ] **Step 5: Commit** `feat: Dispatcher morning trains enter from the outer ends`.
+- [x] **Step 4: Run `npm test`.** Some balance-coupled tests may shift. Adjust their seeds or limits only, keep their intent, and note it in the commit body.
+- [x] **Step 5: Commit** `feat: Dispatcher morning trains enter from the outer ends`.
 
 ---
 
@@ -198,7 +198,7 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
     - Skip-stop Targets and fix Targets are never cleared. Trains on other Lines are never touched.
   - **Recording:** set `lastWave` even when fewer Signals than `size` are cleared, including 0, and add 1 to `waves`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `a clean third completion fires a wave of one`: drive three clean Clears on KJ with at least 2 KJ trains waiting. `lastWave.cleared` has length 1, holds the KJ train nearest the third Clear's Station, and `streak === 3`.
   - `waves grow with the streak and cap at 4`: build streak values 3, 6, 9, 12 and 15. The `cleared` lengths are 1, 2, 3, 4 and 4, when enough Signals wait. Set up the state directly with a test helper if typing it is impractical.
   - `a wrong key resets the streak`: after a counted error, `streak === 0`, and the next completion leaves it at 0 because that Target wasn't clean.
@@ -214,10 +214,10 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
   - `the streak carries across Shifts`.
   - `waves replay` (Review Focus 1), in `dispatchReplay.test.ts`: use `drive({ ..., accuracy: 0.99 })`. The test asserts `state.waves > 0`, and `replayDispatch` is complete and equal on delivered, cleared, score and waves.
 - This task adds `accuracy?: number` to `DriveOptions` in `src/engine/dispatchDrive.testutil.ts`. It means a seeded, deterministic error rate of `1 − accuracy`. When omitted, keep today's every-23rd-key typo so existing tests are unchanged. Task 11 adds wave aiming and the inattentive variant on top.
-- [ ] **Step 2: Run them and confirm they fail.**
-- [ ] **Step 3: Implement** inside `applyTargetKey`, after `completeTarget`. Keep it deterministic, with no rng.
-- [ ] **Step 4: Run `npm test` and `npx tsc --noEmit`.**
-- [ ] **Step 5: Commit** `feat: Dispatcher Green wave combo`.
+- [x] **Step 2: Run them and confirm they fail.**
+- [x] **Step 3: Implement** inside `applyTargetKey`, after `completeTarget`. Keep it deterministic, with no rng.
+- [x] **Step 4: Run `npm test` and `npx tsc --noEmit`.**
+- [x] **Step 5: Commit** `feat: Dispatcher Green wave combo`.
 
 ---
 
@@ -242,7 +242,7 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
 - **Delivered and Stranded are untouched.**
 - **`Exchange.delivered`** is the alighted passengers whose destination was this Station. `alighted` also counts transferring passengers.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - `every call records its exchange`: after a Clear's dwell, the train's `lastExchange` has the right `station`, `boarded` equals the change in load, and `delivered` equals the change in `sim.delivered`.
   - `a surge's extras accumulate`: over 10 s of an active surge, `extra` is within 1 of `0.75 ×` the spawns at that place.
   - `fixing a surge disperses its extras` (Review Focus 5):
@@ -252,10 +252,10 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
     - no waiting count is negative.
   - `dispersal when most extras already boarded`: with a crowd smaller than `extra`, it disperses exactly the crowd and leaves 0.
   - `exposing exchanges changes nothing else`: two sims from one seed, compared with and without reading the new fields, have identical `delivered`, `stranded` and `calls` after 60 s.
-- [ ] **Step 2: Run them and confirm they fail.**
-- [ ] **Step 3: Implement.** Update `cloneSim` for the new fields.
-- [ ] **Step 4: Run `npm test`.**
-- [ ] **Step 5: Commit** `feat: Dispatcher exchanges and crowd-surge dispersal`.
+- [x] **Step 2: Run them and confirm they fail.**
+- [x] **Step 3: Implement.** Update `cloneSim` for the new fields.
+- [x] **Step 4: Run `npm test`.**
+- [x] **Step 5: Commit** `feat: Dispatcher exchanges and crowd-surge dispersal`.
 
 ---
 
@@ -267,7 +267,7 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
 
 **Interfaces:** Consumes Task 5's `streak`, `waves` and `lastWave`, plus `visibleTargets`.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - **Signal mark on a waiting train:** every train with a visible signal Target has a `data-testid="signal-mark"` at its faced Station. The mark has a post shape (a `path`) and a lamp with `data-lamp="red"`.
   - **Signal mark on a Clear:** the mark switches to `data-lamp="green"`, then is removed after its fade. Use fake timers; the fade is about 500 ms.
   - **The ripple:**
@@ -276,13 +276,13 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
   - **Reduced motion:** with `matchMedia('(prefers-reduced-motion: reduce)')` true, there is no `wave-pulse`, and every mark turns green at once.
   - **Streak count:** the typing line shows the streak as `data-testid="streak"` with the text "Streak 2". On a wave it carries `data-wave="true"` for its flash.
   - **Start tip:** the new start tip text mentions the red signal marks, and the banned-words test still passes.
-- [ ] **Step 2: Run them and confirm they fail.**
-- [ ] **Step 3: Implement.**
+- [x] **Step 2: Run them and confirm they fail.**
+- [x] **Step 3: Implement.**
   - Marks are drawn at the faced Station's layout point, offset towards the train's approach side, sized with `markScale`.
   - The ripple is a stroke along the Line's polyline from `origin` outward, using the existing layout points. It must replay visually only from `lastWave`, not keep its own timers in engine state.
-- [ ] **Step 4: Run `npm test`.**
-- [ ] **Step 5: Browser check.** Run `npm run dev`, play until a wave fires, and record what you saw in the commit body. Say plainly if you couldn't check.
-- [ ] **Step 6: Commit** `feat: Dispatcher signal marks and Green wave ripple`.
+- [x] **Step 4: Run `npm test`.**
+- [x] **Step 5: Browser check.** Run `npm run dev`, play until a wave fires, and record what you saw in the commit body. Say plainly if you couldn't check.
+- [x] **Step 6: Commit** `feat: Dispatcher signal marks and Green wave ripple`.
 
 ---
 
@@ -294,7 +294,7 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
 
 **Interfaces:** Consumes Task 6's `lastExchange`, `lastDispersal` and `dispersed`, plus the Shift's `delivered` (`career.history` for the cleared Shift).
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - **Exchange pop:** after a train the player cleared calls, a pop `data-testid="exchange-pop"` shows "+N boarded", plus "−M off" when `alighted > 0`. It fades after about 1 s.
   - **Chime:** `sound.delivered` plays only when such a pop shows with `delivered > 0` (spy).
   - **Pops at peak:** when several land in the same frame, the player's own Clear's pop is always present. Merging or dropping the others is the builder's choice, but at most 4 pops show at once.
@@ -303,10 +303,10 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
     - fixing the surge shows `data-testid="dispersal"` at the place, with the count dropping and a burst of person glyphs (`data-testid="person"`, several), about 1 s;
     - under reduced motion, it shows a static count and no burst.
   - **Shift cleared:** in `'between'`, before the offers, the Expansion screen shows "N passengers moved this Shift" and the Shift's on-time %.
-- [ ] **Step 2: Run them and confirm they fail.**
-- [ ] **Step 3: Implement.** Pops key off `lastExchange.atMs`/`lastDispersal.atMs`, so a new event replaces the old one. The player's own Clear is the train whose Signal the player's last completion cleared; the UI already knows the completed ref.
-- [ ] **Step 4: Run `npm test`.**
-- [ ] **Step 5: Commit** `feat: Dispatcher passenger moments`.
+- [x] **Step 2: Run them and confirm they fail.**
+- [x] **Step 3: Implement.** Pops key off `lastExchange.atMs`/`lastDispersal.atMs`, so a new event replaces the old one. The player's own Clear is the train whose Signal the player's last completion cleared; the UI already knows the completed ref.
+- [x] **Step 4: Run `npm test`.**
+- [x] **Step 5: Commit** `feat: Dispatcher passenger moments`.
 
 ---
 
@@ -323,7 +323,7 @@ The user's uncommitted `SHIFT_PHASES` edit currently fails 8 balance-coupled tes
 
 Otherwise both are the normal whole-network frame. The frame must always include every waiting train.
 
-- [ ] **Step 1: Write the failing tests:**
+- [x] **Step 1: Write the failing tests:**
   - **While locked onto a fix:**
     - the screen root has `data-urgent="true"`;
     - the place has `data-testid="incident-glow"`;
@@ -331,10 +331,10 @@ Otherwise both are the normal whole-network frame. The frame must always include
     - the `fitTo` points include every waiting train's Station (spy on `MapCanvas` props via `vi.mock` pass-through, as Task 10 of the earlier plan did for `judgeCareer`).
   - **After the fix completes or Backspace lets go:** `data-urgent` is gone, and the normal `fitKey` is back.
   - **Reduced motion:** a static edge and static glow; the CSS rule exists under the media query. Assert the class or attribute; jsdom can't run CSS animation.
-- [ ] **Step 2: Run them and confirm they fail.**
-- [ ] **Step 3: Implement.** The camera eases if `MapCanvas` already animates refits; if it snaps, add easing within `MapCanvas` without changing other screens' behaviour (default unchanged).
-- [ ] **Step 4: Run `npm test`.**
-- [ ] **Step 5: Commit** `feat: Dispatcher leans in on an Incident fix`.
+- [x] **Step 2: Run them and confirm they fail.**
+- [x] **Step 3: Implement.** The camera eases if `MapCanvas` already animates refits; if it snaps, add easing within `MapCanvas` without changing other screens' behaviour (default unchanged).
+- [x] **Step 4: Run `npm test`.**
+- [x] **Step 5: Commit** `feat: Dispatcher leans in on an Incident fix`.
 
 ---
 
@@ -356,28 +356,28 @@ Spec B6. This is an experiment with a finish line: try the approaches in order a
   ```
   It uses the same pure layout code the overlay renders with: `layoutChips`, `markScale` and the label placement. Extract them so the measure and the render can't drift apart.
 
-- [ ] **Step 1: Write the failing acceptance test.** Build a full-network Career with a busy peak state: run the sim with `trainFactor` 1 for 60 s with nothing cleared, so many Signals wait. At 1440×900 and 1024×768, `measureReadability` must give:
+- [x] **Step 1: Write the failing acceptance test.** Build a full-network Career with a busy peak state: run the sim with `trainFactor` 1 for 60 s with nothing cleared, so many Signals wait. At 1440×900 and 1024×768, `measureReadability` must give:
   - `chipOverlaps === 0`;
   - `minMarkPx >= 6`;
   - `stackedSharedSegments === 0`.
 
   It should fail today.
-- [ ] **Step 2: Spike.** On a throwaway branch or a scratch commit you will drop, render `?dispatch=full` in the browser at both sizes with approaches 1–3 from the spec:
+- [x] **Step 2: Spike.** On a throwaway branch or a scratch commit you will drop, render `?dispatch=full` in the browser at both sizes with approaches 1–3 from the spec:
   1. minimum on-screen sizes;
   2. label only what matters;
   3. parallel shared track.
 
   Take screenshots, and note in the report what each approach fixed.
-- [ ] **Step 3: Implement the approaches in order,** re-running the test after each:
+- [x] **Step 3: Implement the approaches in order,** re-running the test after each:
   1. min sizes (`markScale` gets a floor in screen pixels);
   2. label only what matters (`labelled` = Stations with a waiting train, Incident or signal mark, plus interchanges and range ends);
   3. parallel shared track (offset consecutive shared segments, e.g. AG/SP Sentul Timur–Chan Sow Lin);
   4. chip placement with leader lines using `render/labels.ts`.
 
   Stop as soon as the test passes.
-- [ ] **Step 4: Stop gate.** If the test still fails after approach 4, do not invent a fifth approach. Commit what helped. Mark the acceptance test `it.todo`-style with the measured numbers in its title. Report BLOCKED-for-user with the screenshots and numbers. The spec makes a deeper fix the user's decision.
-- [ ] **Step 5: Run `npm test`, and check the other screens are unchanged.** The existing `MapCanvas` tests must pass, and the new behaviour must sit behind props that default off.
-- [ ] **Step 6: Commit** `feat: Dispatcher map stays readable at full size`.
+- [x] **Step 4: Stop gate.** If the test still fails after approach 4, do not invent a fifth approach. Commit what helped. Mark the acceptance test `it.todo`-style with the measured numbers in its title. Report BLOCKED-for-user with the screenshots and numbers. The spec makes a deeper fix the user's decision.
+- [x] **Step 5: Run `npm test`, and check the other screens are unchanged.** The existing `MapCanvas` tests must pass, and the new behaviour must sit behind props that default off.
+- [x] **Step 6: Commit** `feat: Dispatcher map stays readable at full size`.
 
 ---
 
@@ -396,17 +396,17 @@ Spec B6. This is an experiment with a finish line: try the approaches in order a
   - **Inattentive variant:** it ignores fix Targets until the Incident's age is over `0.75 × INCIDENT_LIMIT_MS`.
 - **Survey typists:** 40 WPM at 0.94, 60 WPM at 0.96, 90 WPM at 0.98, plus an inattentive 60 WPM.
 
-- [ ] **Step 1: Write the failing tests** in `dispatchProbe.test.ts`, at seeds 1–5:
+- [x] **Step 1: Write the failing tests** in `dispatchProbe.test.ts`, at seeds 1–5:
   - the median Career at 40 WPM / 0.94 lasts 5–8 minutes of Career game time;
   - at 90 WPM / 0.98 it lasts 15–25 minutes;
   - every seed at 60 WPM / 0.96 clears Shift 1;
   - at least one inattentive Career fails with an Incident cause first in `failure.closures`.
-- [ ] **Step 2: Run them and confirm they fail.**
-- [ ] **Step 3: Implement the typists, then tune `dispatchBalance.ts`** until those tests pass.
+- [x] **Step 2: Run them and confirm they fail.**
+- [x] **Step 3: Implement the typists, then tune `dispatchBalance.ts`** until those tests pass.
   - **Era pacing:** an Era roughly every 3–5 minutes of play, so `SHIFTS_PER_ERA` is about 3.
   - **Opt-in survey:** report per typist the median Career minutes, Shifts cleared, waves fired and the failure-cause mix.
-- [ ] **Step 4: Run `npm test`.** Fix any balance-coupled tests by seed or limit only, keeping their intent.
-- [ ] **Step 5: Update the handover and STATUS.**
+- [x] **Step 4: Run `npm test`.** Fix any balance-coupled tests by seed or limit only, keeping their intent.
+- [x] **Step 5: Update the handover and STATUS.**
   - Handover: a new "Playtest 1" section with what changed (Tasks 1–10), the final survey, leans left for the next playtest, and the B6 outcome.
   - STATUS: the Dispatcher section.
-- [ ] **Step 6: Commit** `feat: Dispatcher balance for the 90-second Shift, combo and new train entry`.
+- [x] **Step 6: Commit** `feat: Dispatcher balance for the 90-second Shift, combo and new train entry`.

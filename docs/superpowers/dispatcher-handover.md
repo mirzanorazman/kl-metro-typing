@@ -9,8 +9,8 @@ branch `feat/dispatcher`. All 11 tasks are done; see "Playtest 1" below. The
 first plan (`2026-10-23-dispatcher.md`) is done too, apart from its gated
 Task 12.
 
-- **Last done:** Playtest 1 Task 11, the balance for the 90-second Shift. Five
-  constants changed in `src/engine/dispatchBalance.ts`; see "Playtest 1".
+- **Last done:** the final whole-branch review's fixes, after Playtest 1
+  Task 11; see "Final review fixes" under "Playtest 1".
 - **Next:** The user playtests again. Check the leans under "Playtest 1"
   first: the 90 WPM ceiling is the open one. Task 12 of the first plan
   (retire Rush Hour) is still **gated**: do not start it until the user says
@@ -71,6 +71,43 @@ Acceptance was met after approach 4. On the full network at peak:
 and 0 at 1024×768. Check two things in playtest: long leader lines that cross
 in the centre, and plain interchange names dropped in the centre.
 
+### Final review fixes
+
+The whole-branch review found five things, fixed after Task 11:
+
+1. **Chips under the panels.** Signal and fix chips could land under the
+   Incidents panel, the typing panel or the top bar, or past the screen's
+   edge. `MapCanvas` now hands its overlay the live view, the measured screen
+   and the lane geometry (`OverlayView`). The Dispatcher measures its panels
+   after every render, before paint, and on resize (`usePanelRects`, so a
+   growing Incidents list counts at once), and `overlayFrame` turns them into
+   layout units. `layoutChips` keeps every chip on the visible map and out
+   from under the panels (`placeLabels`' new `within` and `hard`), and tries
+   farther rings, out to 28× the gap. `measureReadability` counts a hidden
+   chip as an overlap, using `dispatchPanels`, a model of the panels' CSS
+   measured in the browser (91 px a card, 162/184 px typing panel).
+   Before → after, with the same measure:
+   - Seeds 1–6, 60 s flowing, 5–40 s held (48 states a size): states with a
+     hidden chip 23 → 0 at 1024×768 and 2 → 0 at 1440×900; chip-on-chip 0.
+   - Seed 2, 90 s + 40 s: 2 chip-on-chip → 0 at 1440×900; 4 hidden + 2
+     chip-on-chip → 0 at 1024×768.
+   - The same peak with 3 Incident cards: 1 → 0 at 1440×900, 13 hidden → 0
+     at 1024×768. With 4: 1 hidden + 3 chip-on-chip → 0, and 14 hidden + 3
+     chip-on-chip → 0.
+   The acceptance test runs all five peaks at both sizes. Watch in playtest:
+   with a tall Incidents panel some chips sit far out on long leader lines.
+2. **Pops under chips.** Exchange pops are laid out after the chips
+   (`layoutPops`, through `placeLabels` with the chips as obstacles), so they
+   yield to them; chips stay drawn on top. Every pop still shows.
+3. **Urgent edge behind dialogs.** `data-urgent` is set only while the Career
+   is running and no tip shows.
+4. **Green wave pulse between the lanes.** The pulse and a held stretch now
+   follow their Line's own lane on shared track, as the map draws it.
+5. **Skip-stop waves.** A replay test drives a typist that takes every
+   express skip (`skips` in `dispatchDrive.testutil.ts`) and checks a wave
+   fired by a Skip-stop starts from the skipped train's Line and Station, and
+   that the Career replays equal.
+
 ### Survey typists (Task 11)
 
 The scripted typist in `dispatchDrive.testutil.ts` now plays like a person:
@@ -123,9 +160,9 @@ Constants changed in Task 11 (old → new):
 
 | Constant | Old | New | Why |
 |---|---|---|---|
-| `STATIONS_PER_TRAIN` | 5 | 4 | More trains per Line (the starting stretch gets 4, not 3). With 5 and the other new values, a 400 WPM test typist still lost a Career to crowding, and 90 WPM lost one in Shift 4. With 4, losses come from typing. |
+| `STATIONS_PER_TRAIN` | 5 | 4 | More trains per Line (the starting stretch gets 4, not 3). With 5 and the other new values, a 300 WPM test typist (40 ms a key) still lost a Career to crowding, and 90 WPM lost one in Shift 4. With 4, losses come from typing. |
 | `PASSENGER_RATE` | 0.19 | 0.25 | Brings failure back once the network has more trains. It is cliff-like: 0.24 left 60 WPM surviving 30 min on most seeds. |
-| `CENTRAL_PULL` | 3 | 2 | At 3, with the other new values, the Evening peak overflowed the central hubs (Masjid Jamek, KL Sentral, KLCC) whatever the player typed: a 400 WPM test typist lost 3 of 5 Careers, and 90 WPM lost all 5 by 7.5 min. At 2 the 400 WPM typist survives all 5, so every loss is down to the player. |
+| `CENTRAL_PULL` | 3 | 2 | At 3, with the other new values, the Evening peak overflowed the central hubs (Masjid Jamek, KL Sentral, KLCC) whatever the player typed: a 300 WPM test typist (40 ms a key) lost 3 of 5 Careers, and 90 WPM lost all 5 by 7.5 min. At 2 the 300 WPM typist survives all 5, so every loss is down to the player. |
 | `INCIDENT_LIMIT_MS` | 21 000 | 17 000 | Back below `OOS_CROWD_MS` (19 000). At 16 000 the 40 WPM median was 5.2 min over 20 seeds; at 18 000, 60 WPM rarely failed. |
 | `SHIFTS_PER_ERA` | 2 | 3 | An Era every ~4.5 minutes rather than every 3. |
 
