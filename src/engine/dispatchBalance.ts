@@ -17,11 +17,11 @@ export const TRAIN_CAPACITY = 100;
 /** Maximum Station crowd across all directions. */
 export const PLATFORM_CAPACITY = 55;
 /** A full platform goes Out of service after this many milliseconds. */
-export const OOS_CROWD_MS = 45_000;
+export const OOS_CROWD_MS = 19_000;
 /** This share of served Stations Out of service fails a Shift. */
 export const OOS_FAIL_SHARE = 0.25;
 /** Passengers per second per demand unit at multiplier 1. */
-export const PASSENGER_RATE = 0.097;
+export const PASSENGER_RATE = 0.19;
 /** Destination weight boost towards or away from the centre at peak. */
 export const CENTRAL_PULL = 3;
 /** Stations treated as central when weighting peak travel flows. */
@@ -44,9 +44,9 @@ export interface ShiftPhaseSpec {
 
 /** The compressed service day, in order, with demand and Train activity. */
 export const SHIFT_PHASES: readonly ShiftPhaseSpec[] = [
-  { name: 'Morning peak', ms: 80_000, multiplier: 1.6, flow: 'inbound', trainFactor: 1 },
-  { name: 'Midday', ms: 50_000, multiplier: 0.7, flow: 'none', trainFactor: 0.6 },
-  { name: 'Evening peak', ms: 80_000, multiplier: 1.6, flow: 'outbound', trainFactor: 1 },
+  { name: 'Morning peak', ms: 35_000, multiplier: 1.6, flow: 'inbound', trainFactor: 1 },
+  { name: 'Midday', ms: 20_000, multiplier: 0.7, flow: 'none', trainFactor: 0.6 },
+  { name: 'Evening peak', ms: 35_000, multiplier: 1.6, flow: 'outbound', trainFactor: 1 },
 ];
 
 /** Extra demand per Shift once the entire network is served. */
@@ -62,9 +62,9 @@ export const INCIDENTS_PER_MINUTE = 2;
 /** Maximum simultaneous Incidents. */
 export const INCIDENT_MAX = 3;
 /** No Incident can start before this time in a Shift. */
-export const INCIDENT_FIRST_MS = 10_000;
+export const INCIDENT_FIRST_MS = 4_000;
 /** Unfixed Incidents put their place Out of service after this long. */
-export const INCIDENT_LIMIT_MS = 35_000;
+export const INCIDENT_LIMIT_MS = 21_000;
 /** Passenger arrival multiplier at a crowd surge's place. */
 export const CROWD_SURGE_MULTIPLIER = 4;
 /** Crowding contribution when weighting Incident locations. */
