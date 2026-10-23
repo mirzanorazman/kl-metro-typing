@@ -21,6 +21,9 @@ export function Prompt({
         data-space={ch === ' ' ? 'true' : undefined}
         data-state={i < state.cursor ? 'done' : i === state.cursor ? 'current' : 'pending'}
         data-miskey={i === state.cursor && state.mistyped ? 'true' : undefined}
+        // The mistyped character is inline-block, where a lone space would
+        // collapse to nothing and glue its neighbours together.
+        style={ch === ' ' && i === state.cursor && state.mistyped ? { whiteSpace: 'pre' } : undefined}
       >
         {ch}
       </span>

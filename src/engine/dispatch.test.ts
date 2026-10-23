@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from './network';
-import { OOS_FAIL_SHARE, SHIFT_PHASES, TICK_MS } from './dispatchBalance';
+import { OOS_FAIL_SHARE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS } from './dispatchBalance';
 import { servedStations } from './dispatchNetwork';
 import { advanceFix } from './dispatchIncidents';
 import { clearSignal, cloneSim, closeStation, startShiftSim } from './dispatchSim';
 import { visibleTargets } from './dispatchTargets';
 import {
   SHIFT_MS, advanceCareer, applyDispatchAction, careerMetrics, careerScore, careerTotals,
-  dispatchOvercrowded, enterDispatchCharacter, shiftEscalation, shiftPhase, startCareer,
+  dispatchTense, enterDispatchCharacter, shiftEscalation, shiftPhase, startCareer,
   type CareerState,
 } from './dispatch';
 
@@ -145,7 +145,6 @@ describe('Dispatcher career', () => {
     expect(s.cleared).toBe(0);
     expect(s.history).toHaveLength(1);
     expect(s.history[0]!.cleared).toBe(false);
-    expect(dispatchOvercrowded(s)).toBe(true);
   });
 
   it('pauses at a non-tick instant and resumes with only running time counted', () => {
@@ -178,12 +177,18 @@ describe('Dispatcher career', () => {
     expect(careerTotals({ ...s, status: 'ended', endReason: 'abandoned', history: [] }).delivered).toBe(100);
   });
 
-  it('marks any active Incident or Out of service Station as overcrowded', () => {
+  it('is tense only while an Incident is active or a platform is over half full', () => {
     const s = startCareer(net, 1);
-    expect(dispatchOvercrowded(s)).toBe(false);
-    expect(dispatchOvercrowded({ ...s, sim: { ...s.sim, incidents: [{ id: 1, kind: 'crowd-surge',
-      place: 'klcc', stations: ['klcc'], line: 'KJ', train: null, startedMs: 0, step: 0 }] } })).toBe(true);
-    expect(dispatchOvercrowded({ ...s, sim: { ...s.sim, outOfService: { klcc: 'crowding' } } })).toBe(true);
+    const incident = { id: 1, kind: 'crowd-surge' as const, place: 'klcc', stations: ['klcc'],
+      line: 'KJ' as const, train: null, startedMs: 0, step: 0 };
+    const crowd = (count: number) => ({ ...s, sim: { ...s.sim,
+      platforms: { klcc: { waiting: { jelatek: count }, fullMs: 0, lastCall: {} } } } });
+    expect(dispatchTense(s)).toBe(false);
+    // An Out of service Station alone, with calm platforms, is not tense.
+    expect(dispatchTense({ ...s, sim: { ...s.sim, outOfService: { klcc: 'crowding' } } })).toBe(false);
+    expect(dispatchTense({ ...s, sim: { ...s.sim, incidents: [incident] } })).toBe(true);
+    expect(dispatchTense(crowd(PLATFORM_CAPACITY / 2))).toBe(false);
+    expect(dispatchTense(crowd(PLATFORM_CAPACITY / 2 + 1))).toBe(true);
   });
 
   it('keeps previous nested state immutable across ticks and typing', () => {

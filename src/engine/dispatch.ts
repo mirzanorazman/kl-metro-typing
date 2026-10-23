@@ -1,7 +1,7 @@
-import { FULL_NETWORK_ESCALATION, OOS_FAIL_SHARE, SHIFT_PHASES, TICK_MS, type ShiftFlow } from './dispatchBalance';
+import { FULL_NETWORK_ESCALATION, OOS_FAIL_SHARE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS, type ShiftFlow } from './dispatchBalance';
 import { applyExpansion, drawOffers, eraFor, servedStations, STARTING_NETWORK, type Expansion, type Served } from './dispatchNetwork';
 import { advanceFix, stepWorld } from './dispatchIncidents';
-import { clearSignal, cloneSim, skipSignal, startShiftSim, type OosCause, type SimState } from './dispatchSim';
+import { clearSignal, cloneSim, crowdAt, skipSignal, startShiftSim, type OosCause, type SimState } from './dispatchSim';
 import { aimKey, EMPTY_AIM, reconcileAim, sameRef, visibleTargets, type Aim, type TargetRef } from './dispatchTargets';
 import { computeMetrics, type Metrics } from './metrics';
 import type { NetworkIndex } from './network';
@@ -226,6 +226,8 @@ export function careerScore(s: CareerState): number {
   return Math.round(careerTotals(s).delivered * computeMetrics(s.correctChars, s.keystrokes, s.gameMs).accuracy);
 }
 
-export function dispatchOvercrowded(s: CareerState): boolean {
-  return s.sim.incidents.length > 0 || Object.keys(s.sim.outOfService).length > 0;
+/** True while any Incident is active, or any platform is over half of PLATFORM_CAPACITY. */
+export function dispatchTense(s: CareerState): boolean {
+  return s.sim.incidents.length > 0
+    || Object.keys(s.sim.platforms).some((id) => crowdAt(s.sim, id) > PLATFORM_CAPACITY / 2);
 }

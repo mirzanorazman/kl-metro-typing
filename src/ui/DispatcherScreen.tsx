@@ -11,7 +11,7 @@ import {
   applyDispatchAction,
   careerMetrics,
   careerTotals,
-  dispatchOvercrowded,
+  dispatchTense,
   enterDispatchCharacter,
   shiftPhase,
   startCareer,
@@ -289,7 +289,6 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
       const now = run.sim.incidents.find((i) => i.id === inc.id);
       return now ? now.step > inc.step : !run.sim.outOfService[inc.place];
     });
-    if (run.sim.delivered > prev.sim.delivered) sound.delivered();
     if (cleared || fixed) sound.arrive();
     if (run.sim.nextIncidentId > prev.sim.nextIncidentId) sound.warning();
   }, [run, net]);
@@ -297,7 +296,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
   // Music while the Shift runs, tense while anything is wrong; the setup
   // theme while choosing an Expansion.
   const track = run.status === 'between' ? 'rushSetup'
-    : run.status !== 'running' ? null : dispatchOvercrowded(run) ? 'rushTense' : 'rushCalm';
+    : run.status !== 'running' ? null : dispatchTense(run) ? 'rushTense' : 'rushCalm';
   useEffect(() => {
     if (track) music.play(track);
     else music.stop();

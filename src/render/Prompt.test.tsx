@@ -35,6 +35,20 @@ describe('Prompt', () => {
     expect(screen.getByRole('status').textContent).toBe('Wrong key');
   });
 
+  it('keeps a mistyped space as wide as a space', () => {
+    const target = 'Crowd control at Damai';
+    const cursor = target.indexOf(' ', 'Crowd '.length + 'control'.length - 1);
+    expect(cursor).toBe(13);
+    const mistyped = { ...beginTyping(target), cursor, mistyped: true };
+    const { container } = render(<Prompt state={mistyped} />);
+    const current = container.querySelector('[data-state="current"]') as HTMLElement;
+
+    expect(current.textContent).toBe(' ');
+    expect(current.getAttribute('data-space')).toBe('true');
+    expect(current.style.whiteSpace).toMatch(/^pre(-wrap)?$/);
+    expect(screen.getByRole('status').textContent).toBe('Wrong key');
+  });
+
   it('anchors wrong-key feedback to the current character', () => {
     const mistyped = applyKey(beginTyping('Imbi'), 'x');
     const { container } = render(<Prompt state={mistyped} />);

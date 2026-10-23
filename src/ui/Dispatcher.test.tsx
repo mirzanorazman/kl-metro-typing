@@ -302,7 +302,7 @@ describe('DispatcherScreen', () => {
     expect(within(bar).getByText('90%')).toBeTruthy();
   });
 
-  it('music: calm while running, tense while any Incident or Out of service', () => {
+  it('music: calm while running, tense while any Incident is active', () => {
     const play = vi.spyOn(music, 'play').mockImplementation(() => {});
     vi.spyOn(music, 'stop').mockImplementation(() => {});
     const calm = renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
@@ -316,6 +316,23 @@ describe('DispatcherScreen', () => {
     renderShift(initial);
     type('J');
     expect(play).toHaveBeenLastCalledWith('rushTense');
+  });
+
+  it('music returns to calm once a missed Incident leaves a Station Out of service and no Incident remains', () => {
+    const play = vi.spyOn(music, 'play').mockImplementation(() => {});
+    vi.spyOn(music, 'stop').mockImplementation(() => {});
+    const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+    initial.sim.incidents = [signalFault()];
+    const view = renderShift(initial);
+    type('J');
+    expect(play).toHaveBeenLastCalledWith('rushTense');
+    view.unmount();
+
+    const after = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+    after.sim.outOfService = { [idOf('Masjid Jamek')]: 'signal-fault' };
+    renderShift(after);
+    type('J');
+    expect(play).toHaveBeenLastCalledWith('rushCalm');
   });
 
   it('End Career on the Expansion screen ends the Career as abandoned', () => {
@@ -430,7 +447,7 @@ describe('DispatcherScreen', () => {
     expect(labelFor('Jelatek')).toBeTruthy();
   });
 
-  it('a Clear sounds even on the tick a Passenger is Delivered', () => {
+  it('a Clear sounds on the tick a Passenger is Delivered, with no stray delivered chime', () => {
     const clock = fakeClock();
     const delivered = vi.spyOn(sound, 'delivered').mockImplementation(() => {});
     const arrive = vi.spyOn(sound, 'arrive').mockImplementation(() => {});
@@ -438,11 +455,10 @@ describe('DispatcherScreen', () => {
     const arriving: Train = { ...waiting(2, 'KJ', 'KLCC'), stage: 'cleared', load: { [klcc]: 5 } };
     renderShift(careerWith([waiting(1, 'KJ', 'Jelatek'), arriving]));
     type('Jelate');
-    expect(delivered).not.toHaveBeenCalled();
     clock.now += 100;
     type('k');
-    expect(delivered).toHaveBeenCalled();
     expect(arrive).toHaveBeenCalled();
+    expect(delivered).not.toHaveBeenCalled();
   });
 
   describe('tips', () => {
