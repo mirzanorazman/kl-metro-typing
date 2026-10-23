@@ -87,5 +87,9 @@ export const EXPANSION_MIN_STATIONS = 2;
 export const EXPANSION_MAX_STATIONS = 5;
 /** Cleared Shifts required to advance one Era. */
 export const SHIFTS_PER_ERA = 2;
-/** Maximum recorded keystrokes over a Dispatcher Career. */
-export const DISPATCH_KEYLOG_MAX_EVENTS = 60_000;
+/**
+ * Maximum recorded keystrokes over a Dispatcher Career: over five hours at
+ * 120 WPM. A Career that reaches it truncates and can never be verified, so it
+ * sits far past any honest session (final review: 60,000 was reached at ~108 min).
+ */
+export const DISPATCH_KEYLOG_MAX_EVENTS = 200_000;

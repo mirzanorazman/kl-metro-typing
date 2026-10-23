@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { LineCode } from '../data/types';
 import { loadNetworkData } from '../data/load';
 import {
@@ -266,7 +266,7 @@ describe('DispatcherScreen', () => {
     expect(screen.getByRole('banner', { name: 'Shift' }).textContent).toMatch(/Shift 2/);
   });
 
-  it('typing an Expansion name picks it, the map grows, and picker keys stay out of the Keylog', () => {
+  it('typing an Expansion name picks it, the map grows, and picker keys stay out of the Keylog', async () => {
     // A real Career: Shift 1 is played through the screen from a scripted
     // typist's inputs, so the judged evidence can replay end to end.
     const seed = 3;
@@ -312,6 +312,7 @@ describe('DispatcherScreen', () => {
     clock.now += 30 * 60_000;
     type('q');
     expect(screen.getByRole('region', { name: 'Career summary' })).toBeTruthy();
+    await waitFor(() => expect(judgeSpy).toHaveBeenCalled());
     expect(judgeSpy).toHaveBeenCalledTimes(1);
     const evidence = judgeSpy.mock.calls[0]![1];
     const shiftKeys = script.keylog.events.slice(0, expand!.i).map((e) => e.k);
@@ -429,7 +430,23 @@ describe('DispatcherScreen', () => {
   });
 
   describe('the end of a Career', () => {
-    it('a live failed Career is judged once, on evidence that replays complete', () => {
+    it('a failed Career shows its summary before the judgement, then the result', async () => {
+      const clock = fakeClock();
+      renderShift(startCareer(net, 7));
+      clock.now = 2_000;
+      type('J');
+      clock.now = 2_000 + 30 * 60_000;
+      type('x');
+      // The summary is on screen and says it is checking; the judge has not run yet.
+      expect(screen.getByRole('region', { name: 'Career summary' })).toBeTruthy();
+      expect(screen.getByRole('status').textContent).toBe('Checking your Career…');
+      expect(judgeSpy).not.toHaveBeenCalled();
+      await waitFor(() => expect(judgeSpy).toHaveBeenCalledTimes(1));
+      expect(await screen.findByText(/wasn't eligible for the leaderboard/)).toBeTruthy();
+      expect(screen.queryByText('Checking your Career…')).toBeNull();
+    });
+
+    it('a live failed Career is judged once, on evidence that replays complete', async () => {
       const clock = fakeClock();
       const initial = startCareer(net, 7);
       renderShift(initial);
@@ -440,6 +457,7 @@ describe('DispatcherScreen', () => {
       clock.now = 2_000 + 30 * 60_000;
       type('x');
       expect(screen.getByRole('region', { name: 'Career summary' })).toBeTruthy();
+      await waitFor(() => expect(judgeSpy).toHaveBeenCalled());
       expect(judgeSpy).toHaveBeenCalledTimes(1);
       const evidence: DispatchEvidence = judgeSpy.mock.calls[0]![1];
       expect(evidence.keylog.events.map((e) => e.k).join('')).toBe(first.slice(0, 2));
@@ -452,13 +470,14 @@ describe('DispatcherScreen', () => {
       )).toBeTruthy();
     });
 
-    it('an ineligible failed Career records an integrity fail for Dispatcher', () => {
+    it('an ineligible failed Career records an integrity fail for Dispatcher', async () => {
       const clock = fakeClock();
       renderShift(startCareer(net, 7));
       clock.now = 2_000;
       type('J');
       clock.now = 2_000 + 30 * 60_000;
       type('x');
+      await waitFor(() => expect(judgeSpy).toHaveBeenCalled());
       expect(judgeSpy).toHaveBeenCalledTimes(1);
       expect(judgeSpy.mock.results[0]!.value.eligible).toBe(false);
       expect(loadProfile().integrityFails?.[0]?.mode).toBe('dispatch');
@@ -470,6 +489,7 @@ describe('DispatcherScreen', () => {
       type('J');
       fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
       expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
+      expect(screen.queryByText('Checking your Career…')).toBeNull();
       expect(judgeSpy).not.toHaveBeenCalled();
       expect(loadProfile().integrityFails ?? []).toEqual([]);
     });
@@ -657,8 +677,19 @@ describe('DispatchSummary', () => {
     expect(loadDispatchBoard().entries.filter((e) => e.name === 'Aina')).toHaveLength(1);
   });
 
+  it('a failed Career says it is checking until its judgement arrives', () => {
+    const { rerender } = renderSummary(failed(), null);
+    expect(screen.getByRole('status').textContent).toBe('Checking your Career…');
+    expect(screen.queryByRole('textbox', { name: 'Your name' })).toBeNull();
+    rerender(<DispatchSummary net={net} career={failed()} metrics={metrics} judgement={judgement()}
+      onAgain={() => {}} onBack={() => {}} />);
+    expect(screen.queryByText('Checking your Career…')).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Your name' })).toBeTruthy();
+  });
+
   it('an abandoned Career ends early', () => {
     renderSummary({ ...failed(), endReason: 'abandoned', failure: null }, null);
+    expect(screen.queryByText('Checking your Career…')).toBeNull();
     expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
     expect(screen.queryByRole('textbox', { name: 'Your name' })).toBeNull();
   });

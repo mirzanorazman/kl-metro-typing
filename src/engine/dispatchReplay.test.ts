@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import { careerMetrics, careerScore, careerTotals } from './dispatch';
 import { drive } from './dispatchDrive.testutil';
+import { DISPATCH_KEYLOG_MAX_EVENTS } from './dispatchBalance';
 import { judgeCareer } from './dispatchJudge';
+import { verifyKeyLog } from './integrity';
+import { appendKey, beginLog, PLAIN_SOURCE, type KeyLog } from './keylog';
 import { buildNetwork } from './network';
 import { replayDispatch, type DispatchEvidence } from './replay';
 
@@ -100,4 +103,29 @@ describe('judgeCareer', () => {
       expect(judged.verdict).toBeNull();
     }
   }, 120_000);
+});
+
+describe('the Dispatcher Keylog ceiling', () => {
+  // 120 WPM is 10 characters a second. An honest Career of four hours at that
+  // pace must neither truncate nor be refused as malformed.
+  const honest = 120 * 5 * 240;
+  const longLog = (length: number): KeyLog => {
+    const events = Array.from({ length }, (_, i) => ({ k: 'a', dt: 70 + ((i * 37) % 61) }));
+    return { ...beginLog(0), ms: events.reduce((sum, e) => sum + e.dt, 0), events };
+  };
+
+  it('holds a four-hour Career at 120 WPM without truncating', () => {
+    expect(DISPATCH_KEYLOG_MAX_EVENTS).toBeGreaterThanOrEqual(honest);
+    const log = appendKey(longLog(honest - 1), 'a', PLAIN_SOURCE, 1e9, DISPATCH_KEYLOG_MAX_EVENTS);
+    expect(log.events).toHaveLength(honest);
+    expect(log.truncated).toBeUndefined();
+    expect(verifyKeyLog(log, 120, DISPATCH_KEYLOG_MAX_EVENTS)).toEqual({ ok: true });
+  });
+
+  it('still refuses a log past the ceiling', () => {
+    const full = longLog(DISPATCH_KEYLOG_MAX_EVENTS);
+    const capped = appendKey(full, 'a', PLAIN_SOURCE, 1e9, DISPATCH_KEYLOG_MAX_EVENTS);
+    expect(capped.truncated).toBe(true);
+    expect(verifyKeyLog(capped, 120, DISPATCH_KEYLOG_MAX_EVENTS)).toEqual({ ok: false, reason: 'malformed-log' });
+  });
 });

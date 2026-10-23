@@ -308,28 +308,41 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
   }, [tips, act]);
 
   // Judged once, at the end. Only a failed Career can be eligible; an
-  // abandoned one never reaches the judge.
+  // abandoned one never reaches the judge. Replaying a long Career takes
+  // seconds, so the judge waits for the summary to paint first: a frame, then
+  // a task. `judged` is set only when it runs, so a cancelled wait (an effect
+  // re-run) schedules it again rather than losing it.
   const [judgement, setJudgement] = useState<DispatchJudgement | null>(null);
   const judged = useRef(false);
   useEffect(() => {
-    if (run.status !== 'ended' || judged.current) return;
-    judged.current = true;
-    if (run.endReason !== 'failed' || run.endedAt === null) return;
-    const result = judgeCareer(net, {
-      v: DISPATCH_EVIDENCE_VERSION,
-      seed,
-      keylog: recorder.snapshot(),
-      actions: actions.current,
-      endedAt: run.endedAt,
+    if (run.status !== 'ended' || run.endReason !== 'failed' || run.endedAt === null || judged.current) return;
+    const endedAt = run.endedAt;
+    let timer = 0;
+    const frame = requestAnimationFrame(() => {
+      timer = window.setTimeout(() => {
+        if (judged.current) return;
+        judged.current = true;
+        const result = judgeCareer(net, {
+          v: DISPATCH_EVIDENCE_VERSION,
+          seed,
+          keylog: recorder.snapshot(),
+          actions: actions.current,
+          endedAt,
+        });
+        if (!result.eligible) {
+          saveProfile(recordIntegrityFail(loadProfile(), {
+            t: Date.now(),
+            mode: 'dispatch',
+            reason: result.verdict && !result.verdict.ok ? result.verdict.reason : 'malformed-log',
+          }));
+        }
+        setJudgement(result);
+      }, 0);
     });
-    if (!result.eligible) {
-      saveProfile(recordIntegrityFail(loadProfile(), {
-        t: Date.now(),
-        mode: 'dispatch',
-        reason: result.verdict && !result.verdict.ok ? result.verdict.reason : 'malformed-log',
-      }));
-    }
-    setJudgement(result);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
+    };
   }, [run, net, recorder, seed]);
 
   const key = servedKey(run.served);

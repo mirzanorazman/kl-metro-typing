@@ -17,7 +17,7 @@ export interface DispatchSummaryProps {
   net: NetworkIndex;
   career: CareerState;
   metrics: Metrics;
-  /** The Career's judgement; null while judging, and always for an abandoned Career. */
+  /** The Career's judgement; null while judging (shown as checking), and always for an abandoned Career. */
   judgement: DispatchJudgement | null;
   onAgain: () => void;
   onBack: () => void;
@@ -141,6 +141,9 @@ export function DispatchSummary({ net, career, metrics, judgement, onAgain, onBa
         })}
       </p>
 
+      {!abandoned && !judgement && (
+        <p className="dispatch-checking" role="status">Checking your Career…</p>
+      )}
       {!abandoned && judgement && (judgement.eligible ? (
         <BoardEntry metrics={metrics} judgement={judgement} />
       ) : (
