@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import type { Point } from '../data/types';
 import type { Layout } from '../geo/layout';
 import type { NetworkIndex } from '../engine/network';
@@ -6,6 +7,7 @@ import { bunchedTrains, heldTrains, trainPosition, type Train } from '../engine/
 import { sameRef, type Target, type TargetRef } from '../engine/dispatchTargets';
 import { contrastText } from './contrast';
 import { INCIDENT_GLYPH } from './incidentGlyphs';
+import { useSignalMarks, type SignalMark } from './useSignalMarks';
 
 export interface DispatchOverlayProps {
   net: NetworkIndex;
@@ -76,18 +78,19 @@ interface Chip {
 
 /**
  * Lays chips out in order, each beside its anchor on the given side and
- * stepped away from any chip already placed. Interchanges stack instead of
- * overprinting.
+ * stepped away from any chip already placed or box to `avoid`. Interchanges
+ * stack instead of overprinting.
  */
 function layoutChips(
   wanted: readonly { key: string; ref: TargetRef; text: string; kind: TargetRef['kind']; from: Point; side: Point }[],
   m: number,
   fontSize: number,
+  avoid: readonly Box[] = [],
 ): Chip[] {
   const h = fontSize * 1.5;
   const pad = fontSize * 0.45;
   const placed: Chip[] = [];
-  const boxes: Box[] = [];
+  const boxes: Box[] = [...avoid];
   for (const item of wanted) {
     const w = item.text.length * fontSize * CHAR_EM + pad * 2 + (item.kind === 'skip' ? fontSize : 0);
     const gap = 15 * m;
@@ -107,14 +110,56 @@ function layoutChips(
 
 const CROSS_ICON = 'M-0.55,-0.55 L0.55,0.55 M0.55,-0.55 L-0.55,0.55';
 
+/** A signal post in nominal units, its foot at the origin and its head up -y: a pole and a footing. */
+const SIGNAL_POST = 'M0,0 V-8 M-2.5,0 H2.5';
+const SIGNAL_HALF_W = 5;
+const SIGNAL_LEN = 24;
+/** Lamp centres in the head: green farther out, red nearer the track, as on a two-aspect signal. */
+const LAMP_Y = { green: -19.5, red: -12.5 } as const;
+
+interface MarkPlace { at: Point; angle: number; box: Box }
+
+/**
+ * Where a Signal mark stands: at its faced Station, on the side of the track
+ * the train approaches on, just clear of the waiting train's nose. The post
+ * points away from the track, so it never lies over the train or the rail.
+ */
+function placeMark(net: NetworkIndex, layout: Layout, mark: SignalMark, m: number): MarkPlace | null {
+  const ids = net.lines.get(mark.line)!.stations;
+  const station = layout.get(mark.station);
+  if (!station) return null;
+  const behind = layout.get(ids[mark.at - mark.dir] ?? '');
+  const ahead = layout.get(ids[mark.at + mark.dir] ?? '');
+  const heading = behind ? unit(station.x - behind.x, station.y - behind.y)
+    : ahead ? unit(ahead.x - station.x, ahead.y - station.y) : { x: 1, y: 0 };
+  // Screen y points down, so (-y, x) is the right-hand side of travel.
+  const side = { x: -heading.y, y: heading.x };
+  const at = { x: station.x + heading.x * m + side.x * 4 * m, y: station.y + heading.y * m + side.y * 4 * m };
+  // Rotates the drawing's "up" (0, -1) onto `side`.
+  const angle = (Math.atan2(side.x, -side.y) * 180) / Math.PI;
+  const corners = [-SIGNAL_HALF_W, SIGNAL_HALF_W].flatMap((across) => [0, SIGNAL_LEN].map((out) => ({
+    x: at.x + (heading.x * across + side.x * out) * m,
+    y: at.y + (heading.y * across + side.y * out) * m,
+  })));
+  const xs = corners.map((c) => c.x);
+  const ys = corners.map((c) => c.y);
+  return { at, angle, box: { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) } };
+}
+
+const pointsOf = (layout: Layout, ids: readonly string[]) => ids.map((id) => layout.get(id))
+  .filter((p): p is Point => !!p).map((p) => `${p.x},${p.y}`).join(' ');
+
 /**
  * The live Shift on the map: Trains with their Line code, each waiting Train's
  * Station name beside it, Incidents as a pulsing badge with a glyph for their
  * kind (signal head, Train front, crowd) and their current fix, and Out of service Stations crossed out. Every state has a
- * shape or text as well as a colour.
+ * shape or text as well as a colour. Each waiting train has a Signal mark, a
+ * post whose lamp turns from red to green when it is Cleared, and a Green wave
+ * sends a pulse along its Line.
  */
 export function DispatchOverlay({ net, layout, markScale: m, career, targets, aimed }: DispatchOverlayProps) {
   const { sim, aim } = career;
+  const { marks, pulse } = useSignalMarks(net, career, targets);
   const held = heldTrains(net, sim);
   const bunched = bunchedTrains(net, sim);
   const fontSize = 13 * m;
@@ -143,7 +188,11 @@ export function DispatchOverlay({ net, layout, markScale: m, career, targets, ai
         kind: target.ref.kind, from: placed.at, side: placed.side });
     }
   }
-  const chips = layoutChips(wanted, m, fontSize);
+  const placed = new Map(marks.map((mark) => [mark.key, placeMark(net, layout, mark, m)] as const)
+    .filter((entry): entry is [string, MarkPlace] => entry[1] !== null));
+  // Chips step clear of the waiting trains' marks; a fading mark may pass under one.
+  const chips = layoutChips(wanted, m, fontSize,
+    marks.filter((mark) => !mark.cleared).flatMap((mark) => placed.get(mark.key)?.box ?? []));
 
   const heldStretches = sim.incidents.filter((inc) => inc.kind === 'signal-fault');
 
@@ -191,6 +240,24 @@ export function DispatchOverlay({ net, layout, markScale: m, career, targets, ai
           vectorEffect="non-scaling-stroke"
         />
       ))}
+
+      {pulse && (
+        // Keyed on the wave, so each new one replays from its origin.
+        <g key={`wave-${pulse.wave}`} data-testid="wave-pulse" data-line={pulse.line} className="wave-pulse">
+          {pulse.runs.map((run) => {
+            const points = pointsOf(layout, run.stations);
+            return (
+              // No non-scaling-stroke here: Chrome then measures dashes in
+              // screen pixels and ignores pathLength, so widths scale by hand.
+              <g key={run.stations[run.stations.length - 1]} style={{ '--pulse-ms': `${run.ms}ms` } as CSSProperties}>
+                <polyline className="wave-pulse-trail" points={points} pathLength={1} strokeWidth={7 * m} />
+                <polyline className="wave-pulse-bed" points={points} pathLength={1} strokeWidth={14 * m} />
+                <polyline className="wave-pulse-head" points={points} pathLength={1} strokeWidth={10 * m} />
+              </g>
+            );
+          })}
+        </g>
+      )}
 
       {Object.keys(sim.outOfService).map((id) => {
         const p = layout.get(id);
@@ -252,6 +319,30 @@ export function DispatchOverlay({ net, layout, markScale: m, career, targets, ai
             <text y={h * 0.3} fontSize={8.5 * m} textAnchor="middle" fill={contrastText(line.colour)}>
               {t.line}
             </text>
+          </g>
+        );
+      })}
+
+      {marks.map((mark) => {
+        const place = placed.get(mark.key);
+        if (!place) return null;
+        return (
+          <g
+            key={`mark-${mark.key}`}
+            data-testid="signal-mark"
+            data-train={mark.train}
+            data-station={mark.station}
+            data-aspect={mark.lamp}
+            data-order={mark.order ?? undefined}
+            className="signal-mark"
+            transform={`translate(${place.at.x} ${place.at.y}) rotate(${place.angle}) scale(${m})`}
+          >
+            <path className="signal-post" d={SIGNAL_POST} vectorEffect="non-scaling-stroke" />
+            <rect className="signal-head" x={-SIGNAL_HALF_W} y={-SIGNAL_LEN} width={SIGNAL_HALF_W * 2} height={16}
+              rx={SIGNAL_HALF_W} />
+            <circle className="signal-socket" cx={0} cy={LAMP_Y.green} r={2.8} />
+            <circle className="signal-socket" cx={0} cy={LAMP_Y.red} r={2.8} />
+            <circle className="signal-lamp" data-lamp={mark.lamp} cx={0} cy={LAMP_Y[mark.lamp]} r={3.1} />
           </g>
         );
       })}

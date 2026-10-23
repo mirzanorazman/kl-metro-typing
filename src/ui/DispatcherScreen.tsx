@@ -28,6 +28,7 @@ import { networkLayout } from '../geo/networkLayout';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
+import { useFreshWave } from '../render/useSignalMarks';
 import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
@@ -105,13 +106,19 @@ function ShiftBar({ career }: { career: CareerState }) {
   );
 }
 
+/** How long the streak count flashes when a Green wave fires. */
+const WAVE_FLASH_MS = 1_200;
+
 /**
  * The typing line: the aimed text with the usual typed/current/pending
  * treatment. While a wrong key's stall runs, keys are dropped, so the line
  * says so: it dims and shows "Wait…" until the Shift clock passes the stall.
+ * Beside it, the streak count builds towards a Green wave and flashes when one
+ * fires.
  */
 function TypingLine({ career, aimed }: { career: CareerState; aimed: readonly Target[] }) {
   const { aim } = career;
+  const wave = useFreshWave(career.lastWave, WAVE_FLASH_MS);
   const stalled = career.gameMs < aim.stallUntil;
   const target = aim.lock ? aimed.find((t) => sameRef(t.ref, aim.lock!)) : aimed[0];
   let body: ReactNode;
@@ -140,7 +147,14 @@ function TypingLine({ career, aimed }: { career: CareerState; aimed: readonly Ta
   }
   return (
     <div className="dispatch-typing" data-testid="dispatch-typing" data-stalled={stalled ? 'true' : undefined}>
-      {body}
+      <div className="dispatch-typing-row">
+        <div className="dispatch-typing-body">{body}</div>
+        {/* Keyed on the wave, so each one restarts the flash. */}
+        <p key={wave?.id ?? 0} className="dispatch-streak" data-testid="streak"
+          data-wave={wave ? 'true' : undefined}>
+          Streak {career.streak}
+        </p>
+      </div>
       {stalled && (
         // Keyed on the stall, so each one restarts its countdown bar.
         <p key={aim.stallUntil} className="dispatch-stall" role="status"

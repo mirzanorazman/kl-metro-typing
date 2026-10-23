@@ -188,6 +188,42 @@
   .dispatch-stall::after { animation: none; }
 }
 
+/* The prompt and, beside it, the streak count that builds towards a Green wave. */
+.dispatch-typing-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s2);
+}
+
+.dispatch-typing-body { flex: 1; min-width: 0; }
+
+.dispatch-streak {
+  margin: 0;
+  padding: 0.125rem 0.5rem;
+  border: 1px solid var(--panel-edge);
+  border-radius: 999px;
+  font: 700 var(--t-xs) var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-muted);
+}
+
+/* A wave fired: the count flashes green, with a heavier outline so it is
+   not colour alone. */
+.dispatch-streak[data-wave='true'] {
+  color: var(--ink);
+  border: 2px solid var(--signal-green);
+  animation: dispatch-streak-flash 1.2s ease-out;
+}
+
+@keyframes dispatch-streak-flash {
+  0% { background: var(--signal-green); color: var(--paper); transform: scale(1.15); }
+  40% { transform: scale(1); }
+  100% { background: transparent; }
+}
+
 .dispatch-confirm {
   margin: 0;
   font: var(--t-xs) var(--font-mono);
@@ -330,8 +366,88 @@
   stroke-linecap: round;
 }
 
+/* A Signal mark: a post and a dark head with two lamp sockets. The lit lamp
+   sits low and red while the train waits, high and green once Cleared, so its
+   place says it as well as its colour. */
+.signal-mark { pointer-events: none; }
+
+.signal-post {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5px;
+  stroke-linecap: round;
+}
+
+/* The outline keeps the dark head readable on midnight. */
+.signal-head {
+  fill: var(--signal-head);
+  stroke: var(--ink-muted);
+  stroke-width: 0.8;
+}
+
+.signal-socket { fill: color-mix(in srgb, var(--badge-paper) 18%, transparent); }
+.signal-lamp[data-lamp='red'] { fill: var(--signal-red); }
+.signal-lamp[data-lamp='green'] { fill: var(--signal-green); }
+
+.signal-mark[data-aspect='green'] {
+  animation: signal-fade 500ms ease-in forwards;
+}
+
+@keyframes signal-fade {
+  0%, 40% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* The Green wave: a bright head runs out along the Line from where the wave
+   started, drawing a green trail that then fades. The head rides a paper bed
+   so it reads over any Line colour. */
+.wave-pulse { pointer-events: none; }
+
+.wave-pulse polyline {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Stroke widths come from the overlay, in map units. */
+.wave-pulse-trail {
+  stroke: var(--signal-green);
+  stroke-dasharray: 1 1;
+  opacity: 0.85;
+  animation:
+    wave-draw var(--pulse-ms) linear both,
+    wave-fade 700ms ease-out var(--pulse-ms) forwards;
+}
+
+.wave-pulse-bed,
+.wave-pulse-head {
+  stroke-dasharray: 0.1 2;
+  animation: wave-head var(--pulse-ms) linear both;
+}
+
+.wave-pulse-bed { stroke: var(--paper); }
+.wave-pulse-head { stroke: var(--signal-green); }
+
+@keyframes wave-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes wave-head {
+  from { stroke-dashoffset: 0.1; opacity: 1; }
+  90% { opacity: 1; }
+  to { stroke-dashoffset: -1; opacity: 0; }
+}
+
+@keyframes wave-fade {
+  to { opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dispatch-pulse { animation: none; opacity: 0.8; }
+  /* A Cleared mark shows green, still, until it is removed. */
+  .signal-mark[data-aspect='green'] { animation: none; }
+  .dispatch-streak[data-wave='true'] { animation: none; }
 }
 
 /* ---- Between Shifts: the Expansion picker ---- */

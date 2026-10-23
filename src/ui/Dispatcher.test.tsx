@@ -24,6 +24,7 @@ import { DispatchSummary } from './DispatchSummary';
 import { closureText, failureText } from './dispatchTips';
 import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
+import { RIPPLE_LEAD_MS, RIPPLE_STEP_MS } from '../render/useSignalMarks';
 
 // Pass-through spy: the screen's judged evidence is observed, never altered.
 vi.mock('../engine/dispatchJudge', async (importOriginal) => {
@@ -69,6 +70,7 @@ const renderShift = (initial?: CareerState) => render(
   </TypingInputProvider>,
 );
 
+const START_TIP = "Each red signal is a train waiting for you. Type the station name beside it to clear it. Trains you don't clear wait.";
 const ALL_TIPS = ['start', 'incident', 'bunching', 'late', 'out-of-service', 'expansion'];
 const seenTips = (ids: string[]) => saveProfile({ ...emptyProfile(), dispatchTipsSeen: ids });
 
@@ -465,7 +467,7 @@ describe('DispatcherScreen', () => {
     it('shows the start tip inline until the first key', () => {
       seenTips([]);
       renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
-      expect(screen.getByText("Type a waiting station's name to clear its signal. Trains you don't clear wait.")).toBeTruthy();
+      expect(screen.getByText(START_TIP)).toBeTruthy();
       type('J');
       expect(screen.queryByText(/Trains you don't clear wait/)).toBeNull();
       expect(loadProfile().dispatchTipsSeen).toContain('start');
@@ -579,6 +581,144 @@ describe('DispatcherScreen', () => {
       expect(screen.queryByText('Checking your Career…')).toBeNull();
       expect(judgeSpy).not.toHaveBeenCalled();
       expect(loadProfile().integrityFails ?? []).toEqual([]);
+    });
+  });
+
+  describe('Signal marks and the Green wave', () => {
+    const marks = () => screen.queryAllByTestId('signal-mark');
+    const markOf = (train: number) => marks().find((el) => el.getAttribute('data-train') === String(train));
+    const lampOf = (train: number) => markOf(train)?.querySelector('[data-lamp]')?.getAttribute('data-lamp');
+    const later = (ms: number) => act(() => { vi.advanceTimersByTime(ms); });
+    /** Motion allowed: only the reduced-motion query is false. */
+    const allowMotion = () => {
+      window.matchMedia = ((q: string) => ({
+        matches: q !== '(prefers-reduced-motion: reduce)', media: q, onchange: null,
+        addEventListener: () => {}, removeEventListener: () => {},
+        addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia;
+    };
+    /** Damai triggers; the wave clears Jelatek (2 away) then Pasar Seni (6 away). */
+    const waveCareer = () => ({
+      ...careerWith([waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Pasar Seni'), waiting(3, 'KJ', 'Jelatek')]),
+      streak: 5,
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('a wave flips its marks about 150 ms apart', () => {
+      expect(RIPPLE_STEP_MS).toBeGreaterThanOrEqual(120);
+      expect(RIPPLE_STEP_MS).toBeLessThanOrEqual(180);
+    });
+
+    it('every waiting Train shows a signal mark at the Station it faces: a post with a red lamp', () => {
+      const initial = startCareer(net, 7);
+      renderShift(initial);
+      const signals = visibleTargets(net, initial.sim).filter((t) => t.ref.kind === 'signal');
+      expect(signals.length).toBeGreaterThan(0);
+      expect(marks()).toHaveLength(signals.length);
+      for (const target of signals) {
+        const train = initial.sim.trains.find((t) => target.ref.kind === 'signal' && t.id === target.ref.train)!;
+        const mark = markOf(train.id)!;
+        expect(mark, target.text).toBeTruthy();
+        expect(mark.getAttribute('data-station')).toBe(net.lines.get(train.line)!.stations[train.at]);
+        expect(mark.querySelector('path')).toBeTruthy();
+        expect(lampOf(train.id)).toBe('red');
+      }
+    });
+
+    it('a Clear turns the mark green, then it fades away', () => {
+      vi.useFakeTimers();
+      fakeClock();
+      renderShift(careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]));
+      type('Jelatek');
+      expect(lampOf(1)).toBe('green');
+      expect(lampOf(2)).toBe('red');
+      later(400);
+      expect(lampOf(1)).toBe('green');
+      later(200);
+      expect(markOf(1)).toBeUndefined();
+      expect(lampOf(2)).toBe('red');
+    });
+
+    it('a Station going Out of service takes its mark away without turning it green', () => {
+      const clock = fakeClock();
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'KLCC')]);
+      initial.sim.platforms[idOf('KLCC')] = {
+        waiting: { [idOf('KL Sentral')]: 200 }, fullMs: OOS_CROWD_MS - 100, lastCall: {},
+      };
+      renderShift(initial);
+      expect(lampOf(2)).toBe('red');
+      type('J');
+      // One frame catches up several ticks: KLCC closes, then its train runs
+      // through the closed Station. Neither is a Clear.
+      clock.now += 1_000;
+      type('e');
+      expect(screen.getByTestId('dispatch-oos').getAttribute('data-station')).toBe(idOf('KLCC'));
+      expect(markOf(2)).toBeUndefined();
+    });
+
+    it('a Green wave pulses along its Line, and marks turn green in the order cleared, about 150 ms apart', () => {
+      allowMotion();
+      vi.useFakeTimers();
+      fakeClock();
+      renderShift(waveCareer());
+      expect(screen.queryByTestId('wave-pulse')).toBeNull();
+      type('Damai');
+      expect(screen.getByTestId('wave-pulse').getAttribute('data-line')).toBe('KJ');
+      expect(lampOf(1)).toBe('green');
+      expect(lampOf(3)).toBe('red');
+      expect(lampOf(2)).toBe('red');
+      later(RIPPLE_LEAD_MS - 1);
+      expect(lampOf(3)).toBe('red');
+      later(1);
+      expect(lampOf(3)).toBe('green');
+      expect(lampOf(2)).toBe('red');
+      later(RIPPLE_STEP_MS);
+      expect(lampOf(2)).toBe('green');
+      later(3_000);
+      expect(marks()).toHaveLength(0);
+      expect(screen.queryByTestId('wave-pulse')).toBeNull();
+    });
+
+    it('under reduced motion a wave has no travelling pulse, and every mark turns green at once', () => {
+      vi.useFakeTimers();
+      fakeClock();
+      renderShift(waveCareer());
+      type('Damai');
+      expect(screen.queryByTestId('wave-pulse')).toBeNull();
+      expect([lampOf(1), lampOf(2), lampOf(3)]).toEqual(['green', 'green', 'green']);
+    });
+
+    it('the typing line shows the streak, and flashes when a wave fires', () => {
+      vi.useFakeTimers();
+      fakeClock();
+      renderShift({
+        ...careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni'), waiting(3, 'KJ', 'KLCC')]),
+        streak: 1,
+      });
+      const streak = () => screen.getByTestId('streak');
+      expect(streak().textContent).toBe('Streak 1');
+      type('Jelatek');
+      expect(streak().textContent).toBe('Streak 2');
+      expect(streak().getAttribute('data-wave')).toBeNull();
+      type('Pasar Seni');
+      expect(streak().textContent).toBe('Streak 3');
+      expect(streak().getAttribute('data-wave')).toBe('true');
+      later(3_000);
+      expect(streak().getAttribute('data-wave')).toBeNull();
+    });
+
+    it('a wave from an earlier Shift does not replay', () => {
+      allowMotion();
+      renderShift({
+        ...careerWith([waiting(1, 'KJ', 'Jelatek')]),
+        streak: 3, waves: 1, lastWave: { id: 1, line: 'KJ', origin: idOf('Damai'), cleared: [9], atMs: 0 },
+      });
+      expect(screen.queryByTestId('wave-pulse')).toBeNull();
+      expect(screen.getByTestId('streak').getAttribute('data-wave')).toBeNull();
+      expect(lampOf(1)).toBe('red');
     });
   });
 

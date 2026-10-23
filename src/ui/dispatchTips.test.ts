@@ -103,7 +103,9 @@ describe('newDispatchTips', () => {
 
   it('has the agreed copy, in Dispatcher vocabulary', () => {
     expect(DISPATCH_TIPS.map((t) => t.id)).toEqual(['start', 'incident', 'bunching', 'late', 'out-of-service', 'expansion']);
-    expect(dispatchTipText('start')).toBe("Type a waiting station's name to clear its signal. Trains you don't clear wait.");
+    expect(dispatchTipText('start'))
+      .toBe("Each red signal is a train waiting for you. Type the station name beside it to clear it. Trains you don't clear wait.");
+    expect(dispatchTipText('start')).toMatch(/red signal/);
     expect(dispatchTipText('incident'))
       .toBe('An incident holds trains until you type its fix. Left too long, the station goes out of service.');
     expect(dispatchTipText('bunching'))
