@@ -11,7 +11,7 @@ export const DWELL_PER_PASSENGER_MS = 60;
 /** Time to reverse at the end of a served range. */
 export const TURNAROUND_MS = 3_000;
 /** Trains on a Line are max(2, round(served Stations / this)). */
-export const STATIONS_PER_TRAIN = 5;
+export const STATIONS_PER_TRAIN = 4;
 /** Maximum Passengers aboard one Train. */
 export const TRAIN_CAPACITY = 100;
 /** Maximum Station crowd across all directions. */
@@ -21,9 +21,9 @@ export const OOS_CROWD_MS = 19_000;
 /** This share of served Stations Out of service fails a Shift. */
 export const OOS_FAIL_SHARE = 0.25;
 /** Passengers per second per demand unit at multiplier 1. */
-export const PASSENGER_RATE = 0.19;
+export const PASSENGER_RATE = 0.25;
 /** Destination weight boost towards or away from the centre at peak. */
-export const CENTRAL_PULL = 3;
+export const CENTRAL_PULL = 2;
 /** Stations treated as central when weighting peak travel flows. */
 export const CENTRAL_STATIONS: readonly string[] = [
   'masjid-jamek', 'klcc', 'kl-sentral', 'bukit-bintang', 'pasar-seni',
@@ -64,7 +64,7 @@ export const INCIDENT_MAX = 3;
 /** No Incident can start before this time in a Shift. */
 export const INCIDENT_FIRST_MS = 4_000;
 /** Unfixed Incidents put their place Out of service after this long. */
-export const INCIDENT_LIMIT_MS = 21_000;
+export const INCIDENT_LIMIT_MS = 17_000;
 /** Passenger arrival multiplier at a crowd surge's place. */
 export const CROWD_SURGE_MULTIPLIER = 4;
 /** Crowding contribution when weighting Incident locations. */
@@ -90,7 +90,7 @@ export const EXPANSION_MIN_STATIONS = 2;
 /** Maximum Expansion size, including the anchor when starting a Line. */
 export const EXPANSION_MAX_STATIONS = 5;
 /** Cleared Shifts required to advance one Era. */
-export const SHIFTS_PER_ERA = 2;
+export const SHIFTS_PER_ERA = 3;
 /**
  * Maximum recorded keystrokes over a Dispatcher Career: over five hours at
  * 120 WPM. A Career that reaches it truncates and can never be verified, so it

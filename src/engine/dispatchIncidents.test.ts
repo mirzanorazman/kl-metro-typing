@@ -102,8 +102,9 @@ describe('Dispatcher incidents', () => {
     const base = startShiftSim(net, STARTING_NETWORK, 42);
     const surged = cloneSim(base);
     surged.incidents = [incident('crowd-surge')];
-    run(base, 20_000);
-    run(surged, 20_000);
+    // Stop before the unfixed surge closes its Station.
+    run(base, INCIDENT_LIMIT_MS - 2 * TICK_MS);
+    run(surged, INCIDENT_LIMIT_MS - 2 * TICK_MS);
     expect(crowdAt(surged, 'klcc')).toBeGreaterThanOrEqual(crowdAt(base, 'klcc') * 4 - 1);
   });
 

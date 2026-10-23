@@ -607,7 +607,8 @@ describe('passengers', () => {
     for (const over of [0, 1]) {
       const s = fixture(train(1, { stage: 'cleared' }));
       s.shiftMs = threshold - TICK_MS + over;
-      stepSim(net, s, MIDDAY);
+      // The fixture's three trains are the whole fleet: no reinforcement call is counted.
+      stepSim(net, s, { ...MIDDAY, trainFactor: 3 / trainsForLine(STARTING_NETWORK[0]!, 1) });
       expect(s.calls).toBe(1);
       expect(s.onTimeCalls).toBe(over === 0 ? 1 : 0);
       expect(s.platforms[kj[7]!]!.lastCall['KJ:1']).toBe(s.shiftMs);

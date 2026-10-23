@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from './network';
-import { EXPANSION_OFFERS } from './dispatchBalance';
+import { EXPANSION_OFFERS, SHIFTS_PER_ERA } from './dispatchBalance';
 import {
   applyExpansion,
   drawOffers,
@@ -66,7 +66,8 @@ describe('Dispatcher served network', () => {
       { label: 'Latest', opens: [whole('SA')] },
     ]);
     expect(eraFor(0)).toBe(0);
-    expect(eraFor(2)).toBe(1);
+    expect(eraFor(SHIFTS_PER_ERA - 1)).toBe(0);
+    expect(eraFor(SHIFTS_PER_ERA)).toBe(1);
     expect(eraFor(99)).toBe(4);
   });
 

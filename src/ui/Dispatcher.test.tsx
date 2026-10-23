@@ -556,7 +556,7 @@ describe('DispatcherScreen', () => {
 
     it('a live failed Career is judged once, on evidence that replays complete', async () => {
       const clock = fakeClock();
-      const initial = startCareer(net, 11);
+      const initial = startCareer(net, 21);
       renderShift(initial);
       const first = visibleTargets(net, initial.sim)[0]!.text;
       clock.now = 2_000;

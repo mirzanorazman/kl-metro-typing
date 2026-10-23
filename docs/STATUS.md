@@ -93,10 +93,16 @@ Hour.
 - **Incidents.** Signal faults, train faults and crowd surges need longer fix
   texts. One left unfixed puts its Station Out of service.
 - **Failing a Shift.** It fails when 25 % of served Stations are Out of
-  service. The summary names the Station and the cause.
-- **Expansions.** Surviving the compressed service day (Morning peak, Midday,
-  Evening peak; 210 s) offers an Expansion. They follow the order KL's lines
-  opened (Eras).
+  service. The summary leads with the closure that started the collapse.
+- **Expansions.** Surviving the compressed service day (Morning peak 35 s,
+  Midday 20 s, Evening peak 35 s; 90 s) offers an Expansion. They follow the
+  order KL's lines opened (Eras), one Era every 3 cleared Shifts. Morning
+  trains enter from the outer ends.
+- **Green wave.** Every 3rd clean completion in a row clears up to 1, 2, 3,
+  then 4 waiting Signals on that Line. The streak carries across Shifts.
+- **What you see.** Signal marks at each waiting train, a ripple for a Green
+  wave, passenger pops at each call, a camera that leans in on an Incident fix,
+  and a map that stays readable at full size. End Career asks first.
 - **Narrowing and confirming.** Typing narrows to a Target. Enter confirms an
   exact shorter name where a longer one also matches (Ampang / Ampang Park).
   Backspace releases the aim and Escape pauses.
@@ -105,9 +111,12 @@ The engine is pure and seeded (`engine/dispatch*.ts`, tuning in
 `engine/dispatchBalance.ts`). A Career replays from its Keylog plus action
 log. Only a Failed, verified Career enters Dispatcher's own leaderboard tab.
 
-Balance (Task 11) measured 40 / 60 / 90 WPM clearing a median of 2 / 4 / 6
-Shifts over 80 seeds. The open leans, gotchas and deviations from the spec are
-in `docs/superpowers/dispatcher-handover.md`. Next: the user playtests.
+Balance (Playtest 1, Task 11), with realistic survey typists: a 40 WPM
+Career lasts a median of 6 minutes and 60 WPM about 18–20. Above about
+70 WPM a Career doesn't end within the hour; that needs a logic change. The
+survey, leans, gotchas and deviations from the spec are in
+`docs/superpowers/dispatcher-handover.md` ("Playtest 1"). Next: the user
+playtests again.
 
 **Local leaderboard** — Line Run, plus a separate Dispatcher tab. Completing a
 line end to end offers a name entry if the run's score would place in the top
@@ -354,6 +363,8 @@ simply synchronous while the behaviour was animated.
 | `docs/superpowers/specs/2026-10-23-dispatcher-design.md` | Dispatcher design, which replaces Rush Hour. |
 | `docs/superpowers/plans/2026-10-23-dispatcher.md` | Dispatcher plan, 12 tasks. Task 12 (retire Rush Hour) is gated on the user's playtest. |
 | `docs/superpowers/2026-10-23-dispatcher-execution-record.md` | Dispatcher Tasks 1–6: interpretations and reviews. |
+| `docs/superpowers/specs/2026-10-24-dispatcher-playtest-1-design.md` | Dispatcher changes from the first playtest (amends the design). |
+| `docs/superpowers/plans/2026-10-24-dispatcher-playtest-1.md` | Dispatcher playtest 1 plan, 11 tasks, all done. |
 | `docs/superpowers/dispatcher-handover.md` | Dispatcher resume point, balance survey, leans for playtesting, gotchas, deviations from the spec. |
 
 Early work after Plan 2 was driven by direct feedback rather than a plan: the

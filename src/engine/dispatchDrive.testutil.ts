@@ -3,11 +3,12 @@ import {
   DISPATCH_EVIDENCE_VERSION, advanceCareer, applyDispatchAction, enterDispatchCharacter, startCareer,
   type CareerState, type DispatchAction, type DispatchActionBody,
 } from './dispatch';
-import { DISPATCH_KEYLOG_MAX_EVENTS, INCIDENT_LIMIT_MS } from './dispatchBalance';
+import { COMBO_EVERY, DISPATCH_KEYLOG_MAX_EVENTS, INCIDENT_LIMIT_MS } from './dispatchBalance';
 import { sameRef, visibleTargets, type Target, type TargetRef } from './dispatchTargets';
 import { nextRandom, seedRandom } from './rng';
 import { appendKey, beginLog, PLAIN_SOURCE, type KeyLog } from './keylog';
 import { buildNetwork } from './network';
+import type { SimState } from './dispatchSim';
 import type { DispatchEvidence } from './replay';
 
 /** Test support: a scripted typist driving a Dispatcher Career. */
@@ -28,12 +29,33 @@ export interface DriveOptions {
   resumeAt?: number;
   /** Share of keys typed right; the rest are seeded typos. Omitted: every 23rd key is a typo. */
   accuracy?: number;
+  /** Ignores fix Targets until the Incident is past three-quarters of INCIDENT_LIMIT_MS. */
+  inattentive?: boolean;
 }
 
-/** A fix whose Incident is nearly out of time first, then whatever has waited longest. */
-function chooseTarget(targets: Target[]): Target | undefined {
+/** The Line a Target's completion happens on, which is where its Green wave would fire. */
+function lineOf(sim: SimState, ref: TargetRef): string | undefined {
+  if (ref.kind === 'fix') return sim.incidents.find((inc) => inc.id === ref.incident)?.line;
+  return sim.trains.find((t) => t.id === ref.train)?.line;
+}
+
+/**
+ * A fix whose Incident is nearly out of time first, then whatever has waited longest.
+ * One completion short of a Green wave, it prefers a Target on the Line with the most waiting Signals.
+ */
+function chooseTarget(sim: SimState, targets: Target[], streak: number): Target | undefined {
   const urgent = targets.filter((t) => t.ref.kind === 'fix' && t.delayMs > INCIDENT_LIMIT_MS / 2);
-  const pool = urgent.length > 0 ? urgent : targets;
+  let pool = urgent.length > 0 ? urgent : targets;
+  if (streak % COMBO_EVERY === COMBO_EVERY - 1 && pool.length > 1) {
+    const waiting = new Map<string, number>();
+    for (const t of targets) {
+      if (t.ref.kind !== 'signal') continue;
+      const line = lineOf(sim, t.ref)!;
+      waiting.set(line, (waiting.get(line) ?? 0) + 1);
+    }
+    const best = Math.max(...pool.map((t) => waiting.get(lineOf(sim, t.ref) ?? '') ?? 0));
+    pool = pool.filter((t) => (waiting.get(lineOf(sim, t.ref) ?? '') ?? 0) === best);
+  }
   return pool.reduce<Target | undefined>((best, t) => (!best || t.delayMs > best.delayMs ? t : best), undefined);
 }
 
@@ -64,7 +86,8 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
 
   /** The next thing to press: a character, Enter once the whole name is typed, or a release of a dead aim. */
   const nextInput = (): string | 'confirm' | 'unlock' => {
-    const targets = visibleTargets(net, state.sim);
+    const targets = visibleTargets(net, state.sim).filter((t) => !o.inattentive
+      || t.ref.kind !== 'fix' || t.delayMs > 0.75 * INCIDENT_LIMIT_MS);
     const { aim } = state;
     let target = aim.lock ? targets.find((t) => sameRef(t.ref, aim.lock!))
       : aim.typed !== '' && chosen ? targets.find((t) => sameRef(t.ref, chosen!)) : undefined;
@@ -73,7 +96,7 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
       const typed = aim.typed.toLowerCase();
       const pool = aim.typed === '' ? targets : targets.filter((t) => t.text.toLowerCase().startsWith(typed));
       if (pool.length === 0 && aim.typed !== '') return 'unlock';
-      target = chooseTarget(pool);
+      target = chooseTarget(state.sim, pool, state.streak);
       chosen = target?.ref ?? null;
     }
     // Nothing to type: only the first key of a Shift is worth spending, to start the clock.

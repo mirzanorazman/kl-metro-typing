@@ -2,21 +2,20 @@
 
 ## Resume here (updated after every task)
 
-**Active plan:** `docs/superpowers/plans/2026-10-23-dispatcher.md`
-(spec `docs/superpowers/specs/2026-10-23-dispatcher-design.md`), executed
-subagent-driven on branch `feat/dispatcher`. Tasks 1–6 were run by a Codex
-agent; their boxes are ticked and their record is
-`docs/superpowers/2026-10-23-dispatcher-execution-record.md`. Tasks 7–11 ran
-in the Claude session with per-task reviews; their boxes are ticked too. A
-final whole-branch review followed; see "Final review changes" below.
+**Active plan:** `docs/superpowers/plans/2026-10-24-dispatcher-playtest-1.md`
+(spec `docs/superpowers/specs/2026-10-24-dispatcher-playtest-1-design.md`,
+which amends `2026-10-23-dispatcher-design.md`), executed subagent-driven on
+branch `feat/dispatcher`. All 11 tasks are done; see "Playtest 1" below. The
+first plan (`2026-10-23-dispatcher.md`) is done too, apart from its gated
+Task 12.
 
-- **Last done:** the final whole-branch review's fixes (see "Final review
-  changes"), after Task 11's balance pass. Seven constants changed in Task 11
-  in `src/engine/dispatchBalance.ts`; see "Balance" below.
-- **Next:** The user playtests Dispatcher. Task 12 (retire Rush Hour) is
-  **gated**: do not start it until the user has played Dispatcher and says to
-  retire Rush Hour. Ask them. Rush Hour stays playable until then.
-- **Deferred minors (each review said none blocks the branch):**
+- **Last done:** Playtest 1 Task 11, the balance for the 90-second Shift. Five
+  constants changed in `src/engine/dispatchBalance.ts`; see "Playtest 1".
+- **Next:** The user playtests again. Check the leans under "Playtest 1"
+  first: the 90 WPM ceiling is the open one. Task 12 of the first plan
+  (retire Rush Hour) is still **gated**: do not start it until the user says
+  to retire Rush Hour.
+- **Deferred minors from the first plan (each review said none blocks the branch):**
   - Task 7: the confirm replay test scans seeds for a Career that needs a
     confirm, so it depends on balance (widened in Task 11, below). No test that
     a failed Career with `endedAt + 1` replays `complete: false`. A forged
@@ -43,6 +42,140 @@ To resume in a fresh session: "Read `docs/superpowers/dispatcher-handover.md`
 and continue the active plan subagent-driven." The controller's detailed
 ledger is `.superpowers/sdd/2026-10-23-dispatcher/progress.md` (git-ignored;
 if missing, trust this block and `git log`).
+
+## Playtest 1
+
+The user's first playtest asked for a 90-second Shift, a confirm on End
+Career, a combo, livelier passengers and a readable full map. The plan
+`docs/superpowers/plans/2026-10-24-dispatcher-playtest-1.md` did it in 11
+tasks, one commit each:
+
+| Task | Commit | What changed |
+|---|---|---|
+| 1 | `c5c4e3f` | The user's 90 s `SHIFT_PHASES` (Morning peak 35 s, Midday 20 s, Evening peak 35 s), with the failure clocks provisionally rescaled. |
+| 2 | `d50ee9a` | End Career asks "End Career?" first and reverts after 4 s. The Shift keeps running. |
+| 3 | `0fd9165` | A mistyped space stays visible. Music calms once no Incident is active and no platform is over half full. The stray delivered chime is gone. |
+| 4 | `15bb30f` | Morning trains enter from the outer ends, spaced target Headway / ends apart per end. At ready, the first train per outer end already waits at a Signal. |
+| 5 | `bfa9e30` | The Green wave: every 3rd clean completion in a row clears up to 1, 2, 3, then 4 waiting Signals on that Line, nearest first. The streak carries across Shifts. |
+| 6 | `2df92bc` | Each call records its exchange. A fixed crowd surge's extra passengers disperse. |
+| 7 | `9e16670` | Signal marks at each waiting train, and the Green wave ripple. |
+| 8 | `6524d45` | Passenger pops at each call and the dispersal moment. |
+| 9 | `282193a` | The camera leans in while you type an Incident's fix. |
+| 10 | `3d60077` | The map stays readable at full size (spec B6). |
+| 11 | this commit | Realistic survey typists and the balance for the 90 s Shift. |
+
+### B6 outcome (Task 10)
+
+Acceptance was met after approach 4. On the full network at peak:
+0 chip overlaps, 7.32 px smallest mark and 0 stacked at 1440×900; 0, 6.25 px
+and 0 at 1024×768. Check two things in playtest: long leader lines that cross
+in the centre, and plain interchange names dropped in the centre.
+
+### Survey typists (Task 11)
+
+The scripted typist in `dispatchDrive.testutil.ts` now plays like a person:
+
+- **Accuracy.** Each typist has one. A key is a typo with probability
+  1 − accuracy, from a seeded stream.
+- **Wave aiming.** When its streak is one short of a multiple of
+  `COMBO_EVERY`, it prefers a Target on the Line with the most waiting
+  Signals. An urgent fix still comes first.
+- **Inattentive.** With `inattentive: true` it ignores a fix Target until the
+  Incident is older than 0.75 × `INCIDENT_LIMIT_MS`.
+
+The survey typists are 40 WPM at 94 %, 60 WPM at 96 % and 90 WPM at 98 %,
+plus an inattentive 60 WPM at 96 %.
+
+### Final survey
+
+Run it with `DISPATCH_PROBE=1 npx vitest run src/engine/dispatchProbe.test.ts`.
+Medians of seeds 1–5, with a 30-minute cap. A cause is the first closure of
+the failed Shift; `running` means the Career was still going at the cap.
+
+| Typist | Career | Shifts cleared | Waves | First closure, seeds 1–5 |
+|---|---|---|---|---|
+| 40 WPM, 94 % | 6.0 min | 3 | 6 | crowd surge, crowding, crowd surge, crowd surge, signal fault |
+| 60 WPM, 96 % | 19.5 min | 12 | 56 | crowding, crowding, running, running, crowding |
+| 90 WPM, 98 % | 29.9 min (cap) | 19 | 222 | running ×5 |
+| 60 WPM, 96 %, inattentive | 7.5 min | 4 | 19 | signal fault ×2, crowd surge ×3 |
+
+Before Task 11 (Tasks 1–10's constants, same typists): 40 WPM 9.0 min,
+60 WPM 29.9 min, 90 WPM 29.9 min, inattentive 4.3 min.
+
+Over seeds 1–20 the final constants give 40 WPM a median of 6.0 min
+(quartiles 4.5–7.5) and 60 WPM 18.0 min (quartiles 12–30+). No 40 or 60 WPM
+Career fails Shift 1. An Incident starts the collapse in 15 of 20 Careers at
+40 WPM, 3 of 20 at 60 WPM and 20 of 20 inattentive ones.
+
+The targets, and where they stand:
+
+- **40 WPM lasts 5–8 minutes.** Met: 6.0 min.
+- **Shift 1 is winnable by a new player.** Met: every seed at 40 and 60 WPM
+  clears it.
+- **Some failures are Incident-caused.** Met. Slow and inattentive typists
+  mostly lose to an Incident; 60 WPM mostly to crowding.
+- **An Era every 3–5 minutes.** Met: `SHIFTS_PER_ERA` 3 is about 4.5 minutes.
+- **90 WPM lasts 15–25 minutes.** Not met. Every 90 WPM Career is still
+  running at 30 minutes, and at 60 minutes too. The test for it is
+  `it.fails` in `dispatchProbe.test.ts`, so it flags when a change meets it.
+
+Constants changed in Task 11 (old → new):
+
+| Constant | Old | New | Why |
+|---|---|---|---|
+| `STATIONS_PER_TRAIN` | 5 | 4 | More trains per Line (the starting stretch gets 4, not 3). With 5 and the other new values, a 400 WPM test typist still lost a Career to crowding, and 90 WPM lost one in Shift 4. With 4, losses come from typing. |
+| `PASSENGER_RATE` | 0.19 | 0.25 | Brings failure back once the network has more trains. It is cliff-like: 0.24 left 60 WPM surviving 30 min on most seeds. |
+| `CENTRAL_PULL` | 3 | 2 | At 3, with the other new values, the Evening peak overflowed the central hubs (Masjid Jamek, KL Sentral, KLCC) whatever the player typed: a 400 WPM test typist lost 3 of 5 Careers, and 90 WPM lost all 5 by 7.5 min. At 2 the 400 WPM typist survives all 5, so every loss is down to the player. |
+| `INCIDENT_LIMIT_MS` | 21 000 | 17 000 | Back below `OOS_CROWD_MS` (19 000). At 16 000 the 40 WPM median was 5.2 min over 20 seeds; at 18 000, 60 WPM rarely failed. |
+| `SHIFTS_PER_ERA` | 2 | 3 | An Era every ~4.5 minutes rather than every 3. |
+
+Kept: `OOS_CROWD_MS` 19 000, `INCIDENT_FIRST_MS` 4 000 and
+`INCIDENTS_PER_MINUTE` 2. A per-minute rate needs no rescaling for a shorter
+Shift: 2.25 cut 40 WPM to 4.5 min, and 1.75 removed most Incident failures.
+No entry-spacing constant was added. A share of 0.25–0.5 of Headway / ends
+didn't move the 90 WPM result, and it made trains enter almost at once,
+which undoes Task 4's spread. `SHIFT_PHASES`, `COMBO_EVERY` and
+`COMBO_MAX_WAVE` are the user's and were not touched.
+
+### Leans for the next playtest
+
+- **A ceiling around 70 WPM.** Above it a Career doesn't end. At 60 minutes,
+  90 WPM at 98 % was running on all 5 seeds, and 75 WPM at 96 % on 4 of 5.
+  The Green wave isn't the cause: with a 16 s Incident limit, 90 WPM at 94 %
+  (far fewer waves) also ran on all 5. The first plan's handover found the same tail,
+  and the shorter Shift sharpens it:
+  - A Shift fails at 25 % of served Stations Out of service, so the bar
+    rises with every Expansion.
+  - Most late Stations are demand-1 suburbs. Unserved, one gathers about
+    45 passengers in a 90 s Shift, under `PLATFORM_CAPACITY` 55, so it can
+    never close by crowding.
+  - Bigger networks are therefore *easier* per closure needed. Bigger
+    Expansions (3–8 Stations) made 60 WPM survive longer, not shorter.
+  - `FULL_NETWORK_ESCALATION` never starts, because the network never fills
+    within an hour. Constants that make suburbs fillable make the early hubs
+    overflow for any typist instead.
+
+  It needs a logic change, such as per-Shift escalation before the network is
+  full, or a fail count weighted by demand.
+- **60 WPM splits in two.** It fails between 9 and 20 minutes, or doesn't
+  fail at all (2 of 5 survey seeds). Once a Career gets past Shift 10 it
+  rarely ends.
+- **Balance is cliff-like.** `PASSENGER_RATE` 0.24 against 0.25, or
+  `INCIDENT_LIMIT_MS` 16 s against 18 s, moves the 60 WPM median by 15
+  minutes. Expect play to feel different from the survey numbers.
+- **Neglect is punished fast.** The inattentive typist loses in a median of
+  5–7.5 minutes, always to an Incident. A 17 s limit is short for someone
+  still reading the start tip.
+- **Slow typists lose mostly to Incidents** (15 of 20 at 40 WPM). Fix texts
+  compete with the Signals. Check whether that feels fair.
+- **The Green wave is mostly a fast typist's tool.** It fires about 12 times
+  a Shift at 90 WPM, 4 at 60 WPM and 2 at 40 WPM.
+- **Gentler peaks.** `CENTRAL_PULL` 2 makes the morning flow out of the
+  suburbs, and the evening flow out of the centre, less steep.
+- **Long Lines still never get their full fleet** within a 90 s Shift
+  (Task 4).
+- **Map readability:** leader lines crossing in the centre and dropped centre
+  names (B6, above). Task 7–9's playtest notes are in the plan's ledger.
 
 ## Where things are
 
@@ -71,6 +204,9 @@ Keys while running:
 - Escape pauses. While paused, Enter or Space resumes.
 
 ## Balance
+
+This section is the first plan's balance for the 210 s Shift. It is
+superseded by "Playtest 1" above, and kept for its history and reasoning.
 
 Run the survey with
 `DISPATCH_PROBE=1 npx vitest run src/engine/dispatchProbe.test.ts`. It covers

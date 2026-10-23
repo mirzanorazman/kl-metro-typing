@@ -12,7 +12,9 @@ import {
 
 const net = buildNetwork(loadNetworkData());
 const kj = net.lines.get('KJ')!.stations;
-const quiet: sim.PhaseNow = { multiplier: 0, flow: 'none', trainFactor: 1, escalation: 1 };
+// The fixture's three trains are the whole fleet, so no reinforcement enters mid-test.
+const quiet: sim.PhaseNow = { multiplier: 0, flow: 'none',
+  trainFactor: 3 / sim.trainsForLine(STARTING_NETWORK[0]!, 1), escalation: 1 };
 const signal = (train: number, text: string, delayMs = 0): Target => ({ ref: { kind: 'signal', train }, text, delayMs });
 const narrowing = [signal(1, 'KLCC'), signal(2, 'KL Sentral'), signal(3, 'Kampung Baru'), signal(4, 'Kerinchi')];
 function type(targets: Target[], text: string, aim = EMPTY_AIM): KeyOutcome {
