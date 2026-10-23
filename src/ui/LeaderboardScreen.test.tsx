@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { emptyStore, saveStore, submitEntry } from '../data/leaderboardStore';
+import { loadDispatchBoard, submitDispatchEntry } from '../data/dispatchBoardStore';
 import { LeaderboardScreen } from './LeaderboardScreen';
 
 const net = buildNetwork(loadNetworkData());
@@ -45,6 +46,28 @@ describe('LeaderboardScreen', () => {
 
     expect(screen.queryByText(/^line$/i)).toBeNull();
     expect(screen.getByText('Ali')).toBeTruthy();
+  });
+
+  it('lists Dispatcher Careers on their own tab', () => {
+    const metrics = { wpm: 61.6, accuracy: 0.948, score: 55 };
+    let board = loadDispatchBoard();
+    board = submitDispatchEntry(board, {
+      name: 'Aina', score: 812, delivered: 860, shifts: 4, metrics, playedAt: 1, verified: true,
+    }).board;
+    submitDispatchEntry(board, {
+      name: 'Badrul', score: 640, delivered: 700, shifts: 3, metrics, playedAt: 2, verified: true,
+    });
+
+    render(<LeaderboardScreen net={net} onExit={() => {}} />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Dispatcher' }));
+
+    const header = screen.getAllByRole('columnheader').map((h) => h.textContent);
+    expect(header).toEqual(['#', 'Name', 'Score', 'Shifts', 'WPM', 'Accuracy']);
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows.map((r) => [...r.querySelectorAll('td')].map((td) => td.textContent))).toEqual([
+      ['1', 'Aina', '812', '4', '62', '95%'],
+      ['2', 'Badrul', '640', '3', '62', '95%'],
+    ]);
   });
 
   it('returns to the map', () => {

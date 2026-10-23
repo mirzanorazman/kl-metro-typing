@@ -147,8 +147,41 @@ export function DispatchOverlay({ net, layout, markScale: m, career, targets, ai
 
   const heldStretches = sim.incidents.filter((inc) => inc.kind === 'signal-fault');
 
+  // Between Shifts each offered Expansion's new track is drawn dashed in its
+  // Line's colour, from the Station it attaches at.
+  const offers = (career.status === 'between' ? career.offers : []).map((offer) => {
+    const ids = net.lines.get(offer.line)!.stations;
+    const current = career.served.find((r) => r.line === offer.line);
+    const spans = !current ? [[offer.from, offer.to]]
+      : [offer.from < current.from && [offer.from, current.from], offer.to > current.to && [current.to, offer.to]]
+        .filter((span): span is number[] => !!span);
+    return { offer, paths: spans.map(([from, to]) => ids.slice(from, to! + 1)) };
+  });
+
   return (
     <g className="dispatch-overlay" data-testid="dispatch-overlay">
+      {offers.map(({ offer, paths }) => {
+        const line = net.lines.get(offer.line)!;
+        const end = layout.get(offer.farEnd);
+        return (
+          <g key={`offer-${offer.line}-${offer.from}-${offer.to}`} data-testid="dispatch-offer" className="dispatch-offer-path">
+            {paths.map((ids) => {
+              const points = ids.map((id) => layout.get(id)).filter((p): p is Point => !!p)
+                .map((p) => `${p.x},${p.y}`).join(' ');
+              // A paper-coloured bed under the dashes keeps them readable over
+              // the Line's own track.
+              return (
+                <g key={ids[0]}>
+                  <polyline className="dispatch-offer-bed" points={points} vectorEffect="non-scaling-stroke" />
+                  <polyline points={points} stroke={line.colour} vectorEffect="non-scaling-stroke" />
+                </g>
+              );
+            })}
+            {end && <circle cx={end.x} cy={end.y} r={6 * m} stroke={line.colour} vectorEffect="non-scaling-stroke" />}
+          </g>
+        );
+      })}
+
       {heldStretches.map((inc) => (
         <polyline
           key={`held-${inc.id}`}

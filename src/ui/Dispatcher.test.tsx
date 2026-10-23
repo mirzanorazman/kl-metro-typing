@@ -2,15 +2,31 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { LineCode } from '../data/types';
 import { loadNetworkData } from '../data/load';
+import { saveDispatchBoard, submitDispatchEntry, loadDispatchBoard, type DispatchBoard } from '../data/dispatchBoardStore';
 import { buildNetwork } from '../engine/network';
-import { emptyProfile, saveProfile } from '../engine/progress';
-import { startCareer, type CareerState } from '../engine/dispatch';
-import { servedStations, STARTING_NETWORK, type Served } from '../engine/dispatchNetwork';
+import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
+import { careerScore, SHIFT_MS, startCareer, type CareerState } from '../engine/dispatch';
+import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
+import { OOS_CROWD_MS } from '../engine/dispatchBalance';
+import {
+  drawOffers, ERAS, eraFor, servedStations, STARTING_NETWORK, type Expansion, type Served,
+} from '../engine/dispatchNetwork';
 import { cloneSim, startShiftSim, type Dir, type Incident, type Train } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
-import { music } from '../audio/sound';
+import { replayDispatch, type DispatchEvidence } from '../engine/replay';
+import { music, sound } from '../audio/sound';
 import { DispatcherScreen } from './DispatcherScreen';
+import { DispatchExpansion } from './DispatchExpansion';
+import { DispatchSummary } from './DispatchSummary';
+import { failureText } from './dispatchTips';
 import { TypingInputProvider } from './TypingInputProvider';
+
+// Pass-through spy: the screen's judged evidence is observed, never altered.
+vi.mock('../engine/dispatchJudge', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../engine/dispatchJudge')>();
+  return { ...actual, judgeCareer: vi.fn(actual.judgeCareer) };
+});
+const judgeSpy = vi.mocked(judgeCareer);
 
 const net = buildNetwork(loadNetworkData());
 const type = (text: string) => {
@@ -49,13 +65,24 @@ const renderShift = (initial?: CareerState) => render(
   </TypingInputProvider>,
 );
 
+const ALL_TIPS = ['start', 'incident', 'bunching', 'late', 'out-of-service', 'expansion'];
+const seenTips = (ids: string[]) => saveProfile({ ...emptyProfile(), dispatchTipsSeen: ids });
+
+/** Controls `performance.now`, which `runTick` reads. */
+function fakeClock(start = 1_000) {
+  const clock = { now: start };
+  vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
+  return clock;
+}
+
 const signalLabels = () => screen.queryAllByTestId('dispatch-signal');
 const labelFor = (name: string) => signalLabels().find((el) => el.textContent?.includes(name));
 
 beforeEach(() => {
   localStorage.clear();
-  // Tips are Task 10's; mark any that exist as seen so they never interrupt.
-  saveProfile({ ...emptyProfile(), dispatchTipsSeen: ['start', 'incident', 'bunching', 'late', 'out-of-service', 'expansion'] });
+  judgeSpy.mockClear();
+  // Tips are marked seen so they never interrupt; tip tests opt back in.
+  seenTips(ALL_TIPS);
   Element.prototype.getBoundingClientRect = function () {
     return { x: 0, y: 0, top: 0, left: 0, right: 1512, bottom: 690,
       width: 1512, height: 690, toJSON: () => ({}) } as DOMRect;
@@ -230,10 +257,165 @@ describe('DispatcherScreen', () => {
     expect(play).toHaveBeenLastCalledWith('rushTense');
   });
 
-  it('the between-Shifts placeholder moves on to the next Shift', () => {
+  it('a complete network moves on to the next Shift', () => {
     renderShift({ ...startCareer(net, 7), status: 'between', cleared: 1, startedAt: 1_000, stoppedAt: 2_000, offers: [] });
-    fireEvent.click(screen.getByRole('button', { name: 'Next Shift' }));
+    fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
     expect(screen.getByRole('banner', { name: 'Shift' }).textContent).toMatch(/Shift 2/);
+  });
+
+  it('typing an Expansion name picks it, the map grows, and picker keys stay out of the Keylog', () => {
+    const clock = fakeClock();
+    const base = startCareer(net, 7);
+    const [offers] = drawOffers(net, STARTING_NETWORK, eraFor(1), base.offerRng);
+    expect(offers.length).toBeGreaterThan(0);
+    const offer = offers[0]!;
+    const name = net.stations.get(offer.farEnd)!.name;
+    renderShift({ ...base, status: 'between', cleared: 1, startedAt: 1_000, stoppedAt: 2_000, gameMs: 1_000, offers });
+    expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+
+    clock.now = 3_000;
+    type(name);
+    expect(screen.queryByRole('region', { name: 'Expansion' })).toBeNull();
+    expect(screen.getByRole('banner', { name: 'Shift' }).textContent).toMatch(/Shift 2/);
+    const texts = [...document.querySelectorAll('svg text')].map((t) => t.textContent);
+    for (const id of offer.added) expect(texts).toContain(net.stations.get(id)!.name);
+
+    // Start Shift 2 with one key, then let it collapse untouched.
+    const first = screen.getAllByTestId('dispatch-signal')[0]!.textContent!;
+    clock.now = 4_000;
+    type(first[0]!);
+    clock.now = 4_000 + 30 * 60_000;
+    type('q');
+    expect(screen.getByRole('region', { name: 'Career summary' })).toBeTruthy();
+    expect(judgeSpy).toHaveBeenCalledTimes(1);
+    const evidence = judgeSpy.mock.calls[0]![1];
+    expect(evidence.keylog.events.map((e) => e.k)).toEqual([first[0]]);
+    expect(evidence.actions.map((a) => a.a)).toEqual(['expand']);
+  });
+
+  it('Enter on a focused End Career button does not end the Career', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]));
+    type('J');
+    const end = screen.getByRole('button', { name: 'End Career' });
+    end.focus();
+    expect(fireEvent.keyDown(end, { key: 'Enter' })).toBe(false);
+    expect(fireEvent.keyDown(end, { key: ' ' })).toBe(false);
+    expect(screen.getByRole('banner', { name: 'Shift' })).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Career summary' })).toBeNull();
+  });
+
+  it('a Clear sounds even on the tick a Passenger is Delivered', () => {
+    const clock = fakeClock();
+    const delivered = vi.spyOn(sound, 'delivered').mockImplementation(() => {});
+    const arrive = vi.spyOn(sound, 'arrive').mockImplementation(() => {});
+    const klcc = idOf('KLCC');
+    const arriving: Train = { ...waiting(2, 'KJ', 'KLCC'), stage: 'cleared', load: { [klcc]: 5 } };
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek'), arriving]));
+    type('Jelate');
+    expect(delivered).not.toHaveBeenCalled();
+    clock.now += 100;
+    type('k');
+    expect(delivered).toHaveBeenCalled();
+    expect(arrive).toHaveBeenCalled();
+  });
+
+  describe('tips', () => {
+    it('shows the start tip inline until the first key', () => {
+      seenTips([]);
+      renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+      expect(screen.getByText("Type a waiting station's name to clear its signal. Trains you don't clear wait.")).toBeTruthy();
+      type('J');
+      expect(screen.queryByText(/Trains you don't clear wait/)).toBeNull();
+      expect(loadProfile().dispatchTipsSeen).toContain('start');
+    });
+
+    it('a tip pauses the Career with the ordinary pause action, and any key resumes it', () => {
+      seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
+      const clock = fakeClock();
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
+      initial.sim.platforms[idOf('KLCC')] = {
+        waiting: { [idOf('KL Sentral')]: 200 }, fullMs: OOS_CROWD_MS - 100, lastCall: {},
+      };
+      renderShift(initial);
+      type('J');
+      clock.now += 100;
+      type('e');
+      const tip = screen.getByRole('dialog', { name: 'Tip' });
+      expect(tip.textContent).toContain('A station is out of service.');
+      expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
+      expect(loadProfile().dispatchTipsSeen).toContain('out-of-service');
+
+      clock.now += 5_000;
+      type('x');
+      expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
+      expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
+      expect(screen.getByLabelText('Type Jelatek')).toBeTruthy();
+      type('l');
+      expect(labelFor('Jelatek')!.getAttribute('data-locked')).toBe('true');
+    });
+
+    it('the Expansion tip shows over the picker, and its dismissing key picks nothing', () => {
+      seenTips(ALL_TIPS.filter((id) => id !== 'expansion'));
+      const clock = fakeClock();
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+      // A Career 100 ms short of the end of Shift 1.
+      initial.gameMs = SHIFT_MS - 100;
+      initial.sim.shiftMs = SHIFT_MS - 100;
+      initial.startedAt = clock.now - initial.gameMs;
+      renderShift(initial);
+      type('J');
+      clock.now += 100;
+      type('e');
+      expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+      expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toContain('Shift cleared.');
+      type('x');
+      expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
+      expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+    });
+  });
+
+  describe('the end of a Career', () => {
+    it('a live failed Career is judged once, on evidence that replays complete', () => {
+      const clock = fakeClock();
+      const initial = startCareer(net, 7);
+      renderShift(initial);
+      const first = visibleTargets(net, initial.sim)[0]!.text;
+      clock.now = 2_000;
+      type(first.slice(0, 2));
+      // A key that lands after the failing tick ends the Career and is not recorded.
+      clock.now = 2_000 + 30 * 60_000;
+      type('x');
+      expect(screen.getByRole('region', { name: 'Career summary' })).toBeTruthy();
+      expect(judgeSpy).toHaveBeenCalledTimes(1);
+      const evidence: DispatchEvidence = judgeSpy.mock.calls[0]![1];
+      expect(evidence.keylog.events.map((e) => e.k).join('')).toBe(first.slice(0, 2));
+      const replayed = replayDispatch(net, evidence);
+      expect(replayed).not.toBeNull();
+      expect(replayed!.complete).toBe(true);
+      expect(screen.getByText(/went out of service when its platform overflowed/)).toBeTruthy();
+    });
+
+    it('an ineligible failed Career records an integrity fail for Dispatcher', () => {
+      const clock = fakeClock();
+      renderShift(startCareer(net, 7));
+      clock.now = 2_000;
+      type('J');
+      clock.now = 2_000 + 30 * 60_000;
+      type('x');
+      expect(judgeSpy).toHaveBeenCalledTimes(1);
+      expect(judgeSpy.mock.results[0]!.value.eligible).toBe(false);
+      expect(loadProfile().integrityFails?.[0]?.mode).toBe('dispatch');
+      expect(screen.getByText(/wasn't eligible for the leaderboard/)).toBeTruthy();
+    });
+
+    it('an abandoned Career ends early and is never judged', () => {
+      renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+      type('J');
+      fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+      expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
+      expect(judgeSpy).not.toHaveBeenCalled();
+      expect(loadProfile().integrityFails ?? []).toEqual([]);
+    });
   });
 
   it('renders the phone-landscape block instead of the Shift', () => {
@@ -243,5 +425,160 @@ describe('DispatcherScreen', () => {
       </TypingInputProvider>,
     );
     expect(screen.getByText('Rotate to portrait to play')).toBeTruthy();
+  });
+});
+
+const offerAt = (line: LineCode, name: string): Expansion => {
+  const id = idOf(name);
+  const at = net.lines.get(line)!.stations.indexOf(id);
+  return { line, from: Math.max(0, at - 2), to: at, farEnd: id, added: [id] };
+};
+
+describe('DispatchExpansion', () => {
+  const between = (offers: Expansion[], cleared = 2): CareerState => ({
+    ...startCareer(net, 7), status: 'between', cleared, startedAt: 1_000, stoppedAt: 2_000, offers,
+  });
+  const renderPicker = (career: CareerState, onPick = vi.fn()) => {
+    render(
+      <TypingInputProvider enabled={false}>
+        <DispatchExpansion net={net} career={career} onPick={onPick} />
+      </TypingInputProvider>,
+    );
+    return onPick;
+  };
+  const offers = [offerAt('AG', 'Ampang'), offerAt('KJ', 'Ampang Park'), offerAt('KJ', 'Gombak')];
+
+  it("lists each offer's far-end Station and the Era", () => {
+    const career = between(offers);
+    renderPicker(career);
+    const names = screen.getAllByRole('button').map((b) => b.querySelector('.dispatch-offer-name')?.textContent);
+    expect(names).toEqual(['Ampang', 'Ampang Park', 'Gombak']);
+    expect(screen.getByText(new RegExp(ERAS[eraFor(career.cleared)]!.label))).toBeTruthy();
+  });
+
+  it('typing a full name picks that offer', () => {
+    const onPick = renderPicker(between(offers));
+    type('Gomba');
+    expect(onPick).not.toHaveBeenCalled();
+    type('k');
+    expect(onPick).toHaveBeenCalledWith(2);
+  });
+
+  it('narrows like Signals, and Enter picks an exact shorter name', () => {
+    const onPick = renderPicker(between(offers));
+    type('Ampang');
+    expect(onPick).not.toHaveBeenCalled();
+    expect(screen.getByRole('note').textContent).toBe('Enter to choose Ampang');
+    press('Enter');
+    expect(onPick).toHaveBeenCalledWith(0);
+  });
+
+  it('a longer name still matches past the shorter one', () => {
+    const onPick = renderPicker(between(offers));
+    type('Ampang Park');
+    expect(onPick).toHaveBeenCalledWith(1);
+  });
+
+  it('clicking an offer picks it', () => {
+    const onPick = renderPicker(between(offers));
+    fireEvent.click(screen.getByRole('button', { name: /Ampang Park/ }));
+    expect(onPick).toHaveBeenCalledWith(1);
+  });
+
+  it('with no offers, the network is complete and Continue picks -1', () => {
+    const onPick = renderPicker(between([]));
+    expect(screen.getByText('Your network is complete')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
+    expect(onPick).toHaveBeenCalledWith(-1);
+  });
+});
+
+describe('DispatchSummary', () => {
+  const metrics = { wpm: 52.4, accuracy: 0.953, score: 47.6 };
+  const failure = { shift: 2, station: idOf('KLCC'), cause: 'crowding' as const };
+  const served: Served = [{ line: 'KJ', from: 2, to: 17 }];
+  const failed = (): CareerState => {
+    const base = startCareer(net, 7);
+    return {
+      ...base, status: 'ended', endReason: 'failed', failure, startedAt: 0, endedAt: 400_000,
+      shift: 2, cleared: 1, served, correctChars: 950, keystrokes: 1000, errors: 50,
+      history: [
+        { shift: 1, delivered: 300, calls: 100, onTimeCalls: 80, cleared: true },
+        { shift: 2, delivered: 120, calls: 60, onTimeCalls: 40, cleared: false },
+      ],
+    };
+  };
+  const judgement = (over: Partial<DispatchJudgement> = {}): DispatchJudgement => ({
+    eligible: true, score: 399, delivered: 420, cleared: 1, verdict: { ok: true }, ...over,
+  });
+  const renderSummary = (career: CareerState, j: DispatchJudgement | null) => render(
+    <DispatchSummary net={net} career={career} metrics={metrics} judgement={j} onAgain={() => {}} onBack={() => {}} />,
+  );
+  const fullBoard = (score: number): DispatchBoard => {
+    let board = loadDispatchBoard();
+    for (let i = 0; i < 20; i++) {
+      board = submitDispatchEntry(board, {
+        name: `P${i}`, score, delivered: score, shifts: 3, metrics, playedAt: i, verified: true,
+      }).board;
+    }
+    return board;
+  };
+
+  it('shows the score, Shifts cleared, network size, Delivered, on-time %, WPM, accuracy, cause and credit', () => {
+    const career = failed();
+    renderSummary(career, judgement());
+    const stats = screen.getByRole('region', { name: 'Career summary' });
+    const row = (label: string) => within(stats).getByText(label).nextElementSibling!.textContent;
+    expect(row('Score')).toBe(String(careerScore(career)));
+    expect(row('Shifts cleared')).toBe('1');
+    expect(row('Network')).toBe(`${servedStations(net, served).length} Stations`);
+    expect(row('Delivered')).toBe('420');
+    expect(row('On time')).toBe('75%');
+    expect(row('WPM')).toBe('52');
+    expect(row('Accuracy')).toBe('95%');
+    expect(screen.getByText(failureText(net, failure))).toBeTruthy();
+    expect(screen.getByText('Ridership estimates informed by data.gov.my (CC BY 4.0)')).toBeTruthy();
+  });
+
+  it('offers name entry only to an eligible Career that qualifies', () => {
+    const { unmount } = renderSummary(failed(), judgement({ eligible: false, verdict: null }));
+    expect(screen.queryByRole('textbox', { name: 'Your name' })).toBeNull();
+    unmount();
+
+    saveDispatchBoard(fullBoard(1_000));
+    const second = renderSummary(failed(), judgement());
+    expect(screen.queryByRole('textbox', { name: 'Your name' })).toBeNull();
+    expect(screen.getByText(/Didn't make the leaderboard/)).toBeTruthy();
+    second.unmount();
+
+    localStorage.clear();
+    renderSummary(failed(), judgement());
+    expect(screen.getByRole('textbox', { name: 'Your name' })).toBeTruthy();
+  });
+
+  it('submitting a name lists the entry with its rank, verified', () => {
+    saveDispatchBoard(submitDispatchEntry(loadDispatchBoard(), {
+      name: 'Top', score: 1_000, delivered: 1_000, shifts: 5, metrics, playedAt: 1, verified: true,
+    }).board);
+    renderSummary(failed(), judgement());
+    const input = screen.getByRole('textbox', { name: 'Your name' });
+    fireEvent.change(input, { target: { value: '   ' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(loadDispatchBoard().entries).toHaveLength(1);
+
+    fireEvent.change(input, { target: { value: ' Aina ' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(screen.getByRole('status').textContent).toMatch(/#2/);
+    const rows = screen.getAllByRole('row').slice(1);
+    expect(rows[1]!.textContent).toContain('Aina');
+    expect(rows[1]!.textContent).toContain('399');
+    const saved = loadDispatchBoard().entries.find((e) => e.name === 'Aina')!;
+    expect(saved).toMatchObject({ score: 399, delivered: 420, shifts: 1, verified: true });
+  });
+
+  it('an abandoned Career ends early', () => {
+    renderSummary({ ...failed(), endReason: 'abandoned', failure: null }, null);
+    expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
+    expect(screen.queryByRole('textbox', { name: 'Your name' })).toBeNull();
   });
 });

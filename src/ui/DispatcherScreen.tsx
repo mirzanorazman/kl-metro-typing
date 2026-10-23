@@ -3,10 +3,13 @@ import { music, sound } from '../audio/sound';
 import type { Point } from '../data/types';
 import type { KeySource } from '../engine/keylog';
 import type { NetworkIndex } from '../engine/network';
+import { loadProfile, markDispatchTipSeen, recordIntegrityFail, saveProfile } from '../engine/progress';
 import {
+  DISPATCH_EVIDENCE_VERSION,
   SHIFT_MS,
   advanceCareer,
   applyDispatchAction,
+  careerMetrics,
   careerTotals,
   dispatchOvercrowded,
   enterDispatchCharacter,
@@ -17,6 +20,7 @@ import {
   type DispatchActionBody,
 } from '../engine/dispatch';
 import { DISPATCH_KEYLOG_MAX_EVENTS } from '../engine/dispatchBalance';
+import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { servedKey, servedLines, servedStations } from '../engine/dispatchNetwork';
 import { candidates, sameRef, visibleTargets, type Target } from '../engine/dispatchTargets';
 import type { TypingState } from '../engine/typing';
@@ -24,7 +28,10 @@ import { networkLayout } from '../geo/networkLayout';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
+import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
+import { DispatchSummary } from './DispatchSummary';
+import { dispatchTipText, newDispatchTips, type DispatchTipId } from './dispatchTips';
 import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
 import { useGameInput } from './TypingInputProvider';
@@ -52,23 +59,14 @@ function PauseOverlay({ onResume }: { onResume: () => void }) {
   );
 }
 
-/** Placeholder until the Expansion screen lands (Task 10). */
-function BetweenShifts({ career, onContinue }: { career: CareerState; onContinue: () => void }) {
+/** A one-time tip. A running Career is paused while it shows; any key or click dismisses it. */
+function TipCard({ id, onDismiss }: { id: DispatchTipId; onDismiss: () => void }) {
   return (
-    <div className="dispatch-placeholder" role="region" aria-label="Between Shifts">
-      <h2>Shift {career.shift} cleared</h2>
-      <button type="button" onClick={onContinue}>Next Shift</button>
-    </div>
-  );
-}
-
-/** Placeholder until the Career summary lands (Task 10). */
-function CareerEnded({ onAgain, onExit }: { onAgain: () => void; onExit: () => void }) {
-  return (
-    <div className="dispatch-placeholder dispatch-ended" role="region" aria-label="Career ended">
-      <h2>Career ended</h2>
-      <button type="button" onClick={onAgain}>New Career</button>
-      <button type="button" onClick={onExit}>Back to map</button>
+    <div className="dispatch-paused dispatch-tip" role="dialog" aria-label="Tip">
+      <p>{dispatchTipText(id)}</p>
+      <button type="button" onClick={onDismiss}>
+        <kbd>any key</kbd> Got it
+      </button>
     </div>
   );
 }
@@ -143,6 +141,22 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
   const recorder = useRunRecorder(openedAt, DISPATCH_KEYLOG_MAX_EVENTS);
   const actions = useRef<DispatchAction[]>([]);
 
+  // Tips: the seen list is read once; a tip is marked seen when it is shown.
+  const seenTips = useRef(new Set(loadProfile().dispatchTipsSeen ?? []));
+  const [tips, setTips] = useState<DispatchTipId[]>([]);
+  const tipsShowing = useRef(false);
+  tipsShowing.current = tips.length > 0;
+  const tipPaused = useRef(false);
+  const markSeen = useCallback((ids: DispatchTipId[]) => {
+    let profile = loadProfile();
+    for (const id of ids) {
+      seenTips.current.add(id);
+      profile = markDispatchTipSeen(profile, id);
+    }
+    saveProfile(profile);
+  }, []);
+  const dismissTip = useCallback(() => setTips((queue) => queue.slice(1)), []);
+
   // Events advance the ref synchronously, and React only ever receives
   // values, so a re-run updater can never apply an input twice.
   const commit = useCallback((next: CareerState) => {
@@ -163,7 +177,10 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
 
   const onKey = useCallback((key: string, source?: KeySource) => {
     const cur = currentRun.current;
-    if (phoneLandscape || cur.status === 'ended' || cur.status === 'between') return;
+    if (phoneLandscape || cur.status === 'ended') return;
+    if (tipsShowing.current) return dismissTip();
+    // Between Shifts the Expansion picker owns the keys.
+    if (cur.status === 'between') return;
     if (cur.status === 'paused') {
       if (key === 'Enter' || key === ' ') act({ a: 'resume' });
       return;
@@ -171,11 +188,32 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     if (key === 'Escape') return act({ a: 'pause' });
     if (key === 'Backspace') return act({ a: 'unlock' });
     if (key === 'Enter') return act({ a: 'confirm' });
-    const now = recorder.record(key, source);
-    commit(enterDispatchCharacter(net, currentRun.current, key, now));
-  }, [act, commit, net, phoneLandscape, recorder]);
+    if (cur.status === 'ready' && !seenTips.current.has('start') && key.length === 1) markSeen(['start']);
+    // A key landing after the Shift's last tick only ends it. Recorded, it would
+    // sit past `endedAt` in the Keylog, and Replay refuses that.
+    const now = runTick();
+    const synced = advanceCareer(net, cur, now);
+    if (synced.status === 'ended' || synced.status === 'between') return commit(synced);
+    recorder.record(key, source, now);
+    commit(enterDispatchCharacter(net, synced, key, now));
+  }, [act, commit, dismissTip, markSeen, net, phoneLandscape, recorder]);
 
-  useGameInput(onKey, !phoneLandscape && run.status !== 'ended');
+  // Between Shifts, unless a tip is showing, the Expansion picker owns the keys.
+  const screenKeys = !phoneLandscape && run.status !== 'ended' && (run.status !== 'between' || tips.length > 0);
+  useGameInput(onKey, screenKeys);
+
+  // While the screen owns the keys, Enter and Space are game keys: a focused
+  // button (End Career above all) must never take one as a click. The picker's
+  // offer buttons keep them, so keyboard focus can still choose one.
+  const shielded = screenKeys;
+  useEffect(() => {
+    if (!shielded) return;
+    const shield = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') e.preventDefault();
+    };
+    window.addEventListener('keydown', shield);
+    return () => window.removeEventListener('keydown', shield);
+  }, [shielded]);
 
   // The sim advances once per frame; `commit` ignores frames with no new tick.
   useEffect(() => {
@@ -228,28 +266,100 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
       return now ? now.step > inc.step : !run.sim.outOfService[inc.place];
     });
     if (run.sim.delivered > prev.sim.delivered) sound.delivered();
-    else if (cleared || fixed) sound.arrive();
+    if (cleared || fixed) sound.arrive();
     if (run.sim.nextIncidentId > prev.sim.nextIncidentId) sound.warning();
   }, [run, net]);
 
-  // Music only while the Shift runs; it turns tense while anything is wrong.
-  const track = run.status !== 'running' ? null : dispatchOvercrowded(run) ? 'rushTense' : 'rushCalm';
+  // Music while the Shift runs, tense while anything is wrong; the setup
+  // theme while choosing an Expansion.
+  const track = run.status === 'between' ? 'rushSetup'
+    : run.status !== 'running' ? null : dispatchOvercrowded(run) ? 'rushTense' : 'rushCalm';
   useEffect(() => {
     if (track) music.play(track);
     else music.stop();
   }, [track]);
   useEffect(() => () => music.stop(), []);
 
+  // Tips freeze the Career with the ordinary pause action, so Replay sees
+  // nothing unusual.
+  const tipPrev = useRef(run);
+  useEffect(() => {
+    const prev = tipPrev.current;
+    tipPrev.current = run;
+    if (prev === run || run.status === 'ended' || run.status === 'ready') return;
+    const fresh = newDispatchTips(net, prev, run, seenTips.current);
+    if (fresh.length === 0) return;
+    markSeen(fresh);
+    setTips((queue) => [...queue, ...fresh]);
+    if (currentRun.current.status === 'running') {
+      tipPaused.current = true;
+      act({ a: 'pause' });
+    }
+  }, [run, act, markSeen, net]);
+
+  useEffect(() => {
+    if (tips.length > 0 || !tipPaused.current) return;
+    tipPaused.current = false;
+    if (currentRun.current.status === 'paused') act({ a: 'resume' });
+  }, [tips, act]);
+
+  // Judged once, at the end. Only a failed Career can be eligible; an
+  // abandoned one never reaches the judge.
+  const [judgement, setJudgement] = useState<DispatchJudgement | null>(null);
+  const judged = useRef(false);
+  useEffect(() => {
+    if (run.status !== 'ended' || judged.current) return;
+    judged.current = true;
+    if (run.endReason !== 'failed' || run.endedAt === null) return;
+    const result = judgeCareer(net, {
+      v: DISPATCH_EVIDENCE_VERSION,
+      seed,
+      keylog: recorder.snapshot(),
+      actions: actions.current,
+      endedAt: run.endedAt,
+    });
+    if (!result.eligible) {
+      saveProfile(recordIntegrityFail(loadProfile(), {
+        t: Date.now(),
+        mode: 'dispatch',
+        reason: result.verdict && !result.verdict.ok ? result.verdict.reason : 'malformed-log',
+      }));
+    }
+    setJudgement(result);
+  }, [run, net, recorder, seed]);
+
   const key = servedKey(run.served);
   const served = useMemo(() => new Set(servedStations(net, run.served)), [net, key]); // eslint-disable-line react-hooks/exhaustive-deps
   const lines = useMemo(() => new Set(servedLines(run.served)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
-  const frame = useMemo(
-    () => [...served].map((id) => layout.get(id)).filter((p): p is Point => p !== undefined),
-    [served, layout],
+  // Between Shifts the offers join the frame, so each is on screen to choose.
+  // Padding is a share of the frame, not the screen: the taller picker panel
+  // needs much more of it at the bottom.
+  const offers = run.status === 'between' ? run.offers : null;
+  const offered = useMemo(() => offers?.flatMap((offer) => net.lines.get(offer.line)!.stations
+    .slice(offer.from, offer.to + 1)) ?? [], [net, offers]);
+  const labelled = useMemo(
+    () => (offers ? new Set([...served, ...offers.map((offer) => offer.farEnd)]) : served),
+    [served, offers],
   );
+  const frame = useMemo(
+    () => [...served, ...offered].map((id) => layout.get(id)).filter((p): p is Point => p !== undefined),
+    [served, offered, layout],
+  );
+  const frameKey = offers ? `dispatch:${key}:offers` : `dispatch:${key}`;
 
   if (phoneLandscape && run.status !== 'ended') return <PhoneLandscapeBlock fullScreen />;
-  if (run.status === 'ended') return <CareerEnded onAgain={onAgain} onExit={onExit} />;
+  if (run.status === 'ended') {
+    return (
+      <DispatchSummary
+        net={net}
+        career={run}
+        metrics={careerMetrics(run, 0)}
+        judgement={judgement}
+        onAgain={onAgain}
+        onBack={onExit}
+      />
+    );
+  }
 
   const targets = visibleTargets(net, run.sim);
   const aimed = run.aim.typed !== '' || run.aim.lock ? candidates(targets, run.aim) : [];
@@ -266,34 +376,49 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
             net={net}
             layout={layout}
             visited={served}
-            labelled={served}
+            labelled={labelled}
             activeStation={null}
             backdrop={backdrop}
             districts={districts}
             emphasisSet={lines}
             fitTo={frame}
-            fitKey={`dispatch:${key}`}
-            fitPadding={{ top: 0.12, right: 0.24, bottom: 0.3, left: 0.06 }}
+            fitKey={frameKey}
+            fitPadding={{ top: 0.12, right: 0.24, bottom: offers ? 0.7 : 0.3, left: 0.06 }}
             overlay={({ layout: l, markScale }) => (
               <DispatchOverlay net={net} layout={l} markScale={markScale} career={run} targets={targets} aimed={aimed} />
             )}
           />
         }
         panel={
-          run.status === 'between' ? (
-            <BetweenShifts career={run} onContinue={() => act({ a: 'expand', pick: run.offers.length === 0 ? -1 : 0 })} />
-          ) : (
-            <>
-              <TypingLine career={run} aimed={aimed} />
-              <p className="hint">
-                <kbd>Backspace</kbd> to let go · <kbd>Esc</kbd> to pause
-              </p>
-              <button type="button" onClick={() => act({ a: 'abandon' })} disabled={run.startedAt === null}>
-                End Career
-              </button>
-              {run.status === 'paused' && <PauseOverlay onResume={() => act({ a: 'resume' })} />}
-            </>
-          )
+          <>
+            {run.status === 'between' ? (
+              <DispatchExpansion
+                key={run.shift}
+                net={net}
+                career={run}
+                onPick={(pick) => act({ a: 'expand', pick })}
+                active={tips.length === 0}
+              />
+            ) : (
+              <>
+                {run.status === 'ready' && !seenTips.current.has('start') && (
+                  <p className="dispatch-tip-inline" role="note">{dispatchTipText('start')}</p>
+                )}
+                <TypingLine career={run} aimed={aimed} />
+                <p className="hint">
+                  <kbd>Backspace</kbd> to let go · <kbd>Esc</kbd> to pause
+                </p>
+                <button type="button" onClick={() => act({ a: 'abandon' })} disabled={run.startedAt === null}>
+                  End Career
+                </button>
+              </>
+            )}
+            {tips.length > 0 ? (
+              <TipCard key={tips[0]} id={tips[0]!} onDismiss={dismissTip} />
+            ) : (
+              run.status === 'paused' && <PauseOverlay onResume={() => act({ a: 'resume' })} />
+            )}
+          </>
         }
       />
       <ShiftBar career={run} />

@@ -21,8 +21,11 @@ export function runTick(): number {
 }
 
 export interface RunRecorder {
-  /** Records one keystroke and returns the tick it was recorded at. */
-  record: (key: string, source?: KeySource) => number;
+  /**
+   * Records one keystroke and returns the tick it was recorded at: `at` when
+   * the caller already read the clock for this key, otherwise now.
+   */
+  record: (key: string, source?: KeySource, at?: number) => number;
   snapshot: () => KeyLog;
   reset: (startedAt: number) => void;
 }
@@ -46,8 +49,8 @@ export function useRunRecorder(startedAt: number, maxEvents: number = KEYLOG_MAX
   // run of no-op keydowns dilutes the consistency check the other way. The
   // tick is still returned so callers that only need a timestamp are
   // unaffected.
-  const record = useCallback((key: string, source: KeySource = PLAIN_SOURCE) => {
-    const now = runTick();
+  const record = useCallback((key: string, source: KeySource = PLAIN_SOURCE, at?: number) => {
+    const now = at ?? runTick();
     if (isPrintable(key)) {
       logRef.current = appendKey(logRef.current!, key, source, now, maxEvents);
     }
