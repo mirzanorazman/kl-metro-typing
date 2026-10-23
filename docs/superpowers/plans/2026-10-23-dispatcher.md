@@ -1,6 +1,6 @@
 # Dispatcher Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build Dispatcher: a Career of compressed service-day Shifts. The player types Station names to Clear Signals and fix Incidents across a growing Served network. It replaces Rush Hour.
 
@@ -72,7 +72,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
     export function servedDistances(net: NetworkIndex, served: Served): ReadonlyMap<string, ReadonlyMap<string, number>>;
     ```
 
-- [ ] **Step 1: Write `src/engine/dispatchBalance.ts`.** Document each constant in one line, in the style of `rushBalance.ts`. These are starting values; Task 11 tunes them.
+- [x] **Step 1: Write `src/engine/dispatchBalance.ts`.** Document each constant in one line, in the style of `rushBalance.ts`. These are starting values; Task 11 tunes them.
   ```ts
   TICK_MS = 100
   TRAVEL_MS = 5_000              // one block, Station to Station
@@ -113,7 +113,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   ```
   Also export `type ShiftFlow = 'inbound' | 'outbound' | 'none'` and `interface ShiftPhaseSpec { name: string; ms: number; multiplier: number; flow: ShiftFlow; trainFactor: number }`.
 
-- [ ] **Step 2: Write the failing tests** in `src/engine/dispatchNetwork.test.ts`, using the real network (`buildNetwork(loadNetworkData())`):
+- [x] **Step 2: Write the failing tests** in `src/engine/dispatchNetwork.test.ts`, using the real network (`buildNetwork(loadNetworkData())`):
   - `starting network is the central Kelana Jaya stretch`: `servedStations(net, STARTING_NETWORK)` has length 14, starts with `setiawangsa`, and contains `masjid-jamek`, `klcc`, `kl-sentral` and `kerinchi`.
   - `eras open in history order`: `ERAS.length === 5`. `ERAS[0].opens` covers KJ `gombak`–`kelana-jaya`, AG whole and SP `sentul-timur`–`sri-petaling`. `ERAS[1]` is MR. `ERAS[2]` is KJ `kelana-jaya`–`putra-heights`, SP `sri-petaling`–`putra-heights` and KG. `ERAS[3]` is PY. `ERAS[4]` is SA. Also check `eraFor(0) === 0`, `eraFor(2) === 1` and `eraFor(99) === 4`.
   - `every candidate keeps the network connected`: for era 0 and 4 from `STARTING_NETWORK`, for every candidate `e`, `servedDistances(net, applyExpansion(STARTING_NETWORK, e))` gives every served Station a finite distance from every other.
@@ -124,9 +124,9 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - `a fully served network offers nothing`: served = every Line's full range, era 4 → `expansionCandidates` is `[]`.
   - `distances cross Interchanges and shared track`: served `[AG 0–10, KJ 4–17]` → `servedDistances(...).get('setiawangsa')!.get('sentul-timur')` is finite.
 
-- [ ] **Step 3: Run them and confirm they fail.** Run: `npx vitest run src/engine/dispatchNetwork.test.ts`. Expected: FAIL, module not found.
+- [x] **Step 3: Run them and confirm they fail.** Run: `npx vitest run src/engine/dispatchNetwork.test.ts`. Expected: FAIL, module not found.
 
-- [ ] **Step 4: Implement `dispatchNetwork.ts`.**
+- [x] **Step 4: Implement `dispatchNetwork.ts`.**
   - `expansionCandidates` for each Line whose era-open ranges intersect:
     - **If served:** extend either end by k = `EXPANSION_MIN_STATIONS`..`EXPANSION_MAX_STATIONS` Stations, clipped to the era-open range and the Line's ends. Skip k = 0.
     - **If not served:** for each served Station on that Line inside the era-open range, a range from it extending k Stations in either direction, clipped. For a new Line, `from..to` covers k+1 Stations, including the anchor.
@@ -135,9 +135,9 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - `drawOffers` shuffles candidates with `nextRandom`. It greedily takes those whose `(line, end)` pair and `farEnd` name are new, up to `EXPANSION_OFFERS`, and returns the advanced rng.
   - `servedDistances` is all-pairs BFS over consecutive served Stations of each range. Ignore Walk links. Cache it in a `WeakMap<NetworkIndex, Map<servedKey, …>>`, as `railHops` does in `rushHour.ts`.
 
-- [ ] **Step 5: Run them and confirm they pass.** Run: `npx vitest run src/engine/dispatchNetwork.test.ts`. Expected: PASS.
+- [x] **Step 5: Run them and confirm they pass.** Run: `npx vitest run src/engine/dispatchNetwork.test.ts`. Expected: PASS.
 
-- [ ] **Step 6: Commit.** `git add src/engine/dispatchBalance.ts src/engine/dispatchNetwork.ts src/engine/dispatchNetwork.test.ts && git commit -m "feat: dispatcher served network, eras and expansions"`
+- [x] **Step 6: Commit.** `git add src/engine/dispatchBalance.ts src/engine/dispatchNetwork.ts src/engine/dispatchNetwork.test.ts && git commit -m "feat: dispatcher served network, eras and expansions"`
 
 ---
 
@@ -181,7 +181,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   export function bunchedTrains(net: NetworkIndex, s: SimState): Set<number>;
   ```
 
-- [ ] **Step 1: Write the failing tests** in `src/engine/dispatchSim.test.ts`. Use a helper `run(s, ms, phase = MIDDAY)` that calls `stepSim` `ms / TICK_MS` times. `MIDDAY` is `{ multiplier: 0, flow: 'none', trainFactor: 1, escalation: 1 }`; multiplier 0 means no Passengers yet.
+- [x] **Step 1: Write the failing tests** in `src/engine/dispatchSim.test.ts`. Use a helper `run(s, ms, phase = MIDDAY)` that calls `stepSim` `ms / TICK_MS` times. `MIDDAY` is `{ multiplier: 0, flow: 'none', trainFactor: 1, escalation: 1 }`; multiplier 0 means no Passengers yet.
   - `a Shift starts with every Train Held at a Signal, evenly spread`: `startShiftSim(net, STARTING_NETWORK, 1)` has `trainsForLine(KJ 4–17, 1)` (3) Trains, all `stage === 'signal'`, at distinct `(at, dir)` pairs.
   - `an uncleared Train stays Held and counts the wait`: after `run(s, 10_000)`, every Train is still `'signal'` with `ms === 10_000`.
   - `Clear → dwell → run → next Signal`: `clearSignal` on Train 1 returns true. After `DWELL_BASE_MS + TRAVEL_MS + TICK_MS` of run time, Train 1 is `'signal'` at `at + dir`.
@@ -192,17 +192,17 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - `bunching is detected`: two KJ Trains, same direction, one block apart → both ids are in `bunchedTrains`.
   - `cloneSim is deep`: mutating a clone's train load leaves the original unchanged.
 
-- [ ] **Step 2: Run them and confirm they fail.** Run: `npx vitest run src/engine/dispatchSim.test.ts`. Expected: FAIL.
+- [x] **Step 2: Run them and confirm they fail.** Run: `npx vitest run src/engine/dispatchSim.test.ts`. Expected: FAIL.
 
-- [ ] **Step 3: Implement the Train model.**
+- [x] **Step 3: Implement the Train model.**
   - **Placement:** spread Trains evenly over the out-and-back cycle of each range. Each starts at stage `'signal'` for its next Station, with `ms = 0`.
   - **Block occupancy:** a block is held by Trains `'running'`, `'signal'` or `'cleared'` in it. A platform `(station, dir)` is held by a Train `'dwell'`/`'turnaround'` there.
   - **Departure:** a dwell ends with `ms = 0` and departs only once the next block is free.
   - **Train-count changes:** extra Trains for a phase's `trainFactor` enter at a range end when below the count. Surplus Trains leave at a range end during turnaround. Keep this in `stepSim`.
 
-- [ ] **Step 4: Run them and confirm they pass.** Run the same command. Expected: PASS.
+- [x] **Step 4: Run them and confirm they pass.** Run the same command. Expected: PASS.
 
-- [ ] **Step 5: Commit.** `git commit -m "feat: dispatcher trains, blocks and signals"`
+- [x] **Step 5: Commit.** `git commit -m "feat: dispatcher trains, blocks and signals"`
 
 ---
 
@@ -228,7 +228,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   export function destinationWeight(net: NetworkIndex, id: string, flow: ShiftFlow): number; // demand x (flow === 'inbound' && central ? CENTRAL_PULL : flow === 'outbound' && !central ? CENTRAL_PULL : 1)
   ```
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `Passengers appear by demand and phase`: after `run(s, 60_000, { multiplier: 1, flow: 'none', trainFactor: 1, escalation: 1 })` with no Clears, each Station's waiting count is within 1 of `floor(60 × PASSENGER_RATE × demand)` (spawn debt is deterministic per Station). Every destination is a served Station other than the origin.
   - `morning flows inward, evening outward`: over 200 s with flow `'inbound'`, the share of waiting Passengers with a central destination exceeds that under `'outbound'` (same seed).
   - `Passengers transfer and are Delivered`: served `[KJ 4–17, AG 0–10]`. Put 10 Passengers at `setiawangsa` for `sultan-ismail` and Clear every Signal as it appears (loop helper). Within 10 min of sim, `delivered >= 10`, and at some tick they were waiting at `masjid-jamek` (the transfer).
@@ -238,18 +238,18 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - `on-time counts calls against the target Headway`: a call after waiting `<= ON_TIME_FACTOR × targetHeadwayMs` increments `onTimeCalls`; a later one increments only `calls`.
   - `isLate` is true when the platform the Train approaches has waited more than `LATE_FACTOR × targetHeadwayMs`.
 
-- [ ] **Step 2: Run them and confirm they fail.**
+- [x] **Step 2: Run them and confirm they fail.**
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
   - **Spawning:** per served, in-service Station, each tick: `spawnDebt[id] += PASSENGER_RATE × originWeight × multiplier × escalation × TICK_MS / 1000`. While the debt is ≥ 1, draw a destination with `nextRandom`, weighted by `destinationWeight` over the other in-service served Stations.
   - **Boarding** (greedy local rule, so no route tables are needed): a waiting Passenger for `d` boards a Train whose next stop is strictly closer to `d` by `servedDistances`.
   - **Alighting:** aboard, a Passenger alights when the Station is `d` (`delivered += 1`), or when the Train's next stop is not closer (they wait there to transfer).
   - **Platform full:** `fullMs` accrues while the crowd ≥ `PLATFORM_CAPACITY` and resets otherwise.
   - Out of service lasts until the Shift ends. There is no recovery within a Shift (the builder's call in the spec, settled here).
 
-- [ ] **Step 4: Run them and confirm they pass.**
+- [x] **Step 4: Run them and confirm they pass.**
 
-- [ ] **Step 5: Commit.** `git commit -m "feat: dispatcher passengers, crowding and out of service"`
+- [x] **Step 5: Commit.** `git commit -m "feat: dispatcher passengers, crowding and out of service"`
 
 ---
 

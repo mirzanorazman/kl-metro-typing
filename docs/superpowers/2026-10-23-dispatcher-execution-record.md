@@ -16,7 +16,7 @@ Implementation uses a fresh implementer per task, followed by spec and quality r
 
 - [x] 1. Balance constants, Served network, Eras and Expansions
 - [x] 2. Trains, blocks and Signals
-- [ ] 3. Passengers, crowding, on-time and Out of service
+- [x] 3. Passengers, crowding, on-time and Out of service
 - [ ] 4. Incidents
 - [ ] 5. Targets and narrowing
 - [ ] 6. Career
@@ -32,3 +32,4 @@ Implementation uses a fresh implementer per task, followed by spec and quality r
 - Baseline: `npm test` — 65 files passed; 743 tests passed, 1 opt-in survey skipped.
 - Task 1: `a225c6c`; missing-module red observed, 14 network tests green, TypeScript check passed. Independent spec and quality reviews approved without findings.
 - Task 2: `d4317c5` plus `33be372`; initial quality review caught a shared-track reinforcement deadlock. Fix has 26 simulation tests and 83 relevant tests passing, with red reproductions of full deadlock and reinforcement starvation. Spec and quality re-reviews approved; quality reviewer additionally swept 3,000 overlapping range combinations with phase fleet changes without a stalled surviving train.
+- Task 3: `9149d89`; 49 simulation tests, full suite 806 passed / 1 skipped, TypeScript passed. Spec and quality approved. Quality probes checked 908 shared-track/OOS configurations and conserved 77,347 passengers over 75,000 ticks across 25 seeds, including clone determinism.
