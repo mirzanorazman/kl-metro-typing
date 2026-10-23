@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   dispatchQualifies,
   loadDispatchBoard,
@@ -33,6 +33,8 @@ function BoardEntry({ metrics, judgement }: { metrics: Metrics; judgement: Dispa
   const [board, setBoard] = useState<DispatchBoard>(() => loadDispatchBoard());
   const [name, setName] = useState('');
   const [saved, setSaved] = useState<{ id: string | null; rank: number | null } | null>(null);
+  // A ref, not state: a second submit before the re-render must see it.
+  const submitted = useRef(false);
 
   if (saved) {
     return (
@@ -69,7 +71,8 @@ function BoardEntry({ metrics, judgement }: { metrics: Metrics; judgement: Dispa
       onSubmit={(e) => {
         e.preventDefault();
         const trimmed = name.trim();
-        if (!trimmed) return;
+        if (!trimmed || submitted.current) return;
+        submitted.current = true;
         const result = submitDispatchEntry(board, {
           name: trimmed,
           score: judgement.score,

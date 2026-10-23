@@ -2,18 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import type { LineCode } from '../data/types';
 import { loadNetworkData } from '../data/load';
-import { saveDispatchBoard, submitDispatchEntry, loadDispatchBoard, type DispatchBoard } from '../data/dispatchBoardStore';
+import {
+  DISPATCH_BOARD_KEY, saveDispatchBoard, submitDispatchEntry, loadDispatchBoard, type DispatchBoard,
+} from '../data/dispatchBoardStore';
 import { buildNetwork } from '../engine/network';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { careerScore, SHIFT_MS, startCareer, type CareerState } from '../engine/dispatch';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { OOS_CROWD_MS } from '../engine/dispatchBalance';
 import {
-  drawOffers, ERAS, eraFor, servedStations, STARTING_NETWORK, type Expansion, type Served,
+  ERAS, eraFor, servedStations, STARTING_NETWORK, type Expansion, type Served,
 } from '../engine/dispatchNetwork';
 import { cloneSim, startShiftSim, type Dir, type Incident, type Train } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
 import { replayDispatch, type DispatchEvidence } from '../engine/replay';
+import { drive } from '../engine/dispatchDrive.testutil';
 import { music, sound } from '../audio/sound';
 import { DispatcherScreen } from './DispatcherScreen';
 import { DispatchExpansion } from './DispatchExpansion';
@@ -264,34 +267,61 @@ describe('DispatcherScreen', () => {
   });
 
   it('typing an Expansion name picks it, the map grows, and picker keys stay out of the Keylog', () => {
-    const clock = fakeClock();
-    const base = startCareer(net, 7);
-    const [offers] = drawOffers(net, STARTING_NETWORK, eraFor(1), base.offerRng);
-    expect(offers.length).toBeGreaterThan(0);
-    const offer = offers[0]!;
-    const name = net.stations.get(offer.farEnd)!.name;
-    renderShift({ ...base, status: 'between', cleared: 1, startedAt: 1_000, stoppedAt: 2_000, gameMs: 1_000, offers });
+    // A real Career: Shift 1 is played through the screen from a scripted
+    // typist's inputs, so the judged evidence can replay end to end.
+    const seed = 3;
+    const { evidence: script } = drive({ seed, msPerKey: 200, limitMs: SHIFT_MS + 30_000 });
+    const expand = script.actions.find((a) => a.a === 'expand');
+    expect(expand).toBeTruthy();
+    const clock = fakeClock(script.keylog.t0);
+    renderShift(startCareer(net, seed));
+    let at = script.keylog.t0;
+    let next = 0;
+    const replayActions = (i: number) => {
+      for (; next < script.actions.length && script.actions[next]!.i === i && script.actions[next] !== expand; next++) {
+        const a = script.actions[next]!;
+        clock.now = a.t;
+        if (a.a !== 'confirm' && a.a !== 'unlock') throw new Error(`unexpected ${a.a}`);
+        press(a.a === 'confirm' ? 'Enter' : 'Backspace');
+      }
+    };
+    for (let i = 0; i < expand!.i; i++) {
+      replayActions(i);
+      at += script.keylog.events[i]!.dt;
+      clock.now = at;
+      press(script.keylog.events[i]!.k);
+    }
+    replayActions(expand!.i);
+    clock.now = expand!.t;
+    // A non-printable key brings the Career up to the clock and is never logged.
+    press('Shift');
     expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+    const offerName = screen.getAllByRole('button').map((b) => b.querySelector('.dispatch-offer-name')?.textContent)
+      .filter((n): n is string => !!n)[(expand as { pick: number }).pick]!;
 
-    clock.now = 3_000;
-    type(name);
+    type(offerName);
     expect(screen.queryByRole('region', { name: 'Expansion' })).toBeNull();
     expect(screen.getByRole('banner', { name: 'Shift' }).textContent).toMatch(/Shift 2/);
     const texts = [...document.querySelectorAll('svg text')].map((t) => t.textContent);
-    for (const id of offer.added) expect(texts).toContain(net.stations.get(id)!.name);
+    expect(texts).toContain(offerName);
 
     // Start Shift 2 with one key, then let it collapse untouched.
     const first = screen.getAllByTestId('dispatch-signal')[0]!.textContent!;
-    clock.now = 4_000;
+    clock.now = expand!.t + 1_000;
     type(first[0]!);
-    clock.now = 4_000 + 30 * 60_000;
+    clock.now += 30 * 60_000;
     type('q');
     expect(screen.getByRole('region', { name: 'Career summary' })).toBeTruthy();
     expect(judgeSpy).toHaveBeenCalledTimes(1);
     const evidence = judgeSpy.mock.calls[0]![1];
-    expect(evidence.keylog.events.map((e) => e.k)).toEqual([first[0]]);
-    expect(evidence.actions.map((a) => a.a)).toEqual(['expand']);
-  });
+    const shiftKeys = script.keylog.events.slice(0, expand!.i).map((e) => e.k);
+    expect(evidence.keylog.events.map((e) => e.k)).toEqual([...shiftKeys, first[0]]);
+    expect(evidence.actions.filter((a) => a.a === 'expand')).toHaveLength(1);
+    const replayed = replayDispatch(net, evidence);
+    expect(replayed).not.toBeNull();
+    expect(replayed!.complete).toBe(true);
+    expect(replayed!.cleared).toBe(1);
+  }, 60_000);
 
   it('Enter on a focused End Career button does not end the Career', () => {
     renderShift(careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]));
@@ -302,6 +332,30 @@ describe('DispatcherScreen', () => {
     expect(fireEvent.keyDown(end, { key: ' ' })).toBe(false);
     expect(screen.getByRole('banner', { name: 'Shift' })).toBeTruthy();
     expect(screen.queryByRole('region', { name: 'Career summary' })).toBeNull();
+  });
+
+  it('with the on-screen keyboard, Space still reaches the game so two-word names can be typed', () => {
+    render(
+      <TypingInputProvider enabled>
+        <DispatcherScreen net={net} onExit={() => {}} onAgain={() => {}}
+          initial={careerWith([waiting(1, 'KJ', 'Masjid Jamek'), waiting(2, 'KJ', 'Jelatek')])} />
+      </TypingInputProvider>,
+    );
+    const input = screen.getByLabelText('Typing input for Station name') as HTMLInputElement;
+    input.focus();
+    const typeOnScreen = (text: string) => {
+      for (const ch of text) {
+        // The shield must leave the input's own keys alone, or the character never arrives.
+        expect(fireEvent.keyDown(input, { key: ch })).toBe(true);
+        input.value = ch;
+        fireEvent.input(input);
+      }
+    };
+    typeOnScreen('Masjid');
+    expect(labelFor('Masjid Jamek')!.getAttribute('data-locked')).toBe('true');
+    typeOnScreen(' Jamek');
+    expect(labelFor('Masjid Jamek')).toBeUndefined();
+    expect(labelFor('Jelatek')).toBeTruthy();
   });
 
   it('a Clear sounds even on the tick a Passenger is Delivered', () => {
@@ -574,6 +628,24 @@ describe('DispatchSummary', () => {
     expect(rows[1]!.textContent).toContain('399');
     const saved = loadDispatchBoard().entries.find((e) => e.name === 'Aina')!;
     expect(saved).toMatchObject({ score: 399, delivered: 420, shifts: 1, verified: true });
+  });
+
+  it('a rapid double submit saves the entry once', () => {
+    renderSummary(failed(), judgement());
+    const input = screen.getByRole('textbox', { name: 'Your name' });
+    fireEvent.change(input, { target: { value: 'Aina' } });
+    const form = input.closest('form')!;
+    const setItem = vi.spyOn(Storage.prototype, 'setItem');
+    // React 18 flushes between two native submits, so the handler is called
+    // twice directly: two submits that land before React re-renders.
+    const propsKey = Object.keys(form).find((k) => k.startsWith('__reactProps$'))!;
+    const { onSubmit } = (form as unknown as Record<string, { onSubmit: (e: { preventDefault: () => void }) => void }>)[propsKey]!;
+    act(() => {
+      onSubmit({ preventDefault: () => {} });
+      onSubmit({ preventDefault: () => {} });
+    });
+    expect(setItem.mock.calls.filter(([k]) => k === DISPATCH_BOARD_KEY)).toHaveLength(1);
+    expect(loadDispatchBoard().entries.filter((e) => e.name === 'Aina')).toHaveLength(1);
   });
 
   it('an abandoned Career ends early', () => {

@@ -203,13 +203,17 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
   useGameInput(onKey, screenKeys);
 
   // While the screen owns the keys, Enter and Space are game keys: a focused
-  // button (End Career above all) must never take one as a click. The picker's
-  // offer buttons keep them, so keyboard focus can still choose one.
+  // button (End Career above all) must never take one as a click. Only
+  // buttons are shielded: on a phone the characters arrive through the hidden
+  // typing input, and cancelling its Space would make two-word names
+  // untypeable. The picker's offer buttons keep their keys, so keyboard
+  // focus can still choose one.
   const shielded = screenKeys;
   useEffect(() => {
     if (!shielded) return;
     const shield = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' || e.key === ' ') e.preventDefault();
+      const onButton = e.target instanceof Element && e.target.closest('button') !== null;
+      if (onButton && (e.key === 'Enter' || e.key === ' ')) e.preventDefault();
     };
     window.addEventListener('keydown', shield);
     return () => window.removeEventListener('keydown', shield);
