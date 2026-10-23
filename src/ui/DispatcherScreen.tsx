@@ -27,10 +27,13 @@ import { candidates, sameRef, visibleTargets, type Target } from '../engine/disp
 import type { TypingState } from '../engine/typing';
 import { networkLayout } from '../geo/networkLayout';
 import { DispatchOverlay } from '../render/DispatchOverlay';
+import {
+  DISPATCH_FIT_PADDING, DISPATCH_LANE_PX, DISPATCH_MIN_MARK_PX, dispatchLabelled, overlayObstacles,
+} from '../render/dispatchLayout';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { usePassengerMoments } from '../render/usePassengerMoments';
-import { clearedSignals, useFreshWave } from '../render/useSignalMarks';
+import { clearedSignals, liveMarks, useFreshWave } from '../render/useSignalMarks';
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
@@ -424,10 +427,6 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
   const offers = run.status === 'between' ? run.offers : null;
   const offered = useMemo(() => offers?.flatMap((offer) => net.lines.get(offer.line)!.stations
     .slice(offer.from, offer.to + 1)) ?? [], [net, offers]);
-  const labelled = useMemo(
-    () => (offers ? new Set([...served, ...offers.map((offer) => offer.farEnd)]) : served),
-    [served, offers],
-  );
   const frame = useMemo(
     () => [...served, ...offered].map((id) => layout.get(id)).filter((p): p is Point => p !== undefined),
     [served, offered, layout],
@@ -459,6 +458,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     ? run.sim.incidents.find((inc) => inc.id === lock.incident) : undefined;
   // Reduced motion keeps the camera still; the edge and the glow still show.
   const lean = fixing && !prefersReducedMotion() ? leanIn(net, run.sim, fixing, targets, served) : null;
+  const labelled = dispatchLabelled(net, run, served, targets);
   const leanFrame = lean?.stations.map((id) => layout.get(id)).filter((p): p is Point => p !== undefined);
 
   return (
@@ -471,13 +471,16 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
             layout={layout}
             visited={served}
             labelled={labelled}
+            minMarkPx={DISPATCH_MIN_MARK_PX}
+            laneOffsetPx={DISPATCH_LANE_PX}
+            labelAvoid={(markScale) => overlayObstacles(net, layout, run, targets, liveMarks(net, run, targets), markScale)}
             activeStation={null}
             backdrop={backdrop}
             districts={districts}
             emphasisSet={lines}
             fitTo={leanFrame ?? frame}
             fitKey={lean?.key ?? frameKey}
-            fitPadding={{ top: 0.12, right: 0.24, bottom: offers ? 0.7 : 0.3, left: 0.06 }}
+            fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
             overlay={({ layout: l, markScale }) => (
               <DispatchOverlay net={net} layout={l} markScale={markScale} career={run} targets={targets} aimed={aimed}
                 moments={moments} />

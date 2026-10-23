@@ -54,7 +54,8 @@ export function clearedSignals(net: NetworkIndex, prev: SimState, next: SimState
 /** When the mark a Green wave cleared `order`-th turns green. */
 const flipDelay = (order: number) => RIPPLE_LEAD_MS + order * RIPPLE_STEP_MS;
 
-function liveMarks(net: NetworkIndex, career: CareerState, targets: readonly Target[]): SignalMark[] {
+/** One red mark per waiting train's Signal. */
+export function liveMarks(net: NetworkIndex, career: CareerState, targets: readonly Target[]): SignalMark[] {
   const marks: SignalMark[] = [];
   for (const target of targets) {
     if (target.ref.kind !== 'signal') continue;

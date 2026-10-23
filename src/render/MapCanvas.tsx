@@ -9,16 +9,16 @@ import {
 import type { Point, LineCode } from '../data/types';
 import type { BoundaryPath } from '../geo/boundaries';
 import { type District } from '../geo/networkLayout';
-import { placeLabels, type LabelCandidate, type Obstacle } from './labels';
+import type { Box, Obstacle } from './labels';
+import {
+  countInView, labelTiers, mapLabels, markScaleFor, pxPerUnit, STATION_R, trackLines,
+} from './mapMarks';
 import { TrainMarker, tweenPoint } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
 import { DRAW_EASE, type EntranceTiming } from './entrance';
 
 /** Where the focused point sits vertically; above centre, clear of the panel. */
 const FOCUS_BIAS_Y = 0.34;
-
-/** View width the station radii below were chosen against. */
-const NOMINAL_VIEW_W = 1000;
 
 /**
  * Span limits for the followed shot, in visible layout units — visible
@@ -39,18 +39,6 @@ const FOLLOW_MIN_SPAN = 160;
 /** Breathing room between a station that must stay in shot and the edge. */
 const FOLLOW_EDGE_MARGIN = 0.06;
 
-/**
- * Width of one label character as a fraction of the font size.
- *
- * The labels are set in a monospace face, whose advance is 0.6em, plus the
- * 0.08em of letter-spacing the stylesheet adds. Estimating rather than
- * measuring keeps placement a pure calculation, which is what lets it run
- * during render instead of after a layout pass.
- */
-const LABEL_CHAR_EM = 0.68;
-
-/** Label box height as a fraction of the font size — roughly the cap height. */
-const LABEL_LINE_EM = 0.8;
 const FOLLOW_MAX_SPAN = 240;
 
 export interface MapCanvasProps {
@@ -94,6 +82,23 @@ export interface MapCanvasProps {
    */
   labelled?: ReadonlySet<string> | null;
   /**
+   * When set, no station mark draws smaller than this many screen pixels
+   * across, however wide the view; every mark, label and overlay scales with
+   * it. Off by default: marks scale with the view.
+   */
+  minMarkPx?: number | null;
+  /**
+   * When above 0, Lines sharing track are drawn side by side this many screen
+   * pixels apart instead of on top of each other. Off by default.
+   */
+  laneOffsetPx?: number;
+  /**
+   * Rectangles, in layout units, that station names must keep off at this
+   * `markScale` — an overlay's own text, which outranks them. A name with no
+   * free corner is dropped.
+   */
+  labelAvoid?: (markScale: number) => readonly Box[];
+  /**
    * Extra marks drawn in layout coordinates above the stations and beneath
    * the train. `markScale` converts nominal radii to the current zoom.
    */
@@ -136,6 +141,9 @@ export function MapCanvas({
   emphasis,
   emphasisSet,
   labelled = null,
+  minMarkPx = null,
+  laneOffsetPx = 0,
+  labelAvoid,
   overlay,
   celebrate,
   travelled,
@@ -149,11 +157,15 @@ export function MapCanvas({
   // shaped unlike it. 0 means "not measured yet" and disables the correction,
   // which is also the right answer without layout (tests, first paint).
   const svgRef = useRef<SVGSVGElement>(null);
-  const [aspect, setAspect] = useState(0);
+  const [screen, setScreen] = useState({ w: 0, h: 0 });
+  const aspect = screen.h > 0 ? screen.w / screen.h : 0;
   useLayoutEffect(() => {
     const measure = () => {
       const rect = svgRef.current?.getBoundingClientRect();
-      setAspect(rect && rect.height > 0 ? rect.width / rect.height : 0);
+      setScreen((prev) => {
+        const next = rect && rect.height > 0 ? { w: rect.width, h: rect.height } : { w: 0, h: 0 };
+        return prev.w === next.w && prev.h === next.h ? prev : next;
+      });
     };
     measure();
     window.addEventListener('resize', measure);
@@ -216,11 +228,9 @@ export function MapCanvas({
   }, [focus, framed, followed, mustSee]);
   const { view, fit, handlers } = usePanZoom(target);
 
-  // Radii are in SVG user units, so they inflate as the view zooms in — a
-  // short line like the Monorail frames tightly and the dots ballooned. Scale
-  // them against the view so their on-screen size stays constant. Strokes are
-  // handled by vector-effect instead, which pins them to CSS pixels.
-  const markScale = Math.max(0.15, Math.min(1.6, view.w / NOMINAL_VIEW_W));
+  // Radii are in SVG user units; see markScaleFor. The floor needs the
+  // measured screen, so it waits for the first measurement.
+  const markScale = markScaleFor(view, minMarkPx === null ? null : { screen, minPx: minMarkPx });
 
   const framedOnce = useRef(false);
 
@@ -246,42 +256,22 @@ export function MapCanvas({
     [layout],
   );
 
-  // Labelling all 154 at once is noise, so labels come in tiers: the stations
-  // that orient you always, then major interchanges once the view is not too
-  // crowded, then everything once it is genuinely zoomed in.
-  const termini = useMemo(() => {
-    const ids = new Set<string>();
-    for (const line of net.lines.values()) {
-      const first = line.stations[0];
-      const last = line.stations[line.stations.length - 1];
-      if (first) ids.add(first);
-      if (last) ids.add(last);
-    }
-    return ids;
-  }, [net]);
+  // Shared track side by side: the lanes are spaced in screen pixels, so
+  // they follow the zoom. Before the first measurement, nominal units stand in.
+  const tracks = useMemo(() => {
+    if (laneOffsetPx <= 0) return null;
+    const units = screen.w > 0 ? laneOffsetPx / pxPerUnit(view, screen) : laneOffsetPx * markScale;
+    return trackLines(net, layout, units);
+  }, [laneOffsetPx, net, layout, view, screen, markScale]);
+  const linePoints = (code: LineCode, ids: readonly string[]) => {
+    const pts = tracks?.get(code);
+    return pts ? pts.map((p) => `${p.x},${p.y}`).join(' ') : pointsOf(ids);
+  };
 
-  const majorInterchanges = useMemo(() => {
-    const ids = new Set<string>();
-    for (const station of net.stations.values()) {
-      if (linesOf(station).length >= 3) ids.add(station.id);
-    }
-    return ids;
-  }, [net]);
+  // Labelling all 154 at once is noise, so labels come in tiers; see mapLabels.
+  const tiers = useMemo(() => labelTiers(net), [net]);
+  const inView = useMemo(() => countInView(layout, view), [layout, view]);
 
-  // How crowded the current view actually is. `view.w` alone cannot answer
-  // this: it is in user units, so a line run framing one line reads as
-  // "zoomed in" while still holding most of the network on screen.
-  const inView = useMemo(
-    () =>
-      [...layout.values()].filter(
-        (p) =>
-          p.x >= view.x && p.x <= view.x + view.w &&
-          p.y >= view.y && p.y <= view.y + view.h,
-      ).length,
-    [layout, view],
-  );
-
-  const showInterchangeLabels = inView <= 40;
   const showEveryLabel = inView <= 12;
 
   // Everything that is neither rail nor dot — names, watermarks, the compass
@@ -362,7 +352,7 @@ export function MapCanvas({
           return (
             <polyline
               className="track-glow"
-              points={pointsOf(line.stations)}
+              points={linePoints(line.code, line.stations)}
               fill="none"
               stroke={line.colour}
               vectorEffect="non-scaling-stroke"
@@ -373,7 +363,7 @@ export function MapCanvas({
         })()}
 
       {[...net.lines.values()].map((line) => {
-        const pts = pointsOf(line.stations);
+        const pts = linePoints(line.code, line.stations);
         // pathLength normalises the stroke to 1, so the dash that hides the
         // undrawn stretch is written in fractions and needs no measuring.
         const draw = entrance?.line.get(line.code);
@@ -424,9 +414,7 @@ export function MapCanvas({
         // station's <g>, then painted as one group after every station mark:
         // a station rendered later in the loop was painting over an earlier
         // station's text.
-        const candidates: LabelCandidate[] = [];
         const dimmed = new Map<string, 'true' | undefined>();
-        const named = new Map<string, string>();
 
         const marks = [...net.stations.values()].map((station) => {
           const p = layout.get(station.id);
@@ -439,7 +427,7 @@ export function MapCanvas({
           // its core is what actually marks it as an interchange.
           const first = codes[0];
           const colour = first ? net.lines.get(first)?.colour : undefined;
-          const r = (isActive ? 8 : isInterchange ? 6 : 4) * markScale;
+          const r = (isActive ? STATION_R.active : isInterchange ? STATION_R.interchange : STATION_R.stop) * markScale;
           const dim =
             (emphasis && !codes.includes(emphasis)) ||
             (emphasisSet && !codes.some((c) => emphasisSet.has(c)))
@@ -451,43 +439,7 @@ export function MapCanvas({
               ? undefined
               : ({ '--pop-delay': `${Math.round(pop)}ms` } as React.CSSProperties);
 
-          // A label for a station well off the viewport is invisible work:
-          // it renders a text node nobody sees, and it makes the placement
-          // pass below compare every pair of the network's 154 names on every
-          // frame of a pan. Half a view of slack keeps labels from popping in
-          // at the edge as the map moves.
-          const onScreen =
-            p.x >= view.x - view.w / 2 && p.x <= view.x + view.w * 1.5 &&
-            p.y >= view.y - view.h / 2 && p.y <= view.y + view.h * 1.5;
-
-          if (
-            isActive ||
-            (onScreen &&
-              (showEveryLabel ||
-                labelled?.has(station.id) ||
-                termini.has(station.id) ||
-                (showInterchangeLabels && majorInterchanges.has(station.id))))
-          ) {
-            // Placement happens once, below, over the whole set: which corner
-            // a label can take depends on what its neighbours already took.
-            candidates.push({
-              id: station.id,
-              at: p,
-              text: station.name,
-              // The station being typed outranks everything, then the marks
-              // that orient you; a plain stop yields its corner to both.
-              priority: isActive
-                ? 3
-                : majorInterchanges.has(station.id)
-                  ? 2
-                  : termini.has(station.id)
-                    ? 1
-                    : 0,
-              required: isActive,
-            });
-            dimmed.set(station.id, dim);
-            named.set(station.id, station.name);
-          }
+          dimmed.set(station.id, dim);
 
           return (
             <g key={station.id === activeStation ? `${station.id}-active` : station.id}>
@@ -544,15 +496,9 @@ export function MapCanvas({
           furniture.push({ x: train.x, y: train.y, r: 13 * markScale });
         }
 
-        const fontSize = 11 * markScale;
-        const labels = placeLabels(candidates, {
-          charWidth: fontSize * LABEL_CHAR_EM,
-          lineHeight: fontSize * LABEL_LINE_EM,
-          offset: 9 * markScale,
-          // The live viewport, so a label near the edge the player has panned
-          // to turns inward rather than running off it.
-          bounds: view,
-          obstacles: furniture,
+        const { labels, fontSize, text: named } = mapLabels({
+          net, layout, view, markScale, activeStation, labelled, tiers, inView, obstacles: furniture,
+          boxes: labelAvoid?.(markScale),
         });
 
         return (

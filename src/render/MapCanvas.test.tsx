@@ -46,6 +46,21 @@ describe('MapCanvas', () => {
       .toBe('true');
   });
 
+  it('draws shared track on top by default, and side by side with laneOffsetPx', () => {
+    const shared = (lanes?: number) => {
+      const { container } = render(
+        <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} laneOffsetPx={lanes} />,
+      );
+      const at = (code: 'AG' | 'SP') => container.querySelector(`polyline[data-line="${code}"]`)!
+        .getAttribute('points')!.split(' ')[net.lines.get(code)!.stations.indexOf('masjid-jamek')];
+      return [at('AG'), at('SP')];
+    };
+    const [ag, sp] = shared();
+    expect(ag).toBe(sp);
+    const [agLane, spLane] = shared(7);
+    expect(agLane).not.toBe(spLane);
+  });
+
   it('labels stations for screen readers rather than relying on colour', () => {
     const { container } = render(
       <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null} />,

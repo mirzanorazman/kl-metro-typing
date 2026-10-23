@@ -6,6 +6,7 @@ import { buildNetwork } from '../engine/network';
 import { loadProfile, saveProfile, type Theme } from '../engine/progress';
 import { eligibleQuickLegs } from '../engine/quickRun';
 import { setMuted, installAudioUnlock } from '../audio/sound';
+import { fullNetworkPeak } from '../render/dispatchReadability';
 import { DispatcherScreen } from './DispatcherScreen';
 import { HomeMap } from './HomeMap';
 import { LineRunScreen } from './LineRunScreen';
@@ -59,10 +60,20 @@ function resolveTheme(stored: Theme | undefined): Theme {
   return dark ? 'midnight' : 'paper';
 }
 
+/**
+ * Dev only: `?dispatch=full` opens a Dispatcher Career on the full network at
+ * a busy peak, for checking the map's readability in the browser. Vite
+ * replaces `import.meta.env.DEV` with false in a production build, so this
+ * and the helper it calls are stripped there.
+ */
+const devFullDispatch = () =>
+  import.meta.env.DEV && new URLSearchParams(window.location.search).get('dispatch') === 'full';
+
 export function App() {
   const data = useMemo(() => loadNetworkData(), []);
   const net = useMemo(() => buildNetwork(data), [data]);
-  const [screen, setScreen] = useState<Screen>({ kind: 'home' });
+  const [screen, setScreen] = useState<Screen>(() => (devFullDispatch() ? { kind: 'dispatch' } : { kind: 'home' }));
+  const devInitial = useMemo(() => (devFullDispatch() ? fullNetworkPeak(net) : undefined), [net]);
   // The map draws itself on when the session opens, and not on the returns
   // from a run or the leaderboard. Owned here rather than in HomeMap because
   // this is where "have we been anywhere yet" is already known: HomeMap
@@ -239,6 +250,7 @@ export function App() {
       <DispatcherScreen
         key={career}
         net={net}
+        initial={career === 0 ? devInitial : undefined}
         onExit={home}
         onAgain={() => setCareer((n) => n + 1)}
         phoneLandscape={phoneLandscape}

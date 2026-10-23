@@ -9,6 +9,13 @@ export interface LabelCandidate {
   priority: number;
   /** Placed even when nothing is free — for the station being typed. */
   required?: boolean;
+  /**
+   * The box's size, when it is not plain text — a chip with padding. Without
+   * it the box is `text.length` characters by one line.
+   */
+  size?: { w: number; h: number };
+  /** The side to try first; otherwise right, unless near the right edge. */
+  prefer?: Side;
 }
 
 export interface PlacedLabel {
@@ -34,6 +41,13 @@ export interface PlaceOptions {
    * treating every dot as an obstacle would drop most of the labels.
    */
   obstacles?: readonly Obstacle[];
+  /** Rectangles labels must not cross, in the same units — chips already placed, say. */
+  boxes?: readonly Box[];
+  /**
+   * Distances to try, as multiples of `offset`, nearest first. Each ring tries
+   * all four corners before the next ring out. Default: just the one.
+   */
+  rings?: readonly number[];
 }
 
 /** A circle labels route around. */
@@ -43,14 +57,14 @@ export interface Obstacle {
   r: number;
 }
 
-interface Box {
+export interface Box {
   x0: number;
   y0: number;
   x1: number;
   y1: number;
 }
 
-type Side = 'right' | 'left';
+export type Side = 'right' | 'left';
 type Rung = 'up' | 'down';
 
 /** Text sits above its baseline, so a box grows upward from `y`. */
@@ -59,15 +73,18 @@ function boxFor(
   side: Side,
   rung: Rung,
   opts: PlaceOptions,
+  ring = 1,
 ): { x: number; y: number; textAnchor: 'start' | 'end'; box: Box } {
-  const width = candidate.text.length * opts.charWidth;
-  const vGap = opts.offset * 0.78;
+  const width = candidate.size?.w ?? candidate.text.length * opts.charWidth;
+  const height = candidate.size?.h ?? opts.lineHeight;
+  const offset = opts.offset * ring;
+  const vGap = offset * 0.78;
 
-  const x = candidate.at.x + (side === 'right' ? opts.offset : -opts.offset);
+  const x = candidate.at.x + (side === 'right' ? offset : -offset);
   const y =
     rung === 'up'
       ? candidate.at.y - vGap
-      : candidate.at.y + vGap + opts.lineHeight;
+      : candidate.at.y + vGap + height;
 
   return {
     x,
@@ -76,7 +93,7 @@ function boxFor(
     box: {
       x0: side === 'right' ? x : x - width,
       x1: side === 'right' ? x + width : x,
-      y0: y - opts.lineHeight,
+      y0: y - height,
       y1: y,
     },
   };
@@ -111,6 +128,8 @@ export function placeLabels(
     x1: o.x + o.r,
     y1: o.y + o.r,
   }));
+  taken.push(...(opts.boxes ?? []));
+  const rings = opts.rings ?? [1];
 
   // Near the right edge the text would run off screen, so try that side last.
   const nearRightEdge = (p: Point) =>
@@ -118,18 +137,21 @@ export function placeLabels(
 
   const placed: PlacedLabel[] = [];
   for (const candidate of order) {
-    const sides: Side[] = nearRightEdge(candidate.at) ? ['left', 'right'] : ['right', 'left'];
+    const first = candidate.prefer ?? (nearRightEdge(candidate.at) ? 'left' : 'right');
+    const sides: Side[] = first === 'left' ? ['left', 'right'] : ['right', 'left'];
     const corners = sides.flatMap((side): Array<[Side, Rung]> => [
       [side, 'up'],
       [side, 'down'],
     ]);
 
     let chosen: ReturnType<typeof boxFor> | null = null;
-    for (const [side, rung] of corners) {
-      const option = boxFor(candidate, side, rung, opts);
-      if (!taken.some((t) => hits(t, option.box))) {
-        chosen = option;
-        break;
+    search: for (const ring of rings) {
+      for (const [side, rung] of corners) {
+        const option = boxFor(candidate, side, rung, opts, ring);
+        if (!taken.some((t) => hits(t, option.box))) {
+          chosen = option;
+          break search;
+        }
       }
     }
 

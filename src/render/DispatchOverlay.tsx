@@ -3,12 +3,13 @@ import type { Point } from '../data/types';
 import type { Layout } from '../geo/layout';
 import type { NetworkIndex } from '../engine/network';
 import type { CareerState } from '../engine/dispatch';
-import { bunchedTrains, heldTrains, trainPosition, type Train } from '../engine/dispatchSim';
+import { bunchedTrains, heldTrains } from '../engine/dispatchSim';
 import { sameRef, type Target, type TargetRef } from '../engine/dispatchTargets';
+import { incidentBadge, overlayLayout, SIGNAL_HALF_W, SIGNAL_LEN, SIGNAL_POST } from './dispatchLayout';
 import { contrastText } from './contrast';
 import { INCIDENT_GLYPH } from './incidentGlyphs';
 import { NO_MOMENTS, type DispersalPop, type ExchangePop, type PassengerMoments } from './usePassengerMoments';
-import { useSignalMarks, type SignalMark } from './useSignalMarks';
+import { useSignalMarks } from './useSignalMarks';
 
 export interface DispatchOverlayProps {
   net: NetworkIndex;
@@ -22,132 +23,10 @@ export interface DispatchOverlayProps {
   moments?: PassengerMoments;
 }
 
-/** Monospace advance plus the label letter-spacing, as a fraction of the font size. */
-const CHAR_EM = 0.68;
-
-interface Box { x0: number; y0: number; x1: number; y1: number }
-
-const hits = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-
-function unit(dx: number, dy: number): Point {
-  const len = Math.hypot(dx, dy);
-  return len === 0 ? { x: 1, y: 0 } : { x: dx / len, y: dy / len };
-}
-
-interface Placed { train: Train; at: Point; heading: Point; side: Point }
-
-/**
- * Where a Train is drawn. A Train at its Signal waits short of the Station,
- * back along the track it came in on, and every Train keeps to the right-hand
- * side of its direction of travel: the two directions at one Station never
- * share a spot, and neither do their labels.
- */
-function placeTrain(net: NetworkIndex, layout: Layout, t: Train, m: number): Placed | null {
-  const ids = net.lines.get(t.line)!.stations;
-  const pos = trainPosition(net, t);
-  const from = layout.get(pos.from);
-  const to = layout.get(pos.to);
-  if (!from || !to) return null;
-  let at = { x: from.x + (to.x - from.x) * pos.t, y: from.y + (to.y - from.y) * pos.t };
-  let heading: Point;
-  if (pos.from !== pos.to) {
-    heading = unit(to.x - from.x, to.y - from.y);
-  } else {
-    const behind = layout.get(ids[t.at - t.dir] ?? '');
-    const ahead = layout.get(ids[t.at + t.dir] ?? '');
-    heading = behind ? unit(from.x - behind.x, from.y - behind.y)
-      : ahead ? unit(ahead.x - from.x, ahead.y - from.y) : { x: 1, y: 0 };
-    if ((t.stage === 'signal' || t.stage === 'cleared') && behind) {
-      const back = Math.min(16 * m, 0.4 * Math.hypot(from.x - behind.x, from.y - behind.y));
-      at = { x: at.x - heading.x * back, y: at.y - heading.y * back };
-    }
-  }
-  // Screen y points down, so (-y, x) is the right-hand side of travel.
-  const side = { x: -heading.y, y: heading.x };
-  return { train: t, at: { x: at.x + side.x * 8 * m, y: at.y + side.y * 8 * m }, heading, side };
-}
-
-interface Chip {
-  key: string;
-  ref: TargetRef;
-  text: string;
-  kind: TargetRef['kind'];
-  from: Point;
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-/**
- * Lays chips out in order, each beside its anchor on the given side and
- * stepped away from any chip already placed or box to `avoid`. Interchanges
- * stack instead of overprinting.
- */
-function layoutChips(
-  wanted: readonly { key: string; ref: TargetRef; text: string; kind: TargetRef['kind']; from: Point; side: Point }[],
-  m: number,
-  fontSize: number,
-  avoid: readonly Box[] = [],
-): Chip[] {
-  const h = fontSize * 1.5;
-  const pad = fontSize * 0.45;
-  const placed: Chip[] = [];
-  const boxes: Box[] = [...avoid];
-  for (const item of wanted) {
-    const w = item.text.length * fontSize * CHAR_EM + pad * 2 + (item.kind === 'skip' ? fontSize : 0);
-    const gap = 15 * m;
-    const right = item.side.x >= 0;
-    const x = right ? item.from.x + item.side.x * gap : item.from.x + item.side.x * gap - w;
-    let y = item.from.y + item.side.y * gap - h / 2;
-    const step = (item.side.y >= 0 ? 1 : -1) * (h + 2 * m);
-    for (let tries = 0; tries < 8 && boxes.some((b) => hits(b, { x0: x, y0: y, x1: x + w, y1: y + h })); tries++) {
-      y += step;
-    }
-    const chip = { key: item.key, ref: item.ref, text: item.text, kind: item.kind, from: item.from, x, y, w, h };
-    placed.push(chip);
-    boxes.push({ x0: x, y0: y, x1: x + w, y1: y + h });
-  }
-  return placed;
-}
-
 const CROSS_ICON = 'M-0.55,-0.55 L0.55,0.55 M0.55,-0.55 L-0.55,0.55';
 
-/** A signal post in nominal units, its foot at the origin and its head up -y: a pole and a footing. */
-const SIGNAL_POST = 'M0,0 V-8 M-2.5,0 H2.5';
-const SIGNAL_HALF_W = 5;
-const SIGNAL_LEN = 24;
 /** Lamp centres in the head: green farther out, red nearer the track, as on a two-aspect signal. */
 const LAMP_Y = { green: -19.5, red: -12.5 } as const;
-
-interface MarkPlace { at: Point; angle: number; box: Box }
-
-/**
- * Where a Signal mark stands: at its faced Station, on the side of the track
- * the train approaches on, just clear of the waiting train's nose. The post
- * points away from the track, so it never lies over the train or the rail.
- */
-function placeMark(net: NetworkIndex, layout: Layout, mark: SignalMark, m: number): MarkPlace | null {
-  const ids = net.lines.get(mark.line)!.stations;
-  const station = layout.get(mark.station);
-  if (!station) return null;
-  const behind = layout.get(ids[mark.at - mark.dir] ?? '');
-  const ahead = layout.get(ids[mark.at + mark.dir] ?? '');
-  const heading = behind ? unit(station.x - behind.x, station.y - behind.y)
-    : ahead ? unit(ahead.x - station.x, ahead.y - station.y) : { x: 1, y: 0 };
-  // Screen y points down, so (-y, x) is the right-hand side of travel.
-  const side = { x: -heading.y, y: heading.x };
-  const at = { x: station.x + heading.x * m + side.x * 4 * m, y: station.y + heading.y * m + side.y * 4 * m };
-  // Rotates the drawing's "up" (0, -1) onto `side`.
-  const angle = (Math.atan2(side.x, -side.y) * 180) / Math.PI;
-  const corners = [-SIGNAL_HALF_W, SIGNAL_HALF_W].flatMap((across) => [0, SIGNAL_LEN].map((out) => ({
-    x: at.x + (heading.x * across + side.x * out) * m,
-    y: at.y + (heading.y * across + side.y * out) * m,
-  })));
-  const xs = corners.map((c) => c.x);
-  const ys = corners.map((c) => c.y);
-  return { at, angle, box: { x0: Math.min(...xs), y0: Math.min(...ys), x1: Math.max(...xs), y1: Math.max(...ys) } };
-}
 
 /** A person, about 12 nominal units tall, standing on the origin: a head, arms and legs. */
 const PERSON = 'M0,-6.5 V-1 M-2.8,-4.5 H2.8 M0,-1 L-2.2,4 M0,-1 L2.2,4';
@@ -249,37 +128,10 @@ export function DispatchOverlay({
   const { marks, pulse } = useSignalMarks(net, career, targets);
   const held = heldTrains(net, sim);
   const bunched = bunchedTrains(net, sim);
-  const fontSize = 13 * m;
   const typed = aim.typed.length;
   const isAimed = (ref: TargetRef) => aimed.some((t) => sameRef(t.ref, ref));
   const isLocked = (ref: TargetRef) => aim.lock !== null && sameRef(aim.lock, ref);
-
-  const trains = sim.trains
-    .map((t) => placeTrain(net, layout, t, m))
-    .filter((p): p is Placed => p !== null);
-  const byId = new Map(trains.map((p) => [p.train.id, p]));
-
-  const wanted = [];
-  for (const target of targets) {
-    if (target.ref.kind === 'fix') {
-      const id = target.ref.incident;
-      const inc = sim.incidents.find((i) => i.id === id);
-      const p = inc && layout.get(inc.place);
-      if (!p) continue;
-      wanted.push({ key: `fix-${id}`, ref: target.ref, text: target.text, kind: 'fix' as const,
-        from: p, side: { x: -0.6, y: -0.8 } });
-    } else {
-      const placed = byId.get(target.ref.train);
-      if (!placed) continue;
-      wanted.push({ key: `${target.ref.kind}-${target.ref.train}`, ref: target.ref, text: target.text,
-        kind: target.ref.kind, from: placed.at, side: placed.side });
-    }
-  }
-  const placed = new Map(marks.map((mark) => [mark.key, placeMark(net, layout, mark, m)] as const)
-    .filter((entry): entry is [string, MarkPlace] => entry[1] !== null));
-  // Chips step clear of the waiting trains' marks; a fading mark may pass under one.
-  const chips = layoutChips(wanted, m, fontSize,
-    marks.filter((mark) => !mark.cleared).flatMap((mark) => placed.get(mark.key)?.box ?? []));
+  const { trains, marks: placed, chips, fontSize } = overlayLayout(net, layout, career, targets, marks, m);
 
   const heldStretches = sim.incidents.filter((inc) => inc.kind === 'signal-fault');
 
@@ -369,19 +221,20 @@ export function DispatchOverlay({
         // The place glows while its fix is being typed.
         const fixing = isLocked({ kind: 'fix', incident: inc.id })
           && targets.some((t) => t.ref.kind === 'fix' && t.ref.incident === inc.id);
+        const badge = incidentBadge(p, m);
         return (
           <g key={`inc-${inc.id}`} data-testid="dispatch-incident" data-kind={inc.kind} className="dispatch-incident">
             {fixing && (
               <circle data-testid="incident-glow" className="incident-glow" cx={p.x} cy={p.y} r={26 * m} />
             )}
             <circle className="dispatch-pulse" cx={p.x} cy={p.y} r={14 * m} />
-            <circle className="dispatch-incident-badge" cx={p.x} cy={p.y - 12 * m} r={9 * m}
+            <circle className="dispatch-incident-badge" cx={badge.x} cy={badge.y} r={badge.r}
               vectorEffect="non-scaling-stroke" />
             <path
               data-icon={`incident-${inc.kind}`}
               d={INCIDENT_GLYPH[inc.kind]}
               fillRule="evenodd"
-              transform={`translate(${p.x} ${p.y - 12 * m}) scale(${6 * m})`}
+              transform={`translate(${badge.x} ${badge.y}) scale(${6 * m})`}
             />
           </g>
         );
