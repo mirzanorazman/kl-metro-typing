@@ -89,6 +89,11 @@ export interface MapCanvasProps {
   /** When set, lines outside it and stations serving none of it are dimmed. */
   emphasisSet?: ReadonlySet<LineCode> | null;
   /**
+   * Stations that want a name at any zoom while on screen, after interchanges
+   * and termini — for a mode that plays on a whole network at once.
+   */
+  labelled?: ReadonlySet<string> | null;
+  /**
    * Extra marks drawn in layout coordinates above the stations and beneath
    * the train. `markScale` converts nominal radii to the current zoom.
    */
@@ -130,6 +135,7 @@ export function MapCanvas({
   backdrop,
   emphasis,
   emphasisSet,
+  labelled = null,
   overlay,
   celebrate,
   travelled,
@@ -458,6 +464,7 @@ export function MapCanvas({
             isActive ||
             (onScreen &&
               (showEveryLabel ||
+                labelled?.has(station.id) ||
                 termini.has(station.id) ||
                 (showInterchangeLabels && majorInterchanges.has(station.id))))
           ) {

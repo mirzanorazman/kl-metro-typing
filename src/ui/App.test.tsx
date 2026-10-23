@@ -293,6 +293,13 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: /leaderboard/i })).toBeTruthy();
   });
 
+  it("the home map's Dispatcher button opens the screen", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /dispatcher/i }));
+    expect(screen.getByRole('banner', { name: 'Shift' }).textContent).toMatch(/Shift 1/);
+    expect(document.querySelector('.home-map')).toBeNull();
+  });
+
   it('starts a desktop quick run from the home direction picker', () => {
     render(<App />);
 

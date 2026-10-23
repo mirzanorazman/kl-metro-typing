@@ -6,6 +6,7 @@ import { buildNetwork } from '../engine/network';
 import { loadProfile, saveProfile, type Theme } from '../engine/progress';
 import { eligibleQuickLegs } from '../engine/quickRun';
 import { setMuted, installAudioUnlock } from '../audio/sound';
+import { DispatcherScreen } from './DispatcherScreen';
 import { HomeMap } from './HomeMap';
 import { LineRunScreen } from './LineRunScreen';
 import { AdventureScreen } from './AdventureScreen';
@@ -29,7 +30,8 @@ type Screen =
   | { kind: 'leaderboard' }
   | { kind: 'quick'; code: LineCode; toward: string }
   | { kind: 'rush-setup' }
-  | { kind: 'rush'; lineSet: LineCode[]; at: string };
+  | { kind: 'rush'; lineSet: LineCode[]; at: string }
+  | { kind: 'dispatch' };
 
 function MobileRunFrame({ children, phone }: { children: JSX.Element; phone: boolean }) {
   const { height } = useVisualViewport();
@@ -75,6 +77,8 @@ export function App() {
   playBlocked.current = phoneLandscape;
   const previousPhone = useRef(phone);
   const lastQuickStart = useRef<string | null>(null);
+  // Bumped by "New Career" so the screen remounts with a fresh seed.
+  const [career, setCareer] = useState(0);
 
   useEffect(() => {
     if (previousPhone.current === phone) return;
@@ -118,7 +122,8 @@ export function App() {
   const leaveHome = (next: Screen) => {
     if (
       playBlocked.current &&
-      (next.kind === 'quick' || next.kind === 'line' || next.kind === 'adventure' || next.kind === 'rush')
+      (next.kind === 'quick' || next.kind === 'line' || next.kind === 'adventure' || next.kind === 'rush'
+        || next.kind === 'dispatch')
     ) return;
     setIntroSpent(true);
     setScreen(next);
@@ -176,6 +181,7 @@ export function App() {
         onPickStation={startAdventure}
         onOpenLeaderboard={() => leaveHome({ kind: 'leaderboard' })}
         onOpenRush={() => leaveHome({ kind: 'rush-setup' })}
+        onOpenDispatcher={() => leaveHome({ kind: 'dispatch' })}
         intro={!introSpent}
       />
     );
@@ -228,6 +234,16 @@ export function App() {
         phoneLandscape={phoneLandscape}
       />
     );
+  } else if (screen.kind === 'dispatch') {
+    content = (
+      <DispatcherScreen
+        key={career}
+        net={net}
+        onExit={home}
+        onAgain={() => setCareer((n) => n + 1)}
+        phoneLandscape={phoneLandscape}
+      />
+    );
   } else if (screen.kind === 'adventure-setup') {
     content = (
       <MobileShell active="adventure" onNavigate={navigateMobile}>
@@ -243,7 +259,8 @@ export function App() {
   }
 
   const activeRun =
-    screen.kind === 'line' || screen.kind === 'adventure' || screen.kind === 'quick' || screen.kind === 'rush';
+    screen.kind === 'line' || screen.kind === 'adventure' || screen.kind === 'quick' || screen.kind === 'rush'
+    || screen.kind === 'dispatch';
   const framedContent = activeRun
     ? <MobileRunFrame phone={phone}>{content}</MobileRunFrame>
     : content;

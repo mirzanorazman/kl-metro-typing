@@ -23,6 +23,8 @@ export interface HomeMapProps {
   onOpenLeaderboard: () => void;
   /** Opens Rush Hour setup. Omitted where Rush Hour is not offered. */
   onOpenRush?: () => void;
+  /** Opens a Dispatcher Career. Omitted where Dispatcher is not offered. */
+  onOpenDispatcher?: () => void;
   /**
    * Whether to play the opening draw-on. App withholds it on the returns
    * from a run, so the animation opens the session rather than taxing every
@@ -40,6 +42,7 @@ export function HomeMap({
   onPickStation,
   onOpenLeaderboard,
   onOpenRush,
+  onOpenDispatcher,
   intro = true,
 }: HomeMapProps) {
   const { geo: layout, backdrop, districts, pxPerKm } = networkLayout();
@@ -262,6 +265,18 @@ export function HomeMap({
                 }}
               >
                 <span>Rush Hour</span>
+              </button>
+            )}
+
+            {onOpenDispatcher && (
+              <button
+                type="button"
+                onClick={() => {
+                  sound.select();
+                  onOpenDispatcher();
+                }}
+              >
+                <span>Dispatcher</span>
               </button>
             )}
 
