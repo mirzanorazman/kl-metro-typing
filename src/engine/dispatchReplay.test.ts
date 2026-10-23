@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
-import { careerMetrics, careerScore, careerTotals } from './dispatch';
+import { careerMetrics, careerScore, careerTotals, type CareerState, type Wave } from './dispatch';
+import type { Train } from './dispatchSim';
 import { drive } from './dispatchDrive.testutil';
 import { DISPATCH_KEYLOG_MAX_EVENTS } from './dispatchBalance';
 import { judgeCareer } from './dispatchJudge';
@@ -45,6 +46,31 @@ describe('replayDispatch', () => {
     const { state, evidence } = drive({ seed: 2, msPerKey: 200, limitMs: 30 * 60_000, accuracy: 0.99 });
     expect(state.endReason).toBe('failed');
     expect(state.waves).toBeGreaterThan(0);
+    expectSame(state, evidence);
+    expect(replayDispatch(net, evidence)!.waves).toBe(state.waves);
+  }, 120_000);
+
+  it('a Green wave from a Skip-stop fires on the skipped train\'s Line, from its Station, and replays', () => {
+    const fromSkips: Array<{ wave: Wave; skipped: Train }> = [];
+    let prev: CareerState | null = null;
+    const { state, evidence } = drive({
+      seed: 1, msPerKey: 200, limitMs: 10 * 60_000, accuracy: 0.995, skips: true,
+      watch: (s) => {
+        // One key or action between looks, so a wave that fires as a train
+        // leaves its Signal on an express run came from that Skip-stop.
+        if (prev && s.lastWave && s.lastWave.id !== prev.lastWave?.id) {
+          const skipped = prev.sim.trains.filter((p) => p.stage === 'signal' && p.skipTo === null
+            && s.sim.trains.some((t) => t.id === p.id && t.skipTo !== null));
+          if (skipped.length === 1) fromSkips.push({ wave: s.lastWave, skipped: skipped[0]! });
+        }
+        prev = s;
+      },
+    });
+    expect(fromSkips.length).toBeGreaterThan(0);
+    for (const { wave, skipped } of fromSkips) {
+      expect(wave.line).toBe(skipped.line);
+      expect(wave.origin).toBe(net.lines.get(skipped.line)!.stations[skipped.at]);
+    }
     expectSame(state, evidence);
     expect(replayDispatch(net, evidence)!.waves).toBe(state.waves);
   }, 120_000);

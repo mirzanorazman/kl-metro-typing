@@ -31,6 +31,8 @@ export interface DriveOptions {
   accuracy?: number;
   /** Ignores fix Targets until the Incident is past three-quarters of INCIDENT_LIMIT_MS. */
   inattentive?: boolean;
+  /** Takes an express skip whenever one is offered, ahead of anything else. */
+  skips?: boolean;
 }
 
 /** The Line a Target's completion happens on, which is where its Green wave would fire. */
@@ -96,7 +98,8 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
       const typed = aim.typed.toLowerCase();
       const pool = aim.typed === '' ? targets : targets.filter((t) => t.text.toLowerCase().startsWith(typed));
       if (pool.length === 0 && aim.typed !== '') return 'unlock';
-      target = chooseTarget(state.sim, pool, state.streak);
+      const skips = o.skips ? pool.filter((t) => t.ref.kind === 'skip') : [];
+      target = chooseTarget(state.sim, skips.length > 0 ? skips : pool, state.streak);
       chosen = target?.ref ?? null;
     }
     // Nothing to type: only the first key of a Shift is worth spending, to start the clock.
