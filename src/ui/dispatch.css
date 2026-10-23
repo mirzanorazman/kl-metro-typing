@@ -204,6 +204,27 @@
   z-index: 10;
 }
 
+/* End Career's question: words and a border, never colour alone. */
+.dispatch-end-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s);
+  padding: var(--s);
+  border: 2px solid var(--ink);
+  border-radius: 0.5rem;
+}
+
+.dispatch-end-question {
+  flex-basis: 100%;
+  margin: 0;
+  font: 700 var(--t-xs) var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.dispatch-end-yes { font-weight: 700; }
+
 /* ---- Map overlay ---- */
 
 .dispatch-train text,

@@ -22,6 +22,7 @@ import { DispatcherScreen } from './DispatcherScreen';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchSummary } from './DispatchSummary';
 import { closureText, failureText } from './dispatchTips';
+import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
 
 // Pass-through spy: the screen's judged evidence is observed, never altered.
@@ -77,6 +78,12 @@ function fakeClock(start = 1_000) {
   vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
   return clock;
 }
+
+/** End Career asks first: the click opens the question, "Yes, end it" answers it. */
+const endCareer = () => {
+  fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Yes, end it' }));
+};
 
 const signalLabels = () => screen.queryAllByTestId('dispatch-signal');
 const labelFor = (name: string) => signalLabels().find((el) => el.textContent?.includes(name));
@@ -315,7 +322,7 @@ describe('DispatcherScreen', () => {
     renderShift({ ...startCareer(net, 7), status: 'between', shift: 1, cleared: 1, startedAt: 1_000, stoppedAt: 2_000,
       history: [{ shift: 1, delivered: 40, calls: 10, onTimeCalls: 9, cleared: true }] });
     expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+    endCareer();
     const summary = screen.getByRole('region', { name: 'Career summary' });
     expect(screen.getByRole('heading', { name: 'Career ended' })).toBeTruthy();
     expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
@@ -551,7 +558,7 @@ describe('DispatcherScreen', () => {
     it('an abandoned Career ends early and is never judged', () => {
       renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
       type('J');
-      fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+      endCareer();
       expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
       expect(screen.queryByText('Checking your Career…')).toBeNull();
       expect(judgeSpy).not.toHaveBeenCalled();
@@ -574,6 +581,104 @@ const offerAt = (line: LineCode, name: string): Expansion => {
   const at = net.lines.get(line)!.stations.indexOf(id);
   return { line, from: Math.max(0, at - 2), to: at, farEnd: id, added: [id] };
 };
+
+describe('End Career asks first', () => {
+  /** A Shift under way: End Career is disabled until the first key starts it. */
+  const renderRunning = () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]));
+    type('J');
+  };
+  const betweenShifts = (): CareerState => ({ ...startCareer(net, 7), status: 'between', shift: 1, cleared: 1,
+    startedAt: 1_000, stoppedAt: 2_000, offers: [offerAt('AG', 'Ampang')],
+    history: [{ shift: 1, delivered: 40, calls: 10, onTimeCalls: 9, cleared: true }] });
+  const stillPlaying = () => {
+    expect(screen.queryByRole('region', { name: 'Career summary' })).toBeNull();
+    expect(screen.queryByRole('heading', { name: 'Career ended' })).toBeNull();
+  };
+
+  it("one click on End Career doesn't end the Career", () => {
+    renderRunning();
+    fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+    stillPlaying();
+    expect(screen.getByText('End Career?')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Yes, end it' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Keep playing' })).toBeTruthy();
+    expect(screen.getByRole('banner', { name: 'Shift' })).toBeTruthy();
+  });
+
+  it('Yes, end it ends it', () => {
+    renderRunning();
+    endCareer();
+    expect(screen.getByRole('heading', { name: 'Career ended' })).toBeTruthy();
+    expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
+  });
+
+  it('Keep playing puts End Career back', () => {
+    renderRunning();
+    fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Keep playing' }));
+    expect(screen.getByRole('button', { name: 'End Career' })).toBeTruthy();
+    expect(screen.queryByText('End Career?')).toBeNull();
+    stillPlaying();
+  });
+
+  it('the question goes away by itself', () => {
+    vi.useFakeTimers();
+    try {
+      renderRunning();
+      fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+      expect(screen.getByText('End Career?')).toBeTruthy();
+      act(() => { vi.advanceTimersByTime(END_CONFIRM_MS - 1); });
+      expect(screen.getByText('End Career?')).toBeTruthy();
+      act(() => { vi.advanceTimersByTime(1); });
+      expect(screen.getByRole('button', { name: 'End Career' })).toBeTruthy();
+      expect(screen.queryByText('End Career?')).toBeNull();
+      stillPlaying();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Enter and Space never answer it', () => {
+    renderRunning();
+    fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+    for (const name of ['Yes, end it', 'Keep playing']) {
+      const button = screen.getByRole('button', { name });
+      button.focus();
+      expect(fireEvent.keyDown(button, { key: 'Enter' })).toBe(false);
+      expect(fireEvent.keyDown(button, { key: ' ' })).toBe(false);
+    }
+    stillPlaying();
+    expect(screen.getByText('End Career?')).toBeTruthy();
+  });
+
+  it('the Expansion screen asks too', () => {
+    renderShift(betweenShifts());
+    fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+    stillPlaying();
+    expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+    expect(screen.getByText('End Career?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, end it' }));
+    expect(screen.getByRole('heading', { name: 'Career ended' })).toBeTruthy();
+  });
+
+  it('on the Expansion screen Enter and Space never answer it either', () => {
+    renderShift(betweenShifts());
+    fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+    for (const name of ['Yes, end it', 'Keep playing']) {
+      const button = screen.getByRole('button', { name });
+      button.focus();
+      expect(fireEvent.keyDown(button, { key: 'Enter' })).toBe(false);
+      expect(fireEvent.keyDown(button, { key: ' ' })).toBe(false);
+    }
+    stillPlaying();
+  });
+
+  it('End Career stays disabled until the Shift has started', () => {
+    renderShift(startCareer(net, 7));
+    expect((screen.getByRole('button', { name: 'End Career' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
 
 describe('DispatchExpansion', () => {
   const between = (offers: Expansion[], cleared = 2): CareerState => ({

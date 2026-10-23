@@ -28,6 +28,7 @@ import { networkLayout } from '../geo/networkLayout';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
+import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
 import { DispatchSummary } from './DispatchSummary';
@@ -436,9 +437,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
                   onPick={(pick) => act({ a: 'expand', pick })}
                   active={tips.length === 0}
                 />
-                <button type="button" onClick={() => act({ a: 'abandon' })}>
-                  End Career
-                </button>
+                <ConfirmEndButton onConfirm={() => act({ a: 'abandon' })} />
               </>
             ) : (
               <>
@@ -449,9 +448,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
                 <p className="hint">
                   <kbd>Backspace</kbd> to let go · <kbd>Esc</kbd> to pause
                 </p>
-                <button type="button" onClick={() => act({ a: 'abandon' })} disabled={run.startedAt === null}>
-                  End Career
-                </button>
+                <ConfirmEndButton onConfirm={() => act({ a: 'abandon' })} disabled={run.startedAt === null} />
               </>
             )}
             {tips.length > 0 ? (
