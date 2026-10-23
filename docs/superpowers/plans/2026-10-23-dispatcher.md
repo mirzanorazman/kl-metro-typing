@@ -289,7 +289,7 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   ```
   The tests in this task step with `stepWorld`.
 
-- [ ] **Step 1: Write the failing tests.**
+- [x] **Step 1: Write the failing tests.**
   - `no Incidents in the first INCIDENT_FIRST_MS, then they come`: run with multiplier 1. There are none before 20 s, at least one by 3 min, and never more than `INCIDENT_MAX` at once.
   - `Incidents favour strained Stations`: build two sims from one seed, one with `klcc` crowded to 70. Over 50 seeds, the crowded run puts an Incident's `place` within 1 hop of `klcc` more often.
   - `a signal fault holds its stretch`: inject a signal-fault on KJ `[klcc, kampung-baru, dang-wangi]`. A Train approaching `kampung-baru` is in `heldTrains`, `clearSignal` on it returns false, and a Train dwelling at `klcc` does not depart towards `kampung-baru`.
@@ -299,16 +299,16 @@ A Career replays exactly from its Keylog plus action log, so it can be judged fo
   - `an unfixed Incident escalates`: after `INCIDENT_LIMIT_MS`, its `place` is in `outOfService` with cause = kind, and the Incident is gone.
   - `Incidents never start on Out-of-service Stations or overlap another Incident's stations`.
 
-- [ ] **Step 2: Run them and confirm they fail.**
+- [x] **Step 2: Run them and confirm they fail.**
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
   - **Rate:** `incidentDebt += INCIDENTS_PER_MINUTE × multiplier × escalation × TICK_MS / 60_000`, once `shiftMs >= INCIDENT_FIRST_MS` and below `INCIDENT_MAX`.
   - **Place:** chosen weighted by `strain`, then a kind uniformly among those that fit. A signal fault needs `SIGNAL_FAULT_STATIONS` consecutive in-service served Stations on one Line, centred on the place. A train fault needs a Train approaching the place.
   - **Inside `stepSim`** (reads `s.incidents` directly): Held Trains don't move. Crowd-surge spawning is ×4 at its place.
 
-- [ ] **Step 4: Run them and confirm they pass.**
+- [x] **Step 4: Run them and confirm they pass.**
 
-- [ ] **Step 5: Commit.** `git commit -m "feat: dispatcher incidents"`
+- [x] **Step 5: Commit.** `git commit -m "feat: dispatcher incidents"`
 
 ---
 
