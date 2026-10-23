@@ -11,7 +11,8 @@ Implementation uses a fresh implementer per task, followed by spec and quality r
 - New-Line Expansion sizes count the existing anchor in the 2–5 Station total, matching the design and acceptance test. Extensions add 2–5 Stations, clipped at the available end.
 - Terminal turnaround replaces base dwell in the target Headway cycle. On very short shared ranges, initial placement and reinforcement defer trains that cannot safely circulate, potentially indefinitely. Physical block exclusivity takes precedence over reaching each Line's desired fleet size. A private wait-for-cycle guard prevents through trains and turnbacks closing a circular wait; reinforcement requires both terminal platform directions free.
 - `heldTrains(net, s)` takes the network index to resolve numeric Train positions. Incident processing uses the ending time of the pending tick, keeping escalation and resulting simulation time aligned.
-- Real names have complete-prefix collisions (Ampang/Ampang Park, Sentul/Sentul Timur, Glenmarie/Glenmarie 2, Subang/Subang Jaya). Pending user preference, use Enter to confirm an exact shorter name while longer matches remain; unique names still complete automatically. Confirmation will be an action in replay evidence, not a counted keystroke.
+- Real names have complete-prefix collisions (Ampang/Ampang Park, Sentul/Sentul Timur, Glenmarie/Glenmarie 2, Subang/Subang Jaya). Enter confirms an exact shorter name while longer matches remain; unique names still complete automatically. Confirmation is an action in replay evidence, not a counted keystroke. **Confirmed by the user on 2026-10-23.**
+- Execution moved from the Codex worktree to the primary checkout after Task 6: `feat/dispatcher` was fast-forwarded to `codex/dispatcher` (`c9799de`). Tasks 7 onward run on `feat/dispatcher`.
 - Rush Hour remains playable. Task 12 requires the user's playtest and explicit retirement instruction.
 
 ## Task progress
