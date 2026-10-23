@@ -51,14 +51,18 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
     state = after;
   };
 
-  /** The next thing to press: a character, or Enter once the whole name is typed. */
-  const nextInput = (): string | 'confirm' => {
+  /** The next thing to press: a character, Enter once the whole name is typed, or a release of a dead aim. */
+  const nextInput = (): string | 'confirm' | 'unlock' => {
     const targets = visibleTargets(net, state.sim);
     const { aim } = state;
     let target = aim.lock ? targets.find((t) => sameRef(t.ref, aim.lock!))
       : aim.typed !== '' && chosen ? targets.find((t) => sameRef(t.ref, chosen!)) : undefined;
     if (!target) {
-      target = chooseTarget(targets);
+      // Part-way through a name, only a Target that continues it will do.
+      const typed = aim.typed.toLowerCase();
+      const pool = aim.typed === '' ? targets : targets.filter((t) => t.text.toLowerCase().startsWith(typed));
+      if (pool.length === 0 && aim.typed !== '') return 'unlock';
+      target = chooseTarget(pool);
       chosen = target?.ref ?? null;
     }
     // Nothing to type: only the first key of a Shift is worth spending, to start the clock.
@@ -79,8 +83,8 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
       act({ a: 'expand', pick: state.offers.length === 0 ? -1 : o.pick?.(state) ?? 0 });
     } else if (state.status === 'ready' || state.status === 'running') {
       const input = nextInput();
-      if (input === 'confirm') {
-        act({ a: 'confirm' });
+      if (input === 'confirm' || input === 'unlock') {
+        act({ a: input });
       } else if (input !== '') {
         keys += 1;
         // Every 23rd key is a typo; human-ish jitter keeps the Verdict happy.

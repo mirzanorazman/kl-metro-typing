@@ -4,7 +4,7 @@ import { buildNetwork } from './network';
 import { STARTING_NETWORK, servedDistances } from './dispatchNetwork';
 import { INCIDENT_FIRST_MS, INCIDENT_LIMIT_MS, INCIDENT_MAX, STRAIN_HELD_WEIGHT, TICK_MS } from './dispatchBalance';
 import { clearSignal, cloneSim, crowdAt, heldStations, heldTrains, startShiftSim, type Incident, type PhaseNow } from './dispatchSim';
-import { advanceFix, fixItems, stepWorld, strain } from './dispatchIncidents';
+import { advanceFix, fixItems, stepIncidents, stepWorld, strain } from './dispatchIncidents';
 
 const net = buildNetwork(loadNetworkData());
 const kj = net.lines.get('KJ')!.stations;
@@ -43,8 +43,12 @@ describe('Dispatcher incidents', () => {
       const b = startShiftSim(net, STARTING_NETWORK, seed);
       b.platforms.klcc!.waiting[kj[4]!] = 70;
       expect(strain(net, b, 'klcc')).toBeGreaterThan(strain(net, a, 'klcc'));
-      while (a.incidents.length === 0) stepWorld(net, a, phase);
-      while (b.incidents.length === 0) stepWorld(net, b, phase);
+      // Incident steps only: no Passengers spawn or move, so balance numbers play no part.
+      const first = (sim: typeof a) => {
+        while (sim.incidents.length === 0) { sim.shiftMs += TICK_MS; stepIncidents(net, sim, phase); }
+      };
+      first(a);
+      first(b);
       base += Number((hops.get(a.incidents[0]!.place) ?? Infinity) <= 1);
       crowded += Number((hops.get(b.incidents[0]!.place) ?? Infinity) <= 1);
     }
