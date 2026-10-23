@@ -13,15 +13,15 @@ export const TURNAROUND_MS = 3_000;
 /** Trains on a Line are max(2, round(served Stations / this)). */
 export const STATIONS_PER_TRAIN = 5;
 /** Maximum Passengers aboard one Train. */
-export const TRAIN_CAPACITY = 60;
+export const TRAIN_CAPACITY = 100;
 /** Maximum Station crowd across all directions. */
-export const PLATFORM_CAPACITY = 80;
+export const PLATFORM_CAPACITY = 55;
 /** A full platform goes Out of service after this many milliseconds. */
-export const OOS_CROWD_MS = 20_000;
+export const OOS_CROWD_MS = 45_000;
 /** This share of served Stations Out of service fails a Shift. */
 export const OOS_FAIL_SHARE = 0.25;
 /** Passengers per second per demand unit at multiplier 1. */
-export const PASSENGER_RATE = 0.105;
+export const PASSENGER_RATE = 0.097;
 /** Destination weight boost towards or away from the centre at peak. */
 export const CENTRAL_PULL = 3;
 /** Stations treated as central when weighting peak travel flows. */
@@ -58,13 +58,13 @@ export const LATE_FACTOR = 1.5;
 /** A Station call is on time up to this times target Headway. */
 export const ON_TIME_FACTOR = 1.25;
 /** Incident arrivals per minute at demand multiplier 1. */
-export const INCIDENTS_PER_MINUTE = 1.5;
+export const INCIDENTS_PER_MINUTE = 2;
 /** Maximum simultaneous Incidents. */
 export const INCIDENT_MAX = 3;
 /** No Incident can start before this time in a Shift. */
-export const INCIDENT_FIRST_MS = 20_000;
+export const INCIDENT_FIRST_MS = 10_000;
 /** Unfixed Incidents put their place Out of service after this long. */
-export const INCIDENT_LIMIT_MS = 40_000;
+export const INCIDENT_LIMIT_MS = 35_000;
 /** Passenger arrival multiplier at a crowd surge's place. */
 export const CROWD_SURGE_MULTIPLIER = 4;
 /** Crowding contribution when weighting Incident locations. */

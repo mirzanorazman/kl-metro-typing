@@ -446,7 +446,7 @@ describe('DispatcherScreen', () => {
       const replayed = replayDispatch(net, evidence);
       expect(replayed).not.toBeNull();
       expect(replayed!.complete).toBe(true);
-      expect(screen.getByText(/went out of service when its platform overflowed/)).toBeTruthy();
+      expect(screen.getByText(/went out of service after a signal fault was left unfixed/)).toBeTruthy();
     });
 
     it('an ineligible failed Career records an integrity fail for Dispatcher', () => {

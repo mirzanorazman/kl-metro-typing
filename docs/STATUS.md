@@ -1,6 +1,6 @@
 # KL-Metro Typing — status and handoff
 
-**Last updated:** 2026-09-28
+**Last updated:** 2026-10-23
 
 A typing game on the Kuala Lumpur Rapid KL rail network. Type station names to
 drive a train across the Klang Valley.
@@ -21,7 +21,8 @@ npm test
 
 ## What exists
 
-Four playable modes share the network and typing foundations.
+Five playable modes share the network and typing foundations. Rush Hour is
+being replaced by Dispatcher.
 
 **Line Run** — the main entry point. Pick a line off the map (click, or type its
 two-letter code), choose which terminus to start from, and type the line end to
@@ -60,7 +61,12 @@ iPad Mini-sized landscape renders the desktop/tablet play layout without being
 blocked, including at a reduced-height browser viewport. A real iPad Mini check
 with its software keyboard open remains a separate compatibility follow-up.
 
-**Rush Hour** — survival, desktop and tablet (v1, on branch `feat/rush-hour`).
+**Rush Hour** (*being replaced* by Dispatcher, below). It stays playable until
+the user has playtested Dispatcher and says to retire it. Retiring it is Task 12
+of the Dispatcher plan, which is gated on that instruction.
+
+Rush Hour is a survival mode for desktop and tablet (v1, merged from
+`feat/rush-hour`).
 Choose a Line set from the Rush Hour button on the home map; Start begins at a
 random Station on it. Passengers spawn in Queues and want a Line, not a Station; the one-carriage
 train (Capacity 8) delivers them at any Station serving it. A full Queue fills
@@ -76,9 +82,36 @@ one-time tips. Music: an upbeat loop on Setup, and during a Run a calm pulse
 that turns tense while any Overflow ring shows (`music.play` tracks in
 `audio/sound.ts`).
 
-**Local leaderboard** — Line Run only. Completing a line end to end offers a
-name entry if the run's score would place in the top 20 overall or the top 20
-for that line. Longer lines are weighted more heavily on the overall board, so
+**Dispatcher** (desktop and tablet, branch `feat/dispatcher`) replaces Rush
+Hour.
+
+- **Careers and Shifts.** A Career is a run of Shifts on a Served network.
+  It starts on the central Kelana Jaya stretch.
+- **Signals.** Trains run on every served Line and stop at a red Signal before
+  each Station. Typing that Station's name Clears the Signal. Untyped Trains
+  are Held, and delay spreads through Headway, crowding and bunching.
+- **Incidents.** Signal faults, train faults and crowd surges need longer fix
+  texts. One left unfixed puts its Station Out of service.
+- **Failing a Shift.** It fails when 25 % of served Stations are Out of
+  service. The summary names the Station and the cause.
+- **Expansions.** Surviving the compressed service day (Morning peak, Midday,
+  Evening peak; 210 s) offers an Expansion. They follow the order KL's lines
+  opened (Eras).
+- **Narrowing and confirming.** Typing narrows to a Target. Enter confirms an
+  exact shorter name where a longer one also matches (Ampang / Ampang Park).
+  Backspace releases the aim and Escape pauses.
+
+The engine is pure and seeded (`engine/dispatch*.ts`, tuning in
+`engine/dispatchBalance.ts`). A Career replays from its Keylog plus action
+log. Only a Failed, verified Career enters Dispatcher's own leaderboard tab.
+
+Balance (Task 11) measured 40 / 60 / 90 WPM clearing a median of 2 / 4 / 6
+Shifts over 80 seeds. The open leans, gotchas and deviations from the spec are
+in `docs/superpowers/dispatcher-handover.md`. Next: the user playtests.
+
+**Local leaderboard** — Line Run, plus a separate Dispatcher tab. Completing a
+line end to end offers a name entry if the run's score would place in the top
+20 overall or the top 20 for that line. Longer lines are weighted more heavily on the overall board, so
 a given score on a long line ranks above the same score on a short one.
 Everything is kept in `localStorage`; there is no server.
 
@@ -107,7 +140,7 @@ keyboards.
 src/
   data/      network JSON + types + validation + leaderboardStore   (154 stations, 7 lines, 5 walk links)
   engine/    game logic: network, typing, metrics, run, lineRun, quickRun, replay,
-             progress, leaderboard
+             progress, leaderboard, rushHour, dispatch* (Dispatcher)
   geo/       projection, schematic layout, fitting, shared networkLayout
   render/    SVG map, train marker, prompt, HUD, line strip, pan/zoom
   ui/        screens: HomeMap, QuickRunScreen, LineRunScreen, AdventureScreen,
@@ -241,7 +274,11 @@ Redeploying a previous build needs no migration and will not wipe anyone's
 leaderboard or profile. Keep it that way: the moment a schema version moves,
 this paragraph stops being true.
 
-**Rush Hour v2** — upgrades and phone support.
+**Dispatcher playtest, then retire Rush Hour.** The user plays Dispatcher.
+Tuning follow-ups go in the handover's leans. Task 12 removes Rush Hour only
+on the user's instruction.
+
+**Rush Hour v2** — superseded by Dispatcher; kept for history.
 v1 is built; the text below is the original framing.
 
 **Rush Hour (original framing)** — the survival mode from the original spec. Passengers accumulate at stations; your typing speed is the
@@ -314,6 +351,10 @@ simply synchronous while the behaviour was animated.
 | `docs/superpowers/specs/2026-09-28-rush-hour-design.md` | Rush Hour v1 design, agreed in a grilling session. |
 | `docs/superpowers/plans/2026-09-28-rush-hour.md` | Rush Hour v1 plan, 12 tasks. |
 | `docs/superpowers/rush-hour-handover.md` | Rush Hour rulings, gotchas, and the open balance finding. |
+| `docs/superpowers/specs/2026-10-23-dispatcher-design.md` | Dispatcher design, which replaces Rush Hour. |
+| `docs/superpowers/plans/2026-10-23-dispatcher.md` | Dispatcher plan, 12 tasks. Task 12 (retire Rush Hour) is gated on the user's playtest. |
+| `docs/superpowers/2026-10-23-dispatcher-execution-record.md` | Dispatcher Tasks 1–6: interpretations and reviews. |
+| `docs/superpowers/dispatcher-handover.md` | Dispatcher resume point, balance survey, leans for playtesting, gotchas, deviations from the spec. |
 
 Early work after Plan 2 was driven by direct feedback rather than a plan: the
 train being positioned by typing progress, error feedback, synthesised sound,

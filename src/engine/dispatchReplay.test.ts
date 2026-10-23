@@ -39,8 +39,9 @@ describe('replayDispatch', () => {
   }, 120_000);
 
   it('confirm actions replay', () => {
-    for (let seed = 1; seed <= 12; seed++) {
-      const { state, evidence } = drive({ seed, msPerKey: 133, limitMs: 30 * 60_000 });
+    // Exact-prefix names only meet in a large late-Career network, so look further.
+    for (let seed = 1; seed <= 25; seed++) {
+      const { state, evidence } = drive({ seed, msPerKey: 133, limitMs: 60 * 60_000 });
       if (!evidence.actions.some((a) => a.a === 'confirm')) continue;
       expectSame(state, evidence);
       return;
