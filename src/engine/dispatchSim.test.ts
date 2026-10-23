@@ -169,16 +169,25 @@ describe('Dispatcher trains, blocks and signals', () => {
     expect(s.trains).toHaveLength(2);
   });
 
-  it('defers a fleet that cannot fit on short shared track and reinforces after blocks free', () => {
+  it('keeps short shared-track trains circulating when the desired fleets cannot fit safely', () => {
     const served: Served = [{ line: 'AG', from: 0, to: 1 }, { line: 'SP', from: 0, to: 1 }];
     const s = startShiftSim(net, served, 1);
     expect(s.trains).toHaveLength(2);
     expect(s.trains.every((t) => t.line === 'AG')).toBe(true);
     expectNoConflicts(s);
-    for (const t of s.trains) clearSignal(net, s, t.id);
-    run(s, TICK_MS);
-    expect(s.trains.filter((t) => t.line === 'SP')).toHaveLength(trainsForLine(served[1]!, 1));
-    expectNoConflicts(s);
+    for (let window = 0; window < 10; window++) {
+      const advances = new Map(s.trains.map((t) => [t.id, 0]));
+      for (let tick = 0; tick < 400; tick++) {
+        for (const t of s.trains) if (t.stage === 'signal') clearSignal(net, s, t.id);
+        const before = new Map(s.trains.map((t) => [t.id, t.at]));
+        stepSim(net, s, MIDDAY);
+        for (const t of s.trains) if (before.has(t.id) && before.get(t.id) !== t.at) {
+          advances.set(t.id, (advances.get(t.id) ?? 0) + 1);
+        }
+        expectNoConflicts(s);
+      }
+      for (const [id, count] of advances) expect(count, `train ${id}, 40-second window ${window}`).toBeGreaterThan(0);
+    }
   });
 
   it('adds phase reinforcements only at free range-end platforms and departure blocks', () => {
@@ -203,6 +212,14 @@ describe('Dispatcher trains, blocks and signals', () => {
     s.trains[2] = train(3, { at: 12 });
     run(s, TICK_MS, { ...MIDDAY, trainFactor: 2 });
     expect(s.trains).toHaveLength(3);
+    expectNoConflicts(s);
+  });
+
+  it('keeps terminal capacity for arriving trains instead of inserting beside an opposite-direction platform', () => {
+    const s = fixture(train(1, { at: 17, stage: 'turnaround', ms: TURNAROUND_MS }));
+    s.trains[2] = train(3, { at: 10, dir: -1 });
+    run(s, TICK_MS, { ...MIDDAY, trainFactor: 2 });
+    expect(s.trains.filter((t) => t.id >= 4 && t.at === 17)).toHaveLength(0);
     expectNoConflicts(s);
   });
 
@@ -261,5 +278,68 @@ describe('Dispatcher trains, blocks and signals', () => {
         expect(Number.isFinite(trainPosition(net, t).t)).toBe(true);
       }
     }
+  });
+
+  it('keeps longer shared-track fleets advancing throughout sustained all-clear operation', () => {
+    const served: Served = [{ line: 'AG', from: 0, to: 4 }, { line: 'SP', from: 0, to: 4 }];
+    const s = startShiftSim(net, served, 1);
+    for (let window = 0; window < 10; window++) {
+      const advances = new Map(s.trains.map((t) => [t.id, 0]));
+      for (let tick = 0; tick < 400; tick++) {
+        for (const t of s.trains) if (t.stage === 'signal') clearSignal(net, s, t.id);
+        const before = new Map(s.trains.map((t) => [t.id, t.at]));
+        stepSim(net, s, MIDDAY);
+        for (const t of s.trains) if (before.has(t.id) && before.get(t.id) !== t.at) {
+          advances.set(t.id, (advances.get(t.id) ?? 0) + 1);
+        }
+        expectNoConflicts(s);
+      }
+      for (const [id, count] of advances) expect(count, `train ${id}, 40-second window ${window}`).toBeGreaterThan(0);
+    }
+  });
+
+  it.each([[2, 1], [4, 1], [4, 2], [12, 14]])(
+    'keeps through trains advancing past shared turnback platforms: AG 0..%i, SP 0..%i', (agTo, spTo) => {
+      const served: Served = [{ line: 'AG', from: 0, to: agTo }, { line: 'SP', from: 0, to: spTo }];
+      const s = startShiftSim(net, served, 1);
+      for (let window = 0; window < 10; window++) {
+        const advances = new Map(s.trains.map((t) => [t.id, 0]));
+        for (let tick = 0; tick < 400; tick++) {
+          for (const t of s.trains) if (t.stage === 'signal') clearSignal(net, s, t.id);
+          const before = new Map(s.trains.map((t) => [t.id, t.at]));
+          stepSim(net, s, MIDDAY);
+          for (const t of s.trains) if (before.has(t.id) && before.get(t.id) !== t.at) {
+            advances.set(t.id, (advances.get(t.id) ?? 0) + 1);
+          }
+          expectNoConflicts(s);
+        }
+        for (const [id, count] of advances) expect(count, `train ${id}, 40-second window ${window}`).toBeGreaterThan(0);
+      }
+    },
+  );
+
+  it('leaves an escape block for through trains when a departure would close a shared turnback circle', () => {
+    const served: Served = [{ line: 'AG', from: 0, to: 2 }, { line: 'SP', from: 0, to: 1 }];
+    const s = startShiftSim(net, served, 1);
+    s.trains = [
+      train(1, { line: 'AG', at: 0, dir: -1, stage: 'turnaround', ms: TURNAROUND_MS }),
+      train(2, { line: 'AG', at: 0, dir: -1, stage: 'cleared' }),
+      train(3, { line: 'SP', at: 1, dir: 1, stage: 'turnaround', ms: TURNAROUND_MS }),
+      train(4, { line: 'SP', at: 0, dir: 1, stage: 'dwell', ms: TICK_MS }),
+    ];
+    s.nextTrainId = 5;
+    run(s, TICK_MS);
+    expect(s.trains[3]).toMatchObject({ stage: 'dwell', at: 0, ms: 0 });
+    const advances = new Map(s.trains.map((t) => [t.id, 0]));
+    for (let tick = 0; tick < 400; tick++) {
+      for (const t of s.trains) if (t.stage === 'signal') clearSignal(net, s, t.id);
+      const before = new Map(s.trains.map((t) => [t.id, t.at]));
+      stepSim(net, s, MIDDAY);
+      for (const t of s.trains) if (before.get(t.id) !== t.at) {
+        advances.set(t.id, advances.get(t.id)! + 1);
+      }
+      expectNoConflicts(s);
+    }
+    for (const [id, count] of advances) expect(count, `train ${id}`).toBeGreaterThan(0);
   });
 });

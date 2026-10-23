@@ -72,6 +72,46 @@ function platformFree(net: NetworkIndex, s: SimState, line: LineCode, at: number
     && t.dir === dir && net.lines.get(t.line)!.stations[t.at] === id);
 }
 
+function platformKey(net: NetworkIndex, t: Train, at: number): string {
+  return `platform:${net.lines.get(t.line)!.stations[at]!}:${t.dir}`;
+}
+
+/** The resource required after the Train leaves the one it currently occupies. */
+function nextResource(net: NetworkIndex, t: Train): string {
+  if (t.stage === 'dwell') return `block:${blockKey(net, t.line, t.at, t.at + t.dir)}`;
+  if (t.stage === 'turnaround') return `block:${blockKey(net, t.line, t.at, t.at - t.dir)}`;
+  // Running, signal and cleared all retain their incoming block until the
+  // approached directional platform is available, even after a Signal is cleared.
+  return platformKey(net, t, t.stage === 'running' ? t.at + t.dir : t.at);
+}
+
+/**
+ * A free destination alone is insufficient: entering it can close a circular
+ * wait between terminal platforms and incoming blocks. Reserve the move only
+ * if the candidate's next-resource chain does not lead back to itself.
+ * Existing waits remain intact; another Train can use the vacant resource to
+ * open the circle. Both the occupancy map and bounded walk are O(Train count).
+ */
+function canMove(net: NetworkIndex, s: SimState, t: Train, stage: TrainStage, dir = t.dir): boolean {
+  const candidate = { ...t, stage, dir };
+  const owners = new Map<string, Train>();
+  for (const train of s.trains) {
+    const current = train === t ? candidate : train;
+    const block = occupiedBlock(net, current);
+    owners.set(block === null ? platformKey(net, current, current.at) : `block:${block}`, current);
+  }
+  let current = candidate;
+  const seen = new Set<number>();
+  while (!seen.has(current.id)) {
+    seen.add(current.id);
+    const owner = owners.get(nextResource(net, current));
+    if (!owner) return true;
+    if (owner.id === candidate.id) return false;
+    current = owner;
+  }
+  return true;
+}
+
 function addTrain(s: SimState, line: LineCode, at: number, dir: Dir, stage: TrainStage, ms: number): void {
   s.trains.push({ id: s.nextTrainId++, line, at, dir, stage, ms, skipTo: null, load: {} });
 }
@@ -86,7 +126,8 @@ export function startShiftSim(net: NetworkIndex, served: Served, rng: number): S
     const count = trainsForLine(range, 1);
     for (let i = 0; i < count; i++) {
       // Start evenly around the out-and-back route. Shared-track collisions move
-      // to the next free block; fleets that cannot fit reinforce on later ticks.
+      // to the next free block; deferred fleets can reinforce when a safe
+      // terminal slot opens on a later tick.
       for (let offset = 0; offset < slots; offset++) {
         const slot = (Math.floor(i * slots / count) + offset) % slots;
         const dir: Dir = slot < blocks ? 1 : -1;
@@ -120,16 +161,18 @@ export function stepSim(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
       case 'cleared':
         if (!platformFree(net, s, t.line, t.at, t.dir)) break;
         if ((t.dir === 1 && t.at === range.to) || (t.dir === -1 && t.at === range.from)) {
+          if (!canMove(net, s, t, 'turnaround')) break;
           t.stage = 'turnaround';
           t.ms = TURNAROUND_MS;
         } else {
+          if (!canMove(net, s, t, 'dwell')) break;
           t.stage = 'dwell';
           t.ms = DWELL_BASE_MS;
         }
         break;
       case 'dwell':
         t.ms = Math.max(0, t.ms - TICK_MS);
-        if (t.ms === 0 && blockFree(net, s, t.line, t.at, t.at + t.dir)) {
+        if (t.ms === 0 && blockFree(net, s, t.line, t.at, t.at + t.dir) && canMove(net, s, t, 'running')) {
           t.stage = 'running';
         }
         break;
@@ -149,7 +192,7 @@ export function stepSim(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
         }
         t.ms = Math.max(0, t.ms - TICK_MS);
         const dir: Dir = t.dir === 1 ? -1 : 1;
-        if (t.ms === 0 && blockFree(net, s, t.line, t.at, t.at + dir)) {
+        if (t.ms === 0 && blockFree(net, s, t.line, t.at, t.at + dir) && canMove(net, s, t, 'running', dir)) {
           t.dir = dir;
           t.stage = 'running';
         }
@@ -163,7 +206,11 @@ export function stepSim(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
     for (const dir of [1, -1] as const) {
       if (s.trains.filter((t) => t.line === range.line).length >= desired) break;
       const at = dir === 1 ? range.from : range.to;
+      // An outbound reinforcement must not turn the other directional platform
+      // into extra terminal storage. It can otherwise remain trapped there even
+      // while the circular-wait guard keeps the existing fleet moving.
       if (range.from === range.to || !platformFree(net, s, range.line, at, dir)
+        || !platformFree(net, s, range.line, at, dir === 1 ? -1 : 1)
         || !blockFree(net, s, range.line, at, at + dir)) continue;
       addTrain(s, range.line, at, dir, 'dwell', DWELL_BASE_MS);
     }
