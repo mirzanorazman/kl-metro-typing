@@ -41,6 +41,14 @@ describe('replayDispatch', () => {
     expectSame(state, evidence);
   }, 120_000);
 
+  it('waves replay', () => {
+    const { state, evidence } = drive({ seed: 3, msPerKey: 200, limitMs: 30 * 60_000, accuracy: 0.99 });
+    expect(state.endReason).toBe('failed');
+    expect(state.waves).toBeGreaterThan(0);
+    expectSame(state, evidence);
+    expect(replayDispatch(net, evidence)!.waves).toBe(state.waves);
+  }, 120_000);
+
   it('confirm actions replay', () => {
     // Exact-prefix names only meet in a large late-Career network, so look further.
     for (let seed = 1; seed <= 25; seed++) {

@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
+import type { LineCode } from '../data/types';
 import { buildNetwork } from './network';
-import { OOS_FAIL_SHARE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS } from './dispatchBalance';
-import { servedStations } from './dispatchNetwork';
+import { COMBO_EVERY, COMBO_MAX_WAVE, OOS_FAIL_SHARE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS } from './dispatchBalance';
+import { servedStations, type Served } from './dispatchNetwork';
 import { advanceFix } from './dispatchIncidents';
 import { clearSignal, cloneSim, closeStation, startShiftSim } from './dispatchSim';
 import { visibleTargets } from './dispatchTargets';
@@ -15,6 +16,24 @@ import {
 const net = buildNetwork(loadNetworkData());
 const firstKey = (s: CareerState) => visibleTargets(net, s.sim)[0]!.text[0]!;
 const running = () => enterDispatchCharacter(net, startCareer(net, 1), firstKey(startCareer(net, 1)), 1_000);
+
+const stageOf = (s: CareerState, id: number) => s.sim.trains.find((t) => t.id === id)!.stage;
+const KJ_RANGE = { line: 'KJ' as const, from: 4, to: 17 };
+const AG_RANGE = { line: 'AG' as const, from: 0, to: 5 };
+
+/** A ready Career whose only trains wait at Signals, ids 1, 2, 3… in the order given. */
+function onSignals(trains: Array<[LineCode, number]>, served: Served = [KJ_RANGE]): CareerState {
+  const sim = startShiftSim(net, served, 7);
+  sim.trains = trains.map(([line, at], n) => ({ id: n + 1, line, at, dir: 1 as const,
+    stage: 'signal' as const, ms: 0, skipTo: null, load: {} }));
+  sim.nextTrainId = trains.length + 1;
+  return { ...startCareer(net, 7), served: served.map((r) => ({ ...r })), sim };
+}
+
+function type(s: CareerState, text: string, now = 1_000): CareerState {
+  for (const char of text) s = enterDispatchCharacter(net, s, char, now);
+  return s;
+}
 
 function safeShift(s: CareerState, untilMs = SHIFT_MS): CareerState {
   for (let i = 0; i < untilMs / TICK_MS && s.status === 'running'; i++) {
@@ -250,5 +269,162 @@ describe('Dispatcher career', () => {
     expect(s.aim.typed).not.toBe('');
     expect(advanceCareer(net, s, 1_100)).not.toBe(s);
     expect(applyDispatchAction(net, s, { a: 'confirm' }, 1_100)).toBe(s);
+  });
+});
+
+describe('Dispatcher Green wave', () => {
+  it('starts a Career with no streak and no waves', () => {
+    expect(startCareer(net, 1)).toMatchObject({ streak: 0, clean: true, waves: 0, lastWave: null });
+    expect([COMBO_EVERY, COMBO_MAX_WAVE]).toEqual([3, 4]);
+  });
+
+  it('a clean third completion fires a wave of one', () => {
+    // Jelatek 5, Damai 7, Pasar Seni 13, Bangsar 15, Abdullah Hukum 16.
+    let s = onSignals([['KJ', 5], ['KJ', 7], ['KJ', 13], ['KJ', 15], ['KJ', 16]]);
+    s = type(s, 'Jelatek');
+    expect(s).toMatchObject({ streak: 1, waves: 0, lastWave: null });
+    s = type(s, 'Damai');
+    expect(s).toMatchObject({ streak: 2, waves: 0, lastWave: null });
+    s = type(s, 'Pasar Seni');
+    expect(s.streak).toBe(3);
+    expect(s.waves).toBe(1);
+    expect(s.lastWave).toEqual({ id: 1, line: 'KJ', origin: net.lines.get('KJ')!.stations[13],
+      cleared: [4], atMs: s.gameMs });
+    expect(stageOf(s, 4)).toBe('cleared');
+    expect(stageOf(s, 5)).toBe('signal');
+  });
+
+  it('waves grow with the streak and cap at 4', () => {
+    // Trigger at Jelatek 5; Signals wait at 7, 9, 11, 13, 15 and 16.
+    const trains: Array<[LineCode, number]> = [['KJ', 5], ['KJ', 7], ['KJ', 9], ['KJ', 11],
+      ['KJ', 13], ['KJ', 15], ['KJ', 16]];
+    const sizes = [3, 6, 9, 12, 15].map((streak) => {
+      const s = type({ ...onSignals(trains), streak: streak - 1 }, 'Jelatek');
+      expect(s.streak).toBe(streak);
+      expect(s.waves).toBe(1);
+      expect(s.lastWave!.cleared).toEqual([2, 3, 4, 5, 6, 7].slice(0, s.lastWave!.cleared.length));
+      for (const id of s.lastWave!.cleared) expect(stageOf(s, id)).toBe('cleared');
+      return s.lastWave!.cleared.length;
+    });
+    expect(sizes).toEqual([1, 2, 3, 4, 4]);
+  });
+
+  it('breaks distance ties towards the lower train id', () => {
+    // KLCC 9 triggers; Damai 7 (id 3) and Dang Wangi 11 (id 2) are both two blocks away.
+    const s = type({ ...onSignals([['KJ', 9], ['KJ', 11], ['KJ', 7]]), streak: 2 }, 'KLCC');
+    expect(s.lastWave!.cleared).toEqual([2]);
+  });
+
+  it('a wrong key resets the streak', () => {
+    let s: CareerState = { ...onSignals([['KJ', 7], ['KJ', 9], ['KJ', 13]]), streak: 2 };
+    s = type(s, '#');
+    expect(s).toMatchObject({ streak: 0, clean: false, errors: 1 });
+    // After the stall: this completion was not clean, so it does not count.
+    s = type(s, 'Damai', 1_600);
+    expect(stageOf(s, 1)).toBe('cleared');
+    expect(s).toMatchObject({ streak: 0, clean: true, waves: 0 });
+    s = type(s, 'KLCC', 1_600);
+    expect(s).toMatchObject({ streak: 1, clean: true });
+  });
+
+  it('Enter-confirm, stall-dropped keys and unlock don\'t reset it', () => {
+    // A key dropped by the wrong-key stall is not counted.
+    const stalled: CareerState = { ...onSignals([['KJ', 7], ['KJ', 9]]), streak: 2,
+      aim: { typed: '', lock: null, mistyped: true, stallUntil: 500 } };
+    const dropped = type(stalled, '#');
+    expect(dropped).toMatchObject({ streak: 2, clean: true, errors: 0 });
+
+    // Unlock makes the next Target clean again and leaves the streak alone.
+    let s: CareerState = { ...onSignals([['KJ', 7], ['KJ', 9]]), streak: 2, clean: false };
+    s = type(s, 'Da');
+    s = applyDispatchAction(net, s, { a: 'unlock' }, 1_000);
+    expect(s).toMatchObject({ streak: 2, clean: true });
+    s = type(s, 'Damai');
+    expect(s).toMatchObject({ streak: 3, waves: 1 });
+
+    // Enter confirms a shorter exact name without counting a mistake.
+    const ampang = net.order.get('AG')!.get('ampang')!;
+    const park = net.order.get('KJ')!.get('ampang-park')!;
+    const served = [{ line: 'AG' as const, from: ampang - 1, to: ampang },
+      { line: 'KJ' as const, from: park, to: park + 1 }];
+    let c: CareerState = { ...onSignals([['AG', ampang], ['KJ', park]], served), streak: 1 };
+    c = type(c, 'Ampang');
+    c = applyDispatchAction(net, c, { a: 'confirm' }, 1_000);
+    expect(stageOf(c, 1)).toBe('cleared');
+    expect(c).toMatchObject({ streak: 2, clean: true, errors: 0 });
+  });
+
+  it('an Incident fix counts once, on its final item', () => {
+    const first = net.lines.get('KJ')!.stations[6]!;
+    const second = net.lines.get('KJ')!.stations[7]!;
+    // Signals wait at Setiawangsa 4, Dang Wangi 11 and Pasar Seni 13.
+    let s: CareerState = { ...onSignals([['KJ', 4], ['KJ', 11], ['KJ', 13]]), streak: 2 };
+    s.sim.incidents = [{ id: 1, kind: 'signal-fault', place: first, stations: [first, second],
+      line: 'KJ', train: null, startedMs: 0, step: 0 }];
+    s = type(s, net.stations.get(first)!.name);
+    expect(s.sim.incidents[0]!.step).toBe(1);
+    expect(s).toMatchObject({ streak: 2, waves: 0 });
+    s = type(s, net.stations.get(second)!.name);
+    expect(s.sim.incidents).toEqual([]);
+    expect(s.streak).toBe(3);
+    // The ripple starts from the Incident's place on its Line.
+    expect(s.lastWave).toMatchObject({ line: 'KJ', origin: first, cleared: [1] });
+  });
+
+  it('a wave never crosses its bounds', () => {
+    const kj = net.lines.get('KJ')!.stations;
+    const s0 = onSignals([
+      ['KJ', 9],   // 1: KLCC, the trigger
+      ['AG', 2],   // 2: another Line, deliberately held
+      ['KJ', 14],  // 3: Held by the signal fault
+      ['KJ', 7],   // 4: approaching an Out-of-service Station
+      ['KJ', 11],  // 5: plain
+      ['KJ', 5],   // 6: plain
+    ], [KJ_RANGE, AG_RANGE]);
+    s0.sim.incidents = [{ id: 1, kind: 'signal-fault', place: kj[14]!, stations: [kj[13]!, kj[14]!, kj[15]!],
+      line: 'KJ', train: null, startedMs: 0, step: 0 }];
+    s0.sim.outOfService = { [kj[7]!]: 'crowding' };
+    s0.sim.oosOrder = [kj[7]!];
+    const s = type({ ...s0, streak: 11 }, 'KLCC');
+    expect(s.streak).toBe(12);
+    expect(s.lastWave!.cleared).toEqual([5, 6]);
+    expect([2, 3, 4].map((id) => stageOf(s, id))).toEqual(['signal', 'signal', 'signal']);
+    expect(s.sim.incidents).toHaveLength(1);
+    expect(s.sim.incidents[0]!.step).toBe(0);
+  });
+
+  it('a wave on a Line with fewer waiting Signals clears what there is', () => {
+    let s: CareerState = { ...onSignals([['KJ', 5], ['KJ', 9]]), streak: 5 };
+    s = type(s, 'Jelatek');
+    expect(s).toMatchObject({ streak: 6, waves: 1 });
+    expect(s.lastWave!.cleared).toEqual([2]);
+    const wave = s.lastWave;
+    // Nothing carries over: the next completion fires no wave and clears only itself.
+    const sim = cloneSim(s.sim);
+    sim.trains.push({ id: 3, line: 'KJ', at: 13, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {} },
+      { id: 4, line: 'KJ', at: 15, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {} });
+    s = type({ ...s, sim }, 'Pasar Seni');
+    expect(s).toMatchObject({ streak: 7, waves: 1 });
+    expect(s.lastWave).toBe(wave);
+    expect(stageOf(s, 4)).toBe('signal');
+
+    // A wave with nothing to clear is still recorded.
+    const empty = type({ ...onSignals([['KJ', 5]]), streak: 2 }, 'Jelatek');
+    expect(empty).toMatchObject({ streak: 3, waves: 1 });
+    expect(empty.lastWave).toMatchObject({ id: 1, cleared: [] });
+  });
+
+  it('numbers waves within the Career', () => {
+    let s: CareerState = { ...onSignals([['KJ', 5], ['KJ', 9], ['KJ', 13]]), streak: 2, waves: 4 };
+    s = type(s, 'Jelatek');
+    expect(s.lastWave!.id).toBe(5);
+    expect(s.waves).toBe(5);
+  });
+
+  it('the streak carries across Shifts', () => {
+    const between = { ...safeShift(running()), streak: 4, clean: true, waves: 1 };
+    const next = applyDispatchAction(net, between, { a: 'expand', pick: 0 }, between.stoppedAt! + 1_000);
+    expect(next.shift).toBe(2);
+    expect(next).toMatchObject({ streak: 4, clean: true, waves: 1 });
   });
 });

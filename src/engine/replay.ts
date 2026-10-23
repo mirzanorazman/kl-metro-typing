@@ -218,6 +218,8 @@ export interface DispatchReplayResult {
   delivered: number;
   cleared: number;
   score: number;
+  /** Green waves fired over the Career. */
+  waves: number;
   complete: boolean;
 }
 
@@ -278,6 +280,7 @@ export function replayDispatch(net: NetworkIndex, evidence: DispatchEvidence): D
       delivered: careerTotals(state).delivered,
       cleared: state.cleared,
       score: careerScore(state),
+      waves: state.waves,
       complete: state.status === 'ended' && state.endReason === 'failed' && state.endedAt === evidence.endedAt,
     };
   } catch {

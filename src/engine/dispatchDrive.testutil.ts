@@ -5,6 +5,7 @@ import {
 } from './dispatch';
 import { DISPATCH_KEYLOG_MAX_EVENTS, INCIDENT_LIMIT_MS } from './dispatchBalance';
 import { sameRef, visibleTargets, type Target, type TargetRef } from './dispatchTargets';
+import { nextRandom, seedRandom } from './rng';
 import { appendKey, beginLog, PLAIN_SOURCE, type KeyLog } from './keylog';
 import { buildNetwork } from './network';
 import type { DispatchEvidence } from './replay';
@@ -25,6 +26,8 @@ export interface DriveOptions {
   watch?: (s: CareerState) => void;
   pauseAt?: number;
   resumeAt?: number;
+  /** Share of keys typed right; the rest are seeded typos. Omitted: every 23rd key is a typo. */
+  accuracy?: number;
 }
 
 /** A fix whose Incident is nearly out of time first, then whatever has waited longest. */
@@ -44,6 +47,14 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
   let keys = 0;
   let chosen: TargetRef | null = null;
   const limit = o.limitMs ?? 60 * 60_000;
+  let typoRng = seedRandom(o.seed * 7_919 + 1);
+  const typo = (): boolean => {
+    // Every 23rd key is a typo unless an accuracy is given; jitter keeps the Verdict happy.
+    if (o.accuracy === undefined) return keys % 23 === 0;
+    let value: number;
+    [value, typoRng] = nextRandom(typoRng);
+    return value >= o.accuracy;
+  };
 
   const act = (body: DispatchActionBody) => {
     const after = applyDispatchAction(net, state, body, now);
@@ -87,8 +98,7 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
         act({ a: input });
       } else if (input !== '') {
         keys += 1;
-        // Every 23rd key is a typo; human-ish jitter keeps the Verdict happy.
-        const key = keys % 23 === 0 ? '#' : input;
+        const key = typo() ? '#' : input;
         log = appendKey(log, key, PLAIN_SOURCE, now, DISPATCH_KEYLOG_MAX_EVENTS);
         state = enterDispatchCharacter(net, state, key, now);
       }

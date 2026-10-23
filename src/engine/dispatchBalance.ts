@@ -79,6 +79,10 @@ export const SKIP_MIN_AHEAD = 2;
 export const SKIP_MAX_AHEAD = 3;
 /** Trains on the same Line and direction this many blocks apart are bunched. */
 export const BUNCH_BLOCKS = 1;
+/** A Green wave fires each time the clean streak reaches a multiple of this. */
+export const COMBO_EVERY = 3;
+/** Most waiting Signals one Green wave clears. */
+export const COMBO_MAX_WAVE = 4;
 /** Maximum Expansion choices after a Cleared Shift. */
 export const EXPANSION_OFFERS = 3;
 /** Minimum Expansion size, including the anchor when starting a Line. */

@@ -1,8 +1,9 @@
-import { FULL_NETWORK_ESCALATION, OOS_FAIL_SHARE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS, type ShiftFlow } from './dispatchBalance';
+import { COMBO_EVERY, COMBO_MAX_WAVE, FULL_NETWORK_ESCALATION, OOS_FAIL_SHARE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS, type ShiftFlow } from './dispatchBalance';
 import { applyExpansion, drawOffers, eraFor, servedStations, STARTING_NETWORK, type Expansion, type Served } from './dispatchNetwork';
 import { advanceFix, stepWorld } from './dispatchIncidents';
 import { clearSignal, cloneSim, crowdAt, skipSignal, startShiftSim, type OosCause, type SimState } from './dispatchSim';
 import { aimKey, EMPTY_AIM, reconcileAim, sameRef, visibleTargets, type Aim, type TargetRef } from './dispatchTargets';
+import type { LineCode } from '../data/types';
 import { computeMetrics, type Metrics } from './metrics';
 import type { NetworkIndex } from './network';
 import { seedRandom } from './rng';
@@ -14,12 +15,30 @@ export interface ShiftRecord { shift: number; delivered: number; calls: number; 
 export interface Closure { station: string; cause: OosCause }
 /** A failed Shift's closures in the order they happened; the first started the collapse. */
 export interface Failure { shift: number; closures: Closure[] }
+/** A Green wave: Signals a clean streak cleared on one Line, nearest first. */
+export interface Wave {
+  /** 1, 2, 3… within the Career. */
+  id: number;
+  line: LineCode;
+  /** Station the ripple starts from: the triggering train's Station, or the Incident's place. */
+  origin: string;
+  /** Train ids in the order cleared, nearest first. */
+  cleared: number[];
+  /** Career gameMs when it fired. */
+  atMs: number;
+}
 export interface CareerState {
   seed: number; status: CareerStatus; endReason: CareerEnd | null; failure: Failure | null;
   startedAt: number | null; stoppedAt: number | null; pausedMs: number; endedAt: number | null;
   gameMs: number; shiftStartMs: number; shift: number; cleared: number; served: Served;
   offers: Expansion[]; offerRng: number; filledAt: number | null; sim: SimState; aim: Aim;
   history: ShiftRecord[]; correctChars: number; keystrokes: number; errors: number;
+  /** Clean completions in a row; carries across Shifts. */
+  streak: number;
+  /** False once a counted wrong key lands; true again after any completion or unlock. */
+  clean: boolean;
+  waves: number;
+  lastWave: Wave | null;
 }
 
 export const SHIFT_MS = SHIFT_PHASES.reduce((sum, phase) => sum + phase.ms, 0);
@@ -48,7 +67,7 @@ export function startCareer(net: NetworkIndex, seed: number): CareerState {
     pausedMs: 0, endedAt: null, gameMs: 0, shiftStartMs: 0, shift: 1, cleared: 0,
     served, offers: [], offerRng: seedRandom(seed), filledAt: null,
     sim: startShiftSim(net, served, seedRandom(seed)), aim: { ...EMPTY_AIM }, history: [],
-    correctChars: 0, keystrokes: 0, errors: 0,
+    correctChars: 0, keystrokes: 0, errors: 0, streak: 0, clean: true, waves: 0, lastWave: null,
   };
 }
 
@@ -73,6 +92,7 @@ function cloneCareer(s: CareerState): CareerState {
     offers: s.offers.map((offer) => ({ ...offer, added: [...offer.added] })),
     sim: cloneSim(s.sim), aim: { ...s.aim, lock: s.aim.lock ? { ...s.aim.lock } : null },
     history: s.history.map((entry) => ({ ...entry })),
+    lastWave: s.lastWave ? { ...s.lastWave, cleared: [...s.lastWave.cleared] } : null,
   };
 }
 
@@ -109,29 +129,60 @@ export function advanceCareer(net: NetworkIndex, state: CareerState, now: number
   return s;
 }
 
-function completeTarget(net: NetworkIndex, sim: SimState, ref: TargetRef, text: string): void {
-  if (ref.kind === 'fix') advanceFix(net, sim, ref.incident);
-  else if (ref.kind === 'signal') clearSignal(net, sim, ref.train);
-  else {
-    const train = sim.trains.find((candidate) => candidate.id === ref.train);
-    if (!train) return;
-    const toIndex = net.lines.get(train.line)!.stations.findIndex((id) => net.stations.get(id)!.name === text);
-    skipSignal(net, sim, ref.train, toIndex);
+/** Where a completion happened, or null when it was only an intermediate fix item. */
+interface Completion { line: LineCode; origin: string }
+
+function completeTarget(net: NetworkIndex, sim: SimState, ref: TargetRef, text: string): Completion | null {
+  if (ref.kind === 'fix') {
+    const inc = sim.incidents.find((candidate) => candidate.id === ref.incident);
+    if (!inc || !advanceFix(net, sim, ref.incident)) return null;
+    return sim.incidents.includes(inc) ? null : { line: inc.line, origin: inc.place };
   }
+  const train = sim.trains.find((candidate) => candidate.id === ref.train);
+  if (!train) return null;
+  const ids = net.lines.get(train.line)!.stations;
+  const where = { line: train.line, origin: ids[train.at]! };
+  if (ref.kind === 'signal') return clearSignal(net, sim, ref.train) ? where : null;
+  const toIndex = ids.findIndex((id) => net.stations.get(id)!.name === text);
+  return skipSignal(net, sim, ref.train, toIndex) ? where : null;
+}
+
+/** Clear up to `size` visible Signals on the Line, nearest the origin first, ties to the lower train id. */
+function fireWave(net: NetworkIndex, s: CareerState, at: Completion, size: number): void {
+  const originIndex = net.order.get(at.line)?.get(at.origin) ?? 0;
+  const waiting = visibleTargets(net, s.sim).flatMap((target) => {
+    if (target.ref.kind !== 'signal') return [];
+    const id = target.ref.train;
+    const train = s.sim.trains.find((t) => t.id === id)!;
+    return train.line === at.line ? [train] : [];
+  }).sort((a, b) => Math.abs(a.at - originIndex) - Math.abs(b.at - originIndex) || a.id - b.id);
+  const cleared = waiting.slice(0, size).map((train) => train.id);
+  for (const id of cleared) clearSignal(net, s.sim, id);
+  s.waves += 1;
+  s.lastWave = { id: s.waves, line: at.line, origin: at.origin, cleared, atMs: s.gameMs };
 }
 
 function applyTargetKey(net: NetworkIndex, state: CareerState, key: string): CareerState {
   const targets = visibleTargets(net, state.sim);
   const outcome = aimKey(targets, state.aim, key, state.gameMs);
   if (!outcome.counted && !outcome.completed) return state;
+  const wrong = outcome.counted && !outcome.correct;
   const s = { ...state, aim: outcome.aim,
     correctChars: state.correctChars + Number(outcome.correct),
     keystrokes: state.keystrokes + Number(outcome.counted),
-    errors: state.errors + Number(outcome.counted && !outcome.correct) };
+    errors: state.errors + Number(wrong),
+    streak: wrong ? 0 : state.streak, clean: wrong ? false : state.clean };
   if (outcome.completed) {
     const target = targets.find((item) => sameRef(item.ref, outcome.completed!));
     s.sim = cloneSim(state.sim);
-    completeTarget(net, s.sim, outcome.completed, target?.text ?? '');
+    const done = completeTarget(net, s.sim, outcome.completed, target?.text ?? '');
+    if (done) {
+      if (s.clean) {
+        s.streak += 1;
+        if (s.streak % COMBO_EVERY === 0) fireWave(net, s, done, Math.min(s.streak / COMBO_EVERY, COMBO_MAX_WAVE));
+      }
+      s.clean = true;
+    }
     s.aim = reconcileAim(visibleTargets(net, s.sim), s.aim);
   }
   return s;
@@ -162,7 +213,7 @@ export function applyDispatchAction(net: NetworkIndex, state: CareerState, actio
       if (state.status !== 'running' || aimIsEmpty(state.aim)) return state;
       const synced = advanceCareer(net, state, now);
       if (synced.status !== 'running' || aimIsEmpty(synced.aim)) return state;
-      return { ...synced, aim: { ...EMPTY_AIM } };
+      return { ...synced, aim: { ...EMPTY_AIM }, clean: true };
     }
     case 'confirm': {
       if (state.status !== 'running') return state;
