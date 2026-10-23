@@ -65,6 +65,8 @@ export interface SimState {
   incidents: Incident[];
   nextIncidentId: number;
   incidentDebt: number;
+  /** Shift time of the last Train entry per Line and outer end, keyed `${line}:${end}`. */
+  entries: Record<string, number>;
 }
 
 export interface PhaseNow {
@@ -89,6 +91,24 @@ export function targetHeadwayMs(range: ServedRange): number {
   const blocks = range.to - range.from;
   const cycleMs = 2 * blocks * TRAVEL_MS + 2 * Math.max(0, blocks - 1) * DWELL_BASE_MS + 2 * TURNAROUND_MS;
   return cycleMs / trainsForLine(range, 1);
+}
+
+export type RangeEnd = 'from' | 'to';
+
+/** Both ends if the range strictly contains a CENTRAL_STATIONS Station; otherwise the end further from masjid-jamek by straight-line distance between the stations' `geo` (lat/lng in stations.json). */
+export function outerEnds(net: NetworkIndex, range: ServedRange): RangeEnd[] {
+  const ids = net.lines.get(range.line)!.stations;
+  for (let at = range.from + 1; at < range.to; at++) if (CENTRAL_STATIONS.includes(ids[at]!)) return ['from', 'to'];
+  const centre = net.stations.get('masjid-jamek')!.geo;
+  const distance = (id: string) => {
+    const { lat, lng } = net.stations.get(id)!.geo;
+    return Math.hypot(lat - centre.lat, (lng - centre.lng) * Math.cos(centre.lat * Math.PI / 180));
+  };
+  return distance(ids[range.to]!) > distance(ids[range.from]!) ? ['to'] : ['from'];
+}
+
+function entryKey(range: ServedRange, end: RangeEnd): string {
+  return `${range.line}:${end}`;
 }
 
 export function crowdAt(s: SimState, id: string): number {
@@ -321,28 +341,24 @@ export function startShiftSim(net: NetworkIndex, served: Served, rng: number): S
   const s: SimState = {
     served: served.map((r) => ({ ...r })), trains: [], nextTrainId: 1, rng, shiftMs: 0,
     platforms: {}, outOfService: {}, oosOrder: [], delivered: 0, stranded: 0,
-    calls: 0, onTimeCalls: 0, spawnDebt: {}, incidents: [], nextIncidentId: 1, incidentDebt: 0,
+    calls: 0, onTimeCalls: 0, spawnDebt: {}, incidents: [], nextIncidentId: 1, incidentDebt: 0, entries: {},
   };
   for (const id of servedStations(net, served)) {
     s.platforms[id] = { waiting: {}, fullMs: 0, lastCall: {} };
     s.spawnDebt[id] = 0;
   }
   for (const range of s.served) {
-    const blocks = range.to - range.from;
-    const slots = 2 * blocks;
-    const count = trainsForLine(range, 1);
-    for (let i = 0; i < count; i++) {
-      // Start evenly around the out-and-back route. Shared-track collisions move
-      // to the next free block; deferred fleets can reinforce when a safe
-      // terminal slot opens on a later tick.
-      for (let offset = 0; offset < slots; offset++) {
-        const slot = (Math.floor(i * slots / count) + offset) % slots;
-        const dir: Dir = slot < blocks ? 1 : -1;
-        const at = dir === 1 ? range.from + slot + 1 : range.to - (slot - blocks) - 1;
-        if (!blockFree(net, s, range.line, at - dir, at)) continue;
-        addTrain(s, range.line, at, dir, 'signal', 0);
-        break;
-      }
+    if (range.from === range.to) continue;
+    // The Morning peak runs inbound: the first train at each outer end already
+    // waits at its first Signal, one block in, so the ready Shift has something
+    // to type. A shared block taken by another Line's opener leaves that end to
+    // reinforcement, which enters once the block is safe.
+    for (const end of outerEnds(net, range)) {
+      const dir: Dir = end === 'from' ? 1 : -1;
+      const at = (end === 'from' ? range.from : range.to) + dir;
+      if (!blockFree(net, s, range.line, at - dir, at)) continue;
+      addTrain(s, range.line, at, dir, 'signal', 0);
+      s.entries[entryKey(range, end)] = 0;
     }
   }
   return s;
@@ -446,9 +462,15 @@ export function stepSim(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
 
   for (const range of s.served) {
     const desired = trainsForLine(range, phase.trainFactor);
-    for (const dir of [1, -1] as const) {
+    const ends = outerEnds(net, range);
+    for (const end of ends) {
       if (s.trains.filter((t) => t.line === range.line).length >= desired) break;
-      const at = dir === 1 ? range.from : range.to;
+      // Entries come inward from the outskirts at headway intervals rather than
+      // all at once, so the fleet arrives spread along the Line.
+      const last = s.entries[entryKey(range, end)];
+      if (last !== undefined && s.shiftMs - last < targetHeadwayMs(range) / ends.length) continue;
+      const dir: Dir = end === 'from' ? 1 : -1;
+      const at = end === 'from' ? range.from : range.to;
       // An outbound reinforcement must not turn the other directional platform
       // into extra terminal storage. It can otherwise remain trapped there even
       // while the circular-wait guard keeps the existing fleet moving.
@@ -458,6 +480,7 @@ export function stepSim(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
       const id = net.lines.get(range.line)!.stations[at]!;
       if (s.outOfService[id]) continue;
       addTrain(s, range.line, at, dir, 'dwell', DWELL_BASE_MS);
+      s.entries[entryKey(range, end)] = s.shiftMs;
       const t = s.trains[s.trains.length - 1]!;
       t.ms += exchangePassengers(net, s, t, dir);
     }
@@ -476,6 +499,7 @@ export function cloneSim(s: SimState): SimState {
     outOfService: { ...s.outOfService },
     oosOrder: [...s.oosOrder],
     spawnDebt: { ...s.spawnDebt },
+    entries: { ...s.entries },
     incidents: s.incidents.map((inc) => ({ ...inc, stations: [...inc.stations] })),
   };
 }

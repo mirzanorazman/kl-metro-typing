@@ -535,7 +535,7 @@ describe('DispatcherScreen', () => {
 
     it('a live failed Career is judged once, on evidence that replays complete', async () => {
       const clock = fakeClock();
-      const initial = startCareer(net, 17);
+      const initial = startCareer(net, 11);
       renderShift(initial);
       const first = visibleTargets(net, initial.sim)[0]!.text;
       clock.now = 2_000;
@@ -553,7 +553,7 @@ describe('DispatcherScreen', () => {
       expect(replayed!.complete).toBe(true);
       // The summary leads with the first closure: what started the collapse.
       expect(screen.getByText(
-        'Shift 1 ended: it started when Masjid Jamek went out of service after a train fault was left unfixed.',
+        'Shift 1 ended: it started when Jelatek went out of service after a train fault was left unfixed.',
       )).toBeTruthy();
     });
 

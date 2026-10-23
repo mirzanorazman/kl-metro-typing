@@ -4,14 +4,17 @@ import { buildNetwork } from './network';
 import {
   BUNCH_BLOCKS, CENTRAL_PULL, CENTRAL_STATIONS, DWELL_BASE_MS, DWELL_PER_PASSENGER_MS,
   LATE_FACTOR, ON_TIME_FACTOR, OOS_CROWD_MS, PASSENGER_RATE, PLATFORM_CAPACITY,
-  STATIONS_PER_TRAIN, TICK_MS, TRAIN_CAPACITY, TRAVEL_MS, TURNAROUND_MS,
+  SHIFT_PHASES, STATIONS_PER_TRAIN, TICK_MS, TRAIN_CAPACITY, TRAVEL_MS, TURNAROUND_MS,
 } from './dispatchBalance';
+import { applyDispatchAction } from './dispatch';
+import { drive } from './dispatchDrive.testutil';
 import { servedStations, STARTING_NETWORK, type Served } from './dispatchNetwork';
 import {
-  blockKey, bunchedTrains, clearSignal, cloneSim, crowdAt, destinationWeight, isLate, originWeight, startShiftSim, stepSim,
-  targetHeadwayMs, trainPosition, trainsForLine,
+  blockKey, bunchedTrains, clearSignal, cloneSim, crowdAt, destinationWeight, isLate, originWeight, outerEnds,
+  startShiftSim, stepSim, targetHeadwayMs, trainPosition, trainsForLine,
   type PhaseNow, type SimState, type Train,
 } from './dispatchSim';
+import { visibleTargets } from './dispatchTargets';
 
 const net = buildNetwork(loadNetworkData());
 const kj = net.lines.get('KJ')!.stations;
@@ -43,16 +46,78 @@ function expectNoConflicts(s: SimState): void {
 }
 
 describe('Dispatcher trains, blocks and signals', () => {
-  it('starts three trains at distinct signals evenly spread over the directed cycle', () => {
+  it('names both ends outer for a range through the centre, otherwise the end further from Masjid Jamek', () => {
+    expect(outerEnds(net, STARTING_NETWORK[0]!)).toEqual(['from', 'to']);
+    // Bangsar to Asia Jaya and Gombak to Jelatek include no central Station.
+    expect(outerEnds(net, { line: 'KJ', from: 15, to: 20 })).toEqual(['to']);
+    expect(outerEnds(net, { line: 'KJ', from: 0, to: 5 })).toEqual(['from']);
+    // A central Station at an end is not inside the range: Sentul Timur is the outer end.
+    expect(outerEnds(net, { line: 'AG', from: 0, to: 4 })).toEqual(['from']);
+    const ag = net.lines.get('AG')!.stations;
+    expect(outerEnds(net, { line: 'AG', from: 0, to: ag.length - 1 })).toEqual(['from', 'to']);
+  });
+
+  it('a Shift opens with a train waiting one block in from each outer end, heading inward', () => {
     const s = startShiftSim(net, STARTING_NETWORK, 42);
-    expect(s.trains).toHaveLength(3);
-    expect(s.trains.map((t) => [t.at, t.dir])).toEqual([[5, 1], [13, 1], [12, -1]]);
+    const range = STARTING_NETWORK[0]!;
+    expect(s.trains).toHaveLength(2);
     expect(s.trains.every((t) => t.stage === 'signal' && t.ms === 0 && t.skipTo === null)).toBe(true);
-    expect(s.trains.map((t) => t.id)).toEqual([1, 2, 3]);
-    expect(s.nextTrainId).toBe(4);
+    expect(s.trains.map((t) => [t.at, t.dir])).toEqual([[range.from + 1, 1], [range.to - 1, -1]]);
+    expect(s.trains.map((t) => t.id)).toEqual([1, 2]);
+    expect(s.nextTrainId).toBe(3);
     expect(s.rng).toBe(42);
     expect(s.shiftMs).toBe(0);
+    expect(visibleTargets(net, s).length).toBeGreaterThan(0);
     expect(startShiftSim(net, STARTING_NETWORK, 42)).toEqual(s);
+    expect(startShiftSim(net, [{ line: 'KJ', from: 15, to: 20 }], 1).trains.map((t) => [t.at, t.dir]))
+      .toEqual([[19, -1]]);
+  });
+
+  it.each([
+    { name: 'the starting network', served: STARTING_NETWORK },
+    { name: 'a single outer end', served: [{ line: 'KJ' as const, from: 15, to: 30 }] },
+  ])('the rest of the fleet enters at outer ends, spaced by headway: $name', ({ served }) => {
+    const range = served[0]!;
+    const ends = outerEnds(net, range);
+    const spacing = targetHeadwayMs(range) / ends.length;
+    const s = startShiftSim(net, served, 7);
+    const entries: Record<string, number[]> = { from: [], to: [] };
+    for (const t of s.trains) entries[t.dir === 1 ? 'from' : 'to']!.push(0);
+    const seen = new Set(s.trains.map((t) => t.id));
+    const morning: PhaseNow = { ...SHIFT_PHASES[0]!, escalation: 1 };
+    const desired = trainsForLine(range, morning.trainFactor);
+    for (let tick = 0; s.trains.length < desired; tick++) {
+      expect(tick, 'fleet never filled').toBeLessThan(6_000);
+      for (const t of s.trains) if (t.stage === 'signal') clearSignal(net, s, t.id);
+      stepSim(net, s, morning);
+      expectNoConflicts(s);
+      for (const t of s.trains.filter((t) => !seen.has(t.id))) {
+        seen.add(t.id);
+        const end = t.at === range.from && t.dir === 1 ? 'from' : t.at === range.to && t.dir === -1 ? 'to' : null;
+        expect(end, `train ${t.id} at ${t.at} heading ${t.dir}`).not.toBeNull();
+        expect(ends).toContain(end);
+        entries[end!]!.push(s.shiftMs);
+      }
+    }
+    expect(seen.size).toBe(desired);
+    for (const times of Object.values(entries)) {
+      for (let i = 1; i < times.length; i++) expect(times[i]! - times[i - 1]!).toBeGreaterThanOrEqual(spacing);
+    }
+  });
+
+  it('after an Expansion the next Shift\'s ready still has a typeable Signal', () => {
+    let betweens = 0;
+    drive({ seed: 3, msPerKey: 110, limitMs: 12 * 60_000, watch: (state) => {
+      if (state.status !== 'between') return;
+      betweens++;
+      const picks = state.offers.length === 0 ? [-1] : state.offers.map((_, i) => i);
+      for (const pick of picks) {
+        const next = applyDispatchAction(net, state, { a: 'expand', pick }, state.stoppedAt! + 1_000);
+        expect(next.status).toBe('ready');
+        expect(visibleTargets(net, next.sim).length, `Shift ${next.shift}, offer ${pick}`).toBeGreaterThan(0);
+      }
+    } });
+    expect(betweens).toBeGreaterThan(0);
   });
 
   it('calculates phase fleet sizes and the full cycle headway from balance constants', () => {
@@ -174,7 +239,8 @@ describe('Dispatcher trains, blocks and signals', () => {
   it('keeps short shared-track trains circulating when the desired fleets cannot fit safely', () => {
     const served: Served = [{ line: 'AG', from: 0, to: 1 }, { line: 'SP', from: 0, to: 1 }];
     const s = startShiftSim(net, served, 1);
-    expect(s.trains).toHaveLength(2);
+    // Both Lines' only outer end is Sentul Timur, over one shared opening block.
+    expect(s.trains).toHaveLength(1);
     expect(s.trains.every((t) => t.line === 'AG')).toBe(true);
     expectNoConflicts(s);
     for (let window = 0; window < 10; window++) {
@@ -192,19 +258,31 @@ describe('Dispatcher trains, blocks and signals', () => {
     }
   });
 
-  it('adds phase reinforcements only at free range-end platforms and departure blocks', () => {
+  it('adds phase reinforcements only at free outer-end platforms and departure blocks, then waits a spacing', () => {
+    const range = STARTING_NETWORK[0]!;
+    const spacing = targetHeadwayMs(range) / outerEnds(net, range).length;
     const s = startShiftSim(net, STARTING_NETWORK, 1);
+    s.trains = [train(1, { at: 8 }), train(2, { at: 12, dir: -1 })];
+    s.nextTrainId = 3;
     const peak = { ...MIDDAY, trainFactor: 2 };
+    s.shiftMs = spacing - 2 * TICK_MS;
     run(s, TICK_MS, peak);
-    expect(s.trains.length).toBeGreaterThan(3);
-    for (const t of s.trains.filter((t) => t.id >= 4)) {
-      expect([4, 17]).toContain(t.at);
-      expect(t.stage).toBe('dwell');
+    expect(s.trains).toHaveLength(2);
+    run(s, TICK_MS, peak);
+    expect(s.trains.filter((t) => t.id >= 3).map((t) => [t.at, t.dir, t.stage]))
+      .toEqual([[4, 1, 'dwell'], [17, -1, 'dwell']]);
+    expectNoConflicts(s);
+    // The departure blocks free again well before the next entry is due.
+    run(s, DWELL_BASE_MS + TRAVEL_MS + TICK_MS, peak);
+    expect(s.trains).toHaveLength(4);
+    for (let elapsed = 0; elapsed < spacing; elapsed += TICK_MS) {
+      for (const t of s.trains) if (t.stage === 'signal') clearSignal(net, s, t.id);
+      stepSim(net, s, peak);
+      expectNoConflicts(s);
     }
+    expect(s.trains.length).toBeGreaterThan(4);
     expectNoConflicts(s);
-    run(s, DWELL_BASE_MS, peak);
-    expectNoConflicts(s);
-    expect(s.trains.length).toBeLessThanOrEqual(trainsForLine(STARTING_NETWORK[0]!, peak.trainFactor));
+    expect(s.trains.length).toBeLessThanOrEqual(trainsForLine(range, peak.trainFactor));
     expect(new Set(s.trains.map((t) => t.id)).size).toBe(s.trains.length);
     expect(s.nextTrainId).toBeGreaterThan(Math.max(...s.trains.map((t) => t.id)));
   });
@@ -212,6 +290,7 @@ describe('Dispatcher trains, blocks and signals', () => {
   it('defers reinforcements when both departure blocks are occupied', () => {
     const s = fixture(train(1, { at: 5 }), train(2, { at: 16, dir: -1 }));
     s.trains[2] = train(3, { at: 12 });
+    s.shiftMs = targetHeadwayMs(STARTING_NETWORK[0]!);
     run(s, TICK_MS, { ...MIDDAY, trainFactor: 2 });
     expect(s.trains).toHaveLength(3);
     expectNoConflicts(s);
@@ -220,6 +299,7 @@ describe('Dispatcher trains, blocks and signals', () => {
   it('keeps terminal capacity for arriving trains instead of inserting beside an opposite-direction platform', () => {
     const s = fixture(train(1, { at: 17, stage: 'turnaround', ms: TURNAROUND_MS }));
     s.trains[2] = train(3, { at: 10, dir: -1 });
+    s.shiftMs = targetHeadwayMs(STARTING_NETWORK[0]!);
     run(s, TICK_MS, { ...MIDDAY, trainFactor: 2 });
     expect(s.trains.filter((t) => t.id >= 4 && t.at === 17)).toHaveLength(0);
     expectNoConflicts(s);
@@ -280,6 +360,25 @@ describe('Dispatcher trains, blocks and signals', () => {
         expect(Number.isFinite(trainPosition(net, t).t)).toBe(true);
       }
     }
+  });
+
+  it('keeps block exclusivity when AG and SP enter from shared outer ends through a whole Shift', () => {
+    const ag = net.lines.get('AG')!.stations;
+    const served: Served = [{ line: 'AG', from: 0, to: ag.length - 1 }, { line: 'SP', from: 0, to: 17 }];
+    const s = startShiftSim(net, served, 5);
+    expectNoConflicts(s);
+    // Both Lines start inward from Sentul Timur over the same block; only one opening train fits there.
+    expect(s.trains.filter((t) => t.at === 1 && t.dir === 1)).toHaveLength(1);
+    expect(s.trains.map((t) => t.line).sort()).toEqual(['AG', 'AG', 'SP']);
+    for (const spec of SHIFT_PHASES) {
+      for (let elapsed = 0; elapsed < spec.ms; elapsed += TICK_MS) {
+        for (const t of s.trains) if (t.stage === 'signal') clearSignal(net, s, t.id);
+        stepSim(net, s, { ...spec, escalation: 1 });
+        expectNoConflicts(s);
+      }
+    }
+    expect(s.trains.some((t) => t.line === 'SP' && t.id > 3)).toBe(true);
+    expect(s.trains.length).toBeGreaterThanOrEqual(4);
   });
 
   it('keeps longer shared-track fleets advancing throughout sustained all-clear operation', () => {
@@ -558,10 +657,16 @@ describe('passengers', () => {
   });
 
   it('does not insert a dwelling reinforcement at an OOS endpoint', () => {
-    const s = startShiftSim(net, STARTING_NETWORK, 42);
+    const open = startShiftSim(net, STARTING_NETWORK, 42);
+    open.trains = [train(1, { at: 8 }), train(2, { at: 12, dir: -1 })];
+    open.shiftMs = targetHeadwayMs(STARTING_NETWORK[0]!);
+    const s = cloneSim(open);
+    stepSim(net, open, { ...MIDDAY, trainFactor: 2 });
+    expect(open.trains).toHaveLength(4);
     s.outOfService[kj[4]!] = 'crowding';
     s.outOfService[kj[17]!] = 'crowding';
     stepSim(net, s, { ...MIDDAY, trainFactor: 2 });
+    expect(s.trains).toHaveLength(2);
     expect(s.trains.some((t) => t.stage === 'dwell' && s.outOfService[kj[t.at]!])).toBe(false);
   });
 
