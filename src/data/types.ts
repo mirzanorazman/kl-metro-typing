@@ -47,7 +47,7 @@ export interface Station {
   name: string;
   /** Official per-line code, e.g. { KJ: "KJ13", AG: "AG7" }. Keys are the lines served. */
   codes: Partial<Record<LineCode, string>>;
-  /** Passenger spawn weight for Rush Hour. 1 = ordinary stop. */
+  /** Station busyness: Passenger weight for Dispatcher. 1 = ordinary stop. */
   demand: number;
   geo: LatLng;
 }

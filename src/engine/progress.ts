@@ -9,7 +9,7 @@ export const INTEGRITY_FAIL_LIMIT = 20;
 /** One Run that failed its Verdict. Kept so false positives are visible. */
 export interface IntegrityFail {
   t: number;
-  mode: 'line' | 'quick' | 'rush';
+  mode: 'line' | 'quick' | 'rush' | 'dispatch';
   reason: IntegrityReason;
 }
 
@@ -57,6 +57,8 @@ export interface Profile {
    * carry forward through migrate's spread, the path `theme` took.
    */
   rushTipsSeen?: string[];
+  /** Dispatcher tips already shown, by id. Optional and additive, like `rushTipsSeen`. */
+  dispatchTipsSeen?: string[];
   /** True when this profile replaced an unreadable saved record. */
   recovered?: boolean;
 }
@@ -111,6 +113,9 @@ function migrate(raw: unknown): Profile | null {
     lastSelectedLine: isLineCode(rec.lastSelectedLine) ? rec.lastSelectedLine : undefined,
     rushTipsSeen: Array.isArray(rec.rushTipsSeen)
       ? rec.rushTipsSeen.filter((id): id is string => typeof id === 'string')
+      : undefined,
+    dispatchTipsSeen: Array.isArray(rec.dispatchTipsSeen)
+      ? rec.dispatchTipsSeen.filter((id): id is string => typeof id === 'string')
       : undefined,
   };
 }
@@ -186,6 +191,16 @@ export function markRushTipSeen(profile: Profile, id: string): Profile {
 /** "How to play": every tip shows again on the next Run. */
 export function resetRushTips(profile: Profile): Profile {
   return { ...profile, rushTipsSeen: [] };
+}
+
+export function markDispatchTipSeen(profile: Profile, id: string): Profile {
+  const seen = profile.dispatchTipsSeen ?? [];
+  return seen.includes(id) ? profile : { ...profile, dispatchTipsSeen: [...seen, id] };
+}
+
+/** "How to play": every Dispatcher tip shows again on the next Career. */
+export function resetDispatchTips(profile: Profile): Profile {
+  return { ...profile, dispatchTipsSeen: [] };
 }
 
 export function saveSelectedLine(profile: Profile, line: LineCode): Profile {

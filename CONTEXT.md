@@ -142,6 +142,55 @@ A station's passenger spawn weight. 1 is an ordinary stop; major hubs are higher
 Rush Hour's time of day — Off-Peak, Morning Peak, Midday, Evening Peak, Late
 Night. "Phase" always means this, never the status of a Run.
 
+## Dispatcher
+
+**Dispatcher**:
+The Mode where the player runs a live rail network from a control room, typing
+Station names to Clear Signals and fixing Incidents. It replaces Rush Hour.
+Specified in `docs/superpowers/specs/2026-10-23-dispatcher-design.md`.
+
+**Career**:
+One Dispatcher play session, from the Starting network until a Shift fails or
+the player abandons. A Dispatcher Career is a kind of Run; Dispatcher copy says
+"Career".
+
+**Shift**:
+One compressed service day within a Career.
+
+**Signal**:
+The stop point before a Station where a Train waits until its name is typed.
+_Avoid_: prompt, gate
+
+**Clear**:
+Typing a Signal's Station name so its Train may proceed. Enter Clears an exact
+shorter Station name while a longer candidate still matches (Ampang while
+Ampang Park remains a match); the confirm is logged, so it is replayed.
+
+**Held**:
+A Train waiting at an uncleared Signal, or stopped by an Incident.
+
+**Headway**:
+The gap between consecutive Trains on a Line in one direction.
+
+**Bunching**:
+Two or more Trains running close together with a large gap behind them.
+
+**Incident**:
+A breakdown at a place on the network that holds or slows Trains until fixed.
+_Avoid_: fire, issue, event
+
+**Out of service**:
+A Station or stretch that has collapsed and no longer carries Passengers.
+
+**Served network**:
+The Stations and Lines the Career currently operates.
+
+**Expansion**:
+A contiguous run of Stations added to the Served network between Shifts.
+
+**Era**:
+A period in KL rail history that decides which Expansions can be offered.
+
 ## Measuring
 
 **WPM**:

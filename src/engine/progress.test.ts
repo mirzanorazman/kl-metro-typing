@@ -10,6 +10,8 @@ import {
   recordIntegrityFail,
   markRushTipSeen,
   resetRushTips,
+  markDispatchTipSeen,
+  resetDispatchTips,
   INTEGRITY_FAIL_LIMIT,
   STORAGE_KEY,
   type Profile,
@@ -283,5 +285,44 @@ describe('Rush Hour tips seen', () => {
   it('drops junk from a stored list', () => {
     saveProfile({ ...emptyProfile(), rushTipsSeen: ['walk', 7 as unknown as string] });
     expect(loadProfile().rushTipsSeen).toEqual(['walk']);
+  });
+});
+
+describe('Dispatcher tips seen', () => {
+  it('records each tip once and resets to none', () => {
+    let p = markDispatchTipSeen(emptyProfile(), 'signal');
+    p = markDispatchTipSeen(p, 'signal');
+    expect(p.dispatchTipsSeen).toEqual(['signal']);
+    p = markDispatchTipSeen(p, 'incident');
+    expect(p.dispatchTipsSeen).toEqual(['signal', 'incident']);
+    expect(resetDispatchTips(p).dispatchTipsSeen).toEqual([]);
+  });
+
+  it('is independent of Rush Hour tips', () => {
+    const p = markDispatchTipSeen(markRushTipSeen(emptyProfile(), 'walk'), 'signal');
+    expect(p.rushTipsSeen).toEqual(['walk']);
+    expect(resetDispatchTips(p).rushTipsSeen).toEqual(['walk']);
+  });
+
+  it('survives a save, and older saves load without it', () => {
+    saveProfile(markDispatchTipSeen(emptyProfile(), 'signal'));
+    expect(loadProfile().dispatchTipsSeen).toEqual(['signal']);
+    saveProfile(emptyProfile());
+    expect(loadProfile().dispatchTipsSeen).toBeUndefined();
+  });
+
+  it('keeps only string ids from a stored list', () => {
+    saveProfile({ ...emptyProfile(), dispatchTipsSeen: ['signal', 7 as unknown as string, null as unknown as string] });
+    expect(loadProfile().dispatchTipsSeen).toEqual(['signal']);
+  });
+
+  it('drops a stored value that is not a list', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...emptyProfile(), dispatchTipsSeen: 'signal' }));
+    expect(loadProfile().dispatchTipsSeen).toBeUndefined();
+  });
+
+  it('records a dispatch integrity failure', () => {
+    const p = recordIntegrityFail(emptyProfile(), { t: 1, mode: 'dispatch', reason: 'impossible-speed' });
+    expect(p.integrityFails?.[0]?.mode).toBe('dispatch');
   });
 });
