@@ -3,6 +3,7 @@ import type { CareerState } from '../engine/dispatch';
 import { INCIDENT_LIMIT_MS } from '../engine/dispatchBalance';
 import { fixItems } from '../engine/dispatchIncidents';
 import type { IncidentKind } from '../engine/dispatchSim';
+import { INCIDENT_GLYPH } from '../render/incidentGlyphs';
 import { LineBadge } from './LineBadge';
 
 export const INCIDENT_KIND_NAME: Record<IncidentKind, string> = {
@@ -31,7 +32,7 @@ export function DispatchIncidents({ net, career }: { net: NetworkIndex; career: 
           <li key={inc.id} className="dispatch-incident-card" data-kind={inc.kind}>
             <p className="dispatch-incident-head">
               <svg className="dispatch-incident-icon" viewBox="-1 -1 2 2" aria-hidden="true">
-                <path d="M0,-0.9 L0.85,0.7 L-0.85,0.7 Z" />
+                <path data-icon={`incident-${inc.kind}`} d={INCIDENT_GLYPH[inc.kind]} fillRule="evenodd" />
               </svg>
               <strong>{INCIDENT_KIND_NAME[inc.kind]}</strong>
               {line && <LineBadge code={line.code} colour={line.colour} />}

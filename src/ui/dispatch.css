@@ -231,10 +231,14 @@
   opacity: 0.55;
 }
 
+.dispatch-incident-badge {
+  fill: var(--paper);
+  stroke: var(--error);
+  stroke-width: 1.5px;
+}
+
 .dispatch-incident path {
   fill: var(--error);
-  stroke: var(--paper);
-  stroke-width: 1.5px;
 }
 
 .dispatch-pulse {

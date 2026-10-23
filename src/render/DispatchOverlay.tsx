@@ -5,6 +5,7 @@ import type { CareerState } from '../engine/dispatch';
 import { bunchedTrains, heldTrains, trainPosition, type Train } from '../engine/dispatchSim';
 import { sameRef, type Target, type TargetRef } from '../engine/dispatchTargets';
 import { contrastText } from './contrast';
+import { INCIDENT_GLYPH } from './incidentGlyphs';
 
 export interface DispatchOverlayProps {
   net: NetworkIndex;
@@ -104,13 +105,12 @@ function layoutChips(
   return placed;
 }
 
-const KIND_ICON = 'M0,-1 L0.9,0.7 L-0.9,0.7 Z';
 const CROSS_ICON = 'M-0.55,-0.55 L0.55,0.55 M0.55,-0.55 L-0.55,0.55';
 
 /**
  * The live Shift on the map: Trains with their Line code, each waiting Train's
- * Station name beside it, Incidents as a pulsing warning triangle with their
- * current fix, and Out of service Stations crossed out. Every state has a
+ * Station name beside it, Incidents as a pulsing badge with a glyph for their
+ * kind (signal head, Train front, crowd) and their current fix, and Out of service Stations crossed out. Every state has a
  * shape or text as well as a colour.
  */
 export function DispatchOverlay({ net, layout, markScale: m, career, targets, aimed }: DispatchOverlayProps) {
@@ -215,11 +215,13 @@ export function DispatchOverlay({ net, layout, markScale: m, career, targets, ai
         return (
           <g key={`inc-${inc.id}`} data-testid="dispatch-incident" data-kind={inc.kind} className="dispatch-incident">
             <circle className="dispatch-pulse" cx={p.x} cy={p.y} r={14 * m} />
+            <circle className="dispatch-incident-badge" cx={p.x} cy={p.y - 12 * m} r={9 * m}
+              vectorEffect="non-scaling-stroke" />
             <path
-              data-icon="incident"
-              d={KIND_ICON}
+              data-icon={`incident-${inc.kind}`}
+              d={INCIDENT_GLYPH[inc.kind]}
+              fillRule="evenodd"
               transform={`translate(${p.x} ${p.y - 12 * m}) scale(${6 * m})`}
-              vectorEffect="non-scaling-stroke"
             />
           </g>
         );

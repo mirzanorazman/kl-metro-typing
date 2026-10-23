@@ -217,6 +217,33 @@ describe('DispatcherScreen', () => {
     expect(screen.getByTestId('dispatch-incident')).toBeTruthy();
   });
 
+  it('each Incident kind has its own glyph, on the map and on its card', () => {
+    const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+    initial.sim.incidents = [
+      signalFault(),
+      { id: 2, kind: 'train-fault', place: idOf('KLCC'), stations: [], line: 'KJ', train: 1, startedMs: 0, step: 0 },
+      { id: 3, kind: 'crowd-surge', place: idOf('Ampang Park'), stations: [idOf('Ampang Park')],
+        line: 'KJ', train: null, startedMs: 0, step: 0 },
+    ];
+    initial.sim.nextIncidentId = 4;
+    renderShift(initial);
+    const kinds = ['signal-fault', 'train-fault', 'crowd-surge'];
+    const onMap = screen.getAllByTestId('dispatch-incident');
+    const glyphs = kinds.map((kind) => {
+      const group = onMap.find((g) => g.getAttribute('data-kind') === kind)!;
+      const glyph = group.querySelector(`[data-icon="incident-${kind}"]`)!;
+      expect(glyph).toBeTruthy();
+      return glyph.getAttribute('d');
+    });
+    // Distinct shapes, not one shape in different colours.
+    expect(new Set(glyphs).size).toBe(3);
+    const cards = within(screen.getByRole('list', { name: 'Incidents' })).getAllByRole('listitem');
+    for (const kind of kinds) {
+      const card = cards.find((c) => c.getAttribute('data-kind') === kind)!;
+      expect(card.querySelector(`[data-icon="incident-${kind}"]`)?.getAttribute('d')).toBe(glyphs[kinds.indexOf(kind)]);
+    }
+  });
+
   it('Out of service and bunching are marked with shapes, not only colour', () => {
     const initial = careerWith([waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Ampang Park'), waiting(3, 'KJ', 'Bangsar', -1)]);
     initial.sim.outOfService = { [idOf('Kampung Baru')]: 'crowding' };
