@@ -25,7 +25,7 @@ function run(s: SimState, ms: number, phase = MIDDAY): void {
 }
 
 function train(id: number, values: Partial<Train> = {}): Train {
-  return { id, line: 'KJ', dir: 1, at: 7, stage: 'signal', ms: 0, skipTo: null, load: {}, ...values };
+  return { id, line: 'KJ', dir: 1, at: 7, stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null, ...values };
 }
 
 /** Keep a full fleet so phase reinforcements do not interfere with hand-set cases. */
@@ -688,6 +688,34 @@ describe('passengers', () => {
     }
   });
 
+  it('every call records its exchange', () => {
+    const s = fixture(train(1, { stage: 'cleared', load: { [kj[7]!]: 4, [kj[12]!]: 3 } }));
+    s.platforms[kj[7]!]!.waiting[kj[8]!] = 6;
+    const load = (t: Train) => Object.values(t.load).reduce((sum, n) => sum + n, 0);
+    const before = load(s.trains[0]!);
+    const delivered = s.delivered;
+    expect(s.trains[0]!.lastExchange).toBeNull();
+    stepSim(net, s, MIDDAY);
+    const t = s.trains[0]!;
+    expect(t.stage).toBe('dwell');
+    expect(t.lastExchange).toEqual({
+      station: kj[7]!, boarded: 6, alighted: 4, delivered: 4, atMs: s.shiftMs,
+    });
+    expect(t.lastExchange!.boarded - t.lastExchange!.alighted).toBe(load(t) - before);
+    expect(t.lastExchange!.delivered).toBe(s.delivered - delivered);
+  });
+
+  it('counts transfers as alighted but not delivered', () => {
+    const s = fixture(train(1, { stage: 'cleared', load: { [kj[3]!]: 5 } }));
+    s.trains[0]!.at = 7;
+    // Heading away from their destination, so they alight at this Station without arriving.
+    stepSim(net, s, MIDDAY);
+    const exchange = s.trains[0]!.lastExchange!;
+    expect(exchange.delivered).toBe(0);
+    expect(exchange.alighted).toBe(5);
+    expect(s.delivered).toBe(0);
+  });
+
   it('clones all passenger and OOS state independently', () => {
     const s = fixture(train(1));
     s.platforms.klcc!.waiting[kj[4]!] = 3;
@@ -707,5 +735,34 @@ describe('passengers', () => {
     expect(s.oosOrder).toHaveLength(1);
     expect(s.spawnDebt.klcc).toBe(0.5);
     expect(copy).toEqual(JSON.parse(JSON.stringify(copy)));
+  });
+
+  it('clones exchange and dispersal records independently', () => {
+    const s = fixture(train(1, { lastExchange: { station: 'klcc', boarded: 1, alighted: 2, delivered: 3, atMs: 4 } }));
+    s.dispersed = 5;
+    s.lastDispersal = { station: 'klcc', count: 5, incident: 1, atMs: 9 };
+    const copy = cloneSim(s);
+    copy.trains[0]!.lastExchange!.boarded = 99;
+    copy.lastDispersal!.count = 99;
+    expect(s.trains[0]!.lastExchange!.boarded).toBe(1);
+    expect(s.lastDispersal!.count).toBe(5);
+    expect(copy).toEqual(JSON.parse(JSON.stringify(copy)));
+  });
+
+  it('exposing exchanges changes nothing else', () => {
+    const watched = startShiftSim(net, STARTING_NETWORK, 42);
+    const blind = startShiftSim(net, STARTING_NETWORK, 42);
+    const morning: PhaseNow = { ...SHIFT_PHASES[0]!, escalation: 1 };
+    let seen = 0;
+    for (let elapsed = 0; elapsed < 60_000; elapsed += TICK_MS) {
+      for (const sim of [watched, blind]) {
+        for (const t of sim.trains) if (t.stage === 'signal') clearSignal(net, sim, t.id);
+        stepSim(net, sim, morning);
+      }
+      for (const t of watched.trains) seen += t.lastExchange?.boarded ?? 0;
+    }
+    expect(seen).toBeGreaterThan(0);
+    expect([watched.delivered, watched.stranded, watched.calls, watched.rng])
+      .toEqual([blind.delivered, blind.stranded, blind.calls, blind.rng]);
   });
 });

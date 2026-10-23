@@ -21,7 +21,7 @@ function type(targets: Target[], text: string, aim = EMPTY_AIM): KeyOutcome {
   return outcome;
 }
 function train(id: number, at = 7, dir: sim.Dir = 1): sim.Train {
-  return { id, line: 'KJ', at, dir, stage: 'signal', ms: 0, skipTo: null, load: {} };
+  return { id, line: 'KJ', at, dir, stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null };
 }
 function fixture(first = train(1)): sim.SimState {
   const s = sim.startShiftSim(net, STARTING_NETWORK, 42);
@@ -36,7 +36,7 @@ function run(s: sim.SimState, ms: number): void {
 }
 function incident(stations: string[], step = 0): sim.Incident {
   return { id: 1, kind: 'signal-fault', place: stations[0]!, stations, line: 'KJ',
-    train: null, startedMs: 0, step };
+    train: null, startedMs: 0, step, extra: 0 };
 }
 
 describe('Dispatcher aim', () => {

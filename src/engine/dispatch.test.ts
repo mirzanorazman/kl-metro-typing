@@ -25,7 +25,7 @@ const AG_RANGE = { line: 'AG' as const, from: 0, to: 5 };
 function onSignals(trains: Array<[LineCode, number]>, served: Served = [KJ_RANGE]): CareerState {
   const sim = startShiftSim(net, served, 7);
   sim.trains = trains.map(([line, at], n) => ({ id: n + 1, line, at, dir: 1 as const,
-    stage: 'signal' as const, ms: 0, skipTo: null, load: {} }));
+    stage: 'signal' as const, ms: 0, skipTo: null, load: {}, lastExchange: null }));
   sim.nextTrainId = trains.length + 1;
   return { ...startCareer(net, 7), served: served.map((r) => ({ ...r })), sim };
 }
@@ -199,7 +199,7 @@ describe('Dispatcher career', () => {
   it('is tense only while an Incident is active or a platform is over half full', () => {
     const s = startCareer(net, 1);
     const incident = { id: 1, kind: 'crowd-surge' as const, place: 'klcc', stations: ['klcc'],
-      line: 'KJ' as const, train: null, startedMs: 0, step: 0 };
+      line: 'KJ' as const, train: null, startedMs: 0, step: 0, extra: 0 };
     const crowd = (count: number) => ({ ...s, sim: { ...s.sim,
       platforms: { klcc: { waiting: { jelatek: count }, fullMs: 0, lastCall: {} } } } });
     expect(dispatchTense(s)).toBe(false);
@@ -227,7 +227,7 @@ describe('Dispatcher career', () => {
     const sim = cloneSim(startCareer(net, 4).sim);
     sim.trains = [];
     sim.incidents = [{ id: 1, kind: 'signal-fault', place: first, stations: [first, second],
-      line: 'KJ', train: null, startedMs: 0, step: 0 }];
+      line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0 }];
     let s: CareerState = { ...startCareer(net, 4), sim };
     for (const char of net.stations.get(first)!.name) s = enterDispatchCharacter(net, s, char, 1_000);
     expect(s.aim.lock).toEqual({ kind: 'fix', incident: 1 });
@@ -244,8 +244,8 @@ describe('Dispatcher career', () => {
       { line: 'KJ' as const, from: park, to: park + 1 }];
     const sim = startShiftSim(net, served, 3);
     sim.trains = [
-      { id: 1, line: 'AG', at: ampang, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {} },
-      { id: 2, line: 'KJ', at: park, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {} },
+      { id: 1, line: 'AG', at: ampang, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null },
+      { id: 2, line: 'KJ', at: park, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null },
     ];
     let s: CareerState = { ...startCareer(net, 3), served, sim };
     expect(applyDispatchAction(net, s, { a: 'confirm' }, 1_000)).toBe(s);
@@ -360,7 +360,7 @@ describe('Dispatcher Green wave', () => {
     // Signals wait at Setiawangsa 4, Dang Wangi 11 and Pasar Seni 13.
     let s: CareerState = { ...onSignals([['KJ', 4], ['KJ', 11], ['KJ', 13]]), streak: 2 };
     s.sim.incidents = [{ id: 1, kind: 'signal-fault', place: first, stations: [first, second],
-      line: 'KJ', train: null, startedMs: 0, step: 0 }];
+      line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0 }];
     s = type(s, net.stations.get(first)!.name);
     expect(s.sim.incidents[0]!.step).toBe(1);
     expect(s).toMatchObject({ streak: 2, waves: 0 });
@@ -382,7 +382,7 @@ describe('Dispatcher Green wave', () => {
       ['KJ', 5],   // 6: plain
     ], [KJ_RANGE, AG_RANGE]);
     s0.sim.incidents = [{ id: 1, kind: 'signal-fault', place: kj[14]!, stations: [kj[13]!, kj[14]!, kj[15]!],
-      line: 'KJ', train: null, startedMs: 0, step: 0 }];
+      line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0 }];
     s0.sim.outOfService = { [kj[7]!]: 'crowding' };
     s0.sim.oosOrder = [kj[7]!];
     const s = type({ ...s0, streak: 11 }, 'KLCC');
@@ -401,8 +401,8 @@ describe('Dispatcher Green wave', () => {
     const wave = s.lastWave;
     // Nothing carries over: the next completion fires no wave and clears only itself.
     const sim = cloneSim(s.sim);
-    sim.trains.push({ id: 3, line: 'KJ', at: 13, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {} },
-      { id: 4, line: 'KJ', at: 15, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {} });
+    sim.trains.push({ id: 3, line: 'KJ', at: 13, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null },
+      { id: 4, line: 'KJ', at: 15, dir: 1, stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null });
     s = type({ ...s, sim }, 'Pasar Seni');
     expect(s).toMatchObject({ streak: 7, waves: 1 });
     expect(s.lastWave).toBe(wave);

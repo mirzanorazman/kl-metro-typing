@@ -90,7 +90,7 @@ function spawnIncident(net: NetworkIndex, s: SimState, startedMs: number): boole
   const train = option.trains.length ? option.trains[Math.floor(draw(s) * option.trains.length)]! : null;
   const line = train === null ? option.line : s.trains.find((t) => t.id === train)!.line;
   s.incidents.push({ id: s.nextIncidentId++, kind, place: chosen.place, stations: [...option.stations],
-    line, train, startedMs, step: 0 });
+    line, train, startedMs, step: 0, extra: 0 });
   return true;
 }
 
@@ -122,6 +122,25 @@ export function advanceFix(net: NetworkIndex, s: SimState, incidentId: number): 
   const count = fixItems(net, inc, s).length;
   if (inc.step >= count) return false;
   inc.step++;
-  if (inc.step === count) s.incidents.splice(s.incidents.indexOf(inc), 1);
+  if (inc.step === count) {
+    s.incidents.splice(s.incidents.indexOf(inc), 1);
+    if (inc.kind === 'crowd-surge') disperseSurge(s, inc);
+  }
   return true;
+}
+
+/** The surge's extra Passengers leave the platform: counted as neither Delivered nor Stranded. */
+function disperseSurge(s: SimState, inc: Incident): void {
+  const waiting = s.platforms[inc.place]?.waiting ?? {};
+  const count = Math.min(Math.floor(inc.extra), crowdAt(s, inc.place));
+  let remaining = count;
+  for (const destination of Object.keys(waiting).sort()) {
+    if (remaining <= 0) break;
+    const taken = Math.min(remaining, waiting[destination]!);
+    remaining -= taken;
+    if (taken === waiting[destination]) delete waiting[destination];
+    else waiting[destination]! -= taken;
+  }
+  s.dispersed += count;
+  s.lastDispersal = { station: inc.place, count, incident: inc.id, atMs: s.shiftMs };
 }

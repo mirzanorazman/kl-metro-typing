@@ -12,7 +12,7 @@ const idOf = (name: string) => [...net.stations.values()].find((s) => s.name ===
 
 function waiting(id: number, line: LineCode, name: string, dir: Dir = 1): Train {
   const at = net.lines.get(line)!.stations.indexOf(idOf(name));
-  return { id, line, dir, at, stage: 'signal', ms: 0, skipTo: null, load: {} };
+  return { id, line, dir, at, stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null };
 }
 
 /** A running Career whose Trains are exactly `trains`. */
@@ -33,7 +33,7 @@ function withSim(s: CareerState, change: (sim: CareerState['sim']) => void): Car
 const fault: Incident = {
   id: 1, kind: 'signal-fault', place: idOf('Masjid Jamek'),
   stations: [idOf('Dang Wangi'), idOf('Masjid Jamek'), idOf('Pasar Seni')],
-  line: 'KJ', train: null, startedMs: 0, step: 0,
+  line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0,
 };
 
 describe('newDispatchTips', () => {

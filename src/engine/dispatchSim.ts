@@ -12,6 +12,22 @@ import type { NetworkIndex } from './network';
 export type Dir = 1 | -1;
 export type TrainStage = 'signal' | 'cleared' | 'dwell' | 'running' | 'turnaround';
 
+export interface Exchange {
+  station: string;
+  boarded: number;
+  alighted: number;
+  /** The alighted Passengers whose destination was this Station. */
+  delivered: number;
+  atMs: number;
+}
+
+export interface Dispersal {
+  station: string;
+  count: number;
+  incident: number;
+  atMs: number;
+}
+
 export interface Train {
   id: number;
   line: LineCode;
@@ -23,6 +39,8 @@ export interface Train {
   ms: number;
   skipTo: number | null;
   load: Record<string, number>;
+  /** The most recent call's exchange, set by every call. */
+  lastExchange: Exchange | null;
 }
 
 export type IncidentKind = 'signal-fault' | 'train-fault' | 'crowd-surge';
@@ -39,6 +57,8 @@ export interface Incident {
   train: number | null;
   startedMs: number;
   step: number;
+  /** Crowd surge only: fractional count of surge-extra arrivals at the place; 0 otherwise. */
+  extra: number;
 }
 
 export interface Platform {
@@ -67,6 +87,9 @@ export interface SimState {
   incidentDebt: number;
   /** Shift time of the last Train entry per Line and outer end, keyed `${line}:${end}`. */
   entries: Record<string, number>;
+  /** Passengers a fixed crowd surge dispersed: neither Delivered nor Stranded. */
+  dispersed: number;
+  lastDispersal: Dispersal | null;
 }
 
 export interface PhaseNow {
@@ -169,12 +192,15 @@ function spawnPassengers(net: NetworkIndex, s: SimState, phase: PhaseNow): void 
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   for (let i = 0; i < ids.length; i++) {
     const id = ids[i]!;
+    const surge = s.incidents.find((inc) => inc.kind === 'crowd-surge' && inc.place === id);
     s.spawnDebt[id] = (s.spawnDebt[id] ?? 0)
       + PASSENGER_RATE * originWeight(net, id, phase.flow) * phase.multiplier * phase.escalation
-      * (s.incidents.some((inc) => inc.kind === 'crowd-surge' && inc.place === id) ? CROWD_SURGE_MULTIPLIER : 1)
+      * (surge ? CROWD_SURGE_MULTIPLIER : 1)
       * TICK_MS / 1000;
+    let spawned = 0;
     while (s.spawnDebt[id]! >= 1) {
       s.spawnDebt[id]!--;
+      spawned++;
       let random: number;
       [random, s.rng] = nextRandom(s.rng);
       let draw = random * (total - weights[i]!);
@@ -188,6 +214,8 @@ function spawnPassengers(net: NetworkIndex, s: SimState, phase: PhaseNow): void 
       const waiting = s.platforms[id]!.waiting;
       waiting[destination] = (waiting[destination] ?? 0) + 1;
     }
+    // Bookkeeping only, with no rng: the share of this tick's arrivals the surge added.
+    if (surge) surge.extra += spawned * (CROWD_SURGE_MULTIPLIER - 1) / CROWD_SURGE_MULTIPLIER;
   }
 }
 
@@ -217,13 +245,17 @@ function exchangePassengers(net: NetworkIndex, s: SimState, t: Train, outgoing: 
   const next = nextStop(net, s, t, outgoing);
   const closer = (destination: string) => next !== null
     && (distances.get(next)?.get(destination) ?? Infinity) < (distances.get(id)?.get(destination) ?? Infinity);
-  let exchanged = 0;
+  let alighted = 0;
+  let delivered = 0;
+  let boarded = 0;
   for (const [destination, count] of Object.entries(t.load)) {
     if (destination !== id && closer(destination)) continue;
     delete t.load[destination];
-    exchanged += count;
-    if (destination === id) s.delivered += count;
-    else platform.waiting[destination] = (platform.waiting[destination] ?? 0) + count;
+    alighted += count;
+    if (destination === id) {
+      s.delivered += count;
+      delivered += count;
+    } else platform.waiting[destination] = (platform.waiting[destination] ?? 0) + count;
   }
   let room = TRAIN_CAPACITY - Object.values(t.load).reduce((sum, count) => sum + count, 0);
   for (const [destination, count] of Object.entries(platform.waiting)) {
@@ -234,9 +266,10 @@ function exchangePassengers(net: NetworkIndex, s: SimState, t: Train, outgoing: 
     if (boarding === count) delete platform.waiting[destination];
     else platform.waiting[destination] = count - boarding;
     room -= boarding;
-    exchanged += boarding;
+    boarded += boarding;
   }
-  return exchanged * DWELL_PER_PASSENGER_MS;
+  t.lastExchange = { station: id, boarded, alighted, delivered, atMs: s.shiftMs };
+  return (alighted + boarded) * DWELL_PER_PASSENGER_MS;
 }
 
 /** Close once and strand all trips from or to the Station, regardless of cause. */
@@ -334,7 +367,7 @@ function canMove(net: NetworkIndex, s: SimState, t: Train, stage: TrainStage, di
 }
 
 function addTrain(s: SimState, line: LineCode, at: number, dir: Dir, stage: TrainStage, ms: number): void {
-  s.trains.push({ id: s.nextTrainId++, line, at, dir, stage, ms, skipTo: null, load: {} });
+  s.trains.push({ id: s.nextTrainId++, line, at, dir, stage, ms, skipTo: null, load: {}, lastExchange: null });
 }
 
 export function startShiftSim(net: NetworkIndex, served: Served, rng: number): SimState {
@@ -342,6 +375,7 @@ export function startShiftSim(net: NetworkIndex, served: Served, rng: number): S
     served: served.map((r) => ({ ...r })), trains: [], nextTrainId: 1, rng, shiftMs: 0,
     platforms: {}, outOfService: {}, oosOrder: [], delivered: 0, stranded: 0,
     calls: 0, onTimeCalls: 0, spawnDebt: {}, incidents: [], nextIncidentId: 1, incidentDebt: 0, entries: {},
+    dispersed: 0, lastDispersal: null,
   };
   for (const id of servedStations(net, served)) {
     s.platforms[id] = { waiting: {}, fullMs: 0, lastCall: {} };
@@ -492,7 +526,7 @@ export function cloneSim(s: SimState): SimState {
   return {
     ...s,
     served: s.served.map((r) => ({ ...r })),
-    trains: s.trains.map((t) => ({ ...t, load: { ...t.load } })),
+    trains: s.trains.map((t) => ({ ...t, load: { ...t.load }, lastExchange: t.lastExchange && { ...t.lastExchange } })),
     platforms: Object.fromEntries(Object.entries(s.platforms).map(([id, p]) => [id, {
       ...p, waiting: { ...p.waiting }, lastCall: { ...p.lastCall },
     }])),
@@ -501,6 +535,7 @@ export function cloneSim(s: SimState): SimState {
     spawnDebt: { ...s.spawnDebt },
     entries: { ...s.entries },
     incidents: s.incidents.map((inc) => ({ ...inc, stations: [...inc.stations] })),
+    lastDispersal: s.lastDispersal && { ...s.lastDispersal },
   };
 }
 

@@ -43,7 +43,7 @@ const originalRect = Element.prototype.getBoundingClientRect;
 /** A Train waiting at the Signal before `name` on `line`. */
 function waiting(id: number, line: LineCode, name: string, dir: Dir = 1): Train {
   const at = net.lines.get(line)!.stations.indexOf(idOf(name));
-  return { id, line, dir, at, stage: 'signal', ms: 0, skipTo: null, load: {} };
+  return { id, line, dir, at, stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null };
 }
 
 /** A fresh Career whose Trains are exactly `trains`. */
@@ -59,7 +59,7 @@ function signalFault(): Incident {
   return {
     id: 1, kind: 'signal-fault', place: idOf('Masjid Jamek'),
     stations: [idOf('Dang Wangi'), idOf('Masjid Jamek'), idOf('Pasar Seni')],
-    line: 'KJ', train: null, startedMs: 0, step: 0,
+    line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0,
   };
 }
 
@@ -252,9 +252,9 @@ describe('DispatcherScreen', () => {
     const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
     initial.sim.incidents = [
       signalFault(),
-      { id: 2, kind: 'train-fault', place: idOf('KLCC'), stations: [], line: 'KJ', train: 1, startedMs: 0, step: 0 },
+      { id: 2, kind: 'train-fault', place: idOf('KLCC'), stations: [], line: 'KJ', train: 1, startedMs: 0, step: 0, extra: 0 },
       { id: 3, kind: 'crowd-surge', place: idOf('Ampang Park'), stations: [idOf('Ampang Park')],
-        line: 'KJ', train: null, startedMs: 0, step: 0 },
+        line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0 },
     ];
     initial.sim.nextIncidentId = 4;
     renderShift(initial);

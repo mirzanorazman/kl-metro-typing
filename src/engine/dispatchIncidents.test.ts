@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from './network';
 import { STARTING_NETWORK, servedDistances } from './dispatchNetwork';
-import { INCIDENT_FIRST_MS, INCIDENT_LIMIT_MS, INCIDENT_MAX, STRAIN_HELD_WEIGHT, TICK_MS } from './dispatchBalance';
-import { clearSignal, cloneSim, crowdAt, heldStations, heldTrains, startShiftSim, type Incident, type PhaseNow } from './dispatchSim';
+import { CROWD_SURGE_MULTIPLIER, INCIDENT_FIRST_MS, INCIDENT_LIMIT_MS, INCIDENT_MAX, PASSENGER_RATE, STRAIN_HELD_WEIGHT, TICK_MS } from './dispatchBalance';
+import { clearSignal, cloneSim, crowdAt, heldStations, heldTrains, originWeight, startShiftSim, type Incident, type PhaseNow } from './dispatchSim';
 import { advanceFix, fixItems, stepIncidents, stepWorld, strain } from './dispatchIncidents';
 
 const net = buildNetwork(loadNetworkData());
@@ -17,7 +17,7 @@ function run(s: ReturnType<typeof startShiftSim>, ms: number, p = phase): void {
 }
 
 function incident(kind: Incident['kind'], overrides: Partial<Incident> = {}): Incident {
-  return { id: 1, kind, place: 'klcc', stations: kind === 'signal-fault' ? ['klcc', 'kampung-baru', 'dang-wangi'] : kind === 'crowd-surge' ? ['klcc'] : [], line: 'KJ', train: null, startedMs: 0, step: 0, ...overrides };
+  return { id: 1, kind, place: 'klcc', stations: kind === 'signal-fault' ? ['klcc', 'kampung-baru', 'dang-wangi'] : kind === 'crowd-surge' ? ['klcc'] : [], line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0, ...overrides };
 }
 
 describe('Dispatcher incidents', () => {
@@ -68,8 +68,8 @@ describe('Dispatcher incidents', () => {
     const s = startShiftSim(net, STARTING_NETWORK, 42);
     s.incidents = [incident('signal-fault')];
     s.trains = [
-      { id: 1, line: 'KJ', dir: 1, at: index('kampung-baru'), stage: 'signal', ms: 0, skipTo: null, load: {} },
-      { id: 2, line: 'KJ', dir: 1, at: index('klcc'), stage: 'dwell', ms: TICK_MS, skipTo: null, load: {} },
+      { id: 1, line: 'KJ', dir: 1, at: index('kampung-baru'), stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null },
+      { id: 2, line: 'KJ', dir: 1, at: index('klcc'), stage: 'dwell', ms: TICK_MS, skipTo: null, load: {}, lastExchange: null },
     ];
     expect(heldStations(s)).toEqual(new Set(['klcc', 'kampung-baru', 'dang-wangi']));
     expect(heldTrains(net, s)).toEqual(new Set([1, 2]));
@@ -105,6 +105,96 @@ describe('Dispatcher incidents', () => {
     run(base, 20_000);
     run(surged, 20_000);
     expect(crowdAt(surged, 'klcc')).toBeGreaterThanOrEqual(crowdAt(base, 'klcc') * 4 - 1);
+  });
+
+  it('a surge\'s extras accumulate', () => {
+    const s = startShiftSim(net, STARTING_NETWORK, 42);
+    s.incidents = [incident('crowd-surge')];
+    run(s, 10_000);
+    const spawned = PASSENGER_RATE * originWeight(net, 'klcc', phase.flow) * CROWD_SURGE_MULTIPLIER * 10;
+    const extraShare = (CROWD_SURGE_MULTIPLIER - 1) / CROWD_SURGE_MULTIPLIER;
+    expect(s.incidents[0]!.extra).toBeGreaterThan(0);
+    expect(Math.abs(s.incidents[0]!.extra - extraShare * spawned)).toBeLessThan(1 + extraShare);
+  });
+
+  it('adds no extras for other incidents, and draws no rng', () => {
+    const base = startShiftSim(net, STARTING_NETWORK, 42);
+    const signal = cloneSim(base);
+    signal.incidents = [incident('signal-fault', { startedMs: 0 })];
+    run(signal, 10_000);
+    expect(signal.incidents[0]!.extra).toBe(0);
+    // Surge extras are bookkeeping only: the spawn stream ignores them.
+    const marked = cloneSim(base);
+    marked.incidents = [incident('crowd-surge', { extra: 123 })];
+    const plain = cloneSim(base);
+    plain.incidents = [incident('crowd-surge')];
+    run(marked, 10_000);
+    run(plain, 10_000);
+    expect(marked.rng).toBe(plain.rng);
+    expect(marked.platforms).toEqual(plain.platforms);
+  });
+
+  describe('fixing a surge', () => {
+    function surged(extra: number, waiting: Record<string, number>) {
+      const s = startShiftSim(net, STARTING_NETWORK, 42);
+      s.shiftMs = 30_000;
+      s.platforms.klcc!.waiting = { ...waiting };
+      s.incidents = [incident('crowd-surge', { extra })];
+      s.delivered = 11;
+      s.stranded = 7;
+      return s;
+    }
+
+    it('disperses its extras, in ascending destination order, without touching Delivered or Stranded', () => {
+      const s = surged(7.9, { [kj[6]!]: 2, [kj[2]!]: 3, [kj[9]!]: 20 });
+      const crowd = crowdAt(s, 'klcc');
+      expect(advanceFix(net, s, 1)).toBe(true);
+      const count = Math.min(Math.floor(7.9), crowd);
+      expect(count).toBe(7);
+      expect(crowdAt(s, 'klcc')).toBe(crowd - count);
+      expect(s.dispersed).toBe(count);
+      expect(s.lastDispersal).toEqual({ station: 'klcc', count, incident: 1, atMs: 30_000 });
+      expect(s.delivered).toBe(11);
+      expect(s.stranded).toBe(7);
+      // Ids sort ascending: the first destinations in id order empty first.
+      const have: Record<string, number> = { [kj[6]!]: 2, [kj[2]!]: 3, [kj[9]!]: 20 };
+      const expected: Record<string, number> = {};
+      let remaining = count;
+      for (const id of Object.keys(have).sort()) {
+        const taken = Math.min(remaining, have[id]!);
+        remaining -= taken;
+        if (have[id]! > taken) expected[id] = have[id]! - taken;
+      }
+      const left = s.platforms.klcc!.waiting;
+      expect(left).toEqual(expected);
+      expect(Object.values(left).every((n) => n > 0)).toBe(true);
+      expect(s.incidents).toHaveLength(0);
+    });
+
+    it('disperses exactly the crowd when most extras already boarded', () => {
+      const s = surged(30, { [kj[6]!]: 2, [kj[2]!]: 3 });
+      advanceFix(net, s, 1);
+      expect(crowdAt(s, 'klcc')).toBe(0);
+      expect(s.platforms.klcc!.waiting).toEqual({});
+      expect(s.dispersed).toBe(5);
+      expect(s.lastDispersal).toMatchObject({ count: 5 });
+      expect(s.stranded).toBe(7);
+      expect(s.delivered).toBe(11);
+    });
+
+    it('leaves other platforms and other incident kinds alone', () => {
+      const s = surged(5, { [kj[6]!]: 9 });
+      s.platforms[kj[6]!]!.waiting.klcc = 4;
+      const signal = startShiftSim(net, STARTING_NETWORK, 42);
+      signal.platforms.klcc!.waiting = { [kj[6]!]: 9 };
+      signal.incidents = [incident('signal-fault', { extra: 5 })];
+      advanceFix(net, s, 1);
+      expect(s.platforms[kj[6]!]!.waiting.klcc).toBe(4);
+      for (let i = 0; i < 3; i++) advanceFix(net, signal, 1);
+      expect(signal.dispersed).toBe(0);
+      expect(signal.lastDispersal).toBeNull();
+      expect(crowdAt(signal, 'klcc')).toBe(9);
+    });
   });
 
   it('escalates at the limit through shared closure cleanup', () => {
