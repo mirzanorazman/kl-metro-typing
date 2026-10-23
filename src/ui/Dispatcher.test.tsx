@@ -9,7 +9,7 @@ import { buildNetwork } from '../engine/network';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { careerScore, SHIFT_MS, startCareer, type CareerState } from '../engine/dispatch';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
-import { OOS_CROWD_MS } from '../engine/dispatchBalance';
+import { OOS_CROWD_MS, TICK_MS, TRAVEL_MS } from '../engine/dispatchBalance';
 import {
   ERAS, eraFor, servedStations, STARTING_NETWORK, type Expansion, type Served,
 } from '../engine/dispatchNetwork';
@@ -25,6 +25,8 @@ import { closureText, failureText } from './dispatchTips';
 import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
 import { RIPPLE_LEAD_MS, RIPPLE_STEP_MS } from '../render/useSignalMarks';
+import { MapCanvas } from '../render/MapCanvas';
+import { readFileSync } from 'node:fs';
 
 // Pass-through spy: the screen's judged evidence is observed, never altered.
 vi.mock('../engine/dispatchJudge', async (importOriginal) => {
@@ -32,6 +34,14 @@ vi.mock('../engine/dispatchJudge', async (importOriginal) => {
   return { ...actual, judgeCareer: vi.fn(actual.judgeCareer) };
 });
 const judgeSpy = vi.mocked(judgeCareer);
+
+// Pass-through spy: the map's framing props are observed, the map still renders.
+vi.mock('../render/MapCanvas', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../render/MapCanvas')>();
+  return { ...actual, MapCanvas: vi.fn(actual.MapCanvas) };
+});
+const mapSpy = vi.mocked(MapCanvas);
+const mapProps = () => mapSpy.mock.lastCall![0];
 
 const net = buildNetwork(loadNetworkData());
 const type = (text: string) => {
@@ -902,6 +912,115 @@ describe('DispatcherScreen', () => {
       </TypingInputProvider>,
     );
     expect(screen.getByText('Rotate to portrait to play')).toBeTruthy();
+  });
+});
+
+describe('Leaning in on an Incident fix', () => {
+  /** Three Trains waiting across the Line, and a Crowd surge at Ampang Park. */
+  const surgeWithWaiting = () => {
+    const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Bangsar', -1),
+      waiting(3, 'KJ', 'Kerinchi', -1)]);
+    initial.sim.incidents = [{ id: 1, kind: 'crowd-surge', place: idOf('Ampang Park'), stations: [idOf('Ampang Park')],
+      line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0 }];
+    initial.sim.nextIncidentId = 2;
+    return initial;
+  };
+  const root = (container: HTMLElement) => container.querySelector('.dispatcher')!;
+  const glow = () => screen.queryByTestId('incident-glow');
+
+  it('locking onto a fix leans in: urgent edge, place glow, and a fix frame that keeps every waiting train', () => {
+    allowMotion();
+    const initial = surgeWithWaiting();
+    const { container } = renderShift(initial);
+    const normalKey = mapProps().fitKey;
+    expect(normalKey).toMatch(/^dispatch:/);
+    expect(root(container).getAttribute('data-urgent')).toBeNull();
+    expect(glow()).toBeNull();
+
+    type('C');
+    expect(root(container).getAttribute('data-urgent')).toBe('true');
+    const place = glow();
+    expect(place).toBeTruthy();
+    expect(place!.closest('[data-testid="dispatch-incident"]')).toBeTruthy();
+
+    const props = mapProps();
+    expect(props.fitKey).toMatch(/^fix:1/);
+    const at = (name: string) => props.layout.get(idOf(name));
+    for (const name of ['Jelatek', 'Bangsar', 'Kerinchi', 'Ampang Park']) {
+      expect(props.fitTo).toContainEqual(at(name));
+    }
+    // The place's neighbours on its Line, so the lean never closes in on one dot.
+    const kj = net.lines.get('KJ')!.stations;
+    const i = kj.indexOf(idOf('Ampang Park'));
+    expect(props.fitTo).toContainEqual(props.layout.get(kj[i - 1]!));
+    expect(props.fitTo).toContainEqual(props.layout.get(kj[i + 1]!));
+  });
+
+  it('a train that starts waiting mid-fix joins the frame, and the map refits to take it in', async () => {
+    allowMotion();
+    const clock = fakeClock();
+    const initial = surgeWithWaiting();
+    // One block short of Pasar Seni's Signal.
+    initial.sim.trains.push({ ...waiting(4, 'KJ', 'Masjid Jamek'), stage: 'running', ms: TRAVEL_MS - TICK_MS });
+    initial.sim.nextTrainId = 5;
+    renderShift(initial);
+    type('C');
+    const pasarSeni = () => mapProps().layout.get(idOf('Pasar Seni'));
+    const before = mapProps().fitKey;
+    expect(before).toMatch(/^fix:1/);
+    expect(mapProps().fitTo).not.toContainEqual(pasarSeni());
+
+    clock.now += TICK_MS * 2;
+    await waitFor(() => expect(mapProps().fitTo).toContainEqual(pasarSeni()));
+    expect(mapProps().fitKey).toMatch(/^fix:1/);
+    expect(mapProps().fitKey).not.toBe(before);
+  });
+
+  it('completing the fix lets go: no urgency, no glow, and the normal frame is back', () => {
+    allowMotion();
+    const { container } = renderShift(surgeWithWaiting());
+    const normalKey = mapProps().fitKey;
+    type('Crowd control at Ampang Park');
+    expect(screen.queryAllByTestId('dispatch-incident')).toHaveLength(0);
+    expect(root(container).getAttribute('data-urgent')).toBeNull();
+    expect(glow()).toBeNull();
+    expect(mapProps().fitKey).toBe(normalKey);
+  });
+
+  it('Backspace lets go: no urgency, no glow, and the normal frame is back', () => {
+    allowMotion();
+    const { container } = renderShift(surgeWithWaiting());
+    const normalKey = mapProps().fitKey;
+    type('Crow');
+    expect(root(container).getAttribute('data-urgent')).toBe('true');
+    press('Backspace');
+    expect(root(container).getAttribute('data-urgent')).toBeNull();
+    expect(glow()).toBeNull();
+    expect(mapProps().fitKey).toBe(normalKey);
+  });
+
+  it('under reduced motion the camera stays put, while the edge and glow still show', () => {
+    // beforeEach reports reduced motion.
+    const { container } = renderShift(surgeWithWaiting());
+    const normalKey = mapProps().fitKey;
+    type('C');
+    expect(root(container).getAttribute('data-urgent')).toBe('true');
+    expect(glow()).toBeTruthy();
+    expect(mapProps().fitKey).toBe(normalKey);
+  });
+
+  it('the edge pulse and the glow hold still under reduced motion', () => {
+    const css = readFileSync('src/ui/dispatch.css', 'utf8');
+    expect(css).toMatch(/\.dispatcher\[data-urgent='true'\]::after\s*\{[^}]*animation:\s*urgent-edge/);
+    expect(css).toMatch(/\.incident-glow\s*\{[^}]*animation:\s*incident-glow/);
+    const blocks = css.split('@media (prefers-reduced-motion: reduce)').slice(1).map((rest) => {
+      // The block body runs to its closing brace at column 0.
+      return rest.slice(0, rest.indexOf('\n}'));
+    });
+    const reduced = blocks.find((b) => b.includes('data-urgent'));
+    expect(reduced).toBeDefined();
+    expect(reduced).toMatch(/\.dispatcher\[data-urgent='true'\]::after\s*\{[^}]*animation:\s*none/);
+    expect(reduced).toMatch(/\.incident-glow\s*\{[^}]*animation:\s*none/);
   });
 });
 

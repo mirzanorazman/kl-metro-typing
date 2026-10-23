@@ -366,8 +366,14 @@ export function DispatchOverlay({
       {sim.incidents.map((inc) => {
         const p = layout.get(inc.place);
         if (!p || sim.outOfService[inc.place]) return null;
+        // The place glows while its fix is being typed.
+        const fixing = isLocked({ kind: 'fix', incident: inc.id })
+          && targets.some((t) => t.ref.kind === 'fix' && t.ref.incident === inc.id);
         return (
           <g key={`inc-${inc.id}`} data-testid="dispatch-incident" data-kind={inc.kind} className="dispatch-incident">
+            {fixing && (
+              <circle data-testid="incident-glow" className="incident-glow" cx={p.x} cy={p.y} r={26 * m} />
+            )}
             <circle className="dispatch-pulse" cx={p.x} cy={p.y} r={14 * m} />
             <circle className="dispatch-incident-badge" cx={p.x} cy={p.y - 12 * m} r={9 * m}
               vectorEffect="non-scaling-stroke" />

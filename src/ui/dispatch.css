@@ -352,6 +352,40 @@
   to { transform: scale(1.4); opacity: 0; }
 }
 
+/* ---- Leaning in on a fix ---- */
+
+/* While a fix is typed the Incident's Station glows beneath its badge... */
+.incident-glow {
+  fill: var(--error);
+  opacity: 0.3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: incident-glow 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes incident-glow {
+  from { transform: scale(0.85); opacity: 0.18; }
+  to { transform: scale(1.1); opacity: 0.42; }
+}
+
+/* ...and a red pulse runs round the edge of the map. It sits over the map
+   and never takes a click. */
+.dispatcher[data-urgent='true']::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 3px var(--error),
+    inset 0 0 56px color-mix(in srgb, var(--error) 45%, transparent);
+  animation: urgent-edge 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes urgent-edge {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
 .dispatch-oos circle {
   fill: var(--paper);
   stroke: var(--error);
@@ -445,6 +479,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .dispatch-pulse { animation: none; opacity: 0.8; }
+  /* The fix still reads as urgent: a static glow and a static red edge. */
+  .incident-glow { animation: none; opacity: 0.3; }
+  .dispatcher[data-urgent='true']::after { animation: none; opacity: 0.8; }
   /* A Cleared mark shows green, still, until it is removed. */
   .signal-mark[data-aspect='green'] { animation: none; }
   .dispatch-streak[data-wave='true'] { animation: none; }

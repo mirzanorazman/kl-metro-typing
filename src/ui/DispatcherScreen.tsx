@@ -22,6 +22,7 @@ import {
 import { DISPATCH_KEYLOG_MAX_EVENTS } from '../engine/dispatchBalance';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { servedKey, servedLines, servedStations } from '../engine/dispatchNetwork';
+import type { Incident } from '../engine/dispatchSim';
 import { candidates, sameRef, visibleTargets, type Target } from '../engine/dispatchTargets';
 import type { TypingState } from '../engine/typing';
 import { networkLayout } from '../geo/networkLayout';
@@ -30,6 +31,7 @@ import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { usePassengerMoments } from '../render/usePassengerMoments';
 import { clearedSignals, useFreshWave } from '../render/useSignalMarks';
+import { prefersReducedMotion } from '../render/useLayoutMode';
 import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
@@ -105,6 +107,35 @@ function ShiftBar({ career }: { career: CareerState }) {
       </dl>
     </header>
   );
+}
+
+/**
+ * The frame while a fix is typed: a lean towards the Incident, never a
+ * close-up. It holds the place and its Served neighbours on its Line, so the
+ * shot never closes in on one dot, and every waiting train's Station, so no
+ * train waits out of view. The key carries the waiting Stations: one that
+ * starts waiting mid-fix moves the key, and the map refits to take it in.
+ */
+function leanIn(
+  net: NetworkIndex, sim: CareerState['sim'], incident: Incident, targets: readonly Target[],
+  served: ReadonlySet<string>,
+): { stations: string[]; key: string } {
+  const line = net.lines.get(incident.line)!.stations;
+  const at = line.indexOf(incident.place);
+  const near = [line[at - 1], incident.place, line[at + 1]]
+    .filter((id): id is string => id !== undefined && (id === incident.place || served.has(id)));
+  const waiting = new Set<string>();
+  for (const target of targets) {
+    if (target.ref.kind === 'fix') continue;
+    const id = target.ref.train;
+    const train = sim.trains.find((t) => t.id === id);
+    const station = train && net.lines.get(train.line)!.stations[train.at];
+    if (station) waiting.add(station);
+  }
+  return {
+    stations: [...new Set([...near, ...waiting])],
+    key: `fix:${incident.id}:${[...waiting].sort().join(',')}`,
+  };
 }
 
 /** How long the streak count flashes when a Green wave fires. */
@@ -422,9 +453,16 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
   const lock = run.aim.lock;
   const lockedTrain = lock && lock.kind !== 'fix' ? run.sim.trains.find((t) => t.id === lock.train) : undefined;
   const lineColour = lockedTrain ? net.lines.get(lockedTrain.line)?.colour ?? null : null;
+  // A completed fix can leave the lock behind for a moment; only a fix that is
+  // still there to type counts.
+  const fixing = lock?.kind === 'fix' && targets.some((t) => sameRef(t.ref, lock))
+    ? run.sim.incidents.find((inc) => inc.id === lock.incident) : undefined;
+  // Reduced motion keeps the camera still; the edge and the glow still show.
+  const lean = fixing && !prefersReducedMotion() ? leanIn(net, run.sim, fixing, targets, served) : null;
+  const leanFrame = lean?.stations.map((id) => layout.get(id)).filter((p): p is Point => p !== undefined);
 
   return (
-    <div className="dispatcher">
+    <div className="dispatcher" data-urgent={fixing ? 'true' : undefined}>
       <PlayLayout
         lineColour={lineColour}
         map={
@@ -437,8 +475,8 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
             backdrop={backdrop}
             districts={districts}
             emphasisSet={lines}
-            fitTo={frame}
-            fitKey={frameKey}
+            fitTo={leanFrame ?? frame}
+            fitKey={lean?.key ?? frameKey}
             fitPadding={{ top: 0.12, right: 0.24, bottom: offers ? 0.7 : 0.3, left: 0.06 }}
             overlay={({ layout: l, markScale }) => (
               <DispatchOverlay net={net} layout={l} markScale={markScale} career={run} targets={targets} aimed={aimed}
