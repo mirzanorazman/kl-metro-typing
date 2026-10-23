@@ -287,6 +287,19 @@ describe('DispatcherScreen', () => {
     expect(play).toHaveBeenLastCalledWith('rushTense');
   });
 
+  it('End Career on the Expansion screen ends the Career as abandoned', () => {
+    renderShift({ ...startCareer(net, 7), status: 'between', shift: 1, cleared: 1, startedAt: 1_000, stoppedAt: 2_000,
+      history: [{ shift: 1, delivered: 40, calls: 10, onTimeCalls: 9, cleared: true }] });
+    expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+    const summary = screen.getByRole('region', { name: 'Career summary' });
+    expect(screen.getByRole('heading', { name: 'Career ended' })).toBeTruthy();
+    expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
+    expect(within(summary).getByText('Shifts cleared').nextElementSibling!.textContent).toBe('1');
+    expect(within(summary).getByText('Delivered').nextElementSibling!.textContent).toBe('40');
+    expect(judgeSpy).not.toHaveBeenCalled();
+  });
+
   it('a complete network moves on to the next Shift', () => {
     renderShift({ ...startCareer(net, 7), status: 'between', cleared: 1, startedAt: 1_000, stoppedAt: 2_000, offers: [] });
     fireEvent.click(screen.getByRole('button', { name: /Continue/ }));

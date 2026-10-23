@@ -409,13 +409,18 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
         panel={
           <>
             {run.status === 'between' ? (
-              <DispatchExpansion
-                key={run.shift}
-                net={net}
-                career={run}
-                onPick={(pick) => act({ a: 'expand', pick })}
-                active={tips.length === 0}
-              />
+              <>
+                <DispatchExpansion
+                  key={run.shift}
+                  net={net}
+                  career={run}
+                  onPick={(pick) => act({ a: 'expand', pick })}
+                  active={tips.length === 0}
+                />
+                <button type="button" onClick={() => act({ a: 'abandon' })}>
+                  End Career
+                </button>
+              </>
             ) : (
               <>
                 {run.status === 'ready' && !seenTips.current.has('start') && (
