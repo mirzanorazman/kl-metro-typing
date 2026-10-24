@@ -29,6 +29,23 @@ describe('HomeMap', () => {
     expect(container.querySelectorAll('polyline[data-line]')).toHaveLength(7);
   });
 
+  it('says what Dispatcher is, under its name', () => {
+    render(
+      <HomeMap
+        net={net}
+        theme="paper"
+        onToggleTheme={noop}
+        onStartLine={noop}
+        onPickStation={noop}
+        onOpenLeaderboard={noop}
+        onOpenDispatcher={noop}
+      />,
+    );
+    const button = screen.getByRole('button', { name: /^Dispatcher/ });
+    expect(button.querySelector('.mode-sub')!.textContent)
+      .toBe('Run the network Shift by Shift: type Station names to send trains, and fix Incidents before they spread.');
+  });
+
   it('draws the land backdrop beneath the tracks', () => {
     const { container } = render(
       <HomeMap

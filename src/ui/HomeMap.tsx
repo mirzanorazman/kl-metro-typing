@@ -276,7 +276,13 @@ export function HomeMap({
                   onOpenDispatcher();
                 }}
               >
-                <span>Dispatcher</span>
+                <span>
+                  Dispatcher
+                  <small className="mode-sub">
+                    Run the network Shift by Shift: type Station names to send trains, and fix Incidents before they
+                    spread.
+                  </small>
+                </span>
               </button>
             )}
 

@@ -141,6 +141,8 @@ body {
   backdrop-filter: var(--panel-blur);
 }
 .line-picker button:hover, .line-picker button:focus-visible { border-color: var(--focus-ring); }
+/* A mode's one-line explanation, under its name. */
+.line-picker .mode-sub { display: block; margin-top: 2px; color: var(--ink-muted); font-size: var(--t-xs); }
 
 /* The seven lines read as one list, as the design pack draws them: a single
    panel of hairline-separated rows, not seven free-floating cards. The badge
