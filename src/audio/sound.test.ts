@@ -89,6 +89,7 @@ describe('sound', () => {
       sound.sound.error();
       sound.sound.arrive();
       sound.sound.complete();
+      sound.sound.wave([0, 150]);
     }).not.toThrow();
 
     expect(toneMock.synthTrigger).not.toHaveBeenCalled();

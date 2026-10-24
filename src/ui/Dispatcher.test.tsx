@@ -784,6 +784,34 @@ describe('DispatcherScreen', () => {
       expect([lampOf(1), lampOf(2), lampOf(3)]).toEqual(['green', 'green', 'green']);
     });
 
+    it('a wave has its own sound: one rising note per cleared Signal, in time with the marks', () => {
+      const wave = vi.spyOn(sound, 'wave').mockImplementation(() => {});
+      allowMotion();
+      vi.useFakeTimers();
+      fakeClock();
+      const view = renderShift(waveCareer());
+      type('Damai');
+      expect(wave).toHaveBeenCalledTimes(1);
+      expect(wave).toHaveBeenLastCalledWith([RIPPLE_LEAD_MS, RIPPLE_LEAD_MS + RIPPLE_STEP_MS]);
+      view.unmount();
+
+      // Under reduced motion the marks turn at once, so the notes come straight away.
+      window.matchMedia = ((q: string) => ({
+        matches: true, media: q, onchange: null, addEventListener: () => {}, removeEventListener: () => {},
+        addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia;
+      renderShift(waveCareer());
+      type('Damai');
+      expect(wave).toHaveBeenLastCalledWith([0, 60]);
+    });
+
+    it('no wave sound for a Clear that fires no wave', () => {
+      const wave = vi.spyOn(sound, 'wave').mockImplementation(() => {});
+      renderShift({ ...waveCareer(), streak: 0 });
+      type('Damai');
+      expect(wave).not.toHaveBeenCalled();
+    });
+
     it('the typing line shows the streak, and flashes when a wave fires', () => {
       vi.useFakeTimers();
       fakeClock();

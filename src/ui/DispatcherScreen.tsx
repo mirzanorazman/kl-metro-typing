@@ -36,7 +36,7 @@ import {
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { usePassengerMoments } from '../render/usePassengerMoments';
-import { clearedSignals, liveMarks, useFreshWave } from '../render/useSignalMarks';
+import { clearedSignals, liveMarks, useFreshWave, waveNoteDelays } from '../render/useSignalMarks';
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
@@ -392,6 +392,9 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
       return now ? now.step > inc.step : !run.sim.outOfService[inc.place];
     });
     if (cleared || fixed) sound.arrive();
+    if (run.waves > prev.waves && run.lastWave) {
+      sound.wave(waveNoteDelays(run.lastWave.cleared.length, prefersReducedMotion()));
+    }
     if (run.sim.nextIncidentId > prev.sim.nextIncidentId) sound.warning();
   }, [run, net]);
 

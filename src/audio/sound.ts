@@ -274,6 +274,19 @@ export const sound = {
     });
   }),
 
+  /**
+   * A Dispatcher Green wave: a quick lift as it fires, then one rising note
+   * per cleared Signal, `delaysMs` after now, so each lands as its mark turns.
+   */
+  wave: (delaysMs: readonly number[]) => play(({ ui, complete }) => {
+    ui.triggerAttackRelease('G5', 0.05);
+    ui.triggerAttackRelease('D6', 0.08, '+0.05');
+    const notes = ['E6', 'G6', 'A6', 'C7'];
+    delaysMs.forEach((ms, index) => {
+      complete.triggerAttackRelease(notes[Math.min(index, notes.length - 1)]!, 0.1, `+${(ms / 1000).toFixed(3)}`);
+    });
+  }),
+
   /** A Rush Hour Overflow ring passing halfway: two low, insistent pulses. */
   warning: () => play(({ error }) => {
     error.triggerAttackRelease('A1', 0.12);
