@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
-import { careerMetrics, careerScore, careerTotals, type CareerState, type Wave } from './dispatch';
+import { careerMetrics, careerScore, careerTotals, SHIFT_MS, type CareerState, type Wave } from './dispatch';
 import type { Train } from './dispatchSim';
 import { drive } from './dispatchDrive.testutil';
 import { DISPATCH_KEYLOG_MAX_EVENTS } from './dispatchBalance';
@@ -95,6 +95,24 @@ describe('replayDispatch', () => {
     expect(replayed).not.toBeNull();
     expect(replayed.complete).toBe(false);
     expect(judgeCareer(net, abandoned).eligible).toBe(false);
+  }, 120_000);
+
+  it('a Career retired between Shifts replays complete and is judged eligible', () => {
+    const { evidence } = drive({ seed: 3, msPerKey: 200, limitMs: SHIFT_MS + 5_000 });
+    const expand = evidence.actions.findIndex((a) => a.a === 'expand');
+    expect(expand).toBeGreaterThanOrEqual(0);
+    const at = evidence.actions[expand]!;
+    const keys = evidence.keylog.events.slice(0, at.i);
+    const retired: DispatchEvidence = {
+      ...evidence,
+      keylog: { ...evidence.keylog, events: keys },
+      actions: [...evidence.actions.slice(0, expand), { a: 'abandon', i: at.i, t: at.t }],
+      endedAt: at.t,
+    };
+    const replayed = replayDispatch(net, retired)!;
+    expect(replayed.complete).toBe(true);
+    expect(replayed.cleared).toBe(1);
+    expect(judgeCareer(net, retired).eligible).toBe(true);
   }, 120_000);
 
   it('forged evidence is refused', () => {

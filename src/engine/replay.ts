@@ -223,15 +223,15 @@ export interface DispatchReplayResult {
   complete: boolean;
 }
 
-const DISPATCH_ACTIONS: readonly string[] = ['unlock', 'expand', 'pause', 'resume', 'abandon', 'confirm'];
+const DISPATCH_ACTIONS: readonly string[] = ['backspace', 'expand', 'pause', 'resume', 'abandon', 'confirm'];
 
 /**
  * Rebuilds a Dispatcher Career from its seed, Keylog and action log.
  *
  * `null` means the evidence cannot describe a Career at all: malformed, out of
  * order, or an action the engine would have refused. `complete` is true only
- * when the Career failed at exactly the recorded tick — an abandoned Career
- * replays but is never complete.
+ * when the Career failed, or was retired between Shifts, at exactly the
+ * recorded tick — a Career abandoned mid-Shift replays but is never complete.
  */
 export function replayDispatch(net: NetworkIndex, evidence: DispatchEvidence): DispatchReplayResult | null {
   const log = evidence?.keylog;
@@ -281,7 +281,8 @@ export function replayDispatch(net: NetworkIndex, evidence: DispatchEvidence): D
       cleared: state.cleared,
       score: careerScore(state),
       waves: state.waves,
-      complete: state.status === 'ended' && state.endReason === 'failed' && state.endedAt === evidence.endedAt,
+      complete: state.status === 'ended' && (state.endReason === 'failed' || state.endReason === 'retired')
+        && state.endedAt === evidence.endedAt,
     };
   } catch {
     return null;

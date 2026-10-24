@@ -23,6 +23,9 @@
   /* The already-typed stretch of rail. Ink on paper, white on midnight. */
   --track-done: #14181f;
   --error: #e53935;
+  /* A button that ends something: text on it passes AA in both atmospheres. */
+  --danger: #c62828;
+  --on-danger: #ffffff;
   --focus-ring: #14181f;
   /* A Signal's lit lamp: red while a train waits, green once Cleared. */
   --signal-red: #e53935;
@@ -58,6 +61,8 @@
   --grid-dot: #1a2438;
   --track-done: #ffffff;
   --error: #ef4444;
+  --danger: #ef4444;
+  --on-danger: #0b0f17;
   --focus-ring: #f8fafc;
   --signal-red: #ef4444;
   --signal-green: #22c55e;

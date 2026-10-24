@@ -11,8 +11,12 @@ Task 12.
 
 - **Last done:** the final whole-branch review's fixes, after Playtest 1
   Task 11; see "Final review fixes" under "Playtest 1".
-- **Next:** The user playtests again. Check the leans under "Playtest 1"
-  first: the 90 WPM ceiling is the open one. Task 12 of the first plan
+- **Next:** Playtest 2 is done; its feedback is ranked in
+  `docs/superpowers/dispatcher-playtest-2-feedback.md` (F1–F21). The P0 items
+  (F1, F3, F6, F7, F18) are done; the P1 clarity group (F8, F5, F2, F14,
+  F21, F4) is next. Note F18 bumped `DISPATCH_EVIDENCE_VERSION` to 2. The checklist it answers is
+  `docs/superpowers/dispatcher-playtest-2-checklist.md`. The 90 WPM ceiling is
+  the open design question. Task 12 of the first plan
   (retire Rush Hour) is still **gated**: do not start it until the user says
   to retire Rush Hour.
 - **Deferred minors from the first plan (each review said none blocks the branch):**
@@ -212,7 +216,10 @@ which undoes Task 4's spread. `SHIFT_PHASES`, `COMBO_EVERY` and
 - **Long Lines still never get their full fleet** within a 90 s Shift
   (Task 4).
 - **Map readability:** leader lines crossing in the centre and dropped centre
-  names (B6, above). Task 7–9's playtest notes are in the plan's ledger.
+  names (B6, above). Task 7–9's playtest notes (ripple timing, pop lag and
+  eviction, the subtle lean-in, small marks) are in
+  `dispatcher-playtest-2-checklist.md`; the plan's ledger was deleted at the
+  end of the run.
 
 ## Where things are
 

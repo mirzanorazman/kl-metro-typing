@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { CareerState } from '../engine/dispatch';
 import { ERAS, eraFor } from '../engine/dispatchNetwork';
-import { aimKey, candidates, EMPTY_AIM, sameRef, type Aim, type Target } from '../engine/dispatchTargets';
+import { aimKey, backspaceAim, candidates, EMPTY_AIM, sameRef, type Aim, type Target } from '../engine/dispatchTargets';
 import type { NetworkIndex } from '../engine/network';
 import { LineBadge } from './LineBadge';
 import { useGameInput } from './TypingInputProvider';
@@ -45,8 +45,10 @@ export function DispatchExpansion({ net, career, onPick, active = true }: Dispat
       return;
     }
     let next: Aim;
-    if (key === 'Backspace' || key === 'Escape') {
+    if (key === 'Escape') {
       next = EMPTY_AIM;
+    } else if (key === 'Backspace') {
+      next = backspaceAim(targets, aimRef.current) ?? EMPTY_AIM;
     } else {
       const outcome = aimKey(targets, aimRef.current, key, 0);
       if (outcome.completed && outcome.completed.kind !== 'fix') return pick(outcome.completed.train);
@@ -119,7 +121,7 @@ export function DispatchExpansion({ net, career, onPick, active = true }: Dispat
               );
             })}
           </ul>
-          {aim.mistyped && <p className="prompt-feedback" role="status">Wrong key</p>}
+          {aim.misses > 0 && <p className="prompt-feedback" role="status">Wrong key</p>}
           {exact && longer && (
             <p className="dispatch-confirm" role="note"><kbd>Enter</kbd> to choose {exact.text}</p>
           )}

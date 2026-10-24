@@ -6,7 +6,7 @@ import { STARTING_NETWORK } from './dispatchNetwork';
 import { advanceFix } from './dispatchIncidents';
 import * as sim from './dispatchSim';
 import {
-  aimKey, candidates, EMPTY_AIM, reconcileAim, sameRef, visibleTargets,
+  aimKey, backspaceAim, candidates, EMPTY_AIM, reconcileAim, sameRef, visibleTargets,
   type KeyOutcome, type Target, type TargetRef,
 } from './dispatchTargets';
 
@@ -66,12 +66,34 @@ describe('Dispatcher aim', () => {
     const k = type(narrowing, 'k').aim;
     const wrong = aimKey(narrowing, k, 'x', 1_000);
     expect(wrong).toMatchObject({ counted: true, correct: false, completed: null,
-      aim: { typed: 'K', mistyped: true, stallUntil: 1_000 + WRONG_KEY_STALL_MS } });
+      aim: { typed: 'K', misses: 1, stallUntil: 1_000 + WRONG_KEY_STALL_MS } });
     expect(aimKey(narrowing, wrong.aim, 'l', wrong.aim.stallUntil - 1))
       .toEqual({ aim: wrong.aim, counted: false, correct: false, completed: null });
     const recovered = aimKey(narrowing, wrong.aim, 'l', wrong.aim.stallUntil);
-    expect(recovered).toMatchObject({ counted: true, correct: true, aim: { typed: 'KL', mistyped: false } });
-    expect(aimKey(narrowing, EMPTY_AIM, 'z', 0)).toMatchObject({ counted: true, correct: false, aim: { typed: '', mistyped: true } });
+    expect(recovered).toMatchObject({ counted: true, correct: true, aim: { typed: 'KL', misses: 0 } });
+    expect(aimKey(narrowing, EMPTY_AIM, 'z', 0)).toMatchObject({ counted: true, correct: false, aim: { typed: '', misses: 1 } });
+  });
+
+  it('Backspace swallows wrong keys first, then takes back letters, dropping a lock that no longer means one name', () => {
+    const wrong = aimKey(narrowing, aimKey(narrowing, type(narrowing, 'klc').aim, 'x', 1_000).aim, 'y', 1_000 + WRONG_KEY_STALL_MS);
+    expect(wrong.aim).toMatchObject({ typed: 'KLC', misses: 2, lock: narrowing[0]!.ref });
+    const once = backspaceAim(narrowing, wrong.aim)!;
+    expect(once).toMatchObject({ typed: 'KLC', misses: 1 });
+    const twice = backspaceAim(narrowing, once)!;
+    expect(twice).toMatchObject({ typed: 'KLC', misses: 0, lock: narrowing[0]!.ref });
+    // "KL" fits KLCC and KL Sentral, so the lock goes with the letter.
+    expect(backspaceAim(narrowing, twice)).toMatchObject({ typed: 'KL', lock: null });
+    expect(backspaceAim(narrowing, type(narrowing, 'k').aim)).toEqual(EMPTY_AIM);
+    expect(backspaceAim(narrowing, EMPTY_AIM)).toBeNull();
+    const fixLock = { ...EMPTY_AIM, lock: { kind: 'fix', incident: 1 } as TargetRef };
+    expect(backspaceAim(narrowing, fixLock)).toEqual(EMPTY_AIM);
+  });
+
+  it('Backspace keeps a lock that still means one name', () => {
+    const targets = [signal(1, 'Kerinchi'), signal(2, 'KLCC')];
+    const aim = type(targets, 'ker').aim;
+    expect(aim.lock).toEqual(targets[0]!.ref);
+    expect(backspaceAim(targets, aim)).toMatchObject({ typed: 'Ke', lock: targets[0]!.ref });
   });
 
   it('locks identical texts to the most delayed and breaks ties by lowest id', () => {
@@ -108,7 +130,7 @@ describe('Dispatcher aim', () => {
 
   it('keeps an error and its stall when there are no targets and no prefix to discard', () => {
     const wrong = aimKey([], EMPTY_AIM, 'z', 1_000);
-    expect(wrong).toMatchObject({ counted: true, correct: false, aim: { mistyped: true } });
+    expect(wrong).toMatchObject({ counted: true, correct: false, aim: { misses: 1 } });
     expect(reconcileAim([], wrong.aim)).toEqual(wrong.aim);
     expect(aimKey([], wrong.aim, 'x', 1_001)).toMatchObject({ aim: wrong.aim, counted: false });
   });

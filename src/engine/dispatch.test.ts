@@ -69,22 +69,27 @@ describe('Dispatcher career', () => {
     expect(s.keystrokes).toBe(target.text.length);
   });
 
-  it('unlocks an active aim and refuses to unlock an empty aim', () => {
+  it('Backspace takes back one letter, lets go at the last, and refuses an empty aim', () => {
     const s = running();
-    expect(s.aim.typed).not.toBe('');
-    const unlocked = applyDispatchAction(net, s, { a: 'unlock' }, 1_100);
-    expect(unlocked.aim).toEqual({ typed: '', lock: null, mistyped: false, stallUntil: 0 });
-    expect(applyDispatchAction(net, unlocked, { a: 'unlock' }, 1_200)).toBe(unlocked);
+    expect(s.aim.typed).toHaveLength(1);
+    const two = enterDispatchCharacter(net, s, visibleTargets(net, s.sim).find((t) =>
+      t.text.toLowerCase().startsWith(s.aim.typed.toLowerCase()))!.text[1]!, 1_000);
+    const one = applyDispatchAction(net, two, { a: 'backspace' }, 1_100);
+    expect(one.aim.typed).toBe(s.aim.typed);
+    const empty = applyDispatchAction(net, one, { a: 'backspace' }, 1_100);
+    expect(empty.aim).toEqual({ typed: '', lock: null, misses: 0, stallUntil: 0 });
+    expect(applyDispatchAction(net, empty, { a: 'backspace' }, 1_200)).toBe(empty);
   });
 
-  it('unlocks a mistyped aim even before any prefix is entered', () => {
+  it('Backspace after a wrong key is swallowed, one per wrong key, and the stall stays', () => {
     const s = enterDispatchCharacter(net, startCareer(net, 1), '\t', 1_000);
     expect(s.status).toBe('ready');
     const wrong = enterDispatchCharacter(net, s, '#', 1_000);
     expect(wrong.status).toBe('running');
-    expect(wrong.aim).toMatchObject({ typed: '', mistyped: true });
-    const unlocked = applyDispatchAction(net, wrong, { a: 'unlock' }, 1_000);
-    expect(unlocked.aim).toEqual({ typed: '', lock: null, mistyped: false, stallUntil: 0 });
+    expect(wrong.aim).toMatchObject({ typed: '', misses: 1 });
+    const undone = applyDispatchAction(net, wrong, { a: 'backspace' }, 1_000);
+    expect(undone.aim).toEqual({ ...wrong.aim, misses: 0 });
+    expect(undone.errors).toBe(1);
   });
 
   it('uses consecutive phases and reaches the exact Shift boundary', () => {
@@ -177,10 +182,22 @@ describe('Dispatcher career', () => {
     expect(careerMetrics(resumed, 6_155).wpm).toBeCloseTo(1 / 5 / (0.155 / 60));
     expect(advanceCareer(net, resumed, 6_155).gameMs).toBe(100);
     expect(applyDispatchAction(net, startCareer(net, 1), { a: 'abandon' }, 1_000).status).toBe('ready');
-    for (const s of [base, paused, safeShift(running()), { ...base, status: 'ready' as const, shift: 2 }]) {
+    for (const s of [base, paused]) {
       const ended = applyDispatchAction(net, s, { a: 'abandon' }, 1_000 + s.gameMs);
       expect(ended.status).toBe('ended');
       expect(ended.endReason).toBe('abandoned');
+    }
+  });
+
+  it('ending a Career between Shifts, or before the next Shift starts, retires it with no extra Shift', () => {
+    const history = [{ shift: 1, delivered: 40, calls: 10, onTimeCalls: 9, cleared: true }];
+    const between: CareerState = { ...startCareer(net, 1), status: 'between', shift: 1, cleared: 1,
+      startedAt: 1_000, stoppedAt: 2_000, history };
+    const waiting: CareerState = { ...between, status: 'ready', shift: 2 };
+    for (const s of [between, waiting]) {
+      const ended = applyDispatchAction(net, s, { a: 'abandon' }, 5_000);
+      expect(ended).toMatchObject({ status: 'ended', endReason: 'retired', endedAt: 5_000, history });
+      expect(careerTotals(ended).delivered).toBe(40);
     }
   });
 
@@ -196,7 +213,7 @@ describe('Dispatcher career', () => {
     expect(careerTotals({ ...s, status: 'ended', endReason: 'abandoned', history: [] }).delivered).toBe(100);
   });
 
-  it('is tense only while an Incident is active or a platform is over half full', () => {
+  it('is tense only while an Incident is active, however crowded the platforms', () => {
     const s = startCareer(net, 1);
     const incident = { id: 1, kind: 'crowd-surge' as const, place: 'klcc', stations: ['klcc'],
       line: 'KJ' as const, train: null, startedMs: 0, step: 0, extra: 0 };
@@ -206,8 +223,9 @@ describe('Dispatcher career', () => {
     // An Out of service Station alone, with calm platforms, is not tense.
     expect(dispatchTense({ ...s, sim: { ...s.sim, outOfService: { klcc: 'crowding' } } })).toBe(false);
     expect(dispatchTense({ ...s, sim: { ...s.sim, incidents: [incident] } })).toBe(true);
-    expect(dispatchTense(crowd(PLATFORM_CAPACITY / 2))).toBe(false);
-    expect(dispatchTense(crowd(PLATFORM_CAPACITY / 2 + 1))).toBe(true);
+    // Crowding alone kept the music tense for ~40% of a Shift with nothing to fix (playtest 2, F7).
+    expect(dispatchTense(crowd(PLATFORM_CAPACITY / 2 + 1))).toBe(false);
+    expect(dispatchTense(crowd(PLATFORM_CAPACITY))).toBe(false);
   });
 
   it('keeps previous nested state immutable across ticks and typing', () => {
@@ -234,7 +252,7 @@ describe('Dispatcher career', () => {
     expect(s.sim.incidents[0]!.step).toBe(1);
     for (const char of net.stations.get(second)!.name) s = enterDispatchCharacter(net, s, char, 1_000);
     expect(s.sim.incidents).toEqual([]);
-    expect(s.aim).toEqual({ typed: '', lock: null, mistyped: false, stallUntil: 0 });
+    expect(s.aim).toEqual({ typed: '', lock: null, misses: 0, stallUntil: 0 });
   });
 
   it('confirms a shorter exact name with Enter while its longer neighbour stays reachable', () => {
@@ -260,7 +278,7 @@ describe('Dispatcher career', () => {
     s = confirmed;
     for (const char of 'Ampang Park') s = enterDispatchCharacter(net, s, char, 1_000);
     expect(s.sim.trains[1]!.stage).toBe('cleared');
-    const stale = { ...confirmed, aim: { typed: 'Missing', lock: null, mistyped: false, stallUntil: 0 } };
+    const stale = { ...confirmed, aim: { typed: 'Missing', lock: null, misses: 0, stallUntil: 0 } };
     expect(applyDispatchAction(net, stale, { a: 'confirm' }, 1_000)).toBe(stale);
   });
 
@@ -327,20 +345,29 @@ describe('Dispatcher Green wave', () => {
     expect(s).toMatchObject({ streak: 1, clean: true });
   });
 
-  it('Enter-confirm, stall-dropped keys and unlock don\'t reset it', () => {
+  it('Enter-confirm, stall-dropped keys and Backspace don\'t reset it', () => {
     // A key dropped by the wrong-key stall is not counted.
     const stalled: CareerState = { ...onSignals([['KJ', 7], ['KJ', 9]]), streak: 2,
-      aim: { typed: '', lock: null, mistyped: true, stallUntil: 500 } };
+      aim: { typed: '', lock: null, misses: 1, stallUntil: 500 } };
     const dropped = type(stalled, '#');
     expect(dropped).toMatchObject({ streak: 2, clean: true, errors: 0 });
 
-    // Unlock makes the next Target clean again and leaves the streak alone.
-    let s: CareerState = { ...onSignals([['KJ', 7], ['KJ', 9]]), streak: 2, clean: false };
+    // Backspace on clean letters leaves the streak alone.
+    let s: CareerState = { ...onSignals([['KJ', 7], ['KJ', 9]]), streak: 2 };
     s = type(s, 'Da');
-    s = applyDispatchAction(net, s, { a: 'unlock' }, 1_000);
-    expect(s).toMatchObject({ streak: 2, clean: true });
+    s = applyDispatchAction(net, s, { a: 'backspace' }, 1_000);
+    s = applyDispatchAction(net, s, { a: 'backspace' }, 1_000);
+    expect(s).toMatchObject({ streak: 2, clean: true, aim: { typed: '' } });
     s = type(s, 'Damai');
     expect(s).toMatchObject({ streak: 3, waves: 1 });
+
+    // Backspace never mends a typo: the name it was in still doesn't count.
+    s = { ...onSignals([['KJ', 7], ['KJ', 9]]), streak: 2 };
+    s = type(s, 'Da#');
+    s = applyDispatchAction(net, s, { a: 'backspace' }, 1_000);
+    expect(s).toMatchObject({ streak: 0, clean: false, aim: { typed: 'Da', misses: 0 } });
+    s = type(s, 'mai', 1_600);
+    expect(s).toMatchObject({ streak: 0, waves: 0 });
 
     // Enter confirms a shorter exact name without counting a mistake.
     const ampang = net.order.get('AG')!.get('ampang')!;

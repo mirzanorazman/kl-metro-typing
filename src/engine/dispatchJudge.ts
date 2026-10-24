@@ -4,7 +4,7 @@ import type { NetworkIndex } from './network';
 import { replayDispatch, type DispatchEvidence } from './replay';
 
 export interface DispatchJudgement {
-  /** True only for a failed Career that replays to its recorded end and passes its Verdict. */
+  /** True only for a failed or retired Career that replays to its recorded end and passes its Verdict. */
   eligible: boolean;
   /** Derived by Replay, never as reported by the live Career. */
   score: number;

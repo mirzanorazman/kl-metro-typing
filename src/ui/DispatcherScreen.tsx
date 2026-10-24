@@ -70,6 +70,10 @@ function PauseOverlay({ onResume }: { onResume: () => void }) {
   );
 }
 
+// What End Career means for the leaderboard: only a Career ended between Shifts is ranked.
+const RANKED_NOTE = 'Your Career will be ranked.';
+const UNRANKED_NOTE = "Mid-Shift, it won't be ranked. Clear the Shift to keep your score.";
+
 /** A one-time tip. A running Career is paused while it shows; any key or click dismisses it. */
 function TipCard({ id, onDismiss }: { id: DispatchTipId; onDismiss: () => void }) {
   return (
@@ -213,12 +217,12 @@ function TypingLine({ career, aimed }: { career: CareerState; aimed: readonly Ta
     body = (
       <p className="dispatch-idle">
         {career.status === 'ready' ? "Type a waiting Station's name to start the Shift" : "Type a waiting Station's name"}
-        {aim.mistyped && <span className="prompt-feedback" role="status">Wrong key</span>}
+        {aim.misses > 0 && <span className="prompt-feedback" role="status">Wrong key</span>}
       </p>
     );
   } else {
     const state: TypingState = {
-      target: target.text, cursor: aim.typed.length, keystrokes: 0, errors: 0, mistyped: aim.mistyped, done: false,
+      target: target.text, cursor: aim.typed.length, keystrokes: 0, errors: 0, mistyped: aim.misses > 0, done: false,
     };
     const typed = aim.typed.toLowerCase();
     const exact = aimed.find((t) => t.text.toLowerCase() === typed);
@@ -306,8 +310,9 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
       if (key === 'Enter' || key === ' ') act({ a: 'resume' });
       return;
     }
-    if (key === 'Escape') return act({ a: 'pause' });
-    if (key === 'Backspace') return act({ a: 'unlock' });
+    // Before the first key nothing is recorded, so leaving needs no confirm.
+    if (key === 'Escape') return cur.startedAt === null ? onExit() : act({ a: 'pause' });
+    if (key === 'Backspace') return act({ a: 'backspace' });
     if (key === 'Enter') return act({ a: 'confirm' });
     if (cur.status === 'ready' && !seenTips.current.has('start') && key.length === 1) markSeen(['start']);
     // A key landing after the Shift's last tick only ends it. Recorded, it would
@@ -317,7 +322,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     if (synced.status === 'ended' || synced.status === 'between') return commit(synced);
     recorder.record(key, source, now);
     commit(enterDispatchCharacter(net, synced, key, now));
-  }, [act, commit, dismissTip, markSeen, net, phoneLandscape, recorder]);
+  }, [act, commit, dismissTip, markSeen, net, onExit, phoneLandscape, recorder]);
 
   // Between Shifts, unless a tip is showing, the Expansion picker owns the keys.
   const screenKeys = !phoneLandscape && run.status !== 'ended' && (run.status !== 'between' || tips.length > 0);
@@ -399,7 +404,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     if (fresh) sound.delivered();
   }, [moments.pops]);
 
-  // Music while the Shift runs, tense while anything is wrong; the setup
+  // Music while the Shift runs, tense while an Incident is active; the setup
   // theme while choosing an Expansion.
   const track = run.status === 'between' ? 'rushSetup'
     : run.status !== 'running' ? null : dispatchTense(run) ? 'rushTense' : 'rushCalm';
@@ -432,15 +437,15 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     if (currentRun.current.status === 'paused') act({ a: 'resume' });
   }, [tips, act]);
 
-  // Judged once, at the end. Only a failed Career can be eligible; an
-  // abandoned one never reaches the judge. Replaying a long Career takes
+  // Judged once, at the end. Only a failed or retired Career can be eligible;
+  // one abandoned mid-Shift never reaches the judge. Replaying a long Career takes
   // seconds, so the judge waits for the summary to paint first: a frame, then
   // a task. `judged` is set only when it runs, so a cancelled wait (an effect
   // re-run) schedules it again rather than losing it.
   const [judgement, setJudgement] = useState<DispatchJudgement | null>(null);
   const judged = useRef(false);
   useEffect(() => {
-    if (run.status !== 'ended' || run.endReason !== 'failed' || run.endedAt === null || judged.current) return;
+    if (run.status !== 'ended' || run.endReason === 'abandoned' || run.endedAt === null || judged.current) return;
     const endedAt = run.endedAt;
     let timer = 0;
     const frame = requestAnimationFrame(() => {
@@ -556,7 +561,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
                   onPick={(pick) => act({ a: 'expand', pick })}
                   active={tips.length === 0}
                 />
-                <ConfirmEndButton onConfirm={() => act({ a: 'abandon' })} />
+                <ConfirmEndButton onConfirm={() => act({ a: 'abandon' })} note={RANKED_NOTE} />
               </>
             ) : (
               <>
@@ -564,10 +569,19 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
                   <p className="dispatch-tip-inline" role="note">{dispatchTipText('start')}</p>
                 )}
                 <TypingLine career={run} aimed={aimed} />
-                <p className="hint">
-                  <kbd>Backspace</kbd> to let go · <kbd>Esc</kbd> to pause
-                </p>
-                <ConfirmEndButton onConfirm={() => act({ a: 'abandon' })} disabled={run.startedAt === null} />
+                {run.startedAt === null ? (
+                  <button type="button" className="dispatch-end" onClick={onExit}>
+                    <kbd>Esc</kbd> Back to map
+                  </button>
+                ) : (
+                  <>
+                    <p className="hint">
+                      <kbd>Backspace</kbd> to undo · <kbd>Esc</kbd> to pause
+                    </p>
+                    <ConfirmEndButton onConfirm={() => act({ a: 'abandon' })}
+                      note={run.status === 'ready' ? RANKED_NOTE : UNRANKED_NOTE} />
+                  </>
+                )}
               </>
             )}
             {tips.length > 0 ? (

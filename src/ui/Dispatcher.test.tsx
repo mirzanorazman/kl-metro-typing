@@ -190,11 +190,60 @@ describe('DispatcherScreen', () => {
     expect(screen.queryByRole('note')).toBeNull();
   });
 
-  it('Backspace unlocks; Escape pauses, and Enter resumes', () => {
+  it('before the first key, Esc or Back to map leaves without ending a Career', () => {
+    const onExit = vi.fn();
+    const view = render(
+      <TypingInputProvider enabled={false}>
+        <DispatcherScreen net={net} onExit={onExit} onAgain={() => {}} initial={careerWith([waiting(1, 'KJ', 'Jelatek')])} />
+      </TypingInputProvider>,
+    );
+    expect(screen.queryByRole('button', { name: 'End Career' })).toBeNull();
+    press('Escape');
+    expect(onExit).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Back to map/ }));
+    expect(onExit).toHaveBeenCalledTimes(2);
+    view.unmount();
+
+    // Once the Shift starts, Back to map gives way to End Career.
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    type('J');
+    expect(screen.queryByRole('button', { name: /Back to map/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'End Career' })).toBeTruthy();
+  });
+
+  it('waiting to start a later Shift is still mid-Career: End Career, and Esc does not leave', () => {
+    const onExit = vi.fn();
+    render(
+      <TypingInputProvider enabled={false}>
+        <DispatcherScreen net={net} onExit={onExit} onAgain={() => {}}
+          initial={{ ...careerWith([waiting(1, 'KJ', 'Jelatek')]), shift: 2, cleared: 1, startedAt: 1_000, stoppedAt: 2_000 }} />
+      </TypingInputProvider>,
+    );
+    press('Escape');
+    expect(onExit).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /Back to map/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'End Career' })).toBeTruthy();
+  });
+
+  it('reaching for Backspace after a wrong key keeps the name typed so far', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]));
+    type('Je#');
+    expect(screen.getByText('Wrong key')).toBeTruthy();
+    press('Backspace');
+    expect(screen.queryByText('Wrong key')).toBeNull();
+    expect(labelFor('Jelatek')!.getAttribute('data-locked')).toBe('true');
+    expect(screen.getByLabelText('Type Jelatek')).toBeTruthy();
+  });
+
+  it('Backspace takes back a letter and lets go at the last; Escape pauses, and Enter resumes', () => {
     renderShift(careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]));
     type('Je');
     expect(screen.getByLabelText('Type Jelatek')).toBeTruthy();
     expect(labelFor('Jelatek')!.getAttribute('data-locked')).toBe('true');
+    press('Backspace');
+    expect(labelFor('Jelatek')!.getAttribute('data-locked')).toBe('true');
+    expect(screen.getByText('Backspace', { selector: 'kbd' }).parentElement!.textContent).toMatch(/Backspace to undo/);
     press('Backspace');
     expect(screen.queryByLabelText('Type Jelatek')).toBeNull();
     expect(labelFor('Jelatek')!.getAttribute('data-locked')).toBeNull();
@@ -361,17 +410,17 @@ describe('DispatcherScreen', () => {
     expect(play).toHaveBeenLastCalledWith('rushCalm');
   });
 
-  it('End Career on the Expansion screen ends the Career as abandoned', () => {
+  it('End Career on the Expansion screen retires the Career, keeping what it cleared', () => {
     renderShift({ ...startCareer(net, 7), status: 'between', shift: 1, cleared: 1, startedAt: 1_000, stoppedAt: 2_000,
       history: [{ shift: 1, delivered: 40, calls: 10, onTimeCalls: 9, cleared: true }] });
     expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
-    endCareer();
+    fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+    expect(screen.getByText('Your Career will be ranked.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Yes, end it' }));
     const summary = screen.getByRole('region', { name: 'Career summary' });
-    expect(screen.getByRole('heading', { name: 'Career ended' })).toBeTruthy();
-    expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Career retired' })).toBeTruthy();
     expect(within(summary).getByText('Shifts cleared').nextElementSibling!.textContent).toBe('1');
     expect(within(summary).getByText('Delivered').nextElementSibling!.textContent).toBe('40');
-    expect(judgeSpy).not.toHaveBeenCalled();
   });
 
   it('a complete network moves on to the next Shift', () => {
@@ -380,9 +429,12 @@ describe('DispatcherScreen', () => {
     expect(screen.getByRole('banner', { name: 'Shift' }).textContent).toMatch(/Shift 2/);
   });
 
-  it('typing an Expansion name picks it, the map grows, and picker keys stay out of the Keylog', async () => {
-    // A real Career: Shift 1 is played through the screen from a scripted
-    // typist's inputs, so the judged evidence can replay end to end.
+  /**
+   * A real Career: Shift 1 is played through the screen from a scripted
+   * typist's inputs, up to the Expansion screen, so the judged evidence can
+   * replay end to end.
+   */
+  const playShiftOne = () => {
     const seed = 3;
     const { evidence: script } = drive({ seed, msPerKey: 200, limitMs: SHIFT_MS + 30_000 });
     const expand = script.actions.find((a) => a.a === 'expand');
@@ -395,7 +447,7 @@ describe('DispatcherScreen', () => {
       for (; next < script.actions.length && script.actions[next]!.i === i && script.actions[next] !== expand; next++) {
         const a = script.actions[next]!;
         clock.now = a.t;
-        if (a.a !== 'confirm' && a.a !== 'unlock') throw new Error(`unexpected ${a.a}`);
+        if (a.a !== 'confirm' && a.a !== 'backspace') throw new Error(`unexpected ${a.a}`);
         press(a.a === 'confirm' ? 'Enter' : 'Backspace');
       }
     };
@@ -410,6 +462,29 @@ describe('DispatcherScreen', () => {
     // A non-printable key brings the Career up to the clock and is never logged.
     press('Shift');
     expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+    return { clock, script, expand: expand! };
+  };
+
+  it('ending a Career on the Expansion screen retires it: judged, and it can enter the leaderboard', async () => {
+    const { script, expand } = playShiftOne();
+    endCareer();
+    expect(screen.getByRole('heading', { name: 'Career retired' })).toBeTruthy();
+    expect(screen.queryByText(/abandoned Career/)).toBeNull();
+    await waitFor(() => expect(judgeSpy).toHaveBeenCalled());
+    expect(judgeSpy).toHaveBeenCalledTimes(1);
+    const evidence = judgeSpy.mock.calls[0]![1];
+    expect(evidence.keylog.events.map((e) => e.k)).toEqual(script.keylog.events.slice(0, expand.i).map((e) => e.k));
+    expect(evidence.actions[evidence.actions.length - 1]!.a).toBe('abandon');
+    // jsdom's keys are never trusted, so the live verdict can't pass here; the
+    // replay is what decides, and the summary test shows the board entry.
+    const replayed = replayDispatch(net, evidence)!;
+    expect(replayed.complete).toBe(true);
+    expect(replayed.cleared).toBe(1);
+    expect(await screen.findByText("This Career wasn't eligible for the leaderboard.")).toBeTruthy();
+  }, 60_000);
+
+  it('typing an Expansion name picks it, the map grows, and picker keys stay out of the Keylog', async () => {
+    const { clock, script, expand } = playShiftOne();
     const offerName = screen.getAllByRole('button').map((b) => b.querySelector('.dispatch-offer-name')?.textContent)
       .filter((n): n is string => !!n)[(expand as { pick: number }).pick]!;
 
@@ -421,7 +496,7 @@ describe('DispatcherScreen', () => {
 
     // Start Shift 2 with one key, then let it collapse untouched.
     const first = screen.getAllByTestId('dispatch-signal')[0]!.textContent!;
-    clock.now = expand!.t + 1_000;
+    clock.now = expand.t + 1_000;
     type(first[0]!);
     clock.now += 30 * 60_000;
     type('q');
@@ -429,7 +504,7 @@ describe('DispatcherScreen', () => {
     await waitFor(() => expect(judgeSpy).toHaveBeenCalled());
     expect(judgeSpy).toHaveBeenCalledTimes(1);
     const evidence = judgeSpy.mock.calls[0]![1];
-    const shiftKeys = script.keylog.events.slice(0, expand!.i).map((e) => e.k);
+    const shiftKeys = script.keylog.events.slice(0, expand.i).map((e) => e.k);
     expect(evidence.keylog.events.map((e) => e.k)).toEqual([...shiftKeys, first[0]]);
     expect(evidence.actions.filter((a) => a.a === 'expand')).toHaveLength(1);
     const replayed = replayDispatch(net, evidence);
@@ -597,10 +672,12 @@ describe('DispatcherScreen', () => {
       expect(screen.getByText(/wasn't eligible for the leaderboard/)).toBeTruthy();
     });
 
-    it('an abandoned Career ends early and is never judged', () => {
+    it('a Career ended mid-Shift is abandoned and never judged, and the confirm says so first', () => {
       renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
       type('J');
-      endCareer();
+      fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
+      expect(screen.getByText("Mid-Shift, it won't be ranked. Clear the Shift to keep your score.")).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: 'Yes, end it' }));
       expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
       expect(screen.queryByText('Checking your Career…')).toBeNull();
       expect(judgeSpy).not.toHaveBeenCalled();
@@ -1073,13 +1150,13 @@ describe('Leaning in on an Incident fix', () => {
     expect(mapProps().fitKey).toBe(normalKey);
   });
 
-  it('Backspace lets go: no urgency, no glow, and the normal frame is back', () => {
+  it('Backspacing a fix away lets go: no urgency, no glow, and the normal frame is back', () => {
     allowMotion();
     const { container } = renderShift(surgeWithWaiting());
     const normalKey = mapProps().fitKey;
     type('Crow');
     expect(root(container).getAttribute('data-urgent')).toBe('true');
-    press('Backspace');
+    for (let i = 0; i < 'Crow'.length; i += 1) press('Backspace');
     expect(root(container).getAttribute('data-urgent')).toBeNull();
     expect(glow()).toBeNull();
     expect(mapProps().fitKey).toBe(normalKey);
@@ -1293,7 +1370,7 @@ describe('End Career asks first', () => {
     expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
     expect(screen.getByText('End Career?')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Yes, end it' }));
-    expect(screen.getByRole('heading', { name: 'Career ended' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Career retired' })).toBeTruthy();
   });
 
   it('on the Expansion screen Enter and Space never answer it either', () => {
@@ -1306,11 +1383,6 @@ describe('End Career asks first', () => {
       expect(fireEvent.keyDown(button, { key: ' ' })).toBe(false);
     }
     stillPlaying();
-  });
-
-  it('End Career stays disabled until the Shift has started', () => {
-    renderShift(startCareer(net, 7));
-    expect((screen.getByRole('button', { name: 'End Career' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
 
@@ -1487,6 +1559,16 @@ describe('DispatchSummary', () => {
     rerender(<DispatchSummary net={net} career={failed()} metrics={metrics} judgement={judgement()}
       onAgain={() => {}} onBack={() => {}} />);
     expect(screen.queryByText('Checking your Career…')).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Your name' })).toBeTruthy();
+  });
+
+  it('a retired Career is checked, then offered name entry like a failed one', () => {
+    const retired: CareerState = { ...failed(), endReason: 'retired', failure: null };
+    const { rerender } = renderSummary(retired, null);
+    expect(screen.getByRole('heading', { name: 'Career retired' })).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe('Checking your Career…');
+    rerender(<DispatchSummary net={net} career={retired} metrics={metrics} judgement={judgement()}
+      onAgain={() => {}} onBack={() => {}} />);
     expect(screen.getByRole('textbox', { name: 'Your name' })).toBeTruthy();
   });
 

@@ -86,8 +86,8 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
     state = after;
   };
 
-  /** The next thing to press: a character, Enter once the whole name is typed, or a release of a dead aim. */
-  const nextInput = (): string | 'confirm' | 'unlock' => {
+  /** The next thing to press: a character, Enter once the whole name is typed, or Backspace on a dead aim. */
+  const nextInput = (): string | 'confirm' | 'backspace' => {
     const targets = visibleTargets(net, state.sim).filter((t) => !o.inattentive
       || t.ref.kind !== 'fix' || t.delayMs > 0.75 * INCIDENT_LIMIT_MS);
     const { aim } = state;
@@ -97,7 +97,7 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
       // Part-way through a name, only a Target that continues it will do.
       const typed = aim.typed.toLowerCase();
       const pool = aim.typed === '' ? targets : targets.filter((t) => t.text.toLowerCase().startsWith(typed));
-      if (pool.length === 0 && aim.typed !== '') return 'unlock';
+      if (pool.length === 0 && aim.typed !== '') return 'backspace';
       const skips = o.skips ? pool.filter((t) => t.ref.kind === 'skip') : [];
       target = chooseTarget(state.sim, skips.length > 0 ? skips : pool, state.streak);
       chosen = target?.ref ?? null;
@@ -120,7 +120,7 @@ export function drive(o: DriveOptions): { state: CareerState; evidence: Dispatch
       act({ a: 'expand', pick: state.offers.length === 0 ? -1 : o.pick?.(state) ?? 0 });
     } else if (state.status === 'ready' || state.status === 'running') {
       const input = nextInput();
-      if (input === 'confirm' || input === 'unlock') {
+      if (input === 'confirm' || input === 'backspace') {
         act({ a: input });
       } else if (input !== '') {
         keys += 1;

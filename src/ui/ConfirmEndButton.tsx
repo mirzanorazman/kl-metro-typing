@@ -13,21 +13,21 @@ export const END_CONFIRM_MS = 4_000;
  * one must not end a Career. The screen's button shield cancels them while it
  * owns the keys, but between Shifts the Expansion picker owns them and the
  * shield is off, so the answer buttons cancel them themselves. The question is
- * words, not just colour, and answering is by click or tap.
+ * words, not just colour, and answering is by click or tap. `note` says what
+ * ending now means for the leaderboard.
  */
-export function ConfirmEndButton({ onConfirm, disabled = false }: { onConfirm: () => void; disabled?: boolean }) {
+export function ConfirmEndButton({ onConfirm, note }: { onConfirm: () => void; note: string }) {
   const [asking, setAsking] = useState(false);
-  const open = asking && !disabled;
 
   useEffect(() => {
-    if (!open) return;
+    if (!asking) return;
     const timer = window.setTimeout(() => setAsking(false), END_CONFIRM_MS);
     return () => window.clearTimeout(timer);
-  }, [open]);
+  }, [asking]);
 
-  if (!open) {
+  if (!asking) {
     return (
-      <button type="button" className="dispatch-end" onClick={() => setAsking(true)} disabled={disabled}>
+      <button type="button" className="dispatch-end" onClick={() => setAsking(true)}>
         End Career
       </button>
     );
@@ -38,6 +38,7 @@ export function ConfirmEndButton({ onConfirm, disabled = false }: { onConfirm: (
   return (
     <div className="dispatch-end dispatch-end-ask" role="group" aria-label="End Career?">
       <p className="dispatch-end-question">End Career?</p>
+      <p className="dispatch-end-note">{note}</p>
       <button type="button" className="dispatch-end-yes" onKeyDown={noKeyAnswers} onClick={onConfirm}>
         Yes, end it
       </button>

@@ -17,7 +17,7 @@ export interface DispatchSummaryProps {
   net: NetworkIndex;
   career: CareerState;
   metrics: Metrics;
-  /** The Career's judgement; null while judging (shown as checking), and always for an abandoned Career. */
+  /** The Career's judgement; null while judging (shown as checking), and always for one abandoned mid-Shift. */
   judgement: DispatchJudgement | null;
   onAgain: () => void;
   onBack: () => void;
@@ -108,7 +108,7 @@ export function DispatchSummary({ net, career, metrics, judgement, onAgain, onBa
 
   return (
     <div className="summary dispatch-summary" role="region" aria-label="Career summary">
-      <h1>{abandoned ? 'Career ended' : 'Shift failed'}</h1>
+      <h1>{abandoned ? 'Career ended' : career.endReason === 'retired' ? 'Career retired' : 'Shift failed'}</h1>
       {career.failure && <p className="dispatch-failure">{failureText(net, career.failure)}</p>}
       {career.failure && career.failure.closures.length > 0 && (
         <ol className="dispatch-closures" aria-label="Out of service, in order">

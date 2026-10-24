@@ -6,8 +6,9 @@ import { heldTrains, isLate, type SimState } from './dispatchSim';
 export type TargetRef = { kind: 'signal' | 'skip'; train: number } | { kind: 'fix'; incident: number };
 /** Delay is time Held for a Signal/Skip, or age for an Incident. */
 export interface Target { ref: TargetRef; text: string; delayMs: number }
-export interface Aim { typed: string; lock: TargetRef | null; mistyped: boolean; stallUntil: number }
-export const EMPTY_AIM: Aim = { typed: '', lock: null, mistyped: false, stallUntil: 0 };
+/** `misses`: wrong keys since the last right one. A wrong key never enters `typed`. */
+export interface Aim { typed: string; lock: TargetRef | null; misses: number; stallUntil: number }
+export const EMPTY_AIM: Aim = { typed: '', lock: null, misses: 0, stallUntil: 0 };
 export interface KeyOutcome { aim: Aim; counted: boolean; correct: boolean; completed: TargetRef | null }
 
 export function sameRef(a: TargetRef, b: TargetRef): boolean {
@@ -78,7 +79,7 @@ export function aimKey(targets: readonly Target[], aim: Aim, key: string, gameMs
   }
   if (key.length !== 1 || key.charCodeAt(0) < 32 || (key.charCodeAt(0) >= 127 && key.charCodeAt(0) <= 159)) return ignored;
   const matching = candidates(targets, { ...aim, typed: aim.typed + key });
-  if (matching.length === 0) return { aim: { ...aim, mistyped: true, stallUntil: gameMs + WRONG_KEY_STALL_MS },
+  if (matching.length === 0) return { aim: { ...aim, misses: aim.misses + 1, stallUntil: gameMs + WRONG_KEY_STALL_MS },
     counted: true, correct: false, completed: null };
   const typed = aim.typed + matching[0]!.text[aim.typed.length]!;
   const distinct = new Set(matching.map((target) => target.text.toLowerCase()));
@@ -86,5 +87,21 @@ export function aimKey(targets: readonly Target[], aim: Aim, key: string, gameMs
   if (lock && matching.some((target) => sameRef(target.ref, lock) && target.text.toLowerCase() === typed.toLowerCase())) {
     return complete(lock, true);
   }
-  return { aim: { typed, lock, mistyped: false, stallUntil: 0 }, counted: true, correct: true, completed: null };
+  return { aim: { typed, lock, misses: 0, stallUntil: 0 }, counted: true, correct: true, completed: null };
+}
+
+/**
+ * Backspace undoes and never punishes. A wrong key never entered the name, so
+ * the Backspace a typist reaches for after one is swallowed, one per wrong
+ * key. Otherwise it takes back one letter, keeping the lock only while the
+ * shorter name still means one Station; taking back the last letter, or
+ * pressing it with only a fix's lock held, lets go. Null: nothing to undo.
+ */
+export function backspaceAim(targets: readonly Target[], aim: Aim): Aim | null {
+  if (aim.misses > 0) return { ...aim, misses: aim.misses - 1 };
+  if (aim.typed === '') return aim.lock ? EMPTY_AIM : null;
+  const typed = aim.typed.slice(0, -1);
+  if (typed === '') return EMPTY_AIM;
+  const distinct = new Set(candidates(targets, { ...aim, typed, lock: null }).map((t) => t.text.toLowerCase()));
+  return { ...aim, typed, lock: distinct.size === 1 ? aim.lock : null };
 }

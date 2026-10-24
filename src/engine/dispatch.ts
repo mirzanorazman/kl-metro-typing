@@ -1,8 +1,8 @@
-import { COMBO_EVERY, COMBO_MAX_WAVE, FULL_NETWORK_ESCALATION, OOS_FAIL_SHARE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS, type ShiftFlow } from './dispatchBalance';
+import { COMBO_EVERY, COMBO_MAX_WAVE, FULL_NETWORK_ESCALATION, OOS_FAIL_SHARE, SHIFT_PHASES, TICK_MS, type ShiftFlow } from './dispatchBalance';
 import { applyExpansion, drawOffers, eraFor, servedStations, STARTING_NETWORK, type Expansion, type Served } from './dispatchNetwork';
 import { advanceFix, stepWorld } from './dispatchIncidents';
-import { clearSignal, cloneSim, crowdAt, skipSignal, startShiftSim, type OosCause, type SimState } from './dispatchSim';
-import { aimKey, EMPTY_AIM, reconcileAim, sameRef, visibleTargets, type Aim, type TargetRef } from './dispatchTargets';
+import { clearSignal, cloneSim, skipSignal, startShiftSim, type OosCause, type SimState } from './dispatchSim';
+import { aimKey, backspaceAim, EMPTY_AIM, reconcileAim, sameRef, visibleTargets, type Aim, type TargetRef } from './dispatchTargets';
 import type { LineCode } from '../data/types';
 import { computeMetrics, type Metrics } from './metrics';
 import type { NetworkIndex } from './network';
@@ -10,7 +10,8 @@ import { seedRandom } from './rng';
 import { isPrintable } from './typing';
 
 export type CareerStatus = 'ready' | 'running' | 'paused' | 'between' | 'ended';
-export type CareerEnd = 'failed' | 'abandoned';
+/** Retired: ended between Shifts, so it is ranked. Abandoned: ended mid-Shift, so it is not. */
+export type CareerEnd = 'failed' | 'retired' | 'abandoned';
 export interface ShiftRecord { shift: number; delivered: number; calls: number; onTimeCalls: number; cleared: boolean }
 export interface Closure { station: string; cause: OosCause }
 /** A failed Shift's closures in the order they happened; the first started the collapse. */
@@ -35,7 +36,7 @@ export interface CareerState {
   history: ShiftRecord[]; correctChars: number; keystrokes: number; errors: number;
   /** Clean completions in a row; carries across Shifts. */
   streak: number;
-  /** False once a counted wrong key lands; true again after any completion or unlock. */
+  /** False once a counted wrong key lands; true again after any completion. */
   clean: boolean;
   waves: number;
   lastWave: Wave | null;
@@ -78,7 +79,7 @@ function dispatchPrintable(key: string): boolean {
 }
 
 function aimIsEmpty(aim: Aim): boolean {
-  return aim.typed === '' && aim.lock === null && !aim.mistyped && aim.stallUntil === 0;
+  return aim.typed === '' && aim.lock === null && aim.misses === 0 && aim.stallUntil === 0;
 }
 
 function record(s: CareerState, cleared: boolean): ShiftRecord {
@@ -201,19 +202,23 @@ export function enterDispatchCharacter(net: NetworkIndex, state: CareerState, ke
   return applyTargetKey(net, synced, key);
 }
 
-export type DispatchActionBody = { a: 'unlock' } | { a: 'expand'; pick: number } | { a: 'pause' }
+export type DispatchActionBody = { a: 'backspace' } | { a: 'expand'; pick: number } | { a: 'pause' }
   | { a: 'resume' } | { a: 'abandon' } | { a: 'confirm' };
 export type DispatchAction = DispatchActionBody & { i: number; t: number };
-export const DISPATCH_EVIDENCE_VERSION = 1;
+/** 2: Backspace undoes one key (playtest 2) instead of letting go of the whole aim. */
+export const DISPATCH_EVIDENCE_VERSION = 2;
 
 /** Refused actions retain input identity so the recorder can omit them. */
 export function applyDispatchAction(net: NetworkIndex, state: CareerState, action: DispatchActionBody, now: number): CareerState {
   switch (action.a) {
-    case 'unlock': {
+    case 'backspace': {
+      // The streak is left alone: a counted wrong key broke it, whatever follows.
       if (state.status !== 'running' || aimIsEmpty(state.aim)) return state;
       const synced = advanceCareer(net, state, now);
-      if (synced.status !== 'running' || aimIsEmpty(synced.aim)) return state;
-      return { ...synced, aim: { ...EMPTY_AIM }, clean: true };
+      if (synced.status !== 'running') return state;
+      const targets = visibleTargets(net, synced.sim);
+      const aim = backspaceAim(targets, reconcileAim(targets, synced.aim));
+      return aim ? { ...synced, aim } : state;
     }
     case 'confirm': {
       if (state.status !== 'running') return state;
@@ -244,6 +249,10 @@ export function applyDispatchAction(net: NetworkIndex, state: CareerState, actio
       if (state.startedAt === null || state.status === 'ended') return state;
       const synced = advanceCareer(net, state, now);
       if (synced.status === 'ended') return state;
+      // Between Shifts, or before the next one's first key, the last Shift ended properly.
+      if (synced.status === 'between' || synced.status === 'ready') {
+        return { ...synced, status: 'ended', endReason: 'retired', endedAt: now };
+      }
       const history = synced.history.some((entry) => entry.shift === synced.shift)
         ? synced.history : [...synced.history, record(synced, false)];
       return { ...synced, status: 'ended', endReason: 'abandoned', endedAt: now, history };
@@ -277,8 +286,7 @@ export function careerScore(s: CareerState): number {
   return Math.round(careerTotals(s).delivered * computeMetrics(s.correctChars, s.keystrokes, s.gameMs).accuracy);
 }
 
-/** True while any Incident is active, or any platform is over half of PLATFORM_CAPACITY. */
+/** True while any Incident is active. Crowding alone stays calm: busy platforms are most of a Shift. */
 export function dispatchTense(s: CareerState): boolean {
-  return s.sim.incidents.length > 0
-    || Object.keys(s.sim.platforms).some((id) => crowdAt(s.sim, id) > PLATFORM_CAPACITY / 2);
+  return s.sim.incidents.length > 0;
 }
