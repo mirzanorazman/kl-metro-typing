@@ -444,11 +444,12 @@ export function DispatcherScreen({
   }, [run, net]);
 
   // While the lesson shows, the map, the overlay and the typing line draw its
-  // throwaway state; the Shift bar and the Incidents panel keep the Career.
+  // throwaway state; the Shift bar, the Incidents panel and the passenger pops
+  // keep the Career (the lesson carries no one, so it would only pop "+0").
   const shown = lesson?.career ?? run;
 
   // The Delivered chime only ever sounds with a pop that shows someone home.
-  const moments = usePassengerMoments(net, shown);
+  const moments = usePassengerMoments(net, run);
   const chimed = useRef(new Set<string>());
   useEffect(() => {
     const fresh = moments.pops.some((pop) => !chimed.current.has(pop.key) && pop.delivered > 0);

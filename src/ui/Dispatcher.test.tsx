@@ -1199,6 +1199,15 @@ describe('The guided first Shift', () => {
     expect(screen.queryByText(/Type a waiting Station's name/)).toBeNull();
   });
 
+  it('the lesson\'s empty train shows no passenger pop when it calls', () => {
+    fresh();
+    const clock = fakeClock();
+    renderLesson();
+    type('Jelatek');
+    clock.now += 1_000; press('Shift'); // called at Jelatek, nobody on or off
+    expect(screen.queryAllByTestId('exchange-pop')).toHaveLength(0);
+  });
+
   it('a wrong key in the lesson shows, and Backspace takes it back', () => {
     fresh(); renderLesson();
     type('Jx');
