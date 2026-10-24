@@ -1187,6 +1187,18 @@ describe('The guided first Shift', () => {
     expect(loadProfile().dispatchTipsSeen).toContain('lesson');
   });
 
+  it('while the lesson\'s train moves, the typing line asks for nothing', () => {
+    fresh();
+    const clock = fakeClock();
+    renderLesson();
+    type('Jelatek');
+    expect(screen.getByText('There it goes.')).toBeTruthy();
+    expect(screen.queryByText(/Type a waiting Station's name/)).toBeNull();
+    clock.now += 30_000; press('Shift');
+    type('Setiawangsa'); // finished: the hold asks for nothing either
+    expect(screen.queryByText(/Type a waiting Station's name/)).toBeNull();
+  });
+
   it('a wrong key in the lesson shows, and Backspace takes it back', () => {
     fresh(); renderLesson();
     type('Jx');

@@ -225,10 +225,10 @@ const WAVE_FLASH_MS = 1_200;
  * treatment. While a wrong key's stall runs, keys are dropped, so the line
  * says so: it dims and shows "Wait…" until the Shift clock passes the stall.
  * Beside it, the streak count builds towards a Green wave and flashes when one
- * fires.
+ * fires. `waiting: false` (the lesson's train on the move) drops the idle prompt.
  */
-function TypingLine({ career, aimed, showStreak = true }: {
-  career: CareerState; aimed: readonly Target[]; showStreak?: boolean;
+function TypingLine({ career, aimed, showStreak = true, waiting = true }: {
+  career: CareerState; aimed: readonly Target[]; showStreak?: boolean; waiting?: boolean;
 }) {
   const { aim } = career;
   const wave = useFreshWave(career.lastWave, WAVE_FLASH_MS);
@@ -236,7 +236,7 @@ function TypingLine({ career, aimed, showStreak = true }: {
   const target = aim.lock ? aimed.find((t) => sameRef(t.ref, aim.lock!)) : aimed[0];
   let body: ReactNode;
   if (!target) {
-    body = (
+    body = waiting && (
       <p className="dispatch-idle">
         {career.status === 'ready' ? "Type a waiting Station's name to start the Shift" : "Type a waiting Station's name"}
         {aim.misses > 0 && <span className="prompt-feedback" role="status">Wrong key</span>}
@@ -636,7 +636,8 @@ export function DispatcherScreen({
                 {lessonCaption(lesson.step) && (
                   <p className="dispatch-tip-inline" role="note">{lessonCaption(lesson.step)}</p>
                 )}
-                <TypingLine career={lesson.career} aimed={aimed} showStreak={false} />
+                <TypingLine career={lesson.career} aimed={aimed} showStreak={false}
+                  waiting={lesson.step === 'first' || lesson.step === 'second'} />
                 <button type="button" className="dispatch-end" onClick={skipLesson}>
                   <kbd>Esc</kbd> Skip
                 </button>
