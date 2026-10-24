@@ -9,8 +9,13 @@ branch `feat/dispatcher`. All 11 tasks are done; see "Playtest 1" below. The
 first plan (`2026-10-23-dispatcher.md`) is done too, apart from its gated
 Task 12.
 
-- **Last done:** the final whole-branch review's fixes, after Playtest 1
-  Task 11; see "Final review fixes" under "Playtest 1".
+- **Last done:** the onboarding plan
+  (`docs/superpowers/plans/2026-10-24-dispatcher-onboarding.md`, spec
+  `docs/superpowers/specs/2026-10-24-dispatcher-onboarding-design.md`): F8
+  guided first Shift, F5 How to play, F14 new-train tip, and its final
+  review's fixes (the lesson's train is never late, the start caption follows
+  the lesson for returning players, a 1.2 s hold on finishing, no idle prompt
+  or passenger pops during the lesson).
 - **Next:** Playtest 2 is done; its feedback is ranked in
   `docs/superpowers/dispatcher-playtest-2-feedback.md` (F1–F21). The P0 items
   (F1, F3, F6, F7, F18) are done, and so is the onboarding group (F8 guided
@@ -40,9 +45,21 @@ Task 12.
     from live metrics, not replay. Dismissing a tip resumes even if the window
     blurred meanwhile. The start tip is marked seen on keys the engine ignores.
     `DispatcherScreen` is about 430 lines; its tips and judging could be hooks.
-    "How to play" can't reset Dispatcher tips. The double-submit test reaches
+    The double-submit test reaches
     the handler via `__reactProps$`, which is fragile on a React upgrade. The
     Enter shield covers buttons only, not links or `[role=button]`.
+- **Onboarding (plan 2026-10-24), deferred minors:** lesson completion
+  detects "any train left its signal" (valid with its one train);
+  `startLesson` relies on `startCareer`'s gameMs 0; `inLesson.current` is
+  written during render; the lesson's served/lines memos duplicate the
+  Career's, with eslint-disable; no tests for no music or clock during the
+  lesson, Esc during 'moving', or the hook's rAF advance; How to play tests
+  don't assert it is there before the first key or gone during the lesson;
+  the new-train copy "during the peaks" is slightly loose (a midday join is
+  possible below 0.6 of the fleet); the new-train tip can pause on tick 1
+  when an opener is blocked; the lesson frame is only about 2× tighter than
+  the Shift frame; Jelatek and Dato' Keramat labels overlap in the lesson
+  frame; the reduced-motion cut is not checked live.
 
 To resume in a fresh session: "Read `docs/superpowers/dispatcher-handover.md`
 and continue the active plan subagent-driven." The controller's detailed
