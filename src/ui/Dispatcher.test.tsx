@@ -1158,6 +1158,11 @@ describe('The guided first Shift', () => {
     clock.now += 30_000; press('Shift');
     expect(screen.getByText(/Type Setiawangsa\./)).toBeTruthy();
     type('Setiawangsa');
+    // The last clear holds a moment, so its train is seen pulling away; keys wait.
+    clock.now += 600; type('Ka');
+    expect(mapProps().fitKey).toBe('dispatch:lesson');
+    expect(screen.queryByText(START_TIP)).toBeNull();
+    clock.now += 600; press('Shift');
     expect(screen.getByText(START_TIP)).toBeTruthy();
     expect(mapProps().fitKey).not.toBe('dispatch:lesson');
     expect(loadProfile().dispatchTipsSeen).toContain('lesson');
@@ -1166,6 +1171,20 @@ describe('The guided first Shift', () => {
     clock.now += 30 * 60_000; type('x');
     await waitFor(() => expect(judgeSpy).toHaveBeenCalled());
     expect(judgeSpy.mock.calls[0]![1].keylog.events.map((e) => e.k).join('')).toBe(first.slice(0, 2));
+    expect(replayDispatch(net, judgeSpy.mock.calls[0]![1])!.complete).toBe(true);
+  });
+
+  it('Esc during the finishing moment ends the lesson at once', () => {
+    fresh();
+    const clock = fakeClock();
+    renderLesson();
+    type('Jelatek');
+    clock.now += 30_000; press('Shift');
+    type('Setiawangsa');
+    expect(mapProps().fitKey).toBe('dispatch:lesson');
+    press('Escape');
+    expect(screen.getByText(START_TIP)).toBeTruthy();
+    expect(loadProfile().dispatchTipsSeen).toContain('lesson');
   });
 
   it('a wrong key in the lesson shows, and Backspace takes it back', () => {

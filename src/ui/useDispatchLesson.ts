@@ -16,6 +16,9 @@ const CAPTIONS: Record<LessonStep, string | null> = {
   done: null,
 };
 
+/** How long a finished lesson stays up, so the last clear's green flip and pull-away are seen. */
+export const LESSON_FINISH_HOLD_MS = 1_200;
+
 export function lessonCaption(step: LessonStep): string | null {
   return CAPTIONS[step];
 }
@@ -46,7 +49,12 @@ export function useDispatchLesson(
     setLesson(next);
   }, []);
 
-  const start = useCallback(() => commit(startLesson(net, runTick())), [commit, net]);
+  // When the lesson was finished, by the real clock; it ends once the hold has passed.
+  const doneAt = useRef<number | null>(null);
+  const start = useCallback(() => {
+    doneAt.current = null;
+    commit(startLesson(net, runTick()));
+  }, [commit, net]);
   const leave = useCallback(() => commit(null), [commit]);
   const taught = useRef(onTaught);
   taught.current = onTaught;
@@ -57,15 +65,28 @@ export function useDispatchLesson(
     commit(null);
   }, [commit]);
 
+  const advance = useCallback((now: number) => {
+    const cur = current.current;
+    if (!cur) return;
+    if (doneAt.current !== null && now - doneAt.current >= LESSON_FINISH_HOLD_MS) return skip();
+    commit(advanceLesson(net, cur, now));
+  }, [commit, net, skip]);
+
   const onKey = useCallback((key: string) => {
     const cur = current.current;
     if (!cur) return;
     const now = runTick();
     if (key === 'Escape') return skip();
+    // Finished: keys are ignored while the last clear plays out.
+    if (cur.step === 'done') return advance(now);
     if (key === 'Backspace') return commit(lessonBackspace(net, cur, now));
-    if (key === 'Enter' || key.length === 1) return commit(lessonKey(net, cur, key, now));
-    commit(advanceLesson(net, cur, now));
-  }, [commit, net, skip]);
+    if (key === 'Enter' || key.length === 1) {
+      const next = lessonKey(net, cur, key, now);
+      if (next.step === 'done') doneAt.current = now;
+      return commit(next);
+    }
+    advance(now);
+  }, [advance, commit, net, skip]);
 
   // The lesson's train moves once per frame; `commit` ignores frames with no new tick.
   const up = lesson !== null;
@@ -73,15 +94,14 @@ export function useDispatchLesson(
     if (!up) return;
     let frame = 0;
     const loop = () => {
-      if (current.current) commit(advanceLesson(net, current.current, runTick()));
+      advance(runTick());
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [commit, net, up]);
+  }, [advance, up]);
 
-  // Sounds run from effects, as the Career's do; the last clear is heard before
-  // the finished lesson is cleared.
+  // Sounds run from effects, as the Career's do.
   const heard = useRef(lesson);
   useEffect(() => {
     const prev = heard.current;
@@ -91,8 +111,7 @@ export function useDispatchLesson(
       else if (lesson.career.correctChars > prev.career.correctChars) sound.key();
       if (clearedSignals(net, prev.career.sim, lesson.career.sim).length > 0) sound.arrive();
     }
-    if (lesson?.step === 'done') skip();
-  }, [lesson, net, skip]);
+  }, [lesson, net]);
 
   return { lesson, start, skip, leave, onKey };
 }
