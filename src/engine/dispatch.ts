@@ -163,7 +163,7 @@ function fireWave(net: NetworkIndex, s: CareerState, at: Completion, size: numbe
   s.lastWave = { id: s.waves, line: at.line, origin: at.origin, cleared, atMs: s.gameMs };
 }
 
-function applyTargetKey(net: NetworkIndex, state: CareerState, key: string): CareerState {
+export function applyTargetKey(net: NetworkIndex, state: CareerState, key: string): CareerState {
   const targets = visibleTargets(net, state.sim);
   const outcome = aimKey(targets, state.aim, key, state.gameMs);
   if (!outcome.counted && !outcome.completed) return state;
