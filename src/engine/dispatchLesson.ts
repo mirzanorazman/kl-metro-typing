@@ -1,6 +1,6 @@
 import { TICK_MS } from './dispatchBalance';
 import { applyTargetKey, startCareer, type CareerState } from './dispatch';
-import { cloneSim, startShiftSim, stepSim, type PhaseNow, type Train } from './dispatchSim';
+import { cloneSim, startShiftSim, stepSim, type PhaseNow, type SimState, type Train } from './dispatchSim';
 import { backspaceAim, reconcileAim, visibleTargets } from './dispatchTargets';
 import type { NetworkIndex } from './network';
 
@@ -46,6 +46,17 @@ export function lessonStations(net: NetworkIndex): string[] {
   return [6, 5, 4].map((index) => ids[index]!);
 }
 
+/**
+ * Every platform counts as just called at, both ways, so the lesson's train is
+ * never late: a late train would offer an express chip the lesson never teaches.
+ */
+function keepOnTime(sim: SimState): void {
+  for (const platform of Object.values(sim.platforms)) {
+    platform.lastCall[`${STRETCH.line}:1`] = sim.shiftMs;
+    platform.lastCall[`${STRETCH.line}:-1`] = sim.shiftMs;
+  }
+}
+
 /** Step whole ticks up to `now`; the second Signal appears once the train has reached it. */
 export function advanceLesson(net: NetworkIndex, lesson: Lesson, now: number): Lesson {
   const target = now - lesson.clockAt;
@@ -53,6 +64,7 @@ export function advanceLesson(net: NetworkIndex, lesson: Lesson, now: number): L
   const career: CareerState = { ...lesson.career, sim: cloneSim(lesson.career.sim) };
   while (career.gameMs + TICK_MS <= target) {
     stepSim(net, career.sim, QUIET);
+    keepOnTime(career.sim);
     career.gameMs += TICK_MS;
     career.aim = reconcileAim(visibleTargets(net, career.sim), career.aim);
   }

@@ -37,6 +37,15 @@ describe('the Dispatcher lesson', () => {
     expect(l.career.sim.incidents).toEqual([]);
     expect(Object.values(l.career.sim.platforms).every((p) => Object.keys(p.waiting).length === 0)).toBe(true);
     expect(l.step).toBe('first');
+    expect(names(l)).toEqual(['Jelatek']); // never late, so no express chip
+  });
+
+  it('only the lesson\'s own Signal is ever offered, however long either wait runs', () => {
+    let l = advanceLesson(net, typeAll(startLesson(net, 0), 'Jelatek', 0), 200_000);
+    expect(l.step).toBe('second');
+    expect(names(l)).toEqual(['Setiawangsa']);
+    l = advanceLesson(net, l, 400_000);
+    expect(names(l)).toEqual(['Setiawangsa']);
   });
 
   it('a wrong key stalls and Backspace undoes it, as in a Shift', () => {
