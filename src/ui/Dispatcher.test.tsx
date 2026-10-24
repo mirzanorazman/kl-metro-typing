@@ -1206,6 +1206,23 @@ describe('The guided first Shift', () => {
     expect(loadProfile().dispatchTipsSeen ?? []).not.toContain('lesson');
   });
 
+  it('How to play replays the lesson, then the start caption and every tip show again', () => {
+    seenTips(ALL_TIPS); // everything seen, lesson included
+    renderLesson();
+    expect(screen.queryByText(START_TIP)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /How to play/ }));
+    expect(screen.getByText('This train is waiting at a red signal. Type Jelatek to send it on.')).toBeTruthy();
+    expect(loadProfile().dispatchTipsSeen).toEqual([]);
+    press('Escape');
+    expect(screen.getByText(START_TIP)).toBeTruthy();
+  });
+
+  it('How to play is gone once the Shift has started', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    type('J');
+    expect(screen.queryByRole('button', { name: /How to play/ })).toBeNull();
+  });
+
   it('a Career passed in (the dev full-network Career) never shows the lesson', () => {
     fresh();
     renderShift(careerWith([waiting(1, 'KJ', 'Damai')]));

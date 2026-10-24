@@ -5,7 +5,9 @@ import { music, sound } from '../audio/sound';
 import type { Point } from '../data/types';
 import type { KeySource } from '../engine/keylog';
 import type { NetworkIndex } from '../engine/network';
-import { loadProfile, markDispatchTipSeen, recordIntegrityFail, saveProfile } from '../engine/progress';
+import {
+  loadProfile, markDispatchTipSeen, recordIntegrityFail, resetDispatchTips, saveProfile,
+} from '../engine/progress';
 import {
   DISPATCH_EVIDENCE_VERSION,
   SHIFT_MS,
@@ -309,10 +311,16 @@ export function DispatcherScreen({
   // The guided first Shift, until it has been finished or skipped once. A
   // Career passed in (the dev full-network Career) goes straight to the Shift.
   const {
-    lesson, skip: skipLesson, leave: leaveLesson, onKey: lessonOnKey,
+    lesson, start: startLesson, skip: skipLesson, leave: leaveLesson, onKey: lessonOnKey,
   } = useDispatchLesson(net, initial === undefined && !seenTips.current.has(LESSON_SEEN));
   const inLesson = useRef(false);
   inLesson.current = lesson !== null;
+  // How to play: forget every tip, the lesson's seen flag with them, and run the lesson again.
+  const replayLesson = useCallback(() => {
+    saveProfile(resetDispatchTips(loadProfile()));
+    seenTips.current.clear();
+    startLesson();
+  }, [startLesson]);
 
   // Events advance the ref synchronously, and React only ever receives
   // values, so a re-run updater can never apply an input twice.
@@ -643,9 +651,14 @@ export function DispatcherScreen({
                 )}
                 <TypingLine career={run} aimed={aimed} />
                 {run.startedAt === null ? (
-                  <button type="button" className="dispatch-end" onClick={onExit}>
-                    <kbd>Esc</kbd> Back to map
-                  </button>
+                  <>
+                    <button type="button" className="dispatch-end" onClick={onExit}>
+                      <kbd>Esc</kbd> Back to map
+                    </button>
+                    <button type="button" className="dispatch-end" onClick={replayLesson}>
+                      How to play
+                    </button>
+                  </>
                 ) : (
                   <>
                     <p className="hint">
