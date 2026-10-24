@@ -23,7 +23,7 @@ export function lessonCaption(step: LessonStep): string | null {
 export interface DispatchLessonControls {
   lesson: Lesson | null;
   start(): void;
-  /** Ends the lesson and marks it seen; finishing it does the same. */
+  /** Ends the lesson, marks it seen and calls `onTaught`; finishing it does the same. */
   skip(): void;
   /** Ends the lesson without marking it seen, so it shows again next time. */
   leave(): void;
@@ -35,7 +35,9 @@ export interface DispatchLessonControls {
  * it shows, apart from the Career. Nothing here touches the Career, its
  * Keylog or its action log.
  */
-export function useDispatchLesson(net: NetworkIndex, autoStart: boolean): DispatchLessonControls {
+export function useDispatchLesson(
+  net: NetworkIndex, autoStart: boolean, onTaught: () => void = () => {},
+): DispatchLessonControls {
   const [lesson, setLesson] = useState<Lesson | null>(() => (autoStart ? startLesson(net, runTick()) : null));
   const current = useRef(lesson);
   const commit = useCallback((next: Lesson | null) => {
@@ -46,9 +48,12 @@ export function useDispatchLesson(net: NetworkIndex, autoStart: boolean): Dispat
 
   const start = useCallback(() => commit(startLesson(net, runTick())), [commit, net]);
   const leave = useCallback(() => commit(null), [commit]);
+  const taught = useRef(onTaught);
+  taught.current = onTaught;
   const skip = useCallback(() => {
     if (!current.current) return;
     saveProfile(markDispatchTipSeen(loadProfile(), LESSON_SEEN));
+    taught.current();
     commit(null);
   }, [commit]);
 

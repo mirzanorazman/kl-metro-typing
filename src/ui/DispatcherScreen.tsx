@@ -310,9 +310,12 @@ export function DispatcherScreen({
 
   // The guided first Shift, until it has been finished or skipped once. A
   // Career passed in (the dev full-network Career) goes straight to the Shift.
+  // Finished or skipped, it hands over to the start caption, even for a player
+  // who saw that caption in an earlier Career; the Career's first key marks it seen again.
   const {
     lesson, start: startLesson, skip: skipLesson, leave: leaveLesson, onKey: lessonOnKey,
-  } = useDispatchLesson(net, initial === undefined && !seenTips.current.has(LESSON_SEEN));
+  } = useDispatchLesson(net, initial === undefined && !seenTips.current.has(LESSON_SEEN),
+    () => seenTips.current.delete('start'));
   const inLesson = useRef(false);
   inLesson.current = lesson !== null;
   // How to play: forget every tip, the lesson's seen flag with them, and run the lesson again.

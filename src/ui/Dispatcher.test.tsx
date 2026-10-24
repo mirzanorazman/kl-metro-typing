@@ -1197,6 +1197,25 @@ describe('The guided first Shift', () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
+  it('a returning player who has played a Career still sees the start caption after the lesson', () => {
+    seenTips(ALL_TIPS.filter((id) => id !== 'lesson')); // 'start' seen in an earlier Career
+    const view = renderLesson();
+    press('Escape');
+    expect(screen.getByText(START_TIP)).toBeTruthy();
+    view.unmount();
+
+    seenTips(ALL_TIPS.filter((id) => id !== 'lesson'));
+    const clock = fakeClock();
+    renderLesson();
+    type('Jelatek');
+    clock.now += 30_000; press('Shift');
+    type('Setiawangsa');
+    clock.now += 2_000; press('Shift');
+    expect(screen.getByText(START_TIP)).toBeTruthy();
+    type('S'); // the Career's first key puts the caption away
+    expect(screen.queryByText(START_TIP)).toBeNull();
+  });
+
   it('Back to map mid-lesson leaves without marking it seen', () => {
     fresh();
     const onExit = vi.fn();
