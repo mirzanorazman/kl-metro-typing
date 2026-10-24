@@ -24,10 +24,10 @@ spec and plan.
 | F18 | Backspace drops the whole name, typists expect one character | P0 | M | done | |
 | F3 | Ending a Career between Shifts never reaches the leaderboard | P0 | M | done | |
 | F6 | Colour the "Yes, end it" button | P0 | S | done | |
-| F8 | Guided first Shift: zoom to one Station, type, watch the train go | P1 | L | spec drafted | F5 |
-| F5 | How to play toggle and walkthrough, as in Rush Hour | P1 | M | open | |
+| F8 | Guided first Shift: zoom to one Station, type, watch the train go | P1 | L | done | F5 |
+| F5 | How to play toggle and walkthrough, as in Rush Hour | P1 | M | done | |
 | F2 | Home screen subtitle for Dispatcher (rename to Career?) | P1 | S | done | |
-| F14 | How to play explains why new trains appear | P1 | S | open | F5 |
+| F14 | How to play explains why new trains appear | P1 | S | done | F5 |
 | F21 | Explain the thin line from a name to its train | P1 | S | set aside | F5 |
 | F4 | Line Track transition on first entry | P1 | S–M | open | |
 | F20 | List of closed Stations during the Shift | P1 | M | open | |
@@ -167,6 +167,12 @@ drive the camera). Then zoom out and start normally.
 **Watch:** keep it outside the recorded Career, or before `startedAt`, so
 replay and the judge never see it. Reachable again from How to play (F5).
 
+**Done:** the first Career opens on a guided Shift (`dispatchLesson.ts`): one
+train, nothing else running; the camera frames Jelatek, the player types it,
+then Setiawangsa, then the view zooms out (cuts under reduced motion) and the
+start caption shows on the ready screen. The lesson lives outside the recorded
+Career.
+
 ### F5. How to play toggle and walkthrough
 
 **Reported:** give Dispatcher the same How to play toggle and walkthrough as
@@ -179,6 +185,10 @@ play" cannot reset them (handover, deferred minors of Task 10).
 and fixes, the Green wave (no tip today, F9), new trains (F14), what the marks
 and lines mean (F21), Shifts and Expansions, how a Shift fails. Include a
 "replay the guided Shift" entry (F8).
+
+**Done:** a How to play button on the ready screen (before a Shift starts)
+replays the guided Shift and clears the seen tips, so each one shows again. It
+reuses the tips rather than adding walkthrough pages.
 
 ### F2. Home screen subtitle (rename to Career?)
 
@@ -200,6 +210,11 @@ they spread." Rush Hour has no subtitle yet and now looks bare beside it.
 **Reported:** explain in How to play why trains spawn.
 **Direction:** one How to play page: morning trains enter from the outer ends
 heading into the city (Task 4), and more join as demand rises. Needs F5.
+
+**Done:** a one-time `new-train` tip, shown the first time a train joins
+mid-Shift (not for a new Shift's fresh fleet): "A new train has joined at the
+end of the line. Trains join during the peaks until each line has its full
+fleet; longer lines get more trains." It is replayed by How to play (F5).
 
 ### F21. What is the thin line on the train?
 

@@ -13,8 +13,10 @@ Task 12.
   Task 11; see "Final review fixes" under "Playtest 1".
 - **Next:** Playtest 2 is done; its feedback is ranked in
   `docs/superpowers/dispatcher-playtest-2-feedback.md` (F1–F21). The P0 items
-  (F1, F3, F6, F7, F18) are done; the P1 clarity group (F8, F5, F2, F14,
-  F21, F4) is next. Note F18 bumped `DISPATCH_EVIDENCE_VERSION` to 2. The checklist it answers is
+  (F1, F3, F6, F7, F18) are done, and so is the onboarding group (F8 guided
+  first Shift, F5 How to play, F14 new-train tip, with F2). The remaining P1s
+  are F20, F15, F11, F19 and F4 (F21 is set aside). Note F18 bumped
+  `DISPATCH_EVIDENCE_VERSION` to 2. The checklist it answers is
   `docs/superpowers/dispatcher-playtest-2-checklist.md`. The 90 WPM ceiling is
   the open design question. Task 12 of the first plan
   (retire Rush Hour) is still **gated**: do not start it until the user says

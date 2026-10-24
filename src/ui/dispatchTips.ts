@@ -9,6 +9,7 @@ export const DISPATCH_TIPS = [
   { id: 'incident', text: 'An incident holds trains until you type its fix. Left too long, the station goes out of service.' },
   { id: 'bunching', text: 'Trains are bunching. Holding one back (not clearing it) evens out the gaps.' },
   { id: 'late', text: 'A late train offers a station further ahead. Type that to run it express.' },
+  { id: 'new-train', text: 'A new train has joined at the end of the line. Trains join during the peaks until each line has its full fleet; longer lines get more trains.' },
   { id: 'out-of-service', text: 'A station is out of service. Lose a quarter of your network and the shift fails.' },
   { id: 'expansion', text: "Shift cleared. Choose where your network grows. Type a station's name or click it." },
 ] as const;
@@ -49,6 +50,7 @@ export function newDispatchTips(
       const had = new Set(skips(before).map((t) => t.ref.kind === 'skip' && t.ref.train));
       if (skips(after).some((t) => t.ref.kind === 'skip' && !had.has(t.ref.train))) hit.add('late');
     }
+    if (after.nextTrainId > before.nextTrainId) hit.add('new-train');
     if (after.oosOrder.length > before.oosOrder.length) hit.add('out-of-service');
   }
   return DISPATCH_TIPS.map((t) => t.id).filter((id) => hit.has(id) && want(id));

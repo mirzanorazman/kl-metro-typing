@@ -86,7 +86,7 @@ const renderShift = (initial?: CareerState) => render(
 );
 
 const START_TIP = "Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift.";
-const ALL_TIPS = ['lesson', 'start', 'incident', 'bunching', 'late', 'out-of-service', 'expansion'];
+const ALL_TIPS = ['lesson', 'start', 'incident', 'bunching', 'late', 'new-train', 'out-of-service', 'expansion'];
 const seenTips = (ids: string[]) => saveProfile({ ...emptyProfile(), dispatchTipsSeen: ids });
 /** A profile that has seen every tip but the lesson and the start caption. */
 const fresh = () => seenTips(ALL_TIPS.filter((id) => id !== 'lesson' && id !== 'start'));

@@ -70,6 +70,19 @@ describe('newDispatchTips', () => {
     expect(newDispatchTips(net, next, next, none)).toEqual([]);
   });
 
+  it('sees a train join mid-Shift, once', () => {
+    const prev = running([waiting(1, 'KJ', 'Jelatek')]);
+    const next = withSim(prev, (sim) => { sim.trains.push(waiting(2, 'KJ', 'Damai')); sim.nextTrainId = 3; });
+    expect(newDispatchTips(net, prev, next, none)).toEqual(['new-train']);
+    expect(newDispatchTips(net, prev, next, new Set(['new-train']))).toEqual([]);
+  });
+
+  it("a new Shift's fresh trains are not a train joining", () => {
+    const prev = running([waiting(1, 'KJ', 'Jelatek')]);
+    const next = { ...withSim(prev, (sim) => { sim.trains.push(waiting(2, 'KJ', 'Damai')); sim.nextTrainId = 3; }), shift: 2 };
+    expect(newDispatchTips(net, prev, next, none)).not.toContain('new-train');
+  });
+
   it('sees a Station go Out of service', () => {
     const prev = running([waiting(1, 'KJ', 'Jelatek')]);
     const next = withSim(prev, (sim) => {
@@ -102,7 +115,7 @@ describe('newDispatchTips', () => {
   });
 
   it('has the agreed copy, in Dispatcher vocabulary', () => {
-    expect(DISPATCH_TIPS.map((t) => t.id)).toEqual(['start', 'incident', 'bunching', 'late', 'out-of-service', 'expansion']);
+    expect(DISPATCH_TIPS.map((t) => t.id)).toEqual(['start', 'incident', 'bunching', 'late', 'new-train', 'out-of-service', 'expansion']);
     expect(dispatchTipText('start'))
       .toBe("Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift.");
     expect(dispatchTipText('start')).toMatch(/red signal/);
@@ -111,6 +124,9 @@ describe('newDispatchTips', () => {
     expect(dispatchTipText('bunching'))
       .toBe('Trains are bunching. Holding one back (not clearing it) evens out the gaps.');
     expect(dispatchTipText('late')).toBe('A late train offers a station further ahead. Type that to run it express.');
+    expect(dispatchTipText('new-train')).toBe(
+      'A new train has joined at the end of the line. Trains join during the peaks until each line has its full fleet; longer lines get more trains.',
+    );
     expect(dispatchTipText('out-of-service'))
       .toBe('A station is out of service. Lose a quarter of your network and the shift fails.');
     expect(dispatchTipText('expansion'))
