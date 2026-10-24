@@ -7,7 +7,7 @@ priorities move.
 
 **Where it stands (2026-10-24):** all P0s and the first-time-clarity group
 are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17). F21 is set aside.
-Next up: F20, F15, F11, F19, F4. The branch is kept as is (not merged) until
+Next up: F23 (small bug), F22, then F20, F15, F11, F19, F4. The branch is kept as is (not merged) until
 the user has playtested the onboarding; see "Check in playtest 3" at the end.
 
 The checklist this answers is `dispatcher-playtest-2-checklist.md`; the
@@ -35,12 +35,14 @@ spec and plan.
 | F14 | How to play explains why new trains appear | P1 | S | done 62d318a | F5 |
 | F21 | Explain the thin line from a name to its train | P1 | S | set aside | F5 |
 | F4 | Line Track transition on first entry | P1 | S–M | open | |
-| F20 | List of closed Stations during the Shift | P1 | M | open | |
+| F20 | List of closed Stations during the Shift | P1 | M | in progress (spec) | |
 | F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done fb732cc | |
 | F15 | Paint a Line only as far as it is served | P1 | M | open | |
 | F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
 | F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
 | F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |
+| F22 | Tips point at the train they are about (bunching, late) | P1 | M | open | |
+| F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
 | F16 | Repetition, unattended trains, what to prioritise | P2 | L | open | F12 |
 | F10 | Combo spacing: every 3, or growing gaps (3, 7, 13)? | P2 | S | open | F12 |
@@ -275,6 +277,15 @@ with the cause, plus a count against the failure line ("3 closed · Shift
 fails at 13"). Mind the chip layout: `usePanelRects` already measures the
 panel, so a taller panel is accounted for.
 
+**Brainstormed (2026-10-25):** nothing can be read mid-Shift, so it is not a
+list. The user chose a closure gauge in the Shift bar (one slot per closure
+the Shift can take, shown from the first closure, grey → amber → red) and a
+stamp on the map for each closure. An Incident's card closes instead of
+vanishing, a failed Shift holds 1.2 s before the summary, the red screen edge
+stays for fixes only, and sound is additive. Spec
+`specs/2026-10-25-dispatcher-closure-gauge-design.md`; mockups
+https://claude.ai/artifact/4BfEfBopBTRhLjKh2bWzN1.
+
 ### F17. Show the network growing
 
 **Reported:** an indicator, during and after each Shift, of how many Lines
@@ -331,6 +342,57 @@ in), its Line badge pops, a chime. Depends on F15 for drawing only the new
 stretch.
 
 ---
+
+## P1: found after playtest 2 (2026-10-25)
+
+### F22. Tips point at the train they are about
+
+**Reported:** "Trains are bunching" is confusing: how does bunching show in
+the game, and why would not clearing a train help? Same for the late-train
+tip. "We still need to zoom into what train it is indicating."
+
+**Now:** a bunched pair is two trains on the same Line and direction within
+one block of each other (`bunchedTrains`, `BUNCH_BLOCKS = 1`); each gets a
+thin dashed white ring (`.dispatch-bunch-ring`), easy to miss. A train is
+late when the platform ahead has waited more than 1.5× the Line's target
+headway (`isLate`, `LATE_FACTOR`); it then offers a second name, a Station
+two ahead, to run express. The tips (`dispatchTips.ts`) are one sentence,
+shown in a card with no link to the trains, and the map does not move.
+
+**Direction:** the same idea as the guided first Shift (F8). While the tip
+pauses the Career, the camera leans in on the trains it is about (the lean
+used for Incidents, Task 9 of playtest 1, already does this) and those
+trains pulse. The copy says what you are looking at and why it matters, in
+game terms:
+
+- Bunching: these two trains are right behind each other (the dashed
+  outline). The second reaches platforms the first just emptied, while
+  Stations behind them wait longer. Leaving it at its signal a moment
+  spreads them out.
+- Late: this train's next platform has waited too long. Type the farther
+  Station on its chip to run it express and catch up.
+
+Check the "why" against the sim before writing final copy (what bunching
+actually costs: calls, on-time %, crowding). Consider the same pointing for
+the Incident, out-of-service and new-train tips. **Decide:** is a lean plus
+pulse enough, or does bunching need its own guided moment like F8?
+
+### F23. Tip card is trapped in the typing panel
+
+**Seen in a screenshot (2026-10-25):** the tip card ("Trains are bunching…")
+sits inside the typing panel, and the panel's own text shows through it
+("Type a waiting Station's name", "End Career" behind "Got it").
+
+**Likely cause:** `.dispatch-paused` is `position: fixed; inset: 0` with an
+80 % paper backdrop, but it renders inside the panel, and the panel's
+`backdrop-filter` makes it the containing block for fixed children. So the
+"full-screen" overlay only covers the panel. The Pause dialog shares the
+class and probably has the same problem.
+
+**Direction:** render the tip and pause cards outside the panel (a portal,
+or move them out of `PlayLayout`'s panel slot), or give the card its own
+solid background. Pairs with F22: if the map is meant to stay visible behind
+a pointing tip, the card should sit over the panel only, opaque.
 
 ## P2: balance and depth (design talk first)
 
