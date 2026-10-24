@@ -22,6 +22,7 @@ import {
   type DispatchActionBody,
 } from '../engine/dispatch';
 import { DISPATCH_KEYLOG_MAX_EVENTS } from '../engine/dispatchBalance';
+import { LESSON_SEEN, lessonStations } from '../engine/dispatchLesson';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { servedKey, servedLines, servedStations } from '../engine/dispatchNetwork';
 import type { Incident } from '../engine/dispatchSim';
@@ -46,6 +47,7 @@ import { dispatchTipText, newDispatchTips, type DispatchTipId } from './dispatch
 import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
 import { useGameInput } from './TypingInputProvider';
+import { lessonCaption, useDispatchLesson } from './useDispatchLesson';
 import { runTick, useRunRecorder } from './useRunRecorder';
 import './dispatch.css';
 
@@ -56,6 +58,8 @@ export interface DispatcherScreenProps {
   phoneLandscape?: boolean;
   /** Test-only: start from this state instead of startCareer. */
   initial?: CareerState;
+  /** Test-only: fix the new Career's seed, still showing the lesson as a first-time player sees it. */
+  lessonFor?: { seed: number };
 }
 
 function PauseOverlay({ onResume }: { onResume: () => void }) {
@@ -221,7 +225,9 @@ const WAVE_FLASH_MS = 1_200;
  * Beside it, the streak count builds towards a Green wave and flashes when one
  * fires.
  */
-function TypingLine({ career, aimed }: { career: CareerState; aimed: readonly Target[] }) {
+function TypingLine({ career, aimed, showStreak = true }: {
+  career: CareerState; aimed: readonly Target[]; showStreak?: boolean;
+}) {
   const { aim } = career;
   const wave = useFreshWave(career.lastWave, WAVE_FLASH_MS);
   const stalled = career.gameMs < aim.stallUntil;
@@ -255,10 +261,12 @@ function TypingLine({ career, aimed }: { career: CareerState; aimed: readonly Ta
       <div className="dispatch-typing-row">
         <div className="dispatch-typing-body">{body}</div>
         {/* Keyed on the wave, so each one restarts the flash. */}
-        <p key={wave?.id ?? 0} className="dispatch-streak" data-testid="streak"
-          data-wave={wave ? 'true' : undefined}>
-          Streak {career.streak}
-        </p>
+        {showStreak && (
+          <p key={wave?.id ?? 0} className="dispatch-streak" data-testid="streak"
+            data-wave={wave ? 'true' : undefined}>
+            Streak {career.streak}
+          </p>
+        )}
       </div>
       {stalled && (
         // Keyed on the stall, so each one restarts its countdown bar.
@@ -271,9 +279,11 @@ function TypingLine({ career, aimed }: { career: CareerState; aimed: readonly Ta
   );
 }
 
-export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false, initial }: DispatcherScreenProps) {
+export function DispatcherScreen({
+  net, onExit, onAgain, phoneLandscape = false, initial, lessonFor,
+}: DispatcherScreenProps) {
   const { geo: layout, backdrop, districts } = useMemo(() => networkLayout(), []);
-  const [seed] = useState(() => initial?.seed ?? Math.floor(Math.random() * 2 ** 32));
+  const [seed] = useState(() => initial?.seed ?? lessonFor?.seed ?? Math.floor(Math.random() * 2 ** 32));
   const [run, setRun] = useState<CareerState>(() => initial ?? startCareer(net, seed));
   const currentRun = useRef(run);
   const [openedAt] = useState(runTick);
@@ -295,6 +305,14 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     saveProfile(profile);
   }, []);
   const dismissTip = useCallback(() => setTips((queue) => queue.slice(1)), []);
+
+  // The guided first Shift, until it has been finished or skipped once. A
+  // Career passed in (the dev full-network Career) goes straight to the Shift.
+  const {
+    lesson, skip: skipLesson, leave: leaveLesson, onKey: lessonOnKey,
+  } = useDispatchLesson(net, initial === undefined && !seenTips.current.has(LESSON_SEEN));
+  const inLesson = useRef(false);
+  inLesson.current = lesson !== null;
 
   // Events advance the ref synchronously, and React only ever receives
   // values, so a re-run updater can never apply an input twice.
@@ -318,6 +336,8 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     const cur = currentRun.current;
     if (phoneLandscape || cur.status === 'ended') return;
     if (tipsShowing.current) return dismissTip();
+    // The lesson's keys are its own: none reaches the Career or the Keylog.
+    if (inLesson.current) return lessonOnKey(key);
     // Between Shifts the Expansion picker owns the keys.
     if (cur.status === 'between') return;
     if (cur.status === 'paused') {
@@ -336,7 +356,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     if (synced.status === 'ended' || synced.status === 'between') return commit(synced);
     recorder.record(key, source, now);
     commit(enterDispatchCharacter(net, synced, key, now));
-  }, [act, commit, dismissTip, markSeen, net, onExit, phoneLandscape, recorder]);
+  }, [act, commit, dismissTip, lessonOnKey, markSeen, net, onExit, phoneLandscape, recorder]);
 
   // Between Shifts, unless a tip is showing, the Expansion picker owns the keys.
   const screenKeys = !phoneLandscape && run.status !== 'ended' && (run.status !== 'between' || tips.length > 0);
@@ -412,8 +432,12 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     if (run.sim.nextIncidentId > prev.sim.nextIncidentId) sound.warning();
   }, [run, net]);
 
+  // While the lesson shows, the map, the overlay and the typing line draw its
+  // throwaway state; the Shift bar and the Incidents panel keep the Career.
+  const shown = lesson?.career ?? run;
+
   // The Delivered chime only ever sounds with a pop that shows someone home.
-  const moments = usePassengerMoments(net, run);
+  const moments = usePassengerMoments(net, shown);
   const chimed = useRef(new Set<string>());
   useEffect(() => {
     const fresh = moments.pops.some((pop) => !chimed.current.has(pop.key) && pop.delivered > 0);
@@ -514,6 +538,13 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     [served, offered, layout],
   );
   const frameKey = offers ? `dispatch:${key}:offers` : `dispatch:${key}`;
+  const lessonServedKey = lesson ? servedKey(lesson.career.served) : null;
+  const lessonServed = useMemo(() => (lesson ? new Set(servedStations(net, lesson.career.served)) : null),
+    [net, lessonServedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lessonLines = useMemo(() => (lesson ? new Set(servedLines(lesson.career.served)) : null),
+    [lessonServedKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lessonFrame = useMemo(() => lessonStations(net).map((id) => layout.get(id))
+    .filter((p): p is Point => p !== undefined), [net, layout]);
   const rootRef = useRef<HTMLDivElement>(null);
   const panels = usePanelRects(rootRef, !phoneLandscape && run.status !== 'ended');
 
@@ -531,18 +562,19 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
     );
   }
 
-  const targets = visibleTargets(net, run.sim);
-  const aimed = run.aim.typed !== '' || run.aim.lock ? candidates(targets, run.aim) : [];
-  const lock = run.aim.lock;
-  const lockedTrain = lock && lock.kind !== 'fix' ? run.sim.trains.find((t) => t.id === lock.train) : undefined;
+  const targets = visibleTargets(net, shown.sim);
+  const aimed = shown.aim.typed !== '' || shown.aim.lock ? candidates(targets, shown.aim) : [];
+  const lock = shown.aim.lock;
+  const lockedTrain = lock && lock.kind !== 'fix' ? shown.sim.trains.find((t) => t.id === lock.train) : undefined;
   const lineColour = lockedTrain ? net.lines.get(lockedTrain.line)?.colour ?? null : null;
   // A completed fix can leave the lock behind for a moment; only a fix that is
   // still there to type counts.
   const fixing = lock?.kind === 'fix' && targets.some((t) => sameRef(t.ref, lock))
-    ? run.sim.incidents.find((inc) => inc.id === lock.incident) : undefined;
+    ? shown.sim.incidents.find((inc) => inc.id === lock.incident) : undefined;
   // Reduced motion keeps the camera still; the edge and the glow still show.
-  const lean = fixing && !prefersReducedMotion() ? leanIn(net, run.sim, fixing, targets, served) : null;
-  const labelled = dispatchLabelled(net, run, served, targets);
+  const lean = fixing && !prefersReducedMotion() ? leanIn(net, shown.sim, fixing, targets, served) : null;
+  const visited = lessonServed ?? served;
+  const labelled = dispatchLabelled(net, shown, visited, targets);
   const leanFrame = lean?.stations.map((id) => layout.get(id)).filter((p): p is Point => p !== undefined);
 
   // The urgent edge holds off behind the Pause and Tip dialogs.
@@ -556,21 +588,21 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
           <MapCanvas
             net={net}
             layout={layout}
-            visited={served}
+            visited={visited}
             labelled={labelled}
             minMarkPx={DISPATCH_MIN_MARK_PX}
             laneOffsetPx={DISPATCH_LANE_PX}
-            labelAvoid={(markScale, { view, screen }) => overlayObstacles(net, layout, run, targets,
-              liveMarks(net, run, targets), markScale, overlayFrame(view, screen, panels))}
+            labelAvoid={(markScale, { view, screen }) => overlayObstacles(net, layout, shown, targets,
+              liveMarks(net, shown, targets), markScale, overlayFrame(view, screen, panels))}
             activeStation={null}
             backdrop={backdrop}
             districts={districts}
-            emphasisSet={lines}
-            fitTo={leanFrame ?? frame}
-            fitKey={lean?.key ?? frameKey}
+            emphasisSet={lessonLines ?? lines}
+            fitTo={lesson ? lessonFrame : leanFrame ?? frame}
+            fitKey={lesson ? 'dispatch:lesson' : lean?.key ?? frameKey}
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
             overlay={({ layout: l, markScale, view, screen, tracks }) => (
-              <DispatchOverlay net={net} layout={l} markScale={markScale} career={run} targets={targets} aimed={aimed}
+              <DispatchOverlay net={net} layout={l} markScale={markScale} career={shown} targets={targets} aimed={aimed}
                 moments={moments} frame={overlayFrame(view, screen, panels)} tracks={tracks} />
             )}
           />
@@ -587,6 +619,22 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
                   active={tips.length === 0}
                 />
                 <ConfirmEndButton onConfirm={() => act({ a: 'abandon' })} note={RANKED_NOTE} />
+              </>
+            ) : lesson ? (
+              <>
+                {lessonCaption(lesson.step) && (
+                  <p className="dispatch-tip-inline" role="note">{lessonCaption(lesson.step)}</p>
+                )}
+                <TypingLine career={lesson.career} aimed={aimed} showStreak={false} />
+                <button type="button" className="dispatch-end" onClick={skipLesson}>
+                  <kbd>Esc</kbd> Skip
+                </button>
+                <button type="button" className="dispatch-end" onClick={() => {
+                  leaveLesson();
+                  onExit();
+                }}>
+                  Back to map
+                </button>
               </>
             ) : (
               <>

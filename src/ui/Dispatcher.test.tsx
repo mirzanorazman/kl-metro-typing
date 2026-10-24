@@ -85,9 +85,17 @@ const renderShift = (initial?: CareerState) => render(
   </TypingInputProvider>,
 );
 
-const START_TIP = "Each red signal is a train waiting for you. Type the station name beside it to clear it. Trains you don't clear wait.";
-const ALL_TIPS = ['start', 'incident', 'bunching', 'late', 'out-of-service', 'expansion'];
+const START_TIP = "Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift.";
+const ALL_TIPS = ['lesson', 'start', 'incident', 'bunching', 'late', 'out-of-service', 'expansion'];
 const seenTips = (ids: string[]) => saveProfile({ ...emptyProfile(), dispatchTipsSeen: ids });
+/** A profile that has seen every tip but the lesson and the start caption. */
+const fresh = () => seenTips(ALL_TIPS.filter((id) => id !== 'lesson' && id !== 'start'));
+/** The screen as a first-time player opens it: no Career passed in, the seed fixed. */
+const renderLesson = (onExit = () => {}, seed = 7) => render(
+  <TypingInputProvider enabled={false}>
+    <DispatcherScreen net={net} onExit={onExit} onAgain={() => {}} lessonFor={{ seed }} />
+  </TypingInputProvider>,
+);
 
 /** Motion allowed: only the reduced-motion query is false. */
 const allowMotion = () => {
@@ -1129,6 +1137,79 @@ describe('DispatcherScreen', () => {
       </TypingInputProvider>,
     );
     expect(screen.getByText('Rotate to portrait to play')).toBeTruthy();
+  });
+});
+
+describe('The guided first Shift', () => {
+  it('opens on the lesson the first time: one train, zoomed in, with its caption', () => {
+    fresh();
+    renderLesson();
+    expect(screen.getByText('This train is waiting at a red signal. Type Jelatek to send it on.')).toBeTruthy();
+    expect(mapProps().fitKey).toBe('dispatch:lesson');
+    expect(signalLabels().map((el) => el.textContent)).toEqual(['Jelatek']);
+    expect(screen.queryByTestId('streak')).toBeNull();
+  });
+
+  it('typing both names ends the lesson on the ready screen; its keys never reach the Keylog', async () => {
+    fresh();
+    const clock = fakeClock();
+    renderLesson(() => {}, 21);
+    type('Jelatek');
+    clock.now += 30_000; press('Shift');
+    expect(screen.getByText(/Type Setiawangsa\./)).toBeTruthy();
+    type('Setiawangsa');
+    expect(screen.getByText(START_TIP)).toBeTruthy();
+    expect(mapProps().fitKey).not.toBe('dispatch:lesson');
+    expect(loadProfile().dispatchTipsSeen).toContain('lesson');
+    const first = visibleTargets(net, startCareer(net, 21).sim)[0]!.text;
+    type(first.slice(0, 2));
+    clock.now += 30 * 60_000; type('x');
+    await waitFor(() => expect(judgeSpy).toHaveBeenCalled());
+    expect(judgeSpy.mock.calls[0]![1].keylog.events.map((e) => e.k).join('')).toBe(first.slice(0, 2));
+  });
+
+  it('a wrong key in the lesson shows, and Backspace takes it back', () => {
+    fresh(); renderLesson();
+    type('Jx');
+    expect(screen.getByText('Wrong key')).toBeTruthy();
+    press('Backspace');
+    expect(screen.queryByText('Wrong key')).toBeNull();
+  });
+
+  it('Esc or Skip ends the lesson and marks it seen; Esc again then leaves', () => {
+    fresh();
+    const onExit = vi.fn();
+    const view = renderLesson(onExit);
+    press('Escape');
+    expect(onExit).not.toHaveBeenCalled();
+    expect(screen.getByText(START_TIP)).toBeTruthy();
+    expect(loadProfile().dispatchTipsSeen).toContain('lesson');
+    press('Escape');
+    expect(onExit).toHaveBeenCalledTimes(1);
+    view.unmount();
+
+    fresh();
+    renderLesson(onExit);
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    expect(screen.getByText(START_TIP)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Skip/ })).toBeNull();
+    expect(loadProfile().dispatchTipsSeen).toContain('lesson');
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it('Back to map mid-lesson leaves without marking it seen', () => {
+    fresh();
+    const onExit = vi.fn();
+    renderLesson(onExit);
+    fireEvent.click(screen.getByRole('button', { name: /Back to map/ }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+    expect(loadProfile().dispatchTipsSeen ?? []).not.toContain('lesson');
+  });
+
+  it('a Career passed in (the dev full-network Career) never shows the lesson', () => {
+    fresh();
+    renderShift(careerWith([waiting(1, 'KJ', 'Damai')]));
+    expect(screen.queryByText(/Type Jelatek to send it on/)).toBeNull();
   });
 });
 

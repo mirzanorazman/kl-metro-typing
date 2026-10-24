@@ -5,7 +5,7 @@ import { visibleTargets } from '../engine/dispatchTargets';
 
 /** One-time Dispatcher tips, in the order they queue when moments coincide. */
 export const DISPATCH_TIPS = [
-  { id: 'start', text: "Each red signal is a train waiting for you. Type the station name beside it to clear it. Trains you don't clear wait." },
+  { id: 'start', text: "Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift." },
   { id: 'incident', text: 'An incident holds trains until you type its fix. Left too long, the station goes out of service.' },
   { id: 'bunching', text: 'Trains are bunching. Holding one back (not clearing it) evens out the gaps.' },
   { id: 'late', text: 'A late train offers a station further ahead. Type that to run it express.' },
