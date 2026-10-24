@@ -24,11 +24,11 @@ spec and plan.
 | F18 | Backspace drops the whole name, typists expect one character | P0 | M | done | |
 | F3 | Ending a Career between Shifts never reaches the leaderboard | P0 | M | done | |
 | F6 | Colour the "Yes, end it" button | P0 | S | done | |
-| F8 | Guided first Shift: zoom to one Station, type, watch the train go | P1 | L | open | F5 |
+| F8 | Guided first Shift: zoom to one Station, type, watch the train go | P1 | L | spec drafted | F5 |
 | F5 | How to play toggle and walkthrough, as in Rush Hour | P1 | M | open | |
 | F2 | Home screen subtitle for Dispatcher (rename to Career?) | P1 | S | done | |
 | F14 | How to play explains why new trains appear | P1 | S | open | F5 |
-| F21 | Explain the thin line from a name to its train | P1 | S | open | F5 |
+| F21 | Explain the thin line from a name to its train | P1 | S | set aside | F5 |
 | F4 | Line Track transition on first entry | P1 | S–M | open | |
 | F20 | List of closed Stations during the Shift | P1 | M | open | |
 | F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done | |
