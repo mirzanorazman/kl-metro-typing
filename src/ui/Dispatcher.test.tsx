@@ -11,7 +11,7 @@ import { careerScore, SHIFT_MS, startCareer, type CareerState } from '../engine/
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { OOS_CROWD_MS, TICK_MS, TRAVEL_MS } from '../engine/dispatchBalance';
 import {
-  ERAS, eraFor, servedStations, STARTING_NETWORK, type Expansion, type Served,
+  applyExpansion, ERAS, eraFor, servedLines, servedStations, STARTING_NETWORK, type Expansion, type Served,
 } from '../engine/dispatchNetwork';
 import { cloneSim, startShiftSim, type Dir, type Incident, type Train } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
@@ -421,6 +421,32 @@ describe('DispatcherScreen', () => {
     expect(screen.getByRole('heading', { name: 'Career retired' })).toBeTruthy();
     expect(within(summary).getByText('Shifts cleared').nextElementSibling!.textContent).toBe('1');
     expect(within(summary).getByText('Delivered').nextElementSibling!.textContent).toBe('40');
+  });
+
+  it('top bar counts the Lines and Stations in service', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    const bar = screen.getByRole('banner', { name: 'Shift' });
+    const stat = (label: string) => within(bar).getByText(label).nextElementSibling!.textContent;
+    expect(stat('Lines')).toBe(String(servedLines(STARTING_NETWORK).length));
+    expect(stat('Stations')).toBe(String(servedStations(net, STARTING_NETWORK).length));
+    expect(bar.querySelector('.dispatch-grown')).toBeNull();
+  });
+
+  it('after an Expansion the bar shows what grew, until the Shift starts', () => {
+    const offer = offerAt('AG', 'Ampang');
+    renderShift({ ...startCareer(net, 7), status: 'between', shift: 1, cleared: 1, startedAt: 1_000, stoppedAt: 2_000,
+      offers: [offer], history: [{ shift: 1, delivered: 40, calls: 10, onTimeCalls: 9, cleared: true }] });
+    const before = servedStations(net, STARTING_NETWORK).length;
+    const after = applyExpansion(STARTING_NETWORK, offer);
+    expect(screen.getByText(`Network: ${servedLines(STARTING_NETWORK).length} Line · ${before} Stations`)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Ampang/ }));
+    const bar = screen.getByRole('banner', { name: 'Shift' });
+    const stat = (label: string) => within(bar).getByText(label).nextElementSibling as HTMLElement;
+    expect(stat('Lines').textContent).toBe(`${servedLines(after).length}+1`);
+    expect(stat('Stations').textContent).toBe(`${servedStations(net, after).length}+${servedStations(net, after).length - before}`);
+    expect(within(stat('Stations')).getByLabelText(`${servedStations(net, after).length - before} new`)).toBeTruthy();
+    type(screen.getAllByTestId('dispatch-signal')[0]!.textContent![0]!);
+    expect(bar.querySelector('.dispatch-grown')).toBeNull();
   });
 
   it('a complete network moves on to the next Shift', () => {

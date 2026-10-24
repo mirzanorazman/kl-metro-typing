@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { CareerState } from '../engine/dispatch';
-import { ERAS, eraFor } from '../engine/dispatchNetwork';
+import { ERAS, eraFor, servedLines, servedStations } from '../engine/dispatchNetwork';
 import { aimKey, backspaceAim, candidates, EMPTY_AIM, sameRef, type Aim, type Target } from '../engine/dispatchTargets';
 import type { NetworkIndex } from '../engine/network';
 import { LineBadge } from './LineBadge';
@@ -22,6 +22,9 @@ export interface DispatchExpansionProps {
  * choose, they are not part of the Career, so none are recorded; the pick is
  * logged as an action by the screen.
  */
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+const networkText = (lines: number, stations: number) => `${plural(lines, 'Line')} · ${plural(stations, 'Station')}`;
+
 export function DispatchExpansion({ net, career, onPick, active = true }: DispatchExpansionProps) {
   const { offers } = career;
   // An offer's index stands in for a Train id, so the Signal narrowing applies as is.
@@ -82,6 +85,8 @@ export function DispatchExpansion({ net, career, onPick, active = true }: Dispat
         </div>
       )}
       <p className="dispatch-era">Era: {era.label}</p>
+      <p className="dispatch-network">Network: {networkText(servedLines(career.served).length,
+        servedStations(net, career.served).length)}</p>
       {offers.length === 0 ? (
         <>
           <p>Your network is complete</p>

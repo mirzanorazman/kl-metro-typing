@@ -54,6 +54,23 @@
 .dispatch-stats dt { color: var(--ink-muted); }
 .dispatch-stats dd { margin: 0 var(--s) 0 0; font-weight: 700; font-variant-numeric: tabular-nums; }
 
+/* What the last Expansion added, beside its count, until the Shift starts. */
+.dispatch-grown {
+  margin-left: 0.25em;
+  color: var(--signal-green);
+  font-weight: 700;
+  animation: dispatch-grown-in 600ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dispatch-grown { animation: none; }
+}
+
+@keyframes dispatch-grown-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
 /* ---- Incidents side panel ---- */
 
 .dispatch-side {
@@ -592,6 +609,12 @@
 .dispatch-moved p { margin: 0; font-variant-numeric: tabular-nums; }
 .dispatch-moved-count { font: 700 var(--t-md) var(--font-mono); }
 .dispatch-moved-on-time { font: var(--t-sm) var(--font-mono); color: var(--ink-muted); }
+
+.dispatch-network {
+  margin: 0;
+  font: var(--t-sm) var(--font-mono);
+  color: var(--ink-muted);
+}
 
 .dispatch-era {
   margin: 0;

@@ -93,8 +93,18 @@ function clock(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** Shift number, phase and peak direction, time left, Delivered and on-time %. */
-function ShiftBar({ career }: { career: CareerState }) {
+/** How much an Expansion grew the network: Lines and Stations added. */
+interface Growth { lines: number; stations: number }
+
+/** A count, with what the last Expansion added beside it. */
+function Grown({ by }: { by: number }) {
+  return by > 0 ? <span className="dispatch-grown" aria-label={`${by} new`}>+{by}</span> : null;
+}
+
+/** Shift number, phase and peak direction, time left, the network's size, Delivered and on-time %. */
+function ShiftBar({ career, lines, stations, grown }: {
+  career: CareerState; lines: number; stations: number; grown: Growth | null;
+}) {
   const shiftMs = career.gameMs - career.shiftStartMs;
   const phase = shiftPhase(shiftMs);
   const totals = careerTotals(career);
@@ -110,6 +120,10 @@ function ShiftBar({ career }: { career: CareerState }) {
       </span>
       <span className="dispatch-left">{clock(SHIFT_MS - shiftMs)} left</span>
       <dl className="dispatch-stats">
+        <dt>Lines</dt>
+        <dd>{lines}<Grown by={grown?.lines ?? 0} /></dd>
+        <dt>Stations</dt>
+        <dd>{stations}<Grown by={grown?.stations ?? 0} /></dd>
         <dt>Delivered</dt>
         <dd>{totals.delivered}</dd>
         <dt>On time</dt>
@@ -481,6 +495,14 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
   const key = servedKey(run.served);
   const served = useMemo(() => new Set(servedStations(net, run.served)), [net, key]); // eslint-disable-line react-hooks/exhaustive-deps
   const lines = useMemo(() => new Set(servedLines(run.served)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The network as the last Shift ended, so the next one can show what its
+  // Expansion added until its first key.
+  const [before, setBefore] = useState<Growth | null>(null);
+  useEffect(() => {
+    if (run.status === 'between') setBefore({ lines: lines.size, stations: served.size });
+  }, [run.status, lines, served]);
+  const grown = run.status === 'ready' && before
+    ? { lines: lines.size - before.lines, stations: served.size - before.stations } : null;
   // Between Shifts the offers join the frame, so each is on screen to choose.
   // Padding is a share of the frame, not the screen: the taller picker panel
   // needs much more of it at the bottom.
@@ -595,7 +617,7 @@ export function DispatcherScreen({ net, onExit, onAgain, phoneLandscape = false,
           </>
         }
       />
-      <ShiftBar career={run} />
+      <ShiftBar career={run} lines={lines.size} stations={served.size} grown={grown} />
       <aside className="dispatch-side" aria-label="Incidents panel">
         <DispatchIncidents net={net} career={run} />
       </aside>

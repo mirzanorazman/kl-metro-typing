@@ -26,14 +26,14 @@ spec and plan.
 | F6 | Colour the "Yes, end it" button | P0 | S | done | |
 | F8 | Guided first Shift: zoom to one Station, type, watch the train go | P1 | L | open | F5 |
 | F5 | How to play toggle and walkthrough, as in Rush Hour | P1 | M | open | |
-| F2 | Home screen subtitle for Dispatcher (rename to Career?) | P1 | S | open | |
+| F2 | Home screen subtitle for Dispatcher (rename to Career?) | P1 | S | done | |
 | F14 | How to play explains why new trains appear | P1 | S | open | F5 |
 | F21 | Explain the thin line from a name to its train | P1 | S | open | F5 |
 | F4 | Line Track transition on first entry | P1 | S–M | open | |
 | F20 | List of closed Stations during the Shift | P1 | M | open | |
-| F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | open | |
+| F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done | |
 | F15 | Paint a Line only as far as it is served | P1 | M | open | |
-| F9 | A sound for the Green wave | P1 | S | open | |
+| F9 | A sound for the Green wave | P1 | S | done | |
 | F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
 | F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
@@ -189,7 +189,11 @@ the mode be called Career?
 "Run the network Shift by Shift: type Station names to send trains, fix
 Incidents before they spread." In the domain language a Career is one
 playthrough (End Career, Career over), so naming the mode Career makes
-"start a new Career in Career" awkward. **Decide** with the user.
+"start a new Career in Career" awkward.
+
+**Done (user kept "Dispatcher"):** the home button reads "Run the network
+Shift by Shift: type Station names to send trains, and fix Incidents before
+they spread." Rush Hour has no subtitle yet and now looks bare beside it.
 
 ### F14. Why new trains appear
 
@@ -236,9 +240,11 @@ panel, so a taller panel is accounted for.
 
 **Reported:** an indicator, during and after each Shift, of how many Lines
 and Stations are in service, to show growth.
-**Direction:** "4 Lines · 51 Stations" in the Shift bar, and on Shift
-cleared, the change ("+1 Line, +6 Stations"). The summary already shows the
-Station count.
+**Done:** the Shift bar counts Lines and Stations. After an Expansion each
+count shows what it added ("+6", in signal green) until the next Shift's
+first key, and the Shift-cleared screen says "Network: 1 Line · 14
+Stations" above the offers. Not seen live after a real Expansion (unit
+tested only).
 
 ### F15. Paint a Line only as far as it is served
 
@@ -259,8 +265,10 @@ animate in.
 
 **Reported:** the wave works; a first-timer may miss that the combo caused
 it. Add an audio cue when a wave fires. Ripple timing is excellent.
-**Direction:** a short rising sting on `waves` increasing, maybe one tick per
-cleared signal in step with the ripple. Add to `src/audio/sound.ts`.
+**Done:** `sound.wave`: a quick two-note lift as the wave fires, then one
+rising note per cleared Signal, landing as each mark flips
+(`waveNoteDelays`, from the ripple timing); under reduced motion the notes
+come quickly in a row, since the marks turn at once. Not heard live yet.
 
 ### F11. A real moment when a crowd surge is cleared
 
