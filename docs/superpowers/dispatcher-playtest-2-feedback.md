@@ -1,9 +1,14 @@
 # Dispatcher — playtest 2 feedback tracker
 
 The user's notes from playtest 2 (2026-10-24, branch `feat/dispatcher`), ranked
-so that later sessions can take one item or one group at a time. The P0 items are
-done, in the same commit that added this file; the rest are open. Item numbers (F1–F21) match the order of the original notes, so
-they stay stable when priorities move.
+so that later sessions can take one item or one group at a time. Item numbers
+(F1–F21) match the order of the original notes, so they stay stable when
+priorities move.
+
+**Where it stands (2026-10-24):** all P0s and the first-time-clarity group
+are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17). F21 is set aside.
+Next up: F20, F15, F11, F19, F4. The branch is kept as is (not merged) until
+the user has playtested the onboarding; see "Check in playtest 3" at the end.
 
 The checklist this answers is `dispatcher-playtest-2-checklist.md`; the
 background is in `dispatcher-handover.md`.
@@ -19,21 +24,21 @@ spec and plan.
 
 | # | Item | Pri | Size | Status | Depends on |
 |---|---|---|---|---|---|
-| F1 | No way back before the first Shift starts | P0 | S | done | |
-| F7 | Tense music keeps playing after an Incident is fixed | P0 | S–M | done | |
-| F18 | Backspace drops the whole name, typists expect one character | P0 | M | done | |
-| F3 | Ending a Career between Shifts never reaches the leaderboard | P0 | M | done | |
-| F6 | Colour the "Yes, end it" button | P0 | S | done | |
-| F8 | Guided first Shift: zoom to one Station, type, watch the train go | P1 | L | done | F5 |
-| F5 | How to play toggle and walkthrough, as in Rush Hour | P1 | M | done | |
-| F2 | Home screen subtitle for Dispatcher (rename to Career?) | P1 | S | done | |
-| F14 | How to play explains why new trains appear | P1 | S | done | F5 |
+| F1 | No way back before the first Shift starts | P0 | S | done 42b595c | |
+| F7 | Tense music keeps playing after an Incident is fixed | P0 | S–M | done 42b595c | |
+| F18 | Backspace drops the whole name, typists expect one character | P0 | M | done 42b595c | |
+| F3 | Ending a Career between Shifts never reaches the leaderboard | P0 | M | done 42b595c | |
+| F6 | Colour the "Yes, end it" button | P0 | S | done 42b595c | |
+| F8 | Guided first Shift: zoom to one Station, type, watch the train go | P1 | L | done a68225a (+ fixes to 3a2bf0f) | F5 |
+| F5 | How to play toggle and walkthrough, as in Rush Hour | P1 | M | done d61b018 | |
+| F2 | Home screen subtitle for Dispatcher (rename to Career?) | P1 | S | done d06af61 | |
+| F14 | How to play explains why new trains appear | P1 | S | done 62d318a | F5 |
 | F21 | Explain the thin line from a name to its train | P1 | S | set aside | F5 |
 | F4 | Line Track transition on first entry | P1 | S–M | open | |
 | F20 | List of closed Stations during the Shift | P1 | M | open | |
-| F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done | |
+| F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done fb732cc | |
 | F15 | Paint a Line only as far as it is served | P1 | M | open | |
-| F9 | A sound for the Green wave | P1 | S | done | |
+| F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
 | F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
 | F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
@@ -173,6 +178,22 @@ then Setiawangsa, then the view zooms out (cuts under reduced motion) and the
 start caption shows on the ready screen. The lesson lives outside the recorded
 Career.
 
+Spec `specs/2026-10-24-dispatcher-onboarding-design.md`, plan
+`plans/2026-10-24-dispatcher-onboarding.md`, run subagent-driven with a review
+per task and a final review. The final review's fixes (fe61455..74e84af):
+
+- a returning player (who has played a Career before) also gets the start
+  caption after finishing or skipping the lesson;
+- the lesson's train is never "late", so waiting on step 1 no longer adds an
+  express "Sri Rampai" name that could strand the lesson;
+- a finished lesson holds about 1.2 s so the second train is seen pulling away;
+- no "Type a waiting Station's name" line while the train is moving, and no
+  "+0 boarded" pop during the lesson.
+
+Known rough edges, left for playtest 3 (also in the handover): the lesson's
+frame is only about 2× tighter than the Shift's; the Jelatek and Dato'
+Keramat labels overlap in it; the reduced-motion cut was not checked live.
+
 ### F5. How to play toggle and walkthrough
 
 **Reported:** give Dispatcher the same How to play toggle and walkthrough as
@@ -217,6 +238,9 @@ end of the line. Trains join during the peaks until each line has its full
 fleet; longer lines get more trains." It is replayed by How to play (F5).
 
 ### F21. What is the thin line on the train?
+
+**Set aside by the user** (2026-10-24) before the onboarding spec; not part
+of that work.
 
 **Reported:** "What does the dotted line on the train indicate?"
 
@@ -382,6 +406,27 @@ leader lines crossing in the centre, dropped interchange names, shared track
 ## Still open from the checklist
 
 These checklist §5 decisions were not answered in this playtest:
-clear the Dispatcher leaderboard (pair with F3), retire Rush Hour (Task 12 of
-the first plan, gated), and merge `feat/dispatcher` into `main` or keep
-iterating.
+clear the Dispatcher leaderboard (pair with F3) and retire Rush Hour (Task 12
+of the first plan, gated). On merging: the user chose to keep
+`feat/dispatcher` as is until they have playtested the onboarding.
+
+---
+
+## Check in playtest 3
+
+What changed since playtest 2, and what to look at. Clear the profile's
+Dispatcher tips first (or press How to play) to see the lesson again.
+
+- **The lesson (F8).** Is the start now obvious? Is the zoom close enough on
+  Jelatek? Does the train's trip to the next signal feel too long? Does the
+  pause after Setiawangsa feel right (meant to be about 1.2 s; measured
+  slower in a hidden browser pane, so unconfirmed)?
+- **How to play (F5).** Does replaying the lesson and the tips cover what
+  you wanted from a walkthrough?
+- **Tips.** The new start caption ("Every red signal on your Line…") and
+  the new-train tip (F14): clear, and not too many interruptions?
+- **P0 fixes.** Back to map before starting (F1); "Yes, end it" in red (F6);
+  calm music once the last Incident is fixed (F7); Backspace undoes instead
+  of letting go (F18); ending between Shifts reaches the leaderboard (F3).
+- **Quick wins.** The home subtitle (F2); the Green wave sound (F9); the
+  Lines and Stations counts and "+N" after an Expansion (F17).
