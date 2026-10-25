@@ -293,6 +293,12 @@ export const sound = {
     error.triggerAttackRelease('A1', 0.12, '+0.18');
   }),
 
+  /** A Station going Out of service: one low, long thud; lower and longer near the failure line. */
+  closure: (heavy: boolean) => play(({ error }) => {
+    if (heavy) error.triggerAttackRelease('B0', 0.5);
+    else error.triggerAttackRelease('E1', 0.3);
+  }),
+
   /** Choosing a button or opening a panel: quick and light. */
   select: () => play(({ ui }) => {
     ui.triggerAttackRelease('E5', 0.08);

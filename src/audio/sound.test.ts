@@ -127,6 +127,24 @@ describe('sound', () => {
     expect(toneMock.membraneTrigger).toHaveBeenCalledTimes(1);
   });
 
+  it('a closure is one low membrane hit, lower and longer when heavy', async () => {
+    const sound = await loadSound();
+
+    sound.installAudioUnlock();
+    window.dispatchEvent(new Event('pointerdown'));
+    await flushPromises();
+
+    sound.sound.closure(false);
+    await flushPromises();
+    expect(toneMock.membraneTrigger).toHaveBeenCalledTimes(1);
+    expect(toneMock.membraneTrigger).toHaveBeenLastCalledWith('E1', 0.3);
+
+    sound.sound.closure(true);
+    await flushPromises();
+    expect(toneMock.membraneTrigger).toHaveBeenCalledTimes(2);
+    expect(toneMock.membraneTrigger).toHaveBeenLastCalledWith('B0', 0.5);
+  });
+
   it('stays silent when muted', async () => {
     const sound = await loadSound();
 

@@ -43,7 +43,7 @@ import { CLOSING_CARD_MS, CLOSURE_STAMP_MS, freshClosings, useClosures } from '.
 import { usePassengerMoments } from '../render/usePassengerMoments';
 import { clearedSignals, liveMarks, useFreshWave, waveNoteDelays } from '../render/useSignalMarks';
 import { prefersReducedMotion } from '../render/useLayoutMode';
-import { ClosureGauge } from './ClosureGauge';
+import { ClosureGauge, closureBand } from './ClosureGauge';
 import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
@@ -448,6 +448,9 @@ export function DispatcherScreen({
       sound.wave(waveNoteDelays(run.lastWave.cleared.length, prefersReducedMotion()));
     }
     if (run.sim.nextIncidentId > prev.sim.nextIncidentId) sound.warning();
+    if (run.sim.oosOrder.length > prev.sim.oosOrder.length) {
+      sound.closure(closureBand(run.sim.oosOrder.length, shiftFailCount(net, run.served)) === 'danger');
+    }
   }, [run, net]);
 
   // While the lesson shows, the map, the overlay and the typing line draw its

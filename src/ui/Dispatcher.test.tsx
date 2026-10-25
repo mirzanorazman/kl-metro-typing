@@ -1515,6 +1515,29 @@ describe('the closure gauge', () => {
   });
 });
 
+describe('the closure thud', () => {
+  it('a closure thuds, heavy in the red band', () => {
+    const closure = vi.spyOn(sound, 'closure').mockImplementation(() => {});
+    const clock = fakeClock();
+    const view = renderShift(closingCareer());
+    closeKlcc(clock);
+    expect(closure).toHaveBeenCalledTimes(1);
+    expect(closure).toHaveBeenLastCalledWith(false);
+    view.unmount();
+
+    renderShift(closingCareer(['Bangsar', 'Damai']));
+    closeKlcc(clock);
+    expect(closure).toHaveBeenLastCalledWith(true);
+  });
+
+  it('no thud for closures already there when the screen opened', () => {
+    const closure = vi.spyOn(sound, 'closure').mockImplementation(() => {});
+    renderShift(closingCareer(['Bangsar']));
+    type('J');
+    expect(closure).not.toHaveBeenCalled();
+  });
+});
+
 describe('the closure stamp', () => {
   const oosFor = (name: string) => screen.queryAllByTestId('dispatch-oos')
     .find((el) => el.getAttribute('data-station') === idOf(name));
