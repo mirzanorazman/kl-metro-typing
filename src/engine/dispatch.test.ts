@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import type { LineCode } from '../data/types';
 import { buildNetwork } from './network';
-import { COMBO_EVERY, COMBO_MAX_WAVE, OOS_FAIL_SHARE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS } from './dispatchBalance';
-import { servedStations, type Served } from './dispatchNetwork';
+import { COMBO_EVERY, COMBO_MAX_WAVE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS } from './dispatchBalance';
+import { servedStations, STARTING_NETWORK, type Served } from './dispatchNetwork';
 import { advanceFix } from './dispatchIncidents';
 import { clearSignal, cloneSim, closeStation, startShiftSim } from './dispatchSim';
 import { visibleTargets } from './dispatchTargets';
 import {
   SHIFT_MS, advanceCareer, applyDispatchAction, careerMetrics, careerScore, careerTotals,
-  dispatchTense, enterDispatchCharacter, shiftEscalation, shiftPhase, startCareer,
+  dispatchTense, enterDispatchCharacter, shiftEscalation, shiftFailCount, shiftPhase, startCareer,
   type CareerState,
 } from './dispatch';
 
@@ -148,11 +148,18 @@ describe('Dispatcher career', () => {
     expect(shiftEscalation(between)).toBe(1);
   });
 
+  it('a Shift fails at a quarter of its Served Stations, rounded up', () => {
+    // The starting network is KJ from index 4 to 17: 14 Stations.
+    expect(shiftFailCount(net, STARTING_NETWORK)).toBe(4);
+    const grown: Served = [{ line: 'KJ', from: 0, to: 23 }];
+    expect(shiftFailCount(net, grown)).toBe(Math.ceil(0.25 * servedStations(net, grown).length));
+  });
+
   it('fails on the last closure before clearing a Shift at the same tick', () => {
     const base = running();
     const sim = cloneSim(base.sim);
     const ids = servedStations(net, base.served);
-    const count = Math.ceil(OOS_FAIL_SHARE * ids.length);
+    const count = shiftFailCount(net, base.served);
     const closed = ids.slice(0, count);
     closeStation(sim, closed[0]!, 'signal-fault');
     for (const id of closed.slice(1)) closeStation(sim, id, 'crowding');

@@ -97,13 +97,18 @@ function cloneCareer(s: CareerState): CareerState {
   };
 }
 
+/** How many Station closures fail a Shift: a share of its Served Stations, rounded up. */
+export function shiftFailCount(net: NetworkIndex, served: Served): number {
+  return Math.ceil(OOS_FAIL_SHARE * servedStations(net, served).length);
+}
+
 /** Advance only whole simulation ticks, stopping at the first Shift boundary or failure. */
 export function advanceCareer(net: NetworkIndex, state: CareerState, now: number): CareerState {
   if (state.status !== 'running' || state.startedAt === null) return state;
   const target = now - state.startedAt - state.pausedMs;
   if (state.gameMs + TICK_MS > target) return state;
   const s = cloneCareer(state);
-  const failCount = Math.ceil(OOS_FAIL_SHARE * servedStations(net, s.served).length);
+  const failCount = shiftFailCount(net, s.served);
   while (s.status === 'running' && s.gameMs + TICK_MS <= target) {
     const phase = shiftPhase(s.gameMs - s.shiftStartMs);
     stepWorld(net, s.sim, { multiplier: phase.multiplier, flow: phase.flow,
