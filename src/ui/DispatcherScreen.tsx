@@ -53,6 +53,7 @@ import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
 import { useGameInput } from './TypingInputProvider';
 import { lessonCaption, useDispatchLesson } from './useDispatchLesson';
+import { useFailHold } from './useFailHold';
 import { runTick, useRunRecorder } from './useRunRecorder';
 import './dispatch.css';
 
@@ -506,9 +507,13 @@ export function DispatcherScreen({
   // a task. `judged` is set only when it runs, so a cancelled wait (an effect
   // re-run) schedules it again rather than losing it.
   const [judgement, setJudgement] = useState<DispatchJudgement | null>(null);
+  // A failed Shift holds the map for a moment first; the judge waits for the
+  // hold, so replaying never janks it.
+  const failHold = useFailHold(run);
   const judged = useRef(false);
   useEffect(() => {
     if (run.status !== 'ended' || run.endReason === 'abandoned' || run.endedAt === null || judged.current) return;
+    if (failHold) return;
     const endedAt = run.endedAt;
     let timer = 0;
     const frame = requestAnimationFrame(() => {
@@ -536,7 +541,7 @@ export function DispatcherScreen({
       cancelAnimationFrame(frame);
       window.clearTimeout(timer);
     };
-  }, [run, net, recorder, seed]);
+  }, [run, failHold, net, recorder, seed]);
 
   const key = servedKey(run.served);
   const served = useMemo(() => new Set(servedStations(net, run.served)), [net, key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -570,10 +575,11 @@ export function DispatcherScreen({
   const lessonFrame = useMemo(() => lessonStations(net).map((id) => layout.get(id))
     .filter((p): p is Point => p !== undefined), [net, layout]);
   const rootRef = useRef<HTMLDivElement>(null);
-  const panels = usePanelRects(rootRef, !phoneLandscape && run.status !== 'ended');
+  const showingPlay = run.status !== 'ended' || failHold;
+  const panels = usePanelRects(rootRef, !phoneLandscape && showingPlay);
 
-  if (phoneLandscape && run.status !== 'ended') return <PhoneLandscapeBlock fullScreen />;
-  if (run.status === 'ended') {
+  if (phoneLandscape && showingPlay) return <PhoneLandscapeBlock fullScreen />;
+  if (!showingPlay) {
     return (
       <DispatchSummary
         net={net}
@@ -673,7 +679,7 @@ export function DispatcherScreen({
                   <p className="dispatch-tip-inline" role="note">{dispatchTipText('start')}</p>
                 )}
                 <TypingLine career={run} aimed={aimed} />
-                {run.startedAt === null ? (
+                {failHold ? null : run.startedAt === null ? (
                   <>
                     <button type="button" className="dispatch-end" onClick={onExit}>
                       <kbd>Esc</kbd> Back to map

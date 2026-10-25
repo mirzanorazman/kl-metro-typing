@@ -13,7 +13,9 @@ export function closureBand(closed: number, slots: number): ClosureBand {
  */
 export function ClosureGauge({ closed, slots, fresh }: { closed: number; slots: number; fresh: boolean }) {
   if (closed <= 0) return null;
-  const band = closureBand(closed, slots);
+  // Several closures can land on the failing tick: never more filled than slots.
+  const shown = Math.min(closed, slots);
+  const band = closureBand(shown, slots);
   return (
     <div className="closure-gauge" data-band={band}>
       <span className="closure-label">Closed</span>
@@ -23,7 +25,7 @@ export function ClosureGauge({ closed, slots, fresh }: { closed: number; slots: 
         aria-label="Stations closed"
         aria-valuemin={0}
         aria-valuemax={slots}
-        aria-valuenow={closed}
+        aria-valuenow={shown}
         data-band={band}
       >
         {Array.from({ length: slots }, (_, i) => (
@@ -31,13 +33,13 @@ export function ClosureGauge({ closed, slots, fresh }: { closed: number; slots: 
             key={i}
             className="closure-slot"
             data-slot=""
-            data-filled={i < closed ? 'true' : undefined}
+            data-filled={i < shown ? 'true' : undefined}
             data-line={i === slots - 1 ? 'true' : undefined}
-            data-fresh={fresh && i === closed - 1 ? 'true' : undefined}
+            data-fresh={fresh && i === shown - 1 ? 'true' : undefined}
           />
         ))}
       </span>
-      <span className="closure-count">{closed} / {slots}</span>
+      <span className="closure-count">{shown} / {slots}</span>
     </div>
   );
 }

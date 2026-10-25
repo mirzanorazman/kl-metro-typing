@@ -35,7 +35,7 @@ spec and plan.
 | F14 | How to play explains why new trains appear | P1 | S | done 62d318a | F5 |
 | F21 | Explain the thin line from a name to its train | P1 | S | set aside | F5 |
 | F4 | Line Track transition on first entry | P1 | S–M | open | |
-| F20 | List of closed Stations during the Shift | P1 | M | in progress (spec) | |
+| F20 | List of closed Stations during the Shift | P1 | M | done (F20 commits from f6b446e) | |
 | F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done fb732cc | |
 | F15 | Paint a Line only as far as it is served | P1 | M | open | |
 | F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
@@ -286,6 +286,18 @@ stays for fixes only, and sound is additive. Spec
 `specs/2026-10-25-dispatcher-closure-gauge-design.md`; mockups
 https://claude.ai/artifact/4BfEfBopBTRhLjKh2bWzN1.
 
+**Done:** a "Closed" gauge appears in the Shift bar at the first closure (one
+slot per closure the Shift can take; grey, amber from 40 %, red from 75 %),
+each closure stamps an X with a ring on the map for a second, a closing
+Incident's card says "Out of service" for 1.5 s before it goes, and each
+closure thuds, heavier in the red band. The tip that pauses at the first
+closure holds the moment until it is dismissed. A failed Shift now holds
+the play view 1.2 s (full gauge, the last stamp, the heaviest thud) before
+its summary; the judge starts after the hold. Reduced motion keeps the hold,
+colours and X but drops the pop, ring and scale-in. Not seen live: the
+gauge and stamp in a real browser, the pop and ring animations, the thud,
+phone width (unit tested only).
+
 ### F17. Show the network growing
 
 **Reported:** an indicator, during and after each Shift, of how many Lines
@@ -492,3 +504,9 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   of letting go (F18); ending between Shifts reaches the leaderboard (F3).
 - **Quick wins.** The home subtitle (F2); the Green wave sound (F9); the
   Lines and Stations counts and "+N" after an Expansion (F17).
+- **Closure gauge (F20).** Is the first closure noticed when it happens? Does a
+  failed Shift now feel like it was coming? Is the gauge visible enough up in
+  the Shift bar, given the eyes are on the chips and the Incidents panel?
+  Should it be there from the start of the Shift instead of at the first
+  closure? Also look at the thud, the pop and ring (and reduced motion), the
+  1.2 s hold before the summary, and the gauge at phone width.

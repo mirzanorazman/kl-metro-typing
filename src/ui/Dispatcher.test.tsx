@@ -21,7 +21,7 @@ import { music, sound } from '../audio/sound';
 import { DispatcherScreen } from './DispatcherScreen';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchSummary } from './DispatchSummary';
-import { closureBand } from './ClosureGauge';
+import { ClosureGauge, closureBand } from './ClosureGauge';
 import { closureText, failureText } from './dispatchTips';
 import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
@@ -670,6 +670,62 @@ describe('DispatcherScreen', () => {
   });
 
   describe('the end of a Career', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    /** KLCC is the fourth closure: the Shift fails on the tick the second key lands. */
+    const failShift = () => {
+      vi.useFakeTimers();
+      const clock = fakeClock();
+      renderShift(closingCareer(['Bangsar', 'Damai', 'Ampang Park']));
+      type('J');
+      clock.now += 100;
+      type('e');
+      return clock;
+    };
+    const summary = () => screen.queryByRole('region', { name: 'Career summary' });
+
+    it('a failing closure holds the map 1.2 s, with the gauge full, before the summary', () => {
+      const clock = failShift();
+      expect(summary()).toBeNull();
+      expect(gauge()!.getAttribute('aria-valuenow')).toBe('4');
+      expect(gauge()!.getAttribute('data-band')).toBe('danger');
+      const klcc = screen.queryAllByTestId('dispatch-oos')
+        .find((el) => el.getAttribute('data-station') === idOf('KLCC'));
+      expect(klcc!.getAttribute('data-stamp')).toBe('true');
+      expect(screen.queryByRole('button', { name: 'End Career' })).toBeNull();
+      expect(judgeSpy).not.toHaveBeenCalled();
+      clock.now += 1_000;
+      act(() => { vi.advanceTimersByTime(1_000); });
+      expect(summary()).toBeNull();
+      clock.now += 200;
+      act(() => { vi.advanceTimersByTime(200); });
+      expect(summary()).toBeTruthy();
+      act(() => { vi.advanceTimersByTime(100); });
+      expect(judgeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('the failing closure thuds during the hold', () => {
+      const closure = vi.spyOn(sound, 'closure').mockImplementation(() => {});
+      failShift();
+      expect(summary()).toBeNull();
+      expect(closure).toHaveBeenLastCalledWith(true);
+    });
+
+    it('keys during the hold do nothing', () => {
+      const clock = failShift();
+      type('Jelatek');
+      press('Escape');
+      expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
+      clock.now += 1_200;
+      act(() => { vi.advanceTimersByTime(1_200); });
+      expect(summary()).toBeTruthy();
+      act(() => { vi.advanceTimersByTime(100); });
+      expect(judgeSpy).toHaveBeenCalledTimes(1);
+      expect(judgeSpy.mock.calls[0]![1].keylog.events.map((e) => e.k).join('')).toBe('J');
+    });
+
     it('a failed Career shows its summary before the judgement, then the result', async () => {
       const clock = fakeClock();
       renderShift(startCareer(net, 7));
@@ -1503,6 +1559,14 @@ describe('the closure gauge', () => {
     clock.now += 1_500;
     press('Shift');
     expect(gauge()!.querySelectorAll('[data-slot]')[2]!.getAttribute('data-fresh')).not.toBe('true');
+  });
+
+  it('never shows more closed than slots, when several closures land on the failing tick', () => {
+    render(<ClosureGauge closed={5} slots={4} fresh={false} />);
+    const bar = gauge()!;
+    expect(bar.getAttribute('aria-valuenow')).toBe('4');
+    expect(bar.parentElement!.textContent).toContain('4 / 4');
+    expect(bar.querySelectorAll('[data-filled="true"]')).toHaveLength(4);
   });
 
   it('the gauge is gone at the next Shift', () => {
