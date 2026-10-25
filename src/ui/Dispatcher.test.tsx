@@ -1512,6 +1512,11 @@ describe('Leaning in on an Incident fix', () => {
 });
 
 describe('the closure gauge', () => {
+  it('its track never grows or shrinks, so the gauge cannot wrap the Shift bar', () => {
+    const css = readFileSync('src/ui/dispatch.css', 'utf8');
+    expect(css).toMatch(/\.closure-track\s*\{[^}]*flex:\s*none/);
+  });
+
   it('closureBand marks calm, warn and danger by share', () => {
     expect(closureBand(1, 4)).toBe('calm');
     expect(closureBand(2, 4)).toBe('warn');
@@ -1688,6 +1693,7 @@ describe('a closing Incident', () => {
     expect(items[0]!.getAttribute('data-closed')).toBe('true');
     expect(items[0]!.textContent).toContain('Out of service');
     expect(items[0]!.textContent).toContain('Masjid Jamek');
+    expect(within(items[0]!).getByRole('progressbar', { name: 'Masjid Jamek is out of service' })).toBeTruthy();
     expect(screen.queryByText('No Incidents')).toBeNull();
     clock.now += 1_500;
     press('Shift');
@@ -1704,6 +1710,8 @@ describe('a closing Incident', () => {
     type('e');
     expect(screen.getByRole('dialog', { name: 'Tip' })).toBeTruthy();
     expect(list()!.querySelector('[data-closed="true"]')).not.toBeNull();
+    // The closure animations stand still behind the tip.
+    expect(document.querySelector('.dispatcher')!.getAttribute('data-paused')).toBe('true');
     clock.now += 5_000;
     type('x');
     expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();

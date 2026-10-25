@@ -11,7 +11,7 @@
   top: var(--s2);
   left: 50%;
   transform: translateX(-50%);
-  width: min(56rem, calc(100% - var(--s4)));
+  width: min(68rem, calc(100% - var(--s4)));
   display: flex;
   align-items: center;
   gap: var(--s2);
@@ -24,6 +24,17 @@
   font: var(--t-xs) var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+/* One line at desktop widths, whatever the phase label or the gauge: the Shift
+   clock gives up space first (it is the only part that can), and the bar
+   tightens its gaps and letters where the window is narrowest. */
+@media (min-width: 900px) {
+  .dispatch-bar > * { white-space: nowrap; }
+}
+
+@media (max-width: 1100px) {
+  .dispatch-bar { gap: var(--s); letter-spacing: 0.04em; }
 }
 
 .dispatch-shift { font-weight: 700; }
@@ -84,11 +95,13 @@
 
 .closure-label { color: var(--ink-muted); }
 
-/* A fixed width: more slots shrink each one rather than widening the bar. */
+/* A fixed width, never shrunk (flex: none): more slots shrink each one rather
+   than widening or wrapping the bar, and the Shift clock gives way instead. */
 .closure-track {
   display: flex;
-  gap: 2px;
-  width: clamp(6rem, 14vw, 10rem);
+  gap: 1px;
+  width: clamp(5.5rem, 8vw, 7rem);
+  flex: none;
   height: 10px;
 }
 
@@ -99,8 +112,10 @@
   border-radius: 1px;
 }
 .closure-slot[data-filled='true'] { background: var(--band); }
-/* The failure line: the slot that fails the Shift, ruled off at its edge. */
-.closure-slot[data-line='true'] { box-shadow: 2px 0 0 0 var(--ink); margin-right: 2px; }
+/* The failure line: the slot that fails the Shift, outlined in red so it
+   shows before it is reached (it still fills red when it is). The outline sits
+   in the track's gap, so the track keeps its width. */
+.closure-slot[data-line='true'] { outline: 1px dashed var(--error); outline-offset: 1px; }
 .closure-slot[data-fresh='true'] { animation: closure-slot-pop 300ms ease-out; }
 
 .closure-count {

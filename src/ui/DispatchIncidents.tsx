@@ -68,7 +68,7 @@ export function DispatchIncidents({
             <div
               className="dispatch-timer"
               role="progressbar"
-              aria-label={`Time until ${place} goes out of service`}
+              aria-label={isClosed ? `${place} is out of service` : `Time until ${place} goes out of service`}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={pct}

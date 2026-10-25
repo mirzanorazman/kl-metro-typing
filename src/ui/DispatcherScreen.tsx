@@ -175,8 +175,6 @@ function leanIn(
 }
 
 /** The panels floating over the Dispatcher's map: the top bar, the Incidents panel and the typing panel. */
-const NO_STAMPS: ReadonlySet<string> = new Set();
-
 const PANELS = ['.dispatch-bar', '.dispatch-side', '.play-panel'] as const;
 
 const sameRects = (a: readonly ScreenRect[], b: readonly ScreenRect[]) => a.length === b.length
@@ -613,7 +611,7 @@ export function DispatcherScreen({
   const paused = run.status === 'paused' || tips.length > 0;
   const freshNow = freshClosings(closings, run.sim.shiftMs, CLOSURE_STAMP_MS);
   // The lesson's map is its own throwaway Shift: none of the Career's stamps show on it.
-  const stamping = lesson ? NO_STAMPS : new Set(freshNow.map((c) => c.station));
+  const stamping = lesson ? undefined : new Set(freshNow.map((c) => c.station));
 
   return (
     <div className="dispatcher" ref={rootRef} data-urgent={urgent ? 'true' : undefined}
