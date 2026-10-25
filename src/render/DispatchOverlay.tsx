@@ -12,6 +12,7 @@ import {
 import { contrastText } from './contrast';
 import { INCIDENT_GLYPH } from './incidentGlyphs';
 import { NO_MOMENTS, type DispersalPop, type ExchangePop, type PassengerMoments } from './usePassengerMoments';
+import { prefersReducedMotion } from './useLayoutMode';
 import { useSignalMarks } from './useSignalMarks';
 
 export interface DispatchOverlayProps {
@@ -28,7 +29,11 @@ export interface DispatchOverlayProps {
   frame?: OverlayFrame | null;
   /** Each Line's track as the map draws it, side by side on shared track; null when it runs through its Stations. */
   tracks?: ReadonlyMap<LineCode, readonly Point[]> | null;
+  /** Stations whose closure is still fresh: their X stamps in, with a ring when motion is allowed. */
+  stamping?: ReadonlySet<string>;
 }
+
+const NO_STAMPING: ReadonlySet<string> = new Set();
 
 const CROSS_ICON = 'M-0.55,-0.55 L0.55,0.55 M0.55,-0.55 L-0.55,0.55';
 
@@ -150,6 +155,7 @@ function linePoints(
  */
 export function DispatchOverlay({
   net, layout, markScale: m, career, targets, aimed, moments = NO_MOMENTS, frame = null, tracks = null,
+  stamping = NO_STAMPING,
 }: DispatchOverlayProps) {
   const { sim, aim } = career;
   const { marks, pulse } = useSignalMarks(net, career, targets);
@@ -228,15 +234,22 @@ export function DispatchOverlay({
         const p = layout.get(id);
         if (!p) return null;
         const r = 7 * m;
+        const stamp = stamping.has(id);
         return (
-          <g key={`oos-${id}`} data-testid="dispatch-oos" data-station={id} className="dispatch-oos">
+          <g key={`oos-${id}`} data-testid="dispatch-oos" data-station={id} className="dispatch-oos"
+            data-stamp={stamp ? 'true' : undefined}>
+            {stamp && !prefersReducedMotion() && (
+              <circle data-testid="oos-ring" className="dispatch-oos-ring" cx={p.x} cy={p.y} r={r} />
+            )}
             <circle cx={p.x} cy={p.y} r={r} />
-            <path
-              data-icon="out-of-service"
-              d={CROSS_ICON}
-              transform={`translate(${p.x} ${p.y}) scale(${r})`}
-              vectorEffect="non-scaling-stroke"
-            />
+            <g className="dispatch-oos-x">
+              <path
+                data-icon="out-of-service"
+                d={CROSS_ICON}
+                transform={`translate(${p.x} ${p.y}) scale(${r})`}
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
           </g>
         );
       })}

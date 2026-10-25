@@ -174,6 +174,8 @@ function leanIn(
 }
 
 /** The panels floating over the Dispatcher's map: the top bar, the Incidents panel and the typing panel. */
+const NO_STAMPS: ReadonlySet<string> = new Set();
+
 const PANELS = ['.dispatch-bar', '.dispatch-side', '.play-panel'] as const;
 
 const sameRects = (a: readonly ScreenRect[], b: readonly ScreenRect[]) => a.length === b.length
@@ -598,9 +600,15 @@ export function DispatcherScreen({
 
   // The urgent edge holds off behind the Pause and Tip dialogs.
   const urgent = fixing && run.status === 'running' && tips.length === 0;
+  // Closure animations stand still with the Shift. A tip's pause lands a render late.
+  const paused = run.status === 'paused' || tips.length > 0;
+  const freshNow = freshClosings(closings, run.sim.shiftMs, CLOSURE_STAMP_MS);
+  // The lesson's map is its own throwaway Shift: none of the Career's stamps show on it.
+  const stamping = lesson ? NO_STAMPS : new Set(freshNow.map((c) => c.station));
 
   return (
-    <div className="dispatcher" ref={rootRef} data-urgent={urgent ? 'true' : undefined}>
+    <div className="dispatcher" ref={rootRef} data-urgent={urgent ? 'true' : undefined}
+      data-paused={paused ? 'true' : undefined}>
       <PlayLayout
         lineColour={lineColour}
         map={
@@ -622,7 +630,7 @@ export function DispatcherScreen({
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
             overlay={({ layout: l, markScale, view, screen, tracks }) => (
               <DispatchOverlay net={net} layout={l} markScale={markScale} career={shown} targets={targets} aimed={aimed}
-                moments={moments} frame={overlayFrame(view, screen, panels)} tracks={tracks} />
+                moments={moments} frame={overlayFrame(view, screen, panels)} tracks={tracks} stamping={stamping} />
             )}
           />
         }
@@ -692,7 +700,7 @@ export function DispatcherScreen({
       />
       <ShiftBar career={run} lines={lines.size} stations={served.size} grown={grown}
         closed={run.sim.oosOrder.length} slots={shiftFailCount(net, run.served)}
-        fresh={freshClosings(closings, run.sim.shiftMs, CLOSURE_STAMP_MS).length > 0} />
+        fresh={freshNow.length > 0} />
       <aside className="dispatch-side" aria-label="Incidents panel">
         <DispatchIncidents net={net} career={run} />
       </aside>

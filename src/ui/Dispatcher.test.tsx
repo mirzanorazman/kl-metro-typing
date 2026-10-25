@@ -1515,6 +1515,71 @@ describe('the closure gauge', () => {
   });
 });
 
+describe('the closure stamp', () => {
+  const oosFor = (name: string) => screen.queryAllByTestId('dispatch-oos')
+    .find((el) => el.getAttribute('data-station') === idOf(name));
+
+  it('a closing Station is stamped on the map, with a ring, for about a second', () => {
+    allowMotion();
+    const clock = fakeClock();
+    renderShift(closingCareer());
+    closeKlcc(clock);
+    expect(oosFor('KLCC')!.getAttribute('data-stamp')).toBe('true');
+    expect(screen.queryAllByTestId('oos-ring')).toHaveLength(1);
+    clock.now += 1_000;
+    press('Shift');
+    expect(oosFor('KLCC')).toBeDefined();
+    expect(oosFor('KLCC')!.getAttribute('data-stamp')).toBeNull();
+    expect(screen.queryByTestId('oos-ring')).toBeNull();
+  });
+
+  it('under reduced motion the stamp has no ring', () => {
+    const clock = fakeClock();
+    renderShift(closingCareer());
+    closeKlcc(clock);
+    expect(oosFor('KLCC')!.getAttribute('data-stamp')).toBe('true');
+    expect(screen.queryByTestId('oos-ring')).toBeNull();
+  });
+
+  it('a Station closed before the screen opened is not stamped', () => {
+    allowMotion();
+    fakeClock();
+    renderShift(closingCareer(['Bangsar']));
+    type('J');
+    expect(oosFor('Bangsar')).toBeDefined();
+    expect(oosFor('Bangsar')!.getAttribute('data-stamp')).toBeNull();
+    expect(screen.queryByTestId('oos-ring')).toBeNull();
+  });
+
+  it('the camera does not move for a closure', () => {
+    const clock = fakeClock();
+    renderShift(closingCareer());
+    type('J');
+    const before = mapProps().fitKey;
+    clock.now += 1_000;
+    type('e');
+    expect(oosFor('KLCC')).toBeDefined();
+    expect(mapProps().fitKey).toBe(before);
+  });
+
+  it('the animations freeze while the Shift is paused', () => {
+    const css = readFileSync('src/ui/dispatch.css', 'utf8');
+    expect(css).toMatch(/\.dispatcher\[data-paused='true'\][^{]*\.dispatch-oos\[data-stamp='true'\][^{]*\{[^}]*animation-play-state:\s*paused/);
+    expect(css).toMatch(/\.dispatcher\[data-paused='true'\][^{]*\.dispatch-oos-ring[^{]*\{[^}]*animation-play-state:\s*paused/);
+    expect(css).toMatch(/\.dispatcher\[data-paused='true'\][^{]*\.closure-slot[^{]*\{[^}]*animation-play-state:\s*paused/);
+  });
+
+  it('the root is marked paused while the Shift is paused', () => {
+    fakeClock();
+    const { container } = renderShift(closingCareer());
+    type('J');
+    const root = container.querySelector('.dispatcher')!;
+    expect(root.getAttribute('data-paused')).toBeNull();
+    press('Escape');
+    expect(root.getAttribute('data-paused')).toBe('true');
+  });
+});
+
 describe('Chips and the panels over the map', () => {
   /** The map is 1512×690 at the origin (see beforeEach); this panel sits where it is told. */
   const panelAt = (selector: string, rect: { x: number; y: number; w: number; h: number }) => {

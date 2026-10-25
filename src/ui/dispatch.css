@@ -477,6 +477,47 @@
   stroke-linecap: round;
 }
 
+/* A closure stamps its X in: it lands from a little large, and a ring spreads
+   out from the mark and fades, over the stamp's second (CLOSURE_STAMP_MS). */
+.dispatch-oos[data-stamp='true'] .dispatch-oos-x {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: oos-stamp 300ms ease-out;
+}
+
+.dispatch-oos .dispatch-oos-ring {
+  fill: none;
+  stroke: var(--error);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center;
+  pointer-events: none;
+  animation: oos-ring 1s ease-out forwards;
+}
+
+@keyframes oos-stamp {
+  from { transform: scale(1.6); }
+  to { transform: scale(1); }
+}
+
+@keyframes oos-ring {
+  from { transform: scale(1); opacity: 0.9; }
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* The stamp, the ring and the gauge's pop stand still with the Shift. */
+.dispatcher[data-paused='true'] .dispatch-oos[data-stamp='true'] .dispatch-oos-x,
+.dispatcher[data-paused='true'] .dispatch-oos .dispatch-oos-ring,
+.dispatcher[data-paused='true'] .closure-slot[data-fresh='true'] {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dispatch-oos[data-stamp='true'] .dispatch-oos-x,
+  .dispatch-oos .dispatch-oos-ring { animation: none; }
+}
+
 /* A Signal mark: a post and a dark head with two lamp sockets. The lit lamp
    sits low and red while the train waits, high and green once Cleared, so its
    place says it as well as its colour. */
