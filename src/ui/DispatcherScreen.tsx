@@ -17,6 +17,7 @@ import {
   careerTotals,
   dispatchTense,
   enterDispatchCharacter,
+  shiftFailCount,
   shiftPhase,
   startCareer,
   type CareerState,
@@ -38,9 +39,11 @@ import {
 } from '../render/dispatchLayout';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
+import { CLOSURE_STAMP_MS, freshClosings, useClosures } from '../render/useClosures';
 import { usePassengerMoments } from '../render/usePassengerMoments';
 import { clearedSignals, liveMarks, useFreshWave, waveNoteDelays } from '../render/useSignalMarks';
 import { prefersReducedMotion } from '../render/useLayoutMode';
+import { ClosureGauge } from './ClosureGauge';
 import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
@@ -108,8 +111,9 @@ function Grown({ by }: { by: number }) {
 }
 
 /** Shift number, phase and peak direction, time left, the network's size, Delivered and on-time %. */
-function ShiftBar({ career, lines, stations, grown }: {
+function ShiftBar({ career, lines, stations, grown, closed, slots, fresh }: {
   career: CareerState; lines: number; stations: number; grown: Growth | null;
+  closed: number; slots: number; fresh: boolean;
 }) {
   const shiftMs = career.gameMs - career.shiftStartMs;
   const phase = shiftPhase(shiftMs);
@@ -125,6 +129,7 @@ function ShiftBar({ career, lines, stations, grown }: {
         <span style={{ width: `${Math.round(Math.min(1, shiftMs / SHIFT_MS) * 100)}%` }} />
       </span>
       <span className="dispatch-left">{clock(SHIFT_MS - shiftMs)} left</span>
+      <ClosureGauge closed={closed} slots={slots} fresh={fresh} />
       <dl className="dispatch-stats">
         <dt>Lines</dt>
         <dd>{lines}<Grown by={grown?.lines ?? 0} /></dd>
@@ -531,6 +536,8 @@ export function DispatcherScreen({
   const key = servedKey(run.served);
   const served = useMemo(() => new Set(servedStations(net, run.served)), [net, key]); // eslint-disable-line react-hooks/exhaustive-deps
   const lines = useMemo(() => new Set(servedLines(run.served)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The Career's own closings, never the lesson's throwaway one.
+  const closings = useClosures(run);
   // The network as the last Shift ended, so the next one can show what its
   // Expansion added until its first key.
   const [before, setBefore] = useState<Growth | null>(null);
@@ -683,7 +690,9 @@ export function DispatcherScreen({
           </>
         }
       />
-      <ShiftBar career={run} lines={lines.size} stations={served.size} grown={grown} />
+      <ShiftBar career={run} lines={lines.size} stations={served.size} grown={grown}
+        closed={run.sim.oosOrder.length} slots={shiftFailCount(net, run.served)}
+        fresh={freshClosings(closings, run.sim.shiftMs, CLOSURE_STAMP_MS).length > 0} />
       <aside className="dispatch-side" aria-label="Incidents panel">
         <DispatchIncidents net={net} career={run} />
       </aside>

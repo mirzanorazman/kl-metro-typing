@@ -23,6 +23,8 @@
   /* The already-typed stretch of rail. Ink on paper, white on midnight. */
   --track-done: #14181f;
   --error: #e53935;
+  /* Caution: amber that passes AA on the panel, for a gauge nearing its line. */
+  --warn: #b45309;
   /* A button that ends something: text on it passes AA in both atmospheres. */
   --danger: #c62828;
   --on-danger: #ffffff;
@@ -61,6 +63,7 @@
   --grid-dot: #1a2438;
   --track-done: #ffffff;
   --error: #ef4444;
+  --warn: #f59e0b;
   --danger: #ef4444;
   --on-danger: #0b0f17;
   --focus-ring: #f8fafc;

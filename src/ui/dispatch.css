@@ -71,6 +71,54 @@
   to { opacity: 1; transform: none; }
 }
 
+/* ---- Closure gauge ---- */
+
+.closure-gauge {
+  display: flex;
+  align-items: center;
+  gap: var(--s);
+  --band: var(--ink-muted);
+}
+.closure-gauge[data-band='warn'] { --band: var(--warn); }
+.closure-gauge[data-band='danger'] { --band: var(--error); }
+
+.closure-label { color: var(--ink-muted); }
+
+/* A fixed width: more slots shrink each one rather than widening the bar. */
+.closure-track {
+  display: flex;
+  gap: 2px;
+  width: clamp(6rem, 14vw, 10rem);
+  height: 10px;
+}
+
+.closure-slot {
+  flex: 1;
+  min-width: 0;
+  background: var(--paper-edge);
+  border-radius: 1px;
+}
+.closure-slot[data-filled='true'] { background: var(--band); }
+/* The failure line: the slot that fails the Shift, ruled off at its edge. */
+.closure-slot[data-line='true'] { box-shadow: 2px 0 0 0 var(--ink); margin-right: 2px; }
+.closure-slot[data-fresh='true'] { animation: closure-slot-pop 300ms ease-out; }
+
+.closure-count {
+  color: var(--band);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .closure-slot[data-fresh='true'] { animation: none; }
+}
+
+@keyframes closure-slot-pop {
+  0% { transform: scaleY(1); }
+  40% { transform: scaleY(1.9); }
+  100% { transform: scaleY(1); }
+}
+
 /* ---- Incidents side panel ---- */
 
 .dispatch-side {

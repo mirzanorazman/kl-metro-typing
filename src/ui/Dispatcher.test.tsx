@@ -21,6 +21,7 @@ import { music, sound } from '../audio/sound';
 import { DispatcherScreen } from './DispatcherScreen';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchSummary } from './DispatchSummary';
+import { closureBand } from './ClosureGauge';
 import { closureText, failureText } from './dispatchTips';
 import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
@@ -118,6 +119,22 @@ const endCareer = () => {
   fireEvent.click(screen.getByRole('button', { name: 'End Career' }));
   fireEvent.click(screen.getByRole('button', { name: 'Yes, end it' }));
 };
+
+/** KLCC overflows on the first tick after the Shift starts; `closed` are already Out of service. */
+function closingCareer(closed: string[] = []): CareerState {
+  const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
+  initial.sim.platforms[idOf('KLCC')] = {
+    waiting: { [idOf('KL Sentral')]: 200 }, fullMs: OOS_CROWD_MS - 100, lastCall: {},
+  };
+  for (const name of closed) {
+    initial.sim.outOfService[idOf(name)] = 'crowding';
+    initial.sim.oosOrder.push(idOf(name));
+  }
+  return initial;
+}
+/** Starts the Shift and lets 1 s pass: KLCC closes. */
+const closeKlcc = (clock: { now: number }) => { type('J'); clock.now += 1_000; type('e'); };
+const gauge = () => screen.queryByRole('progressbar', { name: 'Stations closed' });
 
 const signalLabels = () => screen.queryAllByTestId('dispatch-signal');
 const labelFor = (name: string) => signalLabels().find((el) => el.textContent?.includes(name));
@@ -619,6 +636,7 @@ describe('DispatcherScreen', () => {
       type('e');
       const tip = screen.getByRole('dialog', { name: 'Tip' });
       expect(tip.textContent).toContain('A station is out of service.');
+      expect(tip.textContent).toContain('Each closure fills the gauge at the top');
       expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
       expect(loadProfile().dispatchTipsSeen).toContain('out-of-service');
 
@@ -1425,6 +1443,75 @@ describe('Leaning in on an Incident fix', () => {
     expect(reduced).toBeDefined();
     expect(reduced).toMatch(/\.dispatcher\[data-urgent='true'\]::after\s*\{[^}]*animation:\s*none/);
     expect(reduced).toMatch(/\.incident-glow\s*\{[^}]*animation:\s*none/);
+  });
+
+  it('the gauge pop holds still under reduced motion', () => {
+    const css = readFileSync('src/ui/dispatch.css', 'utf8');
+    expect(css).toMatch(/\.closure-slot\[data-fresh='true'\]\s*\{[^}]*animation:\s*closure-slot-pop/);
+    const reduced = css.split('@media (prefers-reduced-motion: reduce)').slice(1)
+      .map((rest) => rest.slice(0, rest.indexOf('\n}'))).find((b) => b.includes('closure-slot'));
+    expect(reduced).toBeDefined();
+    expect(reduced).toMatch(/\.closure-slot\[data-fresh='true'\]\s*\{[^}]*animation:\s*none/);
+  });
+});
+
+describe('the closure gauge', () => {
+  it('closureBand marks calm, warn and danger by share', () => {
+    expect(closureBand(1, 4)).toBe('calm');
+    expect(closureBand(2, 4)).toBe('warn');
+    expect(closureBand(3, 4)).toBe('danger');
+    expect(closureBand(5, 13)).toBe('calm');
+    expect(closureBand(6, 13)).toBe('warn');
+    expect(closureBand(10, 13)).toBe('danger');
+  });
+
+  it('there is no gauge until the first closure', () => {
+    renderShift(closingCareer());
+    type('J');
+    expect(gauge()).toBeNull();
+  });
+
+  it('the first closure brings the gauge: one slot per closure the Shift can take', () => {
+    const clock = fakeClock();
+    renderShift(closingCareer());
+    closeKlcc(clock);
+    const bar = gauge()!;
+    expect(bar.getAttribute('aria-valuenow')).toBe('1');
+    expect(bar.getAttribute('aria-valuemax')).toBe('4');
+    const slots = [...bar.querySelectorAll('[data-slot]')];
+    expect(slots).toHaveLength(4);
+    expect(slots.filter((el) => el.getAttribute('data-filled') === 'true')).toHaveLength(1);
+    expect(slots[3]!.getAttribute('data-line')).toBe('true');
+    expect(bar.parentElement!.textContent).toContain('1 / 4');
+    expect(bar.getAttribute('data-band')).toBe('calm');
+  });
+
+  it('it turns red near the line', () => {
+    const clock = fakeClock();
+    renderShift(closingCareer(['Bangsar', 'Damai']));
+    closeKlcc(clock);
+    const bar = gauge()!;
+    expect(bar.getAttribute('aria-valuenow')).toBe('3');
+    expect(bar.getAttribute('data-band')).toBe('danger');
+  });
+
+  it('the newest slot pops while the closure is fresh', () => {
+    const clock = fakeClock();
+    renderShift(closingCareer(['Bangsar', 'Damai']));
+    closeKlcc(clock);
+    expect(gauge()!.querySelectorAll('[data-slot]')[2]!.getAttribute('data-fresh')).toBe('true');
+    clock.now += 1_500;
+    press('Shift');
+    expect(gauge()!.querySelectorAll('[data-slot]')[2]!.getAttribute('data-fresh')).not.toBe('true');
+  });
+
+  it('the gauge is gone at the next Shift', () => {
+    const base = closingCareer(['Bangsar']);
+    const initial: CareerState = {
+      ...base, status: 'ready', shift: 2, sim: startShiftSim(net, base.served, base.sim.rng),
+    };
+    renderShift(initial);
+    expect(gauge()).toBeNull();
   });
 });
 

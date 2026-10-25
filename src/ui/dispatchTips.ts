@@ -10,7 +10,7 @@ export const DISPATCH_TIPS = [
   { id: 'bunching', text: 'Trains are bunching. Holding one back (not clearing it) evens out the gaps.' },
   { id: 'late', text: 'A late train offers a station further ahead. Type that to run it express.' },
   { id: 'new-train', text: 'A new train has joined at the end of the line. Trains join during the peaks until each line has its full fleet; longer lines get more trains.' },
-  { id: 'out-of-service', text: 'A station is out of service. Lose a quarter of your network and the shift fails.' },
+  { id: 'out-of-service', text: 'A station is out of service. Each closure fills the gauge at the top; when it is full, the Shift fails.' },
   { id: 'expansion', text: "Shift cleared. Choose where your network grows. Type a station's name or click it." },
 ] as const;
 

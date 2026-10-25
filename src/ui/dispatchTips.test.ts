@@ -128,7 +128,7 @@ describe('newDispatchTips', () => {
       'A new train has joined at the end of the line. Trains join during the peaks until each line has its full fleet; longer lines get more trains.',
     );
     expect(dispatchTipText('out-of-service'))
-      .toBe('A station is out of service. Lose a quarter of your network and the shift fails.');
+      .toBe('A station is out of service. Each closure fills the gauge at the top; when it is full, the Shift fails.');
     expect(dispatchTipText('expansion'))
       .toBe("Shift cleared. Choose where your network grows. Type a station's name or click it.");
     for (const { text } of DISPATCH_TIPS) expect(text).not.toMatch(/\b(fire|issue|prompt|gate)\b/i);
