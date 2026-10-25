@@ -206,6 +206,39 @@
 
 .dispatch-timer[data-critical='true'] > span { background: var(--error); }
 
+/* A card whose place has just gone Out of service: the place struck through,
+   the timer full, a short slide in and a fade at the end of its time. */
+.dispatch-incident-card[data-closed='true'] {
+  animation: incident-closed 1.5s ease-out forwards;
+}
+
+.dispatch-incident-card[data-closed='true'] .dispatch-incident-place { text-decoration: line-through; }
+
+.dispatch-closed-note {
+  margin: 0;
+  font: var(--t-xs) var(--font-mono);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--error);
+}
+
+@keyframes incident-closed {
+  from { transform: translateX(0.5rem); opacity: 0.6; }
+  15% { transform: none; opacity: 1; }
+  80% { opacity: 1; }
+  to { opacity: 0.4; }
+}
+
+/* It stands still with the Shift, like the stamp. */
+.dispatcher[data-paused='true'] .dispatch-incident-card[data-closed='true'] {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dispatch-incident-card[data-closed='true'] { animation: none; }
+}
+
 /* ---- Typing panel ---- */
 
 .dispatch-idle {

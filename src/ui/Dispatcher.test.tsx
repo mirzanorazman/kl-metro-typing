@@ -9,7 +9,7 @@ import { buildNetwork } from '../engine/network';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { careerScore, SHIFT_MS, startCareer, type CareerState } from '../engine/dispatch';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
-import { OOS_CROWD_MS, TICK_MS, TRAVEL_MS } from '../engine/dispatchBalance';
+import { INCIDENT_LIMIT_MS, OOS_CROWD_MS, TICK_MS, TRAVEL_MS } from '../engine/dispatchBalance';
 import {
   applyExpansion, ERAS, eraFor, servedLines, servedStations, STARTING_NETWORK, type Expansion, type Served,
 } from '../engine/dispatchNetwork';
@@ -1577,6 +1577,67 @@ describe('the closure stamp', () => {
     expect(root.getAttribute('data-paused')).toBeNull();
     press('Escape');
     expect(root.getAttribute('data-paused')).toBe('true');
+  });
+});
+
+describe('a closing Incident', () => {
+  /** A Signal fault at Masjid Jamek that goes Out of service on the first tick. */
+  function faultClosing(): CareerState {
+    const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
+    initial.sim.incidents = [{ ...signalFault(), startedMs: -(INCIDENT_LIMIT_MS - 100) }];
+    initial.sim.nextIncidentId = 2;
+    return initial;
+  }
+  const list = () => screen.queryByRole('list', { name: 'Incidents' });
+
+  it('its card stays, marked Out of service, for about 1.5 s', () => {
+    const clock = fakeClock();
+    renderShift(faultClosing());
+    type('J');
+    clock.now += 1_000;
+    type('e');
+    const items = within(list()!).getAllByRole('listitem');
+    expect(items).toHaveLength(1);
+    expect(items[0]!.getAttribute('data-closed')).toBe('true');
+    expect(items[0]!.textContent).toContain('Out of service');
+    expect(items[0]!.textContent).toContain('Masjid Jamek');
+    expect(screen.queryByText('No Incidents')).toBeNull();
+    clock.now += 1_500;
+    press('Shift');
+    expect(list()).toBeNull();
+    expect(screen.getByText('No Incidents')).toBeTruthy();
+  });
+
+  it('it waits behind the out-of-service tip', () => {
+    seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
+    const clock = fakeClock();
+    renderShift(faultClosing());
+    type('J');
+    clock.now += 1_000;
+    type('e');
+    expect(screen.getByRole('dialog', { name: 'Tip' })).toBeTruthy();
+    expect(list()!.querySelector('[data-closed="true"]')).not.toBeNull();
+    clock.now += 5_000;
+    type('x');
+    expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
+    expect(list()!.querySelector('[data-closed="true"]')).not.toBeNull();
+    clock.now += 1_600;
+    press('Shift');
+    expect(list()).toBeNull();
+  });
+
+  it('the card animation freezes with the Shift and stops under reduced motion', () => {
+    const css = readFileSync('src/ui/dispatch.css', 'utf8');
+    expect(css).toMatch(/\.dispatcher\[data-paused='true'\][^{]*\.dispatch-incident-card\[data-closed='true'\][^{]*\{[^}]*animation-play-state:\s*paused/);
+    expect(css).toMatch(/prefers-reduced-motion[^{]*\{\s*\.dispatch-incident-card\[data-closed='true'\]\s*\{\s*animation:\s*none/);
+  });
+
+  it('a crowding closure leaves no card', () => {
+    const clock = fakeClock();
+    renderShift(closingCareer());
+    closeKlcc(clock);
+    expect(list()).toBeNull();
+    expect(screen.getByText('No Incidents')).toBeTruthy();
   });
 });
 

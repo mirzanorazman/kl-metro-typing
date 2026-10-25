@@ -39,7 +39,7 @@ import {
 } from '../render/dispatchLayout';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
-import { CLOSURE_STAMP_MS, freshClosings, useClosures } from '../render/useClosures';
+import { CLOSING_CARD_MS, CLOSURE_STAMP_MS, freshClosings, useClosures } from '../render/useClosures';
 import { usePassengerMoments } from '../render/usePassengerMoments';
 import { clearedSignals, liveMarks, useFreshWave, waveNoteDelays } from '../render/useSignalMarks';
 import { prefersReducedMotion } from '../render/useLayoutMode';
@@ -702,7 +702,8 @@ export function DispatcherScreen({
         closed={run.sim.oosOrder.length} slots={shiftFailCount(net, run.served)}
         fresh={freshNow.length > 0} />
       <aside className="dispatch-side" aria-label="Incidents panel">
-        <DispatchIncidents net={net} career={run} />
+        <DispatchIncidents net={net} career={run}
+          closing={freshClosings(closings, run.sim.shiftMs, CLOSING_CARD_MS).filter((c) => c.incident !== null)} />
       </aside>
     </div>
   );
