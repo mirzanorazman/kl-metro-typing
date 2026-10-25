@@ -6,8 +6,8 @@ so that later sessions can take one item or one group at a time. Item numbers
 priorities move.
 
 **Where it stands (2026-10-24):** all P0s and the first-time-clarity group
-are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17). F21 is set aside.
-Next up: F23 (small bug), F22, then F20, F15, F11, F19, F4. The branch is kept as is (not merged) until
+are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so is F20. F21 is set
+aside. Next up: F23 (small bug), F22, then F15, F11, F19, F4. The branch is kept as is (not merged) until
 the user has playtested the onboarding; see "Check in playtest 3" at the end.
 
 The checklist this answers is `dispatcher-playtest-2-checklist.md`; the
@@ -35,7 +35,7 @@ spec and plan.
 | F14 | How to play explains why new trains appear | P1 | S | done 62d318a | F5 |
 | F21 | Explain the thin line from a name to its train | P1 | S | set aside | F5 |
 | F4 | Line Track transition on first entry | P1 | S–M | open | |
-| F20 | List of closed Stations during the Shift | P1 | M | done (F20 commits from f6b446e) | |
+| F20 | List of closed Stations during the Shift | P1 | M | done f6b446e..e5bed05 | |
 | F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done fb732cc | |
 | F15 | Paint a Line only as far as it is served | P1 | M | open | |
 | F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
@@ -294,9 +294,15 @@ closure thuds, heavier in the red band. The tip that pauses at the first
 closure holds the moment until it is dismissed. A failed Shift now holds
 the play view 1.2 s (full gauge, the last stamp, the heaviest thud) before
 its summary; the judge starts after the hold. Reduced motion keeps the hold,
-colours and X but drops the pop, ring and scale-in. Not seen live: the
-gauge and stamp in a real browser, the pop and ring animations, the thud,
-phone width (unit tested only).
+colours and X but drops the pop, ring and scale-in. The gauge's last slot
+is outlined in red so the failure line shows before it is reached. The Shift
+bar layout was checked in headless Chrome with the real CSS and font: one
+32 px line, clear of the Incidents panel, at 1024, 1280, 1440 and 1920 px
+wide with 0, 4, 13 and 22 slots and a long phase label ("Shift 12", "Evening
+peak · outbound", 6 Lines, 51 Stations); the bar is wider (68 rem) and
+tightens at 1100 px and below so 22 slots stay at 3 px or more. Not seen
+live: the animations (pop, ring, card), the thud, and phone width (unit
+tested only).
 
 ### F17. Show the network growing
 
