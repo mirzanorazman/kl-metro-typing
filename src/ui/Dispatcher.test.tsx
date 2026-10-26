@@ -1665,6 +1665,29 @@ describe('Leaning in on an Incident fix', () => {
       expect(mapProps().fitKey).toMatch(/^hold:2:close:/);
     });
 
+    it('a Shift ending during the hold ends it: the next Shift opens on its normal frame', () => {
+      allowMotion();
+      closeCameraOn({ holdMs: 3000 });
+      const clock = fakeClock();
+      const initial = surgeWithWaiting();
+      // A Career 100 ms short of the end of Shift 1.
+      initial.gameMs = SHIFT_MS - 100;
+      initial.sim.shiftMs = SHIFT_MS - 100;
+      initial.startedAt = clock.now - initial.gameMs;
+      renderShift(initial);
+      type('Crowd control at Ampang Park');
+      expect(mapProps().fitKey).toMatch(/^hold:1:close:/);
+      clock.now += 200;
+      type('J');
+      expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+      const offer = screen.getAllByRole('button').map((b) => b.querySelector('.dispatch-offer-name')?.textContent)
+        .find((n): n is string => !!n)!;
+      type(offer);
+      expect(screen.queryByRole('region', { name: 'Expansion' })).toBeNull();
+      type(screen.getAllByTestId('dispatch-signal')[0]!.textContent![0]!);
+      expect(mapProps().fitKey).not.toMatch(/^hold:/);
+    });
+
     it('under reduced motion a cleared fix leaves the camera alone', () => {
       // beforeEach reports reduced motion.
       closeCameraOn();

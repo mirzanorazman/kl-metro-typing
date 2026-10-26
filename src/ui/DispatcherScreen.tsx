@@ -290,6 +290,10 @@ export function DispatcherScreen({
     const timer = setTimeout(() => setHold(null), camera.holdMs);
     return () => clearTimeout(timer);
   }, [hold, camera.holdMs]);
+  // A Shift's end ends the hold at once, so it never returns in the next Shift.
+  useEffect(() => {
+    if (run.status !== 'running' && run.status !== 'paused') setHold(null);
+  }, [run.status]);
 
   // Tips: the seen list is read once; a tip is marked seen when it is shown.
   const seenTips = useRef(new Set(loadProfile().dispatchTipsSeen ?? []));
