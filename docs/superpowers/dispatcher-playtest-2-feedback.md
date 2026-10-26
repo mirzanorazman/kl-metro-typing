@@ -644,6 +644,9 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   you wanted from a walkthrough?
 - **Tips.** The new start caption ("Every red signal on your Line…") and
   the new-train tip (F14): clear, and not too many interruptions?
+  Tips now close with Enter only (or a click), not any key, so a Station
+  name typed by mistake no longer skips one unread (2026-10-27). Does Enter
+  feel natural?
 - **P0 fixes.** Back to map before starting (F1); "Yes, end it" in red (F6);
   calm music once the last Incident is fixed (F7); Backspace undoes instead
   of letting go (F18); ending between Shifts reaches the leaderboard (F3).

@@ -89,13 +89,17 @@ function PauseOverlay({ onResume }: { onResume: () => void }) {
 const RANKED_NOTE = 'Your Career will be ranked.';
 const UNRANKED_NOTE = "Mid-Shift, it won't be ranked. Clear the Shift to keep your score.";
 
-/** A one-time tip. A running Career is paused while it shows; any key or click dismisses it. */
+/**
+ * A one-time tip. A running Career is paused while it shows; Enter or a click
+ * dismisses it. Other keys are dropped, so a Station name typed by mistake
+ * never dismisses a tip unread.
+ */
 function TipCard({ id, onDismiss }: { id: DispatchTipId; onDismiss: () => void }) {
   return (
     <div className="dispatch-paused dispatch-tip" role="dialog" aria-label="Tip">
       <p>{dispatchTipText(id)}</p>
       <button type="button" onClick={onDismiss}>
-        <kbd>any key</kbd> Got it
+        <kbd>Enter</kbd> Got it
       </button>
     </div>
   );
@@ -331,7 +335,7 @@ export function DispatcherScreen({
   const onKey = useCallback((key: string, source?: KeySource) => {
     const cur = currentRun.current;
     if (phoneLandscape || cur.status === 'ended') return;
-    if (tipsShowing.current) return dismissTip();
+    if (tipsShowing.current) return key === 'Enter' ? dismissTip() : undefined;
     // The lesson's keys are its own: none reaches the Career or the Keylog.
     if (inLesson.current) return lessonOnKey(key);
     // Between Shifts the Expansion picker owns the keys.

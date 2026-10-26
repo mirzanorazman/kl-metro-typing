@@ -634,7 +634,28 @@ describe('DispatcherScreen', () => {
       expect(loadProfile().dispatchTipsSeen).toContain('start');
     });
 
-    it('a tip pauses the Career with the ordinary pause action, and any key resumes it', () => {
+    it('a tip ignores the keys of a Station name; only Enter dismisses it', () => {
+      seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
+      const clock = fakeClock();
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
+      initial.sim.platforms[idOf('KLCC')] = {
+        waiting: { [idOf('KL Sentral')]: 200 }, fullMs: OOS_CROWD_MS - 100, lastCall: {},
+      };
+      renderShift(initial);
+      type('J');
+      clock.now += 100;
+      type('e');
+      const tip = screen.getByRole('dialog', { name: 'Tip' });
+      expect(within(tip).getByRole('button').textContent).toBe('Enter Got it');
+      type('Pasar Seni');
+      press('Escape');
+      expect(screen.getByRole('dialog', { name: 'Tip' })).toBeTruthy();
+      press('Enter');
+      expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
+      expect(screen.getByLabelText('Type Jelatek')).toBeTruthy();
+    });
+
+    it('a tip pauses the Career with the ordinary pause action, and Enter resumes it', () => {
       seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
       const clock = fakeClock();
       const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
@@ -652,7 +673,7 @@ describe('DispatcherScreen', () => {
       expect(loadProfile().dispatchTipsSeen).toContain('out-of-service');
 
       clock.now += 5_000;
-      type('x');
+      press('Enter');
       expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
       expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
       expect(screen.getByLabelText('Type Jelatek')).toBeTruthy();
@@ -674,7 +695,7 @@ describe('DispatcherScreen', () => {
       type('e');
       expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
       expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toContain('Shift cleared.');
-      type('x');
+      press('Enter');
       expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
       expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
     });
@@ -705,7 +726,7 @@ describe('DispatcherScreen', () => {
         for (const name of ['Kampung Baru', 'Dang Wangi', 'KLCC']) expect(mapProps().fitTo).toContainEqual(at(name));
         expect(trainEl(REAR).getAttribute('data-spotlight')).toBe('true');
         expect(trainEl(LEADER).getAttribute('data-spotlight')).toBe('true');
-        press('x'); // dismiss
+        press('Enter'); // dismiss
         expect(mapProps().fitKey).not.toBe('tip:service-gap');
         expect(document.querySelector('[data-spotlight]')).toBeNull();
       });
@@ -769,7 +790,7 @@ describe('DispatcherScreen', () => {
         expect(mapProps().fitView!.w).toBeLessThan(normalBox(initial.served).w);
         const at = (name: string) => mapProps().layout.get(idOf(name));
         for (const name of ['Kampung Baru', 'Dang Wangi', 'KLCC']) expect(mapProps().fitTo).toContainEqual(at(name));
-        press('x'); // dismiss
+        press('Enter'); // dismiss
         expect(mapProps().fitView).toBeUndefined();
       });
 
@@ -1758,7 +1779,7 @@ describe('Leaning in on an Incident fix', () => {
     type('r');
     expect(screen.getByRole('dialog', { name: 'Tip' })).toBeTruthy();
     expect(root(container).getAttribute('data-urgent')).toBeNull();
-    type('x');
+    press('Enter');
     expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
     expect(root(container).getAttribute('data-urgent')).toBe('true');
   });
@@ -1989,7 +2010,7 @@ describe('a closing Incident', () => {
     // The closure animations stand still behind the tip.
     expect(document.querySelector('.dispatcher')!.getAttribute('data-paused')).toBe('true');
     clock.now += 5_000;
-    type('x');
+    press('Enter');
     expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
     expect(list()!.querySelector('[data-closed="true"]')).not.toBeNull();
     clock.now += 1_600;
