@@ -15,6 +15,7 @@ import {
 } from '../engine/dispatchNetwork';
 import { cloneSim, startShiftSim, targetHeadwayMs, type Dir, type Incident, type Train } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
+import * as lessonEngine from '../engine/dispatchLesson';
 import { replayDispatch, type DispatchEvidence } from '../engine/replay';
 import { drive } from '../engine/dispatchDrive.testutil';
 import { music, sound } from '../audio/sound';
@@ -1303,8 +1304,151 @@ describe('DispatcherScreen', () => {
   });
 });
 
+describe('Opening a Dispatcher Career', () => {
+  beforeEach(() => {
+    allowMotion();
+    vi.useFakeTimers();
+  });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('reveals the starting Career for 1000 ms, then starts a fresh first-time lesson', () => {
+    fresh();
+    const clock = fakeClock();
+    const start = vi.spyOn(lessonEngine, 'startLesson');
+    renderLesson();
+    expect(screen.getByRole('status').textContent).toBe('Opening the network…');
+    expect(mapProps().fitKey).not.toBe('dispatch:lesson');
+    expect(mapProps().emphasisRanges).toEqual(STARTING_NETWORK);
+    expect(mapProps().trackReveal).toMatchObject({ before: [], duration: 1000 });
+    expect(start).not.toHaveBeenCalled();
+    expect(document.querySelector('.dispatch-typing')).toBeNull();
+    expect(screen.queryByText(START_TIP)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Skip|How to play/ })).toBeNull();
+    const timeLeft = document.querySelector('.dispatch-left')!.textContent;
+    clock.now += 999;
+    act(() => vi.advanceTimersByTime(999));
+    for (const key of ['J', ' ', 'Enter', 'Backspace']) press(key);
+    expect(start).not.toHaveBeenCalled();
+    expect(loadProfile().dispatchTipsSeen).not.toContain('start');
+    expect(loadProfile().dispatchTipsSeen).not.toContain('lesson');
+    expect(document.querySelector('.dispatch-left')!.textContent).toBe(timeLeft);
+    clock.now += 1;
+    act(() => vi.advanceTimersByTime(1));
+    expect(screen.queryByText('Opening the network…')).toBeNull();
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledWith(net, 2000);
+    expect(mapProps().fitKey).toBe('dispatch:lesson');
+    expect(mapProps().trackReveal).toBeNull();
+    expect(document.querySelectorAll('.prompt [data-state="done"]')).toHaveLength(0);
+    expect(screen.getByText(/Type Jelatek to send it on/)).toBeTruthy();
+  });
+
+  it('settles a withheld entry timer before routing the first accepted key into the fresh lesson', () => {
+    fresh();
+    const clock = fakeClock();
+    const start = vi.spyOn(lessonEngine, 'startLesson');
+    renderLesson();
+    clock.now += 1000; // No timer callback has been delivered.
+    type('J');
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledWith(net, 2000);
+    expect(mapProps().fitKey).toBe('dispatch:lesson');
+    expect([...document.querySelectorAll('.prompt [data-state="done"]')].map((el) => el.textContent).join('')).toBe('J');
+    expect(loadProfile().dispatchTipsSeen).not.toContain('start');
+    expect(screen.queryByRole('button', { name: 'End Career' })).toBeNull();
+  });
+
+  it('drops all entry input from the Career Keylog and action evidence', () => {
+    fresh();
+    const clock = fakeClock();
+    renderLesson(() => {}, 21);
+    clock.now += 999;
+    for (const key of ['x', ' ', 'Enter', 'Backspace']) press(key);
+    clock.now += 1;
+    act(() => vi.advanceTimersByTime(1000));
+    press('Escape'); // Skip only the newly started lesson.
+    const first = visibleTargets(net, startCareer(net, 21).sim)[0]!.text.slice(0, 2);
+    type(first);
+    clock.now += 30 * 60_000;
+    type('q');
+    act(() => vi.advanceTimersByTime(2000));
+    expect(judgeSpy).toHaveBeenCalledTimes(1);
+    const evidence = judgeSpy.mock.calls[0]![1];
+    expect(evidence.keylog.t0).toBe(1000);
+    expect(evidence.keylog.events.map((event) => event.k).join('')).toBe(first);
+    expect(evidence.actions).toEqual([]);
+    expect(replayDispatch(net, evidence)!.complete).toBe(true);
+  });
+
+  it('a returning Career reveals before ready, and How to play and Skip never replay entry', () => {
+    const clock = fakeClock();
+    renderLesson();
+    expect(screen.queryByRole('button', { name: /How to play/ })).toBeNull();
+    clock.now += 1000;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(mapProps().trackReveal).toBeNull();
+    expect(screen.getByRole('button', { name: /How to play/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /How to play/ }));
+    expect(mapProps().fitKey).toBe('dispatch:lesson');
+    expect(mapProps().trackReveal).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Skip/ }));
+    expect(screen.getByText(START_TIP)).toBeTruthy();
+    expect(mapProps().trackReveal).toBeNull();
+  });
+
+  it.each(['Escape', 'Back to map'])('%s cancels entry without teaching or starting the lesson later', (exit) => {
+    fresh();
+    const clock = fakeClock();
+    const onExit = vi.fn();
+    const start = vi.spyOn(lessonEngine, 'startLesson');
+    renderLesson(onExit);
+    if (exit === 'Escape') press('Escape');
+    else fireEvent.click(screen.getByRole('button', { name: /Back to map/ }));
+    expect(onExit).toHaveBeenCalledTimes(1);
+    clock.now += 2000;
+    act(() => vi.advanceTimersByTime(2000));
+    expect(start).not.toHaveBeenCalled();
+    expect(loadProfile().dispatchTipsSeen).not.toContain('lesson');
+  });
+
+  it('drains a phone input burst during entry without replaying it into the lesson', () => {
+    fresh();
+    const clock = fakeClock();
+    render(<TypingInputProvider enabled>
+      <DispatcherScreen net={net} onExit={() => {}} onAgain={() => {}} lessonFor={{ seed: 7 }} />
+    </TypingInputProvider>);
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' }) as HTMLInputElement;
+    fireEvent.input(input, { target: { value: 'Jelatek' } });
+    expect(input.value).toBe('');
+    clock.now += 1000;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText(/Type Jelatek to send it on/)).toBeTruthy();
+    expect(document.querySelectorAll('.prompt [data-state="done"]')).toHaveLength(0);
+    expect(screen.queryByText('There it goes.')).toBeNull();
+  });
+
+  it('shields focused navigation buttons from game Enter and Space during entry', () => {
+    const onExit = vi.fn();
+    renderLesson(onExit);
+    const back = screen.getByRole('button', { name: /Back to map/ });
+    back.focus();
+    expect(fireEvent.keyDown(back, { key: 'Enter' })).toBe(false);
+    expect(fireEvent.keyDown(back, { key: ' ' })).toBe(false);
+    expect(onExit).not.toHaveBeenCalled();
+    expect(screen.getByText('Opening the network…')).toBeTruthy();
+  });
+
+  it('a passed-in Career bypasses entry even with motion allowed', () => {
+    fresh();
+    renderShift(careerWith([waiting(1, 'KJ', 'Damai')]));
+    expect(mapProps().trackReveal).toBeNull();
+    expect(screen.queryByText('Opening the network…')).toBeNull();
+    expect(screen.queryByRole('button', { name: /Skip/ })).toBeNull();
+  });
+});
+
 describe('The guided first Shift', () => {
-  it('opens on the lesson the first time: one train, zoomed in, with its caption', () => {
+  it('opens immediately on the lesson with reduced motion: one train, zoomed in, with its caption', () => {
     fresh();
     renderLesson();
     expect(screen.getByText('This train is waiting at a red signal. Type Jelatek to send it on.')).toBeTruthy();
@@ -1312,12 +1456,18 @@ describe('The guided first Shift', () => {
     expect(mapProps().emphasisRanges).toEqual([{ line: 'KJ', from: 3, to: 6 }]);
     expect(signalLabels().map((el) => el.textContent)).toEqual(['Jelatek']);
     expect(screen.queryByTestId('streak')).toBeNull();
+    expect(screen.queryByText('Opening the network…')).toBeNull();
+    expect(mapProps().trackReveal).toBeNull();
   });
 
   it('typing both names ends the lesson on the ready screen; its keys never reach the Keylog', async () => {
     fresh();
+    allowMotion();
     const clock = fakeClock();
     renderLesson(() => {}, 21);
+    clock.now += 1000;
+    press('Shift'); // Settle entry before any lesson typing, even without its timer.
+    expect(mapProps().fitKey).toBe('dispatch:lesson');
     type('Jelatek');
     clock.now += 30_000; press('Shift');
     expect(screen.getByText(/Type Setiawangsa\./)).toBeTruthy();
@@ -1329,6 +1479,7 @@ describe('The guided first Shift', () => {
     clock.now += 600; press('Shift');
     expect(screen.getByText(START_TIP)).toBeTruthy();
     expect(mapProps().fitKey).not.toBe('dispatch:lesson');
+    expect(mapProps().trackReveal).toBeNull();
     expect(loadProfile().dispatchTipsSeen).toContain('lesson');
     const first = visibleTargets(net, startCareer(net, 21).sim)[0]!.text;
     type(first.slice(0, 2));
@@ -1432,6 +1583,8 @@ describe('The guided first Shift', () => {
   it('How to play replays the lesson, then the start caption and every tip show again', () => {
     seenTips(ALL_TIPS); // everything seen, lesson included
     renderLesson();
+    expect(mapProps().trackReveal).toBeNull();
+    expect(screen.queryByText('Opening the network…')).toBeNull();
     expect(screen.queryByText(START_TIP)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /How to play/ }));
     expect(screen.getByText('This train is waiting at a red signal. Type Jelatek to send it on.')).toBeTruthy();

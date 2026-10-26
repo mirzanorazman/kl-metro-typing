@@ -300,6 +300,35 @@ describe('App', () => {
     expect(document.querySelector('.home-map')).toBeNull();
   });
 
+  it('Again opens a fresh Dispatcher entry after a Career ends', () => {
+    saveProfile({ ...emptyProfile(), dispatchTipsSeen: ['lesson', 'start', 'incident', 'service-gap', 'late', 'new-train', 'out-of-service', 'expansion'] });
+    vi.useFakeTimers();
+    const clock = { now: 1000 };
+    vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
+    try {
+      render(<App />);
+      fireEvent.click(screen.getByRole('button', { name: /dispatcher/i }));
+      expect(screen.getByText('Opening the network…')).toBeTruthy();
+      clock.now += 1000;
+      act(() => vi.advanceTimersByTime(1000));
+      fireEvent.keyDown(window, { key: 'J' });
+      clock.now += 30 * 60_000;
+      fireEvent.keyDown(window, { key: 'q' });
+      act(() => vi.advanceTimersByTime(2000));
+      fireEvent.click(screen.getByRole('button', { name: 'New Career' }));
+      expect(screen.getByText('Opening the network…')).toBeTruthy();
+      expect(screen.getByRole('banner', { name: 'Shift' }).textContent).toMatch(/Shift 1/);
+      expect(screen.queryByRole('region', { name: 'Career summary' })).toBeNull();
+      expect(screen.queryByRole('button', { name: /How to play/ })).toBeNull();
+      clock.now += 1000;
+      act(() => vi.advanceTimersByTime(1000));
+      expect(screen.queryByText('Opening the network…')).toBeNull();
+      expect(screen.getByRole('button', { name: /How to play/ })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('starts a desktop quick run from the home direction picker', () => {
     render(<App />);
 

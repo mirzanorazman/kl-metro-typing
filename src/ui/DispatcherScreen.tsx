@@ -55,6 +55,7 @@ import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
 import { useGameInput } from './TypingInputProvider';
 import { lessonCaption, useDispatchLesson } from './useDispatchLesson';
+import { useDispatchReveal } from './useDispatchReveal';
 import { useFailHold } from './useFailHold';
 import { runTick, useRunRecorder } from './useRunRecorder';
 import './dispatch.css';
@@ -343,10 +344,25 @@ export function DispatcherScreen({
   // who saw that caption in an earlier Career; the Career's first key marks it seen again.
   const {
     lesson, start: startLesson, skip: skipLesson, leave: leaveLesson, onKey: lessonOnKey,
-  } = useDispatchLesson(net, initial === undefined && !seenTips.current.has(LESSON_SEEN),
+  } = useDispatchLesson(net, false,
     () => seenTips.current.delete('start'));
   const inLesson = useRef(false);
   inLesson.current = lesson !== null;
+  const lessonOwed = useRef(initial === undefined && !seenTips.current.has(LESSON_SEEN));
+  const entryDone = useCallback(() => {
+    if (!lessonOwed.current) return;
+    lessonOwed.current = false;
+    startLesson();
+    // A key can settle the entry deadline before React renders the lesson.
+    inLesson.current = true;
+  }, [startLesson]);
+  const { event: reveal, blocksInput, cancel: cancelReveal } = useDispatchReveal(
+    net, run.served, initial === undefined, entryDone,
+  );
+  const exit = useCallback(() => {
+    cancelReveal();
+    onExit();
+  }, [cancelReveal, onExit]);
   // How to play: forget every tip, the lesson's seen flag with them, and run the lesson again.
   const replayLesson = useCallback(() => {
     saveProfile(resetDispatchTips(loadProfile()));
@@ -364,17 +380,22 @@ export function DispatcherScreen({
 
   /** Applies a non-key action, logging it only if the engine took it. */
   const act = useCallback((body: DispatchActionBody) => {
+    if (body.a === 'abandon') cancelReveal();
     const prev = currentRun.current;
     const now = runTick();
     const next = applyDispatchAction(net, prev, body, now);
     if (next === prev) return;
     actions.current.push({ ...body, i: recorder.snapshot().events.length, t: now } as DispatchAction);
     commit(next);
-  }, [commit, net, recorder]);
+  }, [cancelReveal, commit, net, recorder]);
 
   const onKey = useCallback((key: string, source?: KeySource) => {
     const cur = currentRun.current;
     if (phoneLandscape || cur.status === 'ended') return;
+    if (blocksInput()) {
+      if (key === 'Escape' && cur.startedAt === null) exit();
+      return;
+    }
     if (tipsShowing.current) return dismissTip();
     // The lesson's keys are its own: none reaches the Career or the Keylog.
     if (inLesson.current) return lessonOnKey(key);
@@ -385,7 +406,7 @@ export function DispatcherScreen({
       return;
     }
     // Before the first key nothing is recorded, so leaving needs no confirm.
-    if (key === 'Escape') return cur.startedAt === null ? onExit() : act({ a: 'pause' });
+    if (key === 'Escape') return cur.startedAt === null ? exit() : act({ a: 'pause' });
     if (key === 'Backspace') return act({ a: 'backspace' });
     if (key === 'Enter') return act({ a: 'confirm' });
     if (cur.status === 'ready' && !seenTips.current.has('start') && key.length === 1) markSeen(['start']);
@@ -396,7 +417,7 @@ export function DispatcherScreen({
     if (synced.status === 'ended' || synced.status === 'between') return commit(synced);
     recorder.record(key, source, now);
     commit(enterDispatchCharacter(net, synced, key, now));
-  }, [act, commit, dismissTip, lessonOnKey, markSeen, net, onExit, phoneLandscape, recorder]);
+  }, [act, blocksInput, commit, dismissTip, exit, lessonOnKey, markSeen, net, phoneLandscape, recorder]);
 
   // Between Shifts, unless a tip is showing, the Expansion picker owns the keys.
   const screenKeys = !phoneLandscape && run.status !== 'ended' && (run.status !== 'between' || tips.length > 0);
@@ -605,8 +626,8 @@ export function DispatcherScreen({
         career={run}
         metrics={careerMetrics(run, 0)}
         judgement={judgement}
-        onAgain={onAgain}
-        onBack={onExit}
+        onAgain={() => { cancelReveal(); onAgain(); }}
+        onBack={exit}
       />
     );
   }
@@ -662,6 +683,7 @@ export function DispatcherScreen({
             backdrop={backdrop}
             districts={districts}
             emphasisRanges={lesson?.career.served ?? run.served}
+            trackReveal={reveal?.track ?? null}
             fitTo={lesson ? lessonFrame : tipFrame ?? leanFrame ?? frame}
             fitKey={lesson ? 'dispatch:lesson' : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey}
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
@@ -674,7 +696,19 @@ export function DispatcherScreen({
         }
         panel={
           <>
-            {run.status === 'between' ? (
+            {reveal ? (
+              <>
+                <p className="dispatch-tip-inline" role="status">Opening the network…</p>
+                {run.startedAt === null ? (
+                  <button type="button" className="dispatch-end" onClick={exit}>
+                    <kbd>Esc</kbd> Back to map
+                  </button>
+                ) : (
+                  <ConfirmEndButton onConfirm={() => act({ a: 'abandon' })}
+                    note={run.status === 'ready' ? RANKED_NOTE : UNRANKED_NOTE} />
+                )}
+              </>
+            ) : run.status === 'between' ? (
               <>
                 <DispatchExpansion
                   key={run.shift}
@@ -697,7 +731,7 @@ export function DispatcherScreen({
                 </button>
                 <button type="button" className="dispatch-end" onClick={() => {
                   leaveLesson();
-                  onExit();
+                  exit();
                 }}>
                   Back to map
                 </button>
@@ -710,7 +744,7 @@ export function DispatcherScreen({
                 <TypingLine career={run} aimed={aimed} />
                 {failHold ? null : run.startedAt === null ? (
                   <>
-                    <button type="button" className="dispatch-end" onClick={onExit}>
+                    <button type="button" className="dispatch-end" onClick={exit}>
                       <kbd>Esc</kbd> Back to map
                     </button>
                     <button type="button" className="dispatch-end" onClick={replayLesson}>
