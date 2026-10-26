@@ -17,6 +17,7 @@ import { TrainMarker, tweenPoint } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
 import { DRAW_EASE, type EntranceTiming } from './entrance';
 import { linePoints, rangeIds, rangeStations, type LineRange } from './trackRanges';
+import { trackRevealTiming, type TrackReveal } from './trackReveal';
 
 /** Where the focused point sits vertically; above centre, clear of the panel. */
 const FOCUS_BIAS_Y = 0.34;
@@ -92,6 +93,8 @@ export interface MapCanvasProps {
   emphasisSet?: ReadonlySet<LineCode> | null;
   /** When supplied, only these inclusive stretches and their Stations are bright. */
   emphasisRanges?: readonly LineRange[] | null;
+  /** Draw only the newly served segments while retaining the previous bright rail. */
+  trackReveal?: TrackReveal | null;
   /**
    * Stations that want a name at any zoom while on screen, after interchanges
    * and termini — for a mode that plays on a whole network at once.
@@ -157,6 +160,7 @@ export function MapCanvas({
   emphasis,
   emphasisSet,
   emphasisRanges = null,
+  trackReveal = null,
   labelled = null,
   minMarkPx = null,
   laneOffsetPx = 0,
@@ -283,6 +287,12 @@ export function MapCanvas({
   const pointsFor = (code: LineCode, ids: readonly string[]) => linePoints(net, layout, tracks, code, ids);
   const served = useMemo(() => emphasisRanges === null ? null : rangeStations(net, emphasisRanges),
     [net, emphasisRanges]);
+
+  const staticRanges = trackReveal?.before ?? emphasisRanges;
+  const revealTiming = useMemo(
+    () => trackReveal ? trackRevealTiming(net, layout, tracks, trackReveal) : null,
+    [net, layout, tracks, trackReveal],
+  );
 
   // Labelling all 154 at once is noise, so labels come in tiers; see mapLabels.
   const tiers = useMemo(() => labelTiers(net), [net]);
@@ -415,7 +425,7 @@ export function MapCanvas({
         );
       })}
 
-      {emphasisRanges?.map((range) => {
+      {staticRanges?.map((range) => {
         const ids = rangeIds(net, range);
         const points = pointsFor(range.line, ids);
         if (points.split(' ').filter(Boolean).length < 2) return null;
@@ -426,6 +436,33 @@ export function MapCanvas({
             points={points}
             fill="none"
             stroke={net.lines.get(range.line)!.colour}
+            strokeWidth={6}
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        );
+      })}
+
+      {trackReveal?.segments.map((segment) => {
+        const ids = rangeIds(net, segment);
+        if (segment.reverse) ids.reverse();
+        const points = pointsFor(segment.line, ids);
+        if (points.split(' ').filter(Boolean).length < 2) return null;
+        return (
+          <polyline
+            key={`reveal:${trackReveal.id}:${segment.line}:${segment.from}-${segment.to}`}
+            data-reveal-line={segment.line}
+            data-draw="true"
+            pathLength={1}
+            style={{
+              '--draw-delay': '0ms',
+              '--draw-dur': `${revealTiming!.draw}ms`,
+              '--draw-ease': DRAW_EASE.css,
+            } as React.CSSProperties}
+            points={points}
+            fill="none"
+            stroke={net.lines.get(segment.line)!.colour}
             strokeWidth={6}
             vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
@@ -470,7 +507,7 @@ export function MapCanvas({
               (emphasisSet && !codes.some((c) => emphasisSet.has(c))))
               ? 'true'
               : undefined;
-          const pop = entrance?.station.get(station.id);
+          const pop = revealTiming?.station.get(station.id) ?? entrance?.station.get(station.id);
           const popStyle =
             pop === undefined
               ? undefined
@@ -542,21 +579,28 @@ export function MapCanvas({
           <>
             {marks}
             <g data-labels aria-hidden="true" data-pop={settledPop} style={settledStyle}>
-              {labels.map((label) => (
-                <text
-                  key={label.id}
-                  data-label={label.id}
-                  data-dim={dimmed.get(label.id)}
-                  className="station-label"
-                  x={label.x}
-                  y={label.y}
-                  textAnchor={label.textAnchor}
-                  fontSize={fontSize}
-                  vectorEffect="non-scaling-stroke"
-                >
-                  {named.get(label.id)}
-                </text>
-              ))}
+              {labels.map((label) => {
+                const pop = revealTiming?.station.get(label.id);
+                return (
+                  <text
+                    key={label.id}
+                    data-label={label.id}
+                    data-dim={dimmed.get(label.id)}
+                    data-pop={pop === undefined ? undefined : 'true'}
+                    style={pop === undefined ? undefined : {
+                      '--pop-delay': `${Math.round(pop)}ms`,
+                    } as React.CSSProperties}
+                    className="station-label"
+                    x={label.x}
+                    y={label.y}
+                    textAnchor={label.textAnchor}
+                    fontSize={fontSize}
+                    vectorEffect="non-scaling-stroke"
+                  >
+                    {named.get(label.id)}
+                  </text>
+                );
+              })}
             </g>
           </>
         );

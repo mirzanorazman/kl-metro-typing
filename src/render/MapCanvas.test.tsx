@@ -6,6 +6,7 @@ import { buildSchematic } from '../geo/schematic';
 import { networkLayout } from '../geo/networkLayout';
 import { MapCanvas } from './MapCanvas';
 import { DRAW_EASE, entranceTiming } from './entrance';
+import { trackRevealTiming, type TrackReveal } from './trackReveal';
 
 const data = loadNetworkData();
 const net = buildNetwork(data);
@@ -405,6 +406,133 @@ describe('MapCanvas served ranges', () => {
     expect(container.querySelector('polyline[data-line="SP"]')!.getAttribute('data-dim')).toBe('true');
     expect(container.querySelector(`circle[data-station="${kj[3]}"]`)!.getAttribute('data-dim')).toBeNull();
     expect(container.querySelector('polyline[data-served-line]')).toBeNull();
+  });
+});
+
+
+describe('MapCanvas partial track reveal', () => {
+  const kj = net.lines.get('KJ')!.stations;
+  const targetRanges = [{ line: 'KJ' as const, from: 4, to: 20 }];
+  const reveal: TrackReveal = {
+    id: 41,
+    before: [{ line: 'KJ', from: 4, to: 17 }],
+    segments: [{ line: 'KJ', from: 17, to: 20, reverse: false }],
+    stations: new Set(kj.slice(18, 21)),
+    duration: 800,
+  };
+  const points = (from: number, to: number) => kj.slice(from, to + 1)
+    .map((id) => `${layout.get(id)!.x},${layout.get(id)!.y}`).join(' ');
+  const props = {
+    net, layout, visited: new Set<string>(), activeStation: kj[18]!,
+    emphasisRanges: targetRanges, trackReveal: reveal,
+  };
+
+  it('keeps only the old served rail bright beneath the animated extension', () => {
+    const { container } = render(<MapCanvas {...props} />);
+    expect(container.querySelectorAll('polyline[data-served-line]')).toHaveLength(1);
+    expect(container.querySelector('polyline[data-served-line="KJ"]')!.getAttribute('points'))
+      .toBe(points(4, 17));
+    const extension = container.querySelector<SVGPolylineElement>('polyline[data-reveal-line="KJ"]')!;
+    expect(extension).not.toBeNull();
+    expect(extension.getAttribute('points')).toBe(points(17, 20));
+    expect(extension.getAttribute('pathLength')).toBe('1');
+    expect(extension.getAttribute('data-draw')).toBe('true');
+    expect(extension.style.getPropertyValue('--draw-delay')).toBe('0ms');
+    expect(extension.style.getPropertyValue('--draw-dur')).toBe('480ms');
+    expect(extension.style.getPropertyValue('--draw-ease')).toBe(DRAW_EASE.css);
+    expect(extension.getAttribute('stroke')).toBe(net.lines.get('KJ')!.colour);
+    expect(extension.getAttribute('stroke-width')).toBe('6');
+    expect(extension.getAttribute('stroke-linecap')).toBe('round');
+    expect(extension.getAttribute('vector-effect')).toBe('non-scaling-stroke');
+    for (const base of container.querySelectorAll('polyline[data-line]')) {
+      expect(base.getAttribute('data-dim')).toBe('true');
+      expect(base.getAttribute('data-draw')).toBeNull();
+    }
+  });
+
+  it('pops only newly served marks and labels as the advancing track reaches them', () => {
+    const { container } = render(<MapCanvas {...props} pxPerKm={4}
+      districts={[{ name: 'Kuala Lumpur', at: { x: 500, y: 400 } }]} />);
+    const timing = trackRevealTiming(net, layout, null, reveal);
+    for (const id of reveal.stations) {
+      const mark = container.querySelector<SVGCircleElement>(`circle[data-station="${id}"]`)!;
+      expect(mark.getAttribute('data-dim')).toBeNull();
+      expect(mark.getAttribute('data-pop')).toBe('true');
+      expect(mark.style.getPropertyValue('--pop-delay')).toBe(`${Math.round(timing.station.get(id)!)}ms`);
+    }
+    const label = container.querySelector<SVGTextElement>(`text[data-label="${kj[18]}"]`)!;
+    expect(label.getAttribute('data-pop')).toBe('true');
+    expect(label.style.getPropertyValue('--pop-delay')).toBe(`${Math.round(timing.station.get(kj[18]!)!)}ms`);
+    for (const element of container.querySelectorAll('circle[data-station="kl-sentral"], circle[data-core="kl-sentral"], g[data-labels], g[data-compass], [data-watermark]')) {
+      expect(element.getAttribute('data-pop')).toBeNull();
+    }
+    for (const existingLabel of container.querySelectorAll('text[data-label]')) {
+      if (!reveal.stations.has(existingLabel.getAttribute('data-label')!)) {
+        expect(existingLabel.getAttribute('data-pop')).toBeNull();
+      }
+    }
+  });
+
+  it('retains the animated node while layout and camera geometry change', () => {
+    const { container, rerender } = render(<MapCanvas {...props} laneOffsetPx={7} />);
+    const extension = container.querySelector('polyline[data-reveal-line="KJ"]')!;
+    expect(extension).not.toBeNull();
+    const moved = new Map([...layout].map(([id, p]) => [id, { x: p.x + 2, y: p.y + 3 }]));
+    rerender(<MapCanvas {...props} layout={moved} laneOffsetPx={9}
+      fitTo={kj.slice(16, 22).map((id) => moved.get(id)!)} fitKey="close" />);
+    expect(container.querySelector('polyline[data-reveal-line="KJ"]')).toBe(extension);
+    expect(extension.getAttribute('points')).not.toBe(points(17, 20));
+  });
+
+  it('settles to the complete served rail when the reveal is removed', () => {
+    const { container, rerender } = render(<MapCanvas {...props} />);
+    expect(container.querySelector('[data-draw]')).not.toBeNull();
+    rerender(<MapCanvas {...props} trackReveal={null} />);
+    expect(container.querySelectorAll('polyline[data-served-line]')).toHaveLength(1);
+    expect(container.querySelector('polyline[data-served-line="KJ"]')!.getAttribute('points')).toBe(points(4, 20));
+    expect(container.querySelectorAll('[data-draw], [data-pop], [data-reveal-line]')).toHaveLength(0);
+  });
+
+  it('draws a lower extension backwards and pops its new interchange core', () => {
+    const lower: TrackReveal = {
+      id: 42, before: [{ line: 'KJ', from: 17, to: 20 }],
+      segments: [{ line: 'KJ', from: 12, to: 17, reverse: true }],
+      stations: new Set(kj.slice(12, 17)), duration: 800,
+    };
+    const { container } = render(<MapCanvas {...props} activeStation="masjid-jamek"
+      emphasisRanges={[{ line: 'KJ', from: 12, to: 20 }]} trackReveal={lower} />);
+    const extension = container.querySelector('polyline[data-reveal-line="KJ"]');
+    expect(extension).not.toBeNull();
+    expect(extension!.getAttribute('points')).toBe(points(12, 17).split(' ').reverse().join(' '));
+    const timing = trackRevealTiming(net, layout, null, lower);
+    for (const selector of ['circle[data-station="masjid-jamek"]', 'circle[data-core="masjid-jamek"]', 'text[data-label="masjid-jamek"]']) {
+      const element = container.querySelector<SVGElement>(selector)!;
+      expect(element.getAttribute('data-pop')).toBe('true');
+      expect(element.style.getPropertyValue('--pop-delay')).toBe(`${Math.round(timing.station.get('masjid-jamek')!)}ms`);
+    }
+    expect(container.querySelector(`circle[data-station="${kj[17]}"]`)!.getAttribute('data-pop')).toBeNull();
+  });
+
+  it('has no already bright rail behind a newly entered line', () => {
+    const entry: TrackReveal = {
+      id: 43, before: [], segments: [{ line: 'KJ', from: 4, to: 20, reverse: false }],
+      stations: new Set(kj.slice(4, 21)), duration: 800,
+    };
+    const { container } = render(<MapCanvas {...props} trackReveal={entry} />);
+    expect(container.querySelectorAll('polyline[data-served-line]')).toHaveLength(0);
+    expect(container.querySelectorAll('polyline[data-reveal-line]')).toHaveLength(1);
+    expect(container.querySelector('polyline[data-reveal-line]')!.getAttribute('points')).toBe(points(4, 20));
+  });
+
+  it('skips reveal segments without two drawn points', () => {
+    const single: TrackReveal = {
+      id: 44, before: [], segments: [{ line: 'KJ', from: 4, to: 4, reverse: false }],
+      stations: new Set([kj[4]!]), duration: 800,
+    };
+    const { container } = render(<MapCanvas {...props} trackReveal={single}
+      emphasisRanges={[{ line: 'KJ', from: 4, to: 4 }]} />);
+    expect(container.querySelector('[data-reveal-line]')).toBeNull();
+    expect(container.querySelector(`circle[data-station="${kj[4]}"]`)!.getAttribute('data-pop')).toBe('true');
   });
 });
 

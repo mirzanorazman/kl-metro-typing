@@ -192,3 +192,8 @@
 .map-canvas g[data-compass][data-pop='true'] {
   animation: settle-in 420ms ease-out var(--pop-delay) backwards;
 }
+
+/* Newly served names appear with their own station, leaving existing text readable. */
+.map-canvas .station-label[data-pop='true'] {
+  animation: settle-in 320ms ease-out var(--pop-delay) backwards;
+}
