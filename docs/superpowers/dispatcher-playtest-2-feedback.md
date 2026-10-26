@@ -5,17 +5,22 @@ so that later sessions can take one item or one group at a time. Item numbers
 (F1–F21) match the order of the original notes, so they stay stable when
 priorities move.
 
-**Where it stands (2026-10-26):** all P0s and the first-time-clarity group
+**Where it stands (2026-10-27, Kuala Lumpur):** all P0s and the first-time-clarity group
 are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20 and F22. F21 is set
-aside. Next up: F23 (small bug), then F15, F11, F19, F4. The branch is kept as is (not merged) until
+aside. F15/F4/F19 are implemented and verified; F23 (small bug) and F11 remain open. The branch is kept as is (not merged) until
 the user has playtested the onboarding; see "Check in playtest 3" at the end.
 
-**Planned (2026-10-26):** the user approved F15, F4 and F19 as one served-track
+**Verified (2026-10-27):** the user approved F15, F4 and F19 as one served-track
 and network-reveal group. [Design](specs/2026-10-26-dispatcher-network-reveal-design.md)
 and [eight-task implementation plan](plans/2026-10-26-dispatcher-network-reveal.md)
-are written on `codex/dispatcher-network-reveal`. Implementation started with subagent-driven development; F15 is in progress,
-with F4 and F19 queued. Decisions and related improvements are
-tracked under "Planning group" below. F11 and F23 stay separate.
+were implemented on `codex/dispatcher-network-reveal`, with separate spec and
+quality reviews for Tasks 1–7. Full verification passed: 83 suites, 1,197 tests
+and 2 skipped; TypeScript/Vite build and whitespace checks passed. Browser
+verification found and fixed narrow Shift-bar growth/count overflow in
+`9d98057`. See [observations, screenshots and limitations](dispatcher-network-reveal-verification.md).
+Native audio, live reduced-motion toggling and real phone keyboard behavior
+remain playtest checks; automated coverage is recorded separately. Decisions
+and implemented improvements are tracked below. F11 and F23 stay separate.
 
 The checklist this answers is `dispatcher-playtest-2-checklist.md`; the
 background is in `dispatcher-handover.md`.
@@ -41,13 +46,13 @@ spec and plan.
 | F2 | Home screen subtitle for Dispatcher (rename to Career?) | P1 | S | done d06af61 | |
 | F14 | How to play explains why new trains appear | P1 | S | done 62d318a | F5 |
 | F21 | Explain the thin line from a name to its train | P1 | S | set aside | F5 |
-| F4 | Line Track transition on first entry | P1 | S–M | open | F15 |
+| F4 | Line Track transition on first entry | P1 | S–M | done ca689f1 | F15 |
 | F20 | List of closed Stations during the Shift | P1 | M | done f6b446e..e5bed05 | |
 | F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done fb732cc | |
-| F15 | Paint a Line only as far as it is served | P1 | M | in progress | |
+| F15 | Paint a Line only as far as it is served | P1 | M | done d5dd5ca | |
 | F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
 | F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
-| F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |
+| F19 | Celebrate a new Line joining the network | P1 | M | done 0f5bf3a | F4, F15 |
 | F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..2042dbd | |
 | F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
@@ -272,6 +277,11 @@ entering Dispatcher for the first time.
 **Direction:** reuse the transition the other modes use on entry. Small if it
 is a shared component.
 
+**Done (`ca689f1`):** every normal new Career reveals its exact starting served
+network for 1,000 ms before an owed lesson or the ready Shift. Early typing is
+discarded without advancing the Career; lesson completion, Skip and How to play
+do not replay entry. Reduced motion removes both animation and input wait.
+
 ### Planning group: served track and network reveals (F15, F19, F4)
 
 **Why brainstorm first:** F15 defines the track that is actually in service;
@@ -304,43 +314,48 @@ and plan for geometry, lifecycle and verification details.
 
 **Related improvements included in the plan** (unchecked means not implemented):
 
-- [ ] **F15 — exact served geometry:** use inclusive served-range endpoints;
+- [x] **F15 — exact served geometry:** use inclusive served-range endpoints;
   brighten only edges inside the range and Station marks/labels served by at
   least one active range. An Interchange must not light the unserved arms of
   its other Lines. Out-of-service Stations keep their closure marks; closure
   does not change the Career's served ranges.
-- [ ] **Shared-track alignment:** `MapCanvas`'s local `linePoints` currently
-  returns the complete offset Line whenever lanes are enabled, ignoring its
-  Station subset argument. Partial track must slice the existing offset
-  geometry and stay aligned with trains and overlays. Check dashed Expansion
-  previews against those same lanes at the join.
-- [ ] **Expansion difference and direction:** compare previous and next served
+- [x] **Shared-track alignment:** replaced the subset-ignoring local helper
+  with shared Station-aware slicing of the full offset Line geometry. Partial
+  track, dashed Expansion previews, trains and overlays now use the same lanes;
+  shared SP preview/reveal alignment was also checked in the browser.
+- [x] **Expansion difference and direction:** compare previous and next served
   ranges, rather than using `Expansion.added` (which counts only globally new
   Stations). A new Line on shared track can add zero Stations and still need
   its own reveal. Include the old endpoint so extensions join without a gap;
   reveal from the existing network toward the new far end in either direction.
-- [ ] **F17 — growth feedback:** coordinate the existing +Lines/+Stations
+- [x] **F17 — growth feedback:** coordinate the existing +Lines/+Stations
   counts with the reveal; only new Stations pop, and existing track and
   Interchanges should not replay their entrance. A complete-network Continue
   with no added track has no Expansion reveal.
-- [ ] **F4/F8/F5 — onboarding handoff:** the entry reveal precedes the guided
+- [x] **F4/F8/F5 — onboarding handoff:** the entry reveal precedes the guided
   lesson; finishing, skipping or replaying How to play must not accidentally
   replay the Career entrance. Ignore typing during the reveal (user's choice),
   without recording it or advancing the Career. Typing never skips the reveal;
   Back to map/End Career stay usable.
-- [ ] **F19 — readable and audible feedback:** show the new Line's code/name
+- [x] **F19 — readable and audible feedback:** show the new Line's code/name
   as well as colour; audio follows the sound preference and gesture unlock.
   The notice sits above the typing prompt until the next Shift starts.
-- [ ] **Reduced motion and lifecycle:** show the resulting served network
+- [x] **Reduced motion and lifecycle:** show the resulting served network
   immediately under reduced motion, with readable new-Line feedback; avoid
   replaying animations or sounds on ticks, camera changes or StrictMode effect
   re-runs. The typing gate lasts only as long as the reveal; under reduced
   motion there is no animation wait.
-- [ ] **Verification:** cover exact range boundaries, shared-track and
+- [x] **Verification:** cover exact range boundaries, shared-track and
   zero-new-Station additions, extension in both directions, entry/lesson
   sequencing, no-op Continue, reduced motion and sound deduplication. Browser
   checks must cover reveal timing, lane alignment and panel/badge overlap;
   regression-check callers using whole-Line emphasis and the home entrance.
+
+Verification results and the distinction between browser-observed and
+automated-only checks are in the [verification record](dispatcher-network-reveal-verification.md).
+The 390 px Shift-bar fix (`9d98057`) keeps every metric and +N delta visible,
+with the closure gauge and Incidents below the enlarged header. Audible chime,
+native reduced-motion and real device checks remain for playtest 3.
 
 **Implementation order agreed:** F15's served geometry, F4's entry reveal
 and lesson handoff, then F19's Expansion reveal and new-Line celebration.
@@ -397,8 +412,10 @@ and Stations are in service, to show growth.
 **Done:** the Shift bar counts Lines and Stations. After an Expansion each
 count shows what it added ("+6", in signal green) until the next Shift's
 first key, and the Shift-cleared screen says "Network: 1 Line · 14
-Stations" above the offers. Not seen live after a real Expansion (unit
-tested only).
+Stations" above the offers. The reveal work now keeps deltas until the first
+accepted key after the fixed reveal wait. Browser fixtures confirmed +1 Line
+with zero new Stations, +Lines/+Stations together, and the phone-width layout
+fix (`9d98057`); the exact 799 ms input/evidence boundary is integration-tested.
 
 ### F15. Paint a Line only as far as it is served
 
@@ -414,6 +431,12 @@ Line (`career.served`: line, from, to).
 well as) whole Lines, and draw the unserved rest faded. Check the other
 modes that pass `emphasisSet`. Pairs with F19: the newly served stretch can
 animate in.
+
+**Done (`d5dd5ca`):** `career.served` supplies inclusive bright ranges;
+unserved tails and arms stay faded. Station marks and labels are bright only
+when served by at least one range, while closure marks remain intact. Shared
+track slices the original lane geometry. Browser Shift 1 showed 14 bright KJ
+points through Kerinchi, with Universiti faded.
 
 ### F9. A sound for the Green wave
 
@@ -444,6 +467,13 @@ the first time), animations and sounds that celebrate it.
 **Direction:** the new stretch draws in (`MapCanvas` already animates dashes
 in), its Line badge pops, a chime. Depends on F15 for drawing only the new
 stretch.
+
+**Done (`0f5bf3a`):** accepted Expansions reveal only added edges for 800 ms;
+new Lines add a code/name notice and one optional chime. Shared-track Lines
+celebrate even with zero globally new Stations; extensions have no new-Line
+notice or cue. The notice and growth counts clear on the next Shift's first
+accepted key. Native audible sound remains unobserved; unlock/mute/scheduling
+and deduplication are automated checks.
 
 ---
 
@@ -677,7 +707,7 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   of letting go (F18); ending between Shifts reaches the leaderboard (F3).
 - **Quick wins.** The home subtitle (F2); the Green wave sound (F9); the
   Lines and Stations counts and "+N" after an Expansion (F17).
-- **Served track and reveals (F15/F4/F19), after implementation.** Is only
+- **Served track and reveals (F15/F4/F19), implemented and verified.** Is only
   the operated stretch bright? Does the one-second entry before the lesson
   feel worth its wait? Does every Expansion draw clearly outward, with a
   noticeable badge/chime for a new Line? Is ignoring typing during the

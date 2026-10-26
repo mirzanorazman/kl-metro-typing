@@ -1,7 +1,7 @@
 # Dispatcher — served track, Career entry and Expansion reveals
 
 **Date:** 2026-10-26
-**Status:** Design approved in chat; implementation not started.
+**Status:** Implemented and verified 2026-10-27 (Kuala Lumpur); Tasks 1–7 passed separate spec/quality reviews and full automated gates passed. See [browser evidence and limits](../dispatcher-network-reveal-verification.md). Task 8 review and whole-branch review follow; not merged or deployed.
 **Covers:** playtest 2 F15, F4 and F19, with related F17/F8/F5 integration.
 **Tracker:** [dispatcher-playtest-2-feedback.md](../dispatcher-playtest-2-feedback.md#planning-group-served-track-and-network-reveals-f15-f19-f4).
 **Plan:** [implementation tasks](../plans/2026-10-26-dispatcher-network-reveal.md).

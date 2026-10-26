@@ -2,16 +2,24 @@
 
 ## Resume here (updated after every task)
 
-**Active plan (2026-10-26, implementation started):**
+**Latest implementation (verified 2026-10-27, Kuala Lumpur):**
 [`2026-10-26-dispatcher-network-reveal.md`](plans/2026-10-26-dispatcher-network-reveal.md),
 with [approved design](specs/2026-10-26-dispatcher-network-reveal-design.md).
 Eight tasks cover F15 exact served track, F4 entry before the lesson on every
 new Career, then F19 Expansion reveals and new-Line badge/chime. Planning branch
 `codex/dispatcher-network-reveal`, based on `feat/dispatcher` at `64e0d4d`.
-Tasks 1–4 are implemented and have passed spec and quality review; Task 5
-(the UI deadline controller) is in progress. Commits: `7e1902a`, `d5dd5ca`,
-`36a9ceb`, `075b6f7`, `8e74f29`. The last fixes an entrance/partial-reveal
-Station-pop precedence finding from spec review. Baseline: 79 suites, 1,132 tests passed (2 skipped).
+Tasks 1–7 are implemented and have passed separate spec and quality reviews.
+F15 is `d5dd5ca`, F4 is `ca689f1`, and F19 is `0f5bf3a`; shared geometry,
+timing, rendering and controller commits are `7e1902a`, `36a9ceb`, `075b6f7`,
+`8e74f29` and `3dc27ae`. Task 8 found and fixed narrow Shift-bar overflow in
+`9d98057`; the phone now shows every metric and growth delta, including with
+the closure gauge. Full gates after that fix: 83 suites, 1,197 tests passed,
+2 skipped; TypeScript/Vite build and whitespace checks passed. The existing
+test `act(...)` warning and Vite's over-500 kB chunk warning remain.
+See [verification evidence and limits](dispatcher-network-reveal-verification.md),
+including browser screenshots, measured phone/tablet bounds, and audio/native
+reduced-motion/device checks that still need playtesting. Whole-branch review
+follows this handoff; the branch is not merged or deployed.
 The user chose **ignore typing until
 the reveal finishes**, without buffering or recording it: 1,000 ms entry,
 800 ms Expansion, no wait under reduced motion. F17 counts, shared-track lanes,
@@ -25,7 +33,7 @@ branch `feat/dispatcher`. All 11 tasks are done; see "Playtest 1" below. The
 first plan (`2026-10-23-dispatcher.md`) is done too, apart from its gated
 Task 12.
 
-- **Last done:** the onboarding plan
+- **Previous implementation:** the onboarding plan
   (`docs/superpowers/plans/2026-10-24-dispatcher-onboarding.md`, spec
   `docs/superpowers/specs/2026-10-24-dispatcher-onboarding-design.md`): F8
   guided first Shift, F5 How to play, F14 new-train tip, and its final
@@ -36,8 +44,9 @@ Task 12.
   `docs/superpowers/dispatcher-playtest-2-feedback.md` (F1–F21). The P0 items
   (F1, F3, F6, F7, F18) are done, and so is the onboarding group (F8 guided
   first Shift, F5 How to play, F14 new-train tip, with F2). The remaining P1s
-  are F15, F11, F19, F4 and F23 (F20 and F22 are done; F21 is set aside).
-  F15/F4/F19 now have the approved plan linked above. Note F18 bumped
+  are F11 and F23 (F15/F4/F19, F20 and F22 are done; F21 is set aside).
+  Playtest the served track, entry and Expansion feedback using the questions
+  in the verification record linked above. Note F18 bumped
   `DISPATCH_EVIDENCE_VERSION` to 2, and F22's Service gap Incident (see
   "Service gap balance" below) bumped it to 3. The checklist it answers is
   `docs/superpowers/dispatcher-playtest-2-checklist.md`. The 90 WPM ceiling is
@@ -80,7 +89,8 @@ Task 12.
   frame; the reduced-motion cut is not checked live.
 
 To resume in a fresh session: "Read `docs/superpowers/dispatcher-handover.md`
-and continue the active plan subagent-driven." The controller's detailed
+and the network-reveal verification record; finish whole-branch review if it
+has not been recorded, then continue with the user's chosen feedback." The controller's detailed
 ledger is `.superpowers/sdd/2026-10-23-dispatcher/progress.md` (git-ignored;
 if missing, trust this block and `git log`).
 

@@ -10,7 +10,7 @@
 
 **Spec:** [approved design](../specs/2026-10-26-dispatcher-network-reveal-design.md).
 **Source baseline:** `feat/dispatcher` at `64e0d4d`; planning branch `codex/dispatcher-network-reveal`.
-**Status:** Implementation started 2026-10-26, using subagent-driven development with spec and quality review per task. Checkboxes record verified steps; the execution ledger is `/tmp/myrapid-network-reveal-progress.md`.
+**Status:** Tasks 1–8 implemented and verified by 2026-10-27 (Kuala Lumpur), with separate spec and quality reviews for Tasks 1–7. Task 8 review and whole-branch review follow this handoff. Full gates passed at `9d98057` (83 files, 1,197 passed tests, 2 skipped); browser evidence and bounded manual coverage are recorded in [verification results](../dispatcher-network-reveal-verification.md). Not merged or deployed. The execution ledger is `/tmp/myrapid-network-reveal-progress.md`.
 
 ---
 
@@ -404,7 +404,7 @@ Keep this hook independent of `CareerState`, recording and sound. Consume the
 range helpers and `TrackReveal` contracts from Tasks 1/3. Test it with fake
 timers and a controlled `performance.now()`.
 
-- [ ] **Step 1 — Write failing hook tests for these exact public contracts.**
+- [x] **Step 1 — Write failing hook tests for these exact public contracts.**
 
 ```ts
 export const DISPATCH_ENTRY_MS = 1_000;
@@ -455,9 +455,9 @@ expect(taught).toHaveBeenCalledTimes(1);
 The last check must work **without firing the completion timer**, proving
 background throttling cannot leave input locked after the deadline.
 
-- [ ] **Step 2 — Run red:** `npx vitest run src/ui/useDispatchReveal.test.tsx`.
+- [x] **Step 2 — Run red:** `npx vitest run src/ui/useDispatchReveal.test.tsx`.
   Expected: missing hook failure.
-- [ ] **Step 3 — Implement a ref-backed controller, then publish React state.**
+- [x] **Step 3 — Implement a ref-backed controller, then publish React state.**
   Keep authoritative event, next id and pending entry-completion flag in refs.
   `setState` receives values; no timers, callbacks or sound inside updaters.
   Build every track event with:
@@ -499,16 +499,16 @@ listener cleanup. A completion effect schedules only the remaining deadline;
 on cleanup cancel its timer, but do not erase the event or mark completion
 lost (StrictMode replays setup). `clearNotice` removes notice/celebration only.
 
-- [ ] **Step 4 — Run green:** `npx vitest run src/ui/useDispatchReveal.test.tsx`.
+- [x] **Step 4 — Run green:** `npx vitest run src/ui/useDispatchReveal.test.tsx`.
   Expected: all deadline, cancellation and StrictMode assertions pass.
-- [ ] **Step 5 — Commit:** stage hook/tests; `git commit -m "feat: control Dispatcher reveal deadlines outside the Career"`.
+- [x] **Step 5 — Commit:** stage hook/tests; `git commit -m "feat: control Dispatcher reveal deadlines outside the Career"`.
 
 ## Task 6: Entry → lesson → ready, with discarded typing (F4)
 
 **Files:** Modify `src/ui/DispatcherScreen.tsx`, `src/ui/Dispatcher.test.tsx`,
 `src/ui/dispatch.css`.
 
-- [ ] **Step 1 — Add failing first-entry integration tests.** Extend the
+- [x] **Step 1 — Add failing first-entry integration tests.** Extend the
   existing "The guided first Shift" group, preserving its post-entry coverage.
   Use a `finishEntry()` test helper that advances both the fake clock and
   timers by `DISPATCH_ENTRY_MS`, then flushes React effects.
@@ -534,9 +534,9 @@ fresh reveal, reduced motion has no wait, and `initial` bypasses only entry.
 Existing lesson tests should explicitly finish entry before typing, rather
 than globally disabling entry in all tests.
 
-- [ ] **Step 2 — Run red:** `npx vitest run src/ui/Dispatcher.test.tsx src/ui/App.test.tsx`.
+- [x] **Step 2 — Run red:** `npx vitest run src/ui/Dispatcher.test.tsx src/ui/App.test.tsx`.
   Expected: entry/order/input assertions fail.
-- [ ] **Step 3 — Wire explicit lesson start and the controller.** Pass `false`
+- [x] **Step 3 — Wire explicit lesson start and the controller.** Pass `false`
   as the lesson's automatic-start flag. Freeze whether a lesson is owed in a
   ref at mount. In the controller's one-shot completion callback, create the
   lesson at that moment and update the synchronous routing ref:
@@ -585,10 +585,10 @@ dependency list, and `beginExpansion`/`cancel` to `act`'s dependency list when
 they are used. Destructure these methods rather than depending on a newly
 allocated controls object in each callback.
 
-- [ ] **Step 4 — Run green:** `npx vitest run src/ui/Dispatcher.test.tsx src/ui/App.test.tsx src/ui/TypingInputProvider.test.tsx src/engine/dispatchLesson.test.ts`.
+- [x] **Step 4 — Run green:** `npx vitest run src/ui/Dispatcher.test.tsx src/ui/App.test.tsx src/ui/TypingInputProvider.test.tsx src/engine/dispatchLesson.test.ts`.
   Expected: existing lesson behavior remains after the explicit entry window;
   the lesson clock is created after entry, with no silent advance.
-- [ ] **Step 5 — Commit:** stage screen/tests/CSS; `git commit -m "feat: reveal each Dispatcher Career before its guided lesson"`.
+- [x] **Step 5 — Commit:** stage screen/tests/CSS; `git commit -m "feat: reveal each Dispatcher Career before its guided lesson"`.
 
 ## Task 7: Expansion reveal, persistent Line notice and additive chime (F19)
 
@@ -596,7 +596,7 @@ allocated controls object in each callback.
 `src/ui/dispatch.css`, `src/audio/sound.ts`, `src/audio/sound.test.ts`;
 create `src/ui/DispatchNetworkNotice.tsx`, `src/ui/DispatchNetworkNotice.test.tsx`.
 
-- [ ] **Step 1 — Add failing expansion/notice/sound tests.** Reuse real
+- [x] **Step 1 — Add failing expansion/notice/sound tests.** Reuse real
   `DispatchExpansion` buttons and the existing `offerAt` fixture. Assert one
   accepted choice installs the reveal before the next key; typing for the
   first 799 ms changes no aim/clock/evidence; the 800 ms boundary accepts input.
@@ -621,9 +621,9 @@ Update existing F17/growth and typed-Expansion tests to explicitly advance
 the 800 ms reveal before their next Shift key. Add `vi.spyOn(sound, 'lineOpen')`
 to the screen suite's sound-spy setup and reset it with the other spies.
 
-- [ ] **Step 2 — Run red:** `npx vitest run src/ui/Dispatcher.test.tsx src/ui/DispatchNetworkNotice.test.tsx src/audio/sound.test.ts`.
+- [x] **Step 2 — Run red:** `npx vitest run src/ui/Dispatcher.test.tsx src/ui/DispatchNetworkNotice.test.tsx src/audio/sound.test.ts`.
   Expected: missing notice/cue and Expansion reveal assertions fail.
-- [ ] **Step 3 — Begin the UI reveal only for an accepted expand action.**
+- [x] **Step 3 — Begin the UI reveal only for an accepted expand action.**
   In `act`, after the engine has returned a distinct next state and before
   publishing it, call the controller in the same event batch:
 
@@ -643,7 +643,7 @@ transition, clear the notice; do not clear it for ignored keys or Backspace.
 Keep F17 counts on the accepted next network. Their existing +N lifetime
 remains until that same first accepted Shift key.
 
-- [ ] **Step 4 — Implement the small notice and cue.**
+- [x] **Step 4 — Implement the small notice and cue.**
 
 ```tsx
 import type { LineCode } from '../data/types';
@@ -694,9 +694,9 @@ cases; assert its three specific notes/scheduled offsets when unlocked. Notice
 tests assert the Line code and full name, accessibility status, and no focus
 change. Both ordinary and reduced-motion new-Line actions still chime once.
 
-- [ ] **Step 5 — Run green:** `npx vitest run src/ui/Dispatcher.test.tsx src/ui/DispatchNetworkNotice.test.tsx src/ui/useDispatchReveal.test.tsx src/audio/sound.test.ts src/render/dispatchReadability.test.ts`.
+- [x] **Step 5 — Run green:** `npx vitest run src/ui/Dispatcher.test.tsx src/ui/DispatchNetworkNotice.test.tsx src/ui/useDispatchReveal.test.tsx src/audio/sound.test.ts src/render/dispatchReadability.test.ts`.
   Expected: all new-Line, extension and evidence assertions pass.
-- [ ] **Step 6 — Commit:** stage these files; `git commit -m "feat: reveal Expansions and celebrate newly joined Lines"`.
+- [x] **Step 6 — Commit:** stage these files; `git commit -m "feat: reveal Expansions and celebrate newly joined Lines"`.
 
 ## Task 8: Full verification, browser evidence and tracker handoff
 
@@ -704,7 +704,7 @@ change. Both ordinary and reduced-motion new-Line actions still chime once.
 `docs/superpowers/dispatcher-handover.md` and this plan's completed checkboxes.
 Touch application files only to correct a demonstrated failure of this spec.
 
-- [ ] **Step 1 — Run the full automated gates once focused tests pass:**
+- [x] **Step 1 — Run the full automated gates once focused tests pass:**
 
 ```bash
 npm test
@@ -716,12 +716,18 @@ Expected: all suites pass; TypeScript and production Vite build succeed; no
 whitespace errors. Run failures through diagnosis before changing expectations.
 No balance survey is required because there are no simulation changes.
 
-- [ ] **Step 2 — Start the app:** `npm run dev -- --host 127.0.0.1`.
+- [x] **Step 2 — Start the app:** `npm run dev -- --host 127.0.0.1`.
   Use the browser tool's documented UI controls and a disposable local profile.
   Save and restore profile values before changing tips; never clear a real
   player's profile/leaderboard to prepare a screenshot.
 
-- [ ] **Step 3 — Verify these browser scenarios at normal motion.**
+- [x] **Step 3 — Verify these browser scenarios at normal motion.**
+
+  The browser pass is complete with bounded coverage, recorded separately from
+  automated-only checks in the [verification record](../dispatcher-network-reveal-verification.md).
+  The table remains the intended manual matrix; a checked step does not claim
+  every row was observed live. True hidden-tab lifecycle, valid ranked
+  retirement and the remaining flow regressions retain automated coverage.
 
 | Scenario | Required observation |
 |---|---|
@@ -738,7 +744,7 @@ No balance survey is required because there are no simulation changes.
 | Existing closure and Green wave | Closure X/card/gauge stay intact; wave timing unchanged. |
 | Other modes and home | Whole-Line emphasis, home draw-on and return-to-home behavior remain as before. |
 
-- [ ] **Step 4 — Check reduced motion and layout.** With reduced motion set
+- [x] **Step 4 — Check reduced motion and layout.** With reduced motion set
   before entry and toggled during a reveal, verify settled track and immediate
   typing, no pop/draw, visible notice, and one optional sound. Verify both themes
   at 1440×900, 1024×768 and 390×844 portrait; check the notice and opening status
@@ -748,7 +754,14 @@ No balance survey is required because there are no simulation changes.
   usable during an Expansion reveal, and game Enter/Space cannot activate a
   focused button or confirm retirement.
 
-- [ ] **Step 5 — Record evidence and close the group.** Add observed results,
+  Browser layout checks found narrow Shift-bar overflow and verified CSS fix
+  `9d98057` at 390 px (both growth deltas and the closure gauge) and 1024 px
+  (one-line bar); notice checks also covered 1440 px and both themes. Native
+  audible audio, live OS reduced-motion toggling and a real phone keyboard
+  were not observed. Reduced-motion mount/change and no-JavaScript-wait
+  behavior passed automated tests; the record preserves those limits.
+
+- [x] **Step 5 — Record evidence and close the group.** Add observed results,
   screenshots/recording paths and any unverified audio/device behavior to the
   tracker. Set F15/F4/F19 to `done <implementation commit>` only after their
   checks pass; tick the related improvements that were actually implemented.
@@ -757,7 +770,7 @@ No balance survey is required because there are no simulation changes.
   feel worth its wait, is expansion direction clear, is the new-Line moment
   noticeable, and is the fixed input wait comfortable?
 
-- [ ] **Step 6 — Commit verification docs:** stage the tracker, handover and
+- [x] **Step 6 — Commit verification docs:** stage the tracker, handover and
   completed plan; `git commit -m "docs: record Dispatcher network reveal verification"`.
 
 ## Self-review coverage map
