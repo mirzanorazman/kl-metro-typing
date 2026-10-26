@@ -210,8 +210,11 @@ export function enterDispatchCharacter(net: NetworkIndex, state: CareerState, ke
 export type DispatchActionBody = { a: 'backspace' } | { a: 'expand'; pick: number } | { a: 'pause' }
   | { a: 'resume' } | { a: 'abandon' } | { a: 'confirm' };
 export type DispatchAction = DispatchActionBody & { i: number; t: number };
-/** 2: Backspace undoes one key (playtest 2) instead of letting go of the whole aim. */
-export const DISPATCH_EVIDENCE_VERSION = 2;
+/**
+ * 2: Backspace undoes one key (playtest 2) instead of letting go of the whole aim.
+ * 3: Service gap Incidents.
+ */
+export const DISPATCH_EVIDENCE_VERSION = 3;
 
 /** Refused actions retain input identity so the recorder can omit them. */
 export function applyDispatchAction(net: NetworkIndex, state: CareerState, action: DispatchActionBody, now: number): CareerState {

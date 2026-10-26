@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from './network';
 import { STARTING_NETWORK, servedDistances } from './dispatchNetwork';
-import { CROWD_SURGE_MULTIPLIER, INCIDENT_FIRST_MS, INCIDENT_LIMIT_MS, INCIDENT_MAX, PASSENGER_RATE, STRAIN_HELD_WEIGHT, TICK_MS } from './dispatchBalance';
-import { clearSignal, cloneSim, crowdAt, heldStations, heldTrains, originWeight, startShiftSim, type Incident, type PhaseNow } from './dispatchSim';
+import { CROWD_SURGE_MULTIPLIER, GAP_HOLD_MS, GAP_TRIGGER_MS, INCIDENT_FIRST_MS, INCIDENT_LIMIT_MS, INCIDENT_MAX, PASSENGER_RATE, STRAIN_HELD_WEIGHT, TICK_MS, TRAVEL_MS } from './dispatchBalance';
+import { clearSignal, cloneSim, crowdAt, heldStations, heldTrains, originWeight, startShiftSim, type Incident, type PhaseNow, type Train } from './dispatchSim';
 import { advanceFix, fixItems, stepIncidents, stepWorld, strain } from './dispatchIncidents';
 
 const net = buildNetwork(loadNetworkData());
@@ -238,5 +238,153 @@ describe('Dispatcher incidents', () => {
     expect(s.incidents[0]!.stations).toHaveLength(3);
     expect(s.incidents[0]!.step).toBe(0);
     expect(copy).toEqual(JSON.parse(JSON.stringify(copy)));
+  });
+
+  describe('Service gap', () => {
+    const REAR = 1;
+    const LEADER = 2;
+    const name = (id: string) => net.stations.get(id)!.name;
+    const at = (n: string) => kj.findIndex((id) => name(id) === n);
+
+    function train(id: number, overrides: Partial<Train>): Train {
+      return { id, line: 'KJ', dir: 1, at: 0, stage: 'signal', ms: 0, skipTo: null, load: {}, lastExchange: null, ...overrides };
+    }
+
+    /** Rear and leader, both dir 1 and waiting at their Signals; nothing else on the map. */
+    function pairOnKJ(rearName: string, leaderName: string) {
+      const s = startShiftSim(net, STARTING_NETWORK, 42);
+      s.trains = [train(REAR, { at: at(rearName) }), train(LEADER, { at: at(leaderName) })];
+      return s;
+    }
+
+    const gaps = (s: ReturnType<typeof startShiftSim>) => s.incidents.filter((i) => i.kind === 'service-gap');
+
+    it('a pair that stays together for GAP_TRIGGER_MS starts a Service gap on the rear train', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(s, GAP_TRIGGER_MS - TICK_MS, quiet);
+      expect(s.incidents.filter((i) => i.kind === 'service-gap')).toEqual([]);
+      run(s, TICK_MS, quiet);
+      const gap = s.incidents.find((i) => i.kind === 'service-gap')!;
+      expect(gap).toMatchObject({ line: 'KJ', train: REAR, stations: [] });
+      expect(fixItems(net, gap, s)).toEqual(['Hold at Kampung Baru']);
+    });
+
+    it('names as its place the last Station the rear train called at, or the one behind it if none', () => {
+      const called = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      called.trains[0]!.lastExchange = { station: 'ampang-park', boarded: 0, alighted: 0, delivered: 0, atMs: 0 };
+      run(called, GAP_TRIGGER_MS, quiet);
+      expect(gaps(called).map((i) => i.place)).toEqual(['ampang-park']);
+
+      const none = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(none, GAP_TRIGGER_MS, quiet);
+      expect(gaps(none).map((i) => i.place)).toEqual(['klcc']);
+
+      // At the outer end, the Station behind lies outside the served range: clamped back into it.
+      const end = startShiftSim(net, STARTING_NETWORK, 42);
+      end.trains = [train(REAR, { dir: -1, at: STARTING_NETWORK[0]!.to }), train(LEADER, { dir: -1, at: STARTING_NETWORK[0]!.to - 1 })];
+      run(end, GAP_TRIGGER_MS, quiet);
+      expect(gaps(end)).toMatchObject([{ train: REAR, place: kj[STARTING_NETWORK[0]!.to]! }]);
+    });
+
+    it('ends by itself when the pair breaks up, and its place stays open', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(s, GAP_TRIGGER_MS, quiet);
+      expect(gaps(s)).toHaveLength(1);
+      s.trains[1]!.at += 2;
+      run(s, TICK_MS, quiet);
+      expect(gaps(s)).toEqual([]);
+      expect(s.outOfService).toEqual({});
+    });
+
+    it('the typed fix holds the rear train at its Signal for GAP_HOLD_MS, then lets it go', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(s, GAP_TRIGGER_MS, quiet);
+      expect(advanceFix(net, s, gaps(s)[0]!.id)).toBe(true);
+      expect(gaps(s)).toEqual([]);
+      expect(heldTrains(net, s).has(REAR)).toBe(true);
+      expect(clearSignal(net, s, REAR)).toBe(false);
+      run(s, GAP_HOLD_MS - TICK_MS, quiet);
+      expect(heldTrains(net, s).has(REAR)).toBe(true);
+      run(s, TICK_MS, quiet);
+      expect(heldTrains(net, s).has(REAR)).toBe(false);
+      expect(clearSignal(net, s, REAR)).toBe(true);
+    });
+
+    it('a pair still standing after the fix starts its timer again only once the hold is spent', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(s, GAP_TRIGGER_MS, quiet);
+      advanceFix(net, s, gaps(s)[0]!.id);
+      run(s, GAP_TRIGGER_MS, quiet);
+      expect(gaps(s)).toEqual([]);
+      run(s, GAP_HOLD_MS, quiet);
+      expect(gaps(s)).toMatchObject([{ train: REAR }]);
+    });
+
+    it('a fix typed while the rear train is running holds it only once it reaches its Signal', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(s, GAP_TRIGGER_MS, quiet);
+      advanceFix(net, s, gaps(s)[0]!.id);
+      const rear = s.trains[0]!;
+      Object.assign(rear, { at: at('KLCC'), stage: 'running', ms: 0 });
+      expect(heldTrains(net, s).has(REAR)).toBe(false);
+      run(s, TICK_MS, quiet);
+      expect(rear).toMatchObject({ stage: 'running', ms: TICK_MS });
+      run(s, TRAVEL_MS - TICK_MS, quiet);
+      expect(rear).toMatchObject({ stage: 'signal', at: at('Kampung Baru') });
+      expect(heldTrains(net, s).has(REAR)).toBe(true);
+      run(s, GAP_HOLD_MS - TICK_MS, quiet);
+      expect(heldTrains(net, s).has(REAR)).toBe(true);
+      run(s, TICK_MS, quiet);
+      expect(heldTrains(net, s).has(REAR)).toBe(false);
+    });
+
+    it('unfixed, it closes its place at INCIDENT_LIMIT_MS with cause service-gap', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(s, GAP_TRIGGER_MS, quiet);
+      const place = gaps(s)[0]!.place;
+      run(s, INCIDENT_LIMIT_MS - TICK_MS, quiet);
+      expect(s.outOfService[place]).toBeUndefined();
+      run(s, TICK_MS, quiet);
+      expect(s.outOfService[place]).toBe('service-gap');
+    });
+
+    it('waits for a free slot when INCIDENT_MAX Incidents are up, and draws nothing from incidentDebt or rng', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      s.incidents = ['setiawangsa', 'pasar-seni', 'bangsar'].map((place, i) =>
+        incident('crowd-surge', { id: 100 + i, place, stations: [place] }));
+      expect(s.incidents).toHaveLength(INCIDENT_MAX);
+      run(s, GAP_TRIGGER_MS + 10 * TICK_MS, quiet);
+      expect(gaps(s)).toEqual([]);
+      s.incidents.pop();
+      s.incidentDebt = 0.5;
+      const rng = s.rng;
+      run(s, TICK_MS, quiet);
+      expect(gaps(s)).toHaveLength(1);
+      expect(s.incidentDebt).toBe(0.5);
+      expect(s.rng).toBe(rng);
+    });
+
+    it('a chain of three trains gives each rear train at most one Service gap', () => {
+      const s = startShiftSim(net, STARTING_NETWORK, 42);
+      s.trains = [train(1, { at: at('Kampung Baru') }), train(2, { at: at('Dang Wangi') }), train(3, { at: at('Masjid Jamek') })];
+      run(s, GAP_TRIGGER_MS, quiet);
+      expect(gaps(s).map((i) => i.train).sort()).toEqual([1, 2]);
+      for (let t = 0; t < 5_000; t += TICK_MS) {
+        run(s, TICK_MS, quiet);
+        const trains = gaps(s).map((i) => i.train);
+        expect(new Set(trains).size).toBe(trains.length);
+        expect(trains).not.toContain(3);
+      }
+    });
+
+    it('a new leader restarts the pair timer', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(s, GAP_TRIGGER_MS - TICK_MS, quiet);
+      s.trains[1] = train(3, { at: at('Dang Wangi') });
+      run(s, GAP_TRIGGER_MS - TICK_MS, quiet);
+      expect(gaps(s)).toEqual([]);
+      run(s, TICK_MS, quiet);
+      expect(gaps(s)).toMatchObject([{ train: REAR }]);
+    });
   });
 });

@@ -1,13 +1,13 @@
 import type { LineCode } from '../data/types';
 import {
-  INCIDENT_FIRST_MS, INCIDENT_LIMIT_MS, INCIDENT_MAX, INCIDENTS_PER_MINUTE,
+  GAP_HOLD_MS, GAP_TRIGGER_MS, INCIDENT_FIRST_MS, INCIDENT_LIMIT_MS, INCIDENT_MAX, INCIDENTS_PER_MINUTE,
   PLATFORM_CAPACITY, SIGNAL_FAULT_STATIONS, STRAIN_CROWD_WEIGHT,
   STRAIN_HELD_WEIGHT, TICK_MS,
 } from './dispatchBalance';
 import { servedStations } from './dispatchNetwork';
 import {
-  closeStation, crowdAt, heldTrains, nextStationId, stepSim,
-  type Incident, type IncidentKind, type PhaseNow, type SimState,
+  closeStation, crowdAt, heldTrains, nextStationId, pairedRears, stepSim,
+  type Incident, type IncidentKind, type PhaseNow, type SimState, type Train,
 } from './dispatchSim';
 import type { NetworkIndex } from './network';
 import { nextRandom } from './rng';
@@ -20,6 +20,10 @@ export function fixItems(net: NetworkIndex, inc: Incident, s: SimState): string[
     case 'train-fault': {
       const train = s.trains.find((t) => t.id === inc.train);
       return [`Reset train at ${name(train ? nextStationId(net, train) ?? inc.place : inc.place)}`];
+    }
+    case 'service-gap': {
+      const train = s.trains.find((t) => t.id === inc.train);
+      return [`Hold at ${name(train ? nextStationId(net, train) ?? inc.place : inc.place)}`];
     }
   }
 }
@@ -94,6 +98,49 @@ function spawnIncident(net: NetworkIndex, s: SimState, startedMs: number): boole
   return true;
 }
 
+/** The Station a bunched pair leaves without service: the rear Train's last call, else the one behind it. */
+function gapPlace(net: NetworkIndex, s: SimState, rear: Train): string {
+  if (rear.lastExchange) return rear.lastExchange.station;
+  const range = s.served.find((r) => r.line === rear.line)!;
+  const at = Math.max(range.from, Math.min(range.to, rear.at - rear.dir));
+  return net.lines.get(rear.line)!.stations[at]!;
+}
+
+/**
+ * Player-caused, so no draw on `incidentDebt` or the rng: a pair that stays
+ * bunched for GAP_TRIGGER_MS starts a Service gap on its rear Train, which
+ * ends by itself once the pair breaks up. A rear Train still owed a hold has
+ * no pair timer, so a pair still standing after the hold starts afresh.
+ */
+function stepServiceGaps(net: NetworkIndex, s: SimState, endMs: number): void {
+  for (const [key, left] of Object.entries(s.gapHolds)) {
+    const t = s.trains.find((candidate) => candidate.id === Number(key));
+    const rest = t?.stage === 'signal' ? left - TICK_MS : left;
+    if (!t || rest <= 0) delete s.gapHolds[Number(key)];
+    else s.gapHolds[Number(key)] = rest;
+  }
+  const rears = pairedRears(net, s);
+  const pairs: Record<string, number> = {};
+  for (const [rear, leader] of rears) {
+    if (s.gapHolds[rear] !== undefined) continue;
+    const key = `${rear}:${leader}`;
+    // A pair first seen in the state before this tick began then.
+    pairs[key] = s.pairs[key] ?? s.shiftMs;
+  }
+  s.pairs = pairs;
+  s.incidents = s.incidents.filter((inc) => inc.kind !== 'service-gap' || (inc.train !== null && rears.has(inc.train)));
+  for (const [key, startMs] of Object.entries(s.pairs)) {
+    if (s.incidents.length >= INCIDENT_MAX) break;
+    const rear = s.trains.find((t) => t.id === Number(key.split(':')[0]))!;
+    if (endMs - startMs < GAP_TRIGGER_MS
+      || s.incidents.some((inc) => inc.kind === 'service-gap' && inc.train === rear.id)) continue;
+    const place = gapPlace(net, s, rear);
+    if (s.outOfService[place] || s.incidents.some((inc) => inc.place === place || inc.stations.includes(place))) continue;
+    s.incidents.push({ id: s.nextIncidentId++, kind: 'service-gap', place, stations: [], line: rear.line,
+      train: rear.id, startedMs: endMs, step: 0, extra: 0 });
+  }
+}
+
 /** Spawn and escalate against the ending time of the pending simulation tick. */
 export function stepIncidents(net: NetworkIndex, s: SimState, phase: PhaseNow): void {
   const endMs = s.shiftMs + TICK_MS;
@@ -101,6 +148,7 @@ export function stepIncidents(net: NetworkIndex, s: SimState, phase: PhaseNow): 
   for (const inc of [...s.incidents]) {
     if (endMs - inc.startedMs >= INCIDENT_LIMIT_MS) closeStation(s, inc.place, inc.kind);
   }
+  stepServiceGaps(net, s, endMs);
   if (endMs < INCIDENT_FIRST_MS || s.incidents.length >= INCIDENT_MAX) return;
   s.incidentDebt += INCIDENTS_PER_MINUTE * phase.multiplier * phase.escalation * TICK_MS / 60_000;
   while (s.incidentDebt >= 1 && s.incidents.length < INCIDENT_MAX) {
@@ -125,6 +173,7 @@ export function advanceFix(net: NetworkIndex, s: SimState, incidentId: number): 
   if (inc.step === count) {
     s.incidents.splice(s.incidents.indexOf(inc), 1);
     if (inc.kind === 'crowd-surge') disperseSurge(s, inc);
+    if (inc.kind === 'service-gap' && inc.train !== null) s.gapHolds[inc.train] = GAP_HOLD_MS;
   }
   return true;
 }

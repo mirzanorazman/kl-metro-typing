@@ -11,6 +11,7 @@ export const INCIDENT_KIND_NAME: Record<IncidentKind, string> = {
   'signal-fault': 'Signal fault',
   'train-fault': 'Train fault',
   'crowd-surge': 'Crowd surge',
+  'service-gap': 'Service gap',
 };
 
 /**

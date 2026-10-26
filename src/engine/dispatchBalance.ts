@@ -79,6 +79,10 @@ export const SKIP_MIN_AHEAD = 2;
 export const SKIP_MAX_AHEAD = 3;
 /** Trains on the same Line and direction this many blocks apart are bunched. */
 export const BUNCH_BLOCKS = 1;
+/** A bunched pair that stays together this long starts a Service gap on its rear Train. */
+export const GAP_TRIGGER_MS = 6_000;
+/** A fixed Service gap holds the rear Train at its Signal this long. */
+export const GAP_HOLD_MS = 6_000;
 /** A Green wave fires each time the clean streak reaches a multiple of this. */
 export const COMBO_EVERY = 3;
 /** Most waiting Signals one Green wave clears. */

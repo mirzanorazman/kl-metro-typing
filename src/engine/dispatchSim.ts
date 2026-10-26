@@ -43,7 +43,7 @@ export interface Train {
   lastExchange: Exchange | null;
 }
 
-export type IncidentKind = 'signal-fault' | 'train-fault' | 'crowd-surge';
+export type IncidentKind = 'signal-fault' | 'train-fault' | 'crowd-surge' | 'service-gap';
 export type OosCause = 'crowding' | IncidentKind;
 
 export interface Incident {
@@ -90,6 +90,10 @@ export interface SimState {
   /** Passengers a fixed crowd surge dispersed: neither Delivered nor Stranded. */
   dispersed: number;
   lastDispersal: Dispersal | null;
+  /** Shift time each bunched pair began, keyed `${rear}:${leader}` by Train id. */
+  pairs: Record<string, number>;
+  /** Service gap hold left per Train id, counted down while it waits at a Signal. */
+  gapHolds: Record<number, number>;
 }
 
 export interface PhaseNow {
@@ -150,11 +154,15 @@ export function nextStationId(net: NetworkIndex, t: Train): string | null {
   return ids[at] ?? null;
 }
 
-/** Numeric Train.at indices require NetworkIndex to resolve shared Station IDs. */
+/**
+ * Numeric Train.at indices require NetworkIndex to resolve shared Station IDs.
+ * A Service gap hold applies only at a Signal: a running Train keeps moving.
+ */
 export function heldTrains(net: NetworkIndex, s: SimState): Set<number> {
   const stations = heldStations(s);
   const faults = new Set(s.incidents.filter((inc) => inc.kind === 'train-fault').map((inc) => inc.train));
-  return new Set(s.trains.filter((t) => faults.has(t.id) || stations.has(nextStationId(net, t) ?? '')).map((t) => t.id));
+  return new Set(s.trains.filter((t) => faults.has(t.id) || stations.has(nextStationId(net, t) ?? '')
+    || (t.stage === 'signal' && (s.gapHolds[t.id] ?? 0) > 0)).map((t) => t.id));
 }
 
 export function originWeight(net: NetworkIndex, id: string, flow: ShiftFlow): number {
@@ -375,7 +383,7 @@ export function startShiftSim(net: NetworkIndex, served: Served, rng: number): S
     served: served.map((r) => ({ ...r })), trains: [], nextTrainId: 1, rng, shiftMs: 0,
     platforms: {}, outOfService: {}, oosOrder: [], delivered: 0, stranded: 0,
     calls: 0, onTimeCalls: 0, spawnDebt: {}, incidents: [], nextIncidentId: 1, incidentDebt: 0, entries: {},
-    dispersed: 0, lastDispersal: null,
+    dispersed: 0, lastDispersal: null, pairs: {}, gapHolds: {},
   };
   for (const id of servedStations(net, served)) {
     s.platforms[id] = { waiting: {}, fullMs: 0, lastCall: {} };
@@ -536,6 +544,8 @@ export function cloneSim(s: SimState): SimState {
     entries: { ...s.entries },
     incidents: s.incidents.map((inc) => ({ ...inc, stations: [...inc.stations] })),
     lastDispersal: s.lastDispersal && { ...s.lastDispersal },
+    pairs: { ...s.pairs },
+    gapHolds: { ...s.gapHolds },
   };
 }
 
@@ -546,12 +556,46 @@ export function trainPosition(net: NetworkIndex, t: Train): { from: string; to: 
     : { from: stations[t.at]!, to: stations[t.at]!, t: 0 };
 }
 
+/** Fractional Station index along the Line, moving between Stations while running. */
+function linePosition(net: NetworkIndex, t: Train): number {
+  return t.at + (t.stage === 'running' ? t.dir * trainPosition(net, t).t : 0);
+}
+
+/** At one position, a Train approaching the Station is behind one at its platform, which is behind one leaving. */
+const STAGE_ORDER: Record<TrainStage, number> = { signal: 0, cleared: 0, dwell: 1, turnaround: 1, running: 2 };
+
+/** True when `a` is behind `b` in their shared direction of travel. */
+function behind(a: Train, pa: number, b: Train, pb: number): boolean {
+  if (pa !== pb) return (pb - pa) * a.dir > 0;
+  if (STAGE_ORDER[a.stage] !== STAGE_ORDER[b.stage]) return STAGE_ORDER[a.stage] < STAGE_ORDER[b.stage];
+  return a.id < b.id;
+}
+
+/**
+ * Rear Train id to its leader's, for bunched Trains (as `bunchedTrains`
+ * decides) with the rear behind in the direction of travel. In a chain each
+ * Train's leader is the nearest Train ahead of it.
+ */
+export function pairedRears(net: NetworkIndex, s: SimState): Map<number, number> {
+  const positions = s.trains.map((t) => linePosition(net, t));
+  const pairs = new Map<number, number>();
+  for (let i = 0; i < s.trains.length; i++) {
+    const rear = s.trains[i]!;
+    let leader = -1;
+    for (let j = 0; j < s.trains.length; j++) {
+      const other = s.trains[j]!;
+      if (j === i || other.line !== rear.line || other.dir !== rear.dir
+        || Math.abs(positions[i]! - positions[j]!) > BUNCH_BLOCKS || !behind(rear, positions[i]!, other, positions[j]!)) continue;
+      if (leader < 0 || behind(other, positions[j]!, s.trains[leader]!, positions[leader]!)) leader = j;
+    }
+    if (leader >= 0) pairs.set(rear.id, s.trains[leader]!.id);
+  }
+  return pairs;
+}
+
 export function bunchedTrains(net: NetworkIndex, s: SimState): Set<number> {
   const bunched = new Set<number>();
-  const positions = s.trains.map((t) => {
-    const position = trainPosition(net, t);
-    return t.at + (t.stage === 'running' ? t.dir * position.t : 0);
-  });
+  const positions = s.trains.map((t) => linePosition(net, t));
   for (let i = 0; i < s.trains.length; i++) {
     const a = s.trains[i]!;
     for (let j = i + 1; j < s.trains.length; j++) {

@@ -61,6 +61,7 @@ const CAUSE_TEXT: Record<OosCause, string> = {
   'signal-fault': 'after a signal fault was left unfixed',
   'train-fault': 'after a train fault was left unfixed',
   'crowd-surge': 'after a crowd surge was left unfixed',
+  'service-gap': 'after a service gap was left unfixed',
 };
 
 function closureClause(net: NetworkIndex, c: Closure): string {
