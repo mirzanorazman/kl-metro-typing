@@ -9,7 +9,7 @@ import { buildNetwork } from '../engine/network';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { careerScore, SHIFT_MS, startCareer, type CareerState } from '../engine/dispatch';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
-import { INCIDENT_LIMIT_MS, OOS_CROWD_MS, TICK_MS, TRAVEL_MS } from '../engine/dispatchBalance';
+import { GAP_TRIGGER_MS, INCIDENT_LIMIT_MS, OOS_CROWD_MS, TICK_MS, TRAVEL_MS } from '../engine/dispatchBalance';
 import {
   applyExpansion, ERAS, eraFor, servedLines, servedStations, STARTING_NETWORK, type Expansion, type Served,
 } from '../engine/dispatchNetwork';
@@ -87,7 +87,7 @@ const renderShift = (initial?: CareerState) => render(
 );
 
 const START_TIP = "Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift.";
-const ALL_TIPS = ['lesson', 'start', 'incident', 'bunching', 'late', 'new-train', 'out-of-service', 'expansion'];
+const ALL_TIPS = ['lesson', 'start', 'incident', 'service-gap', 'late', 'new-train', 'out-of-service', 'expansion'];
 const seenTips = (ids: string[]) => saveProfile({ ...emptyProfile(), dispatchTipsSeen: ids });
 /** A profile that has seen every tip but the lesson and the start caption. */
 const fresh = () => seenTips(ALL_TIPS.filter((id) => id !== 'lesson' && id !== 'start'));
@@ -666,6 +666,69 @@ describe('DispatcherScreen', () => {
       type('x');
       expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
       expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+    });
+
+    describe('pointing at their trains', () => {
+      const REAR = 1;
+      const LEADER = 2;
+      /** A pair bunched for all but one tick: the Shift's first tick starts its Service gap. */
+      const gapCareer = () => {
+        const initial = careerWith([waiting(REAR, 'KJ', 'Kampung Baru'), waiting(LEADER, 'KJ', 'Dang Wangi')]);
+        initial.sim.pairs = { [`${REAR}:${LEADER}`]: initial.sim.shiftMs + TICK_MS - GAP_TRIGGER_MS };
+        return initial;
+      };
+      const trainEl = (id: number) => screen.getAllByTestId('dispatch-train')
+        .find((el) => el.getAttribute('data-train') === String(id))!;
+      /** Starts the Shift and lets one tick pass. */
+      const oneTick = (clock: { now: number }) => { type('D'); clock.now += TICK_MS; type('a'); };
+
+      it('a Service gap tip frames its pair and pulses both trains while it shows', () => {
+        allowMotion();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        oneTick(clock);
+        expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toMatch(/too close together/);
+        expect(mapProps().fitKey).toBe('tip:service-gap');
+        const at = (name: string) => mapProps().layout.get(idOf(name));
+        for (const name of ['Kampung Baru', 'Dang Wangi', 'KLCC']) expect(mapProps().fitTo).toContainEqual(at(name));
+        expect(trainEl(REAR).getAttribute('data-spotlight')).toBe('true');
+        expect(trainEl(LEADER).getAttribute('data-spotlight')).toBe('true');
+        press('x'); // dismiss
+        expect(mapProps().fitKey).not.toBe('tip:service-gap');
+        expect(document.querySelector('[data-spotlight]')).toBeNull();
+      });
+
+      it('under reduced motion the pointing tip keeps the camera still, and the highlight still shows', () => {
+        // beforeEach reports reduced motion.
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        const normalKey = mapProps().fitKey;
+        oneTick(clock);
+        expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toMatch(/too close together/);
+        expect(mapProps().fitKey).toBe(normalKey);
+        expect(trainEl(REAR).getAttribute('data-spotlight')).toBe('true');
+        expect(trainEl(LEADER).getAttribute('data-spotlight')).toBe('true');
+      });
+
+      it('a pointing tip whose train has gone shows without moving the camera', () => {
+        allowMotion();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        // The Shift clears on the tick its Service gap starts: between Shifts its trains are out of play.
+        const initial = gapCareer();
+        initial.gameMs = SHIFT_MS - TICK_MS;
+        initial.sim.shiftMs = SHIFT_MS - TICK_MS;
+        initial.sim.pairs = { [`${REAR}:${LEADER}`]: SHIFT_MS - GAP_TRIGGER_MS };
+        initial.startedAt = clock.now - initial.gameMs;
+        renderShift(initial);
+        oneTick(clock);
+        expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+        expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toMatch(/too close together/);
+        expect(mapProps().fitKey).toMatch(/^dispatch:.*:offers$/);
+        expect(document.querySelector('[data-spotlight]')).toBeNull();
+      });
     });
   });
 

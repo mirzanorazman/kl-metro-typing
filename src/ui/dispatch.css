@@ -415,6 +415,27 @@
   filter: drop-shadow(0 0 3px var(--ink-muted));
 }
 
+/* A tip's trains: a ring that swells and fades round each while the tip
+   shows. It never fades out entirely, so the trains stay picked out. */
+.dispatch-spotlight-ring {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2.5px;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dispatch-spotlight 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes dispatch-spotlight {
+  from { transform: scale(0.85); opacity: 0.95; }
+  to { transform: scale(1.25); opacity: 0.35; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* A steady ring: the trains are still picked out, nothing moves. */
+  .dispatch-spotlight-ring { animation: none; opacity: 0.9; }
+}
+
 .dispatch-chip rect {
   fill: var(--panel);
   stroke: var(--ink-muted);

@@ -48,7 +48,9 @@ import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
 import { DispatchSummary } from './DispatchSummary';
-import { dispatchTipText, newDispatchTips, type DispatchTipId } from './dispatchTips';
+import {
+  dispatchTipText, newDispatchTips, tipSubject, type DispatchTipId, type TipSubject,
+} from './dispatchTips';
 import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
 import { useGameInput } from './TypingInputProvider';
@@ -172,6 +174,15 @@ function leanIn(
     stations: [...new Set([...near, ...waiting])],
     key: `fix:${incident.id}:${[...waiting].sort().join(',')}`,
   };
+}
+
+/** The Stations a tip about trains frames: those it is about, and each of its trains' own. */
+function subjectStations(net: NetworkIndex, sim: CareerState['sim'], subject: TipSubject): string[] {
+  const at = subject.trains.flatMap((id) => {
+    const train = sim.trains.find((t) => t.id === id);
+    return train ? [net.lines.get(train.line)!.stations[train.at]!] : [];
+  });
+  return [...new Set([...subject.stations, ...at])];
 }
 
 /** The panels floating over the Dispatcher's map: the top bar, the Incidents panel and the typing panel. */
@@ -604,6 +615,15 @@ export function DispatcherScreen({
   const visited = lessonServed ?? served;
   const labelled = dispatchLabelled(net, shown, visited, targets);
   const leanFrame = lean?.stations.map((id) => layout.get(id)).filter((p): p is Point => p !== undefined);
+  // A tip about trains points at them while it pauses the Career: the camera
+  // leans in on them and the Stations they are about, and they pulse. Reduced
+  // motion keeps the camera still; the pulse becomes a steady ring. Its frame
+  // wins over a typed fix's lean-in.
+  const subject = tips[0] && !lesson ? tipSubject(net, run, tips[0]) : null;
+  const spotlight = subject ? new Set(subject.trains) : undefined;
+  const tipFrame = subject && !prefersReducedMotion()
+    ? subjectStations(net, run.sim, subject).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
+    : null;
 
   // The urgent edge holds off behind the Pause and Tip dialogs.
   const urgent = fixing && run.status === 'running' && tips.length === 0;
@@ -632,12 +652,13 @@ export function DispatcherScreen({
             backdrop={backdrop}
             districts={districts}
             emphasisSet={lessonLines ?? lines}
-            fitTo={lesson ? lessonFrame : leanFrame ?? frame}
-            fitKey={lesson ? 'dispatch:lesson' : lean?.key ?? frameKey}
+            fitTo={lesson ? lessonFrame : tipFrame ?? leanFrame ?? frame}
+            fitKey={lesson ? 'dispatch:lesson' : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey}
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
             overlay={({ layout: l, markScale, view, screen, tracks }) => (
               <DispatchOverlay net={net} layout={l} markScale={markScale} career={shown} targets={targets} aimed={aimed}
-                moments={moments} frame={overlayFrame(view, screen, panels)} tracks={tracks} stamping={stamping} />
+                moments={moments} frame={overlayFrame(view, screen, panels)} tracks={tracks} stamping={stamping}
+                spotlight={spotlight} />
             )}
           />
         }

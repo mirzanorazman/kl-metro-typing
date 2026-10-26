@@ -4,7 +4,9 @@ import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { startCareer, type CareerState } from '../engine/dispatch';
 import { cloneSim, type Dir, type Incident, type OosCause, type Train } from '../engine/dispatchSim';
-import { DISPATCH_TIPS, closureText, dispatchTipText, failureText, newDispatchTips } from './dispatchTips';
+import {
+  DISPATCH_TIPS, closureText, dispatchTipText, failureText, newDispatchTips, tipSubject,
+} from './dispatchTips';
 
 const net = buildNetwork(loadNetworkData());
 const none = new Set<string>();
@@ -54,11 +56,29 @@ describe('newDispatchTips', () => {
     expect(newDispatchTips(net, next, next, none)).toEqual([]);
   });
 
-  it('sees Trains start bunching', () => {
-    const prev = running([waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Bangsar')]);
-    const next = running([waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Ampang Park')]);
-    expect(newDispatchTips(net, prev, next, none)).toEqual(['bunching']);
-    expect(newDispatchTips(net, next, next, none)).toEqual([]);
+  it('sees the first Service gap start, and not as a generic Incident', () => {
+    const prev = running([waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Dang Wangi')]);
+    const next = withSim(prev, (sim) => { sim.incidents.push({ ...fault, id: 9, kind: 'service-gap', stations: [], train: 2 }); });
+    expect(newDispatchTips(net, prev, next, none)).toEqual(['service-gap']);
+  });
+
+  it('tipSubject points at the Service gap pair and its place, or the late train, and null when gone', () => {
+    // Rear at Kampung Baru, its leader one block ahead at Dang Wangi.
+    const pair = withSim(running([waiting(1, 'KJ', 'Kampung Baru'), waiting(2, 'KJ', 'Dang Wangi')]), (sim) => {
+      sim.incidents.push({ ...fault, id: 4, kind: 'service-gap', place: idOf('KLCC'), stations: [], train: 1 });
+    });
+    expect(tipSubject(net, pair, 'service-gap')).toEqual({ trains: [1, 2], stations: [idOf('KLCC')] });
+    expect(tipSubject(net, withSim(pair, (sim) => { sim.trains = sim.trains.filter((t) => t.id !== 1); }), 'service-gap'))
+      .toBeNull();
+    expect(tipSubject(net, withSim(pair, (sim) => { sim.incidents = []; }), 'service-gap')).toBeNull();
+
+    const late = withSim(running([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Bangsar', -1)]), (sim) => {
+      sim.shiftMs = 600_000;
+    });
+    expect(tipSubject(net, late, 'late')).toEqual({ trains: [1], stations: [idOf('Jelatek')] });
+    expect(tipSubject(net, withSim(late, (sim) => { sim.trains = []; }), 'late')).toBeNull();
+
+    expect(tipSubject(net, pair, 'expansion')).toBeNull();
   });
 
   it('sees a late Train offer a Station further ahead', () => {
@@ -98,8 +118,11 @@ describe('newDispatchTips', () => {
   });
 
   it('ignores the fresh sim of a new Shift', () => {
-    const prev = running([waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Bangsar')]);
-    const next = { ...running([waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Ampang Park')]), shift: 2 };
+    const prev = running([waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Dang Wangi')]);
+    const next = {
+      ...withSim(prev, (sim) => { sim.incidents.push({ ...fault, id: 9, kind: 'service-gap', stations: [], train: 2 }); }),
+      shift: 2,
+    };
     expect(newDispatchTips(net, prev, next, none)).toEqual([]);
   });
 
@@ -115,15 +138,19 @@ describe('newDispatchTips', () => {
   });
 
   it('has the agreed copy, in Dispatcher vocabulary', () => {
-    expect(DISPATCH_TIPS.map((t) => t.id)).toEqual(['start', 'incident', 'bunching', 'late', 'new-train', 'out-of-service', 'expansion']);
+    expect(DISPATCH_TIPS.map((t) => t.id))
+      .toEqual(['start', 'incident', 'service-gap', 'late', 'new-train', 'out-of-service', 'expansion']);
     expect(dispatchTipText('start'))
       .toBe("Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift.");
     expect(dispatchTipText('start')).toMatch(/red signal/);
     expect(dispatchTipText('incident'))
       .toBe('An incident holds trains until you type its fix. Left too long, the station goes out of service.');
-    expect(dispatchTipText('bunching'))
-      .toBe('Trains are bunching. Holding one back (not clearing it) evens out the gaps.');
-    expect(dispatchTipText('late')).toBe('A late train offers a station further ahead. Type that to run it express.');
+    expect(dispatchTipText('service-gap')).toBe(
+      'You sent these two trains too close together, so the Station behind them has no train coming. Type the fix to hold the second one, or leave it at its signal for a moment.',
+    );
+    expect(dispatchTipText('late')).toBe(
+      'This train is late: its next platform has waited too long. Type the farther Station on its name to run it express.',
+    );
     expect(dispatchTipText('new-train')).toBe(
       'A new train has joined at the end of the line. Trains join during the peaks until each line has its full fleet; longer lines get more trains.',
     );

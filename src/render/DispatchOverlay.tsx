@@ -31,9 +31,12 @@ export interface DispatchOverlayProps {
   tracks?: ReadonlyMap<LineCode, readonly Point[]> | null;
   /** Stations whose closure is still fresh: their X stamps in, with a ring when motion is allowed. */
   stamping?: ReadonlySet<string>;
+  /** Trains a tip is about: each pulses a ring, a steady one under reduced motion. */
+  spotlight?: ReadonlySet<number>;
 }
 
 const NO_STAMPING: ReadonlySet<string> = new Set();
+const NO_SPOTLIGHT: ReadonlySet<number> = new Set();
 
 const CROSS_ICON = 'M-0.55,-0.55 L0.55,0.55 M0.55,-0.55 L-0.55,0.55';
 
@@ -151,11 +154,11 @@ function linePoints(
  * post whose lamp turns from red to green when it is Cleared, and a Green wave
  * sends a pulse along its Line. Passenger moments pop up beside their
  * Stations: who moved at a call the player cleared, and a fixed Crowd surge's
- * crowd draining away.
+ * crowd draining away. The trains a tip is about pulse while it shows.
  */
 export function DispatchOverlay({
   net, layout, markScale: m, career, targets, aimed, moments = NO_MOMENTS, frame = null, tracks = null,
-  stamping = NO_STAMPING,
+  stamping = NO_STAMPING, spotlight = NO_SPOTLIGHT,
 }: DispatchOverlayProps) {
   const { sim, aim } = career;
   const { marks, pulse } = useSignalMarks(net, career, targets);
@@ -292,9 +295,13 @@ export function DispatchOverlay({
             data-train={t.id}
             data-held={held.has(t.id) ? 'true' : undefined}
             data-bunched={bunched.has(t.id) ? 'true' : undefined}
+            data-spotlight={spotlight.has(t.id) ? 'true' : undefined}
             className="dispatch-train"
             transform={`translate(${at.x} ${at.y}) rotate(${upright})`}
           >
+            {spotlight.has(t.id) && (
+              <circle className="dispatch-spotlight-ring" r={w * 0.8} vectorEffect="non-scaling-stroke" />
+            )}
             {bunched.has(t.id) && (
               <rect className="dispatch-bunch-ring" x={-w / 2 - 3 * m} y={-h / 2 - 3 * m}
                 width={w + 6 * m} height={h + 6 * m} rx={4 * m} vectorEffect="non-scaling-stroke" />
