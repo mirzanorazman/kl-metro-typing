@@ -16,6 +16,7 @@ import {
 import { TrainMarker, tweenPoint } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
 import { DRAW_EASE, type EntranceTiming } from './entrance';
+import { linePoints, rangeIds, rangeStations, type LineRange } from './trackRanges';
 
 /** Where the focused point sits vertically; above centre, clear of the panel. */
 const FOCUS_BIAS_Y = 0.34;
@@ -89,6 +90,8 @@ export interface MapCanvasProps {
   emphasis?: LineCode | null;
   /** When set, lines outside it and stations serving none of it are dimmed. */
   emphasisSet?: ReadonlySet<LineCode> | null;
+  /** When supplied, only these inclusive stretches and their Stations are bright. */
+  emphasisRanges?: readonly LineRange[] | null;
   /**
    * Stations that want a name at any zoom while on screen, after interchanges
    * and termini — for a mode that plays on a whole network at once.
@@ -153,6 +156,7 @@ export function MapCanvas({
   backdrop,
   emphasis,
   emphasisSet,
+  emphasisRanges = null,
   labelled = null,
   minMarkPx = null,
   laneOffsetPx = 0,
@@ -276,10 +280,9 @@ export function MapCanvas({
     const units = screen.w > 0 ? laneOffsetPx / pxPerUnit(view, screen) : laneOffsetPx * markScale;
     return trackLines(net, layout, units);
   }, [laneOffsetPx, net, layout, view, screen, markScale]);
-  const linePoints = (code: LineCode, ids: readonly string[]) => {
-    const pts = tracks?.get(code);
-    return pts ? pts.map((p) => `${p.x},${p.y}`).join(' ') : pointsOf(ids);
-  };
+  const pointsFor = (code: LineCode, ids: readonly string[]) => linePoints(net, layout, tracks, code, ids);
+  const served = useMemo(() => emphasisRanges === null ? null : rangeStations(net, emphasisRanges),
+    [net, emphasisRanges]);
 
   // Labelling all 154 at once is noise, so labels come in tiers; see mapLabels.
   const tiers = useMemo(() => labelTiers(net), [net]);
@@ -358,14 +361,14 @@ export function MapCanvas({
           </text>
         ))}
 
-      {emphasis &&
+      {emphasisRanges === null && emphasis &&
         (() => {
           const line = net.lines.get(emphasis);
           if (!line) return null;
           return (
             <polyline
               className="track-glow"
-              points={linePoints(line.code, line.stations)}
+              points={pointsFor(line.code, line.stations)}
               fill="none"
               stroke={line.colour}
               vectorEffect="non-scaling-stroke"
@@ -376,7 +379,7 @@ export function MapCanvas({
         })()}
 
       {[...net.lines.values()].map((line) => {
-        const pts = linePoints(line.code, line.stations);
+        const pts = pointsFor(line.code, line.stations);
         // pathLength normalises the stroke to 1, so the dash that hides the
         // undrawn stretch is written in fractions and needs no measuring.
         const draw = entrance?.line.get(line.code);
@@ -385,6 +388,7 @@ export function MapCanvas({
             key={line.code}
             data-line={line.code}
             data-dim={
+              emphasisRanges !== null ||
               (emphasis && line.code !== emphasis) || (emphasisSet && !emphasisSet.has(line.code))
                 ? 'true'
                 : undefined
@@ -403,6 +407,25 @@ export function MapCanvas({
             points={pts}
             fill="none"
             stroke={line.colour}
+            strokeWidth={6}
+            vectorEffect="non-scaling-stroke"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        );
+      })}
+
+      {emphasisRanges?.map((range) => {
+        const ids = rangeIds(net, range);
+        const points = pointsFor(range.line, ids);
+        if (points.split(' ').filter(Boolean).length < 2) return null;
+        return (
+          <polyline
+            key={`${range.line}:${range.from}:${range.to}`}
+            data-served-line={range.line}
+            points={points}
+            fill="none"
+            stroke={net.lines.get(range.line)!.colour}
             strokeWidth={6}
             vectorEffect="non-scaling-stroke"
             strokeLinecap="round"
@@ -442,8 +465,9 @@ export function MapCanvas({
           const colour = first ? net.lines.get(first)?.colour : undefined;
           const r = (isActive ? STATION_R.active : isInterchange ? STATION_R.interchange : STATION_R.stop) * markScale;
           const dim =
-            (emphasis && !codes.includes(emphasis)) ||
-            (emphasisSet && !codes.some((c) => emphasisSet.has(c)))
+            (served !== null ? !served.has(station.id) :
+              (emphasis && !codes.includes(emphasis)) ||
+              (emphasisSet && !codes.some((c) => emphasisSet.has(c))))
               ? 'true'
               : undefined;
           const pop = entrance?.station.get(station.id);

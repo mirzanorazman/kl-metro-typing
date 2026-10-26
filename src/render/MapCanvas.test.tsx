@@ -315,6 +315,99 @@ describe('MapCanvas track states', () => {
   });
 });
 
+describe('MapCanvas served ranges', () => {
+  const kj = net.lines.get('KJ')!.stations;
+
+  it('paints only the inclusive served stretch above faded full tracks', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null}
+        emphasis="KJ" emphasisSet={new Set(['SP'])}
+        emphasisRanges={[{ line: 'KJ', from: 4, to: 17 }]} />,
+    );
+    expect(container.querySelectorAll('polyline[data-line]')).toHaveLength(7);
+    for (const track of container.querySelectorAll('polyline[data-line]')) {
+      expect(track.getAttribute('data-dim')).toBe('true');
+    }
+    const base = container.querySelector('polyline[data-line="KJ"]')!;
+    const served = container.querySelector('polyline[data-served-line="KJ"]')!;
+    expect(served).not.toBeNull();
+    expect(base.getAttribute('points')!.split(' ')).toHaveLength(kj.length);
+    expect(served.getAttribute('points')).toBe(kj.slice(4, 18)
+      .map((id) => `${layout.get(id)!.x},${layout.get(id)!.y}`).join(' '));
+    expect(served.getAttribute('stroke')).toBe(net.lines.get('KJ')!.colour);
+    expect(served.getAttribute('stroke-width')).toBe('6');
+    expect(served.getAttribute('vector-effect')).toBe('non-scaling-stroke');
+    expect(container.querySelector('.track-glow')).toBeNull();
+    for (const [index, dim] of [[3, 'true'], [4, null], [17, null], [18, 'true']] as const) {
+      expect(container.querySelector(`circle[data-station="${kj[index]}"]`)!.getAttribute('data-dim')).toBe(dim);
+    }
+  });
+
+  it.each(['masjid-jamek', 'putra-heights'])('dims the label and interchange core by membership at %s', (id) => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={id}
+        emphasisRanges={[{ line: 'KJ', from: 4, to: 17 }]} />,
+    );
+    const dim = kj.slice(4, 18).includes(id) ? null : 'true';
+    for (const selector of [`circle[data-station="${id}"]`, `circle[data-core="${id}"]`, `text[data-label="${id}"]`]) {
+      const element = container.querySelector(selector);
+      expect(element, selector).not.toBeNull();
+      expect(element!.getAttribute('data-dim')).toBe(dim);
+    }
+  });
+
+  it('preserves full shared-track lanes while painting only the served AG subset', () => {
+    const ag = net.lines.get('AG')!.stations;
+    const index = ag.indexOf('masjid-jamek');
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation="masjid-jamek"
+        laneOffsetPx={7} emphasisRanges={[{ line: 'AG', from: index - 1, to: index + 1 }]} />,
+    );
+    const agPoints = container.querySelector('polyline[data-line="AG"]')!.getAttribute('points')!.split(' ');
+    const sp = container.querySelector('polyline[data-line="SP"]')!;
+    const spIndex = net.lines.get('SP')!.stations.indexOf('masjid-jamek');
+    expect(agPoints[index]).not.toBe(sp.getAttribute('points')!.split(' ')[spIndex]);
+    expect(sp.getAttribute('data-dim')).toBe('true');
+    expect(container.querySelector('circle[data-station="masjid-jamek"]')!.getAttribute('data-dim')).toBeNull();
+    expect(container.querySelector('polyline[data-served-line="AG"]')!.getAttribute('points'))
+      .toBe(agPoints.slice(index - 1, index + 2).join(' '));
+    expect(container.querySelector('polyline[data-served-line="SP"]')).toBeNull();
+  });
+
+  it('treats empty ranges as an entirely faded network', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set(['masjid-jamek'])} activeStation="masjid-jamek"
+        emphasis="KJ" emphasisSet={new Set(['KJ'])} emphasisRanges={[]} />,
+    );
+    expect(container.querySelectorAll('polyline[data-served-line]')).toHaveLength(0);
+    for (const mark of container.querySelectorAll('polyline[data-line], circle[data-station], circle[data-core], text[data-label]')) {
+      expect(mark.getAttribute('data-dim')).toBe('true');
+    }
+    expect(container.querySelector('.track-glow')).toBeNull();
+  });
+
+  it('keeps a one-Station range bright without drawing a rail', () => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null}
+        emphasisRanges={[{ line: 'KJ', from: 4, to: 4 }]} />,
+    );
+    expect(container.querySelector('polyline[data-served-line]')).toBeNull();
+    expect(container.querySelector(`circle[data-station="${kj[4]}"]`)!.getAttribute('data-dim')).toBeNull();
+    expect(container.querySelector(`circle[data-station="${kj[5]}"]`)!.getAttribute('data-dim')).toBe('true');
+  });
+
+  it.each([undefined, null])('keeps whole-Line emphasis when ranges are %s', (emphasisRanges) => {
+    const { container } = render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null}
+        emphasisSet={new Set(['KJ'])} emphasisRanges={emphasisRanges} />,
+    );
+    expect(container.querySelector('polyline[data-line="KJ"]')!.getAttribute('data-dim')).toBeNull();
+    expect(container.querySelector('polyline[data-line="SP"]')!.getAttribute('data-dim')).toBe('true');
+    expect(container.querySelector(`circle[data-station="${kj[3]}"]`)!.getAttribute('data-dim')).toBeNull();
+    expect(container.querySelector('polyline[data-served-line]')).toBeNull();
+  });
+});
+
 describe('MapCanvas labels', () => {
   it('labels the significant stations, not all 154', () => {
     const { container } = render(

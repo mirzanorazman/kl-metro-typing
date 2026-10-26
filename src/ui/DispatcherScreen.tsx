@@ -591,8 +591,6 @@ export function DispatcherScreen({
   const lessonServedKey = lesson ? servedKey(lesson.career.served) : null;
   const lessonServed = useMemo(() => (lesson ? new Set(servedStations(net, lesson.career.served)) : null),
     [net, lessonServedKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  const lessonLines = useMemo(() => (lesson ? new Set(servedLines(lesson.career.served)) : null),
-    [lessonServedKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const lessonFrame = useMemo(() => lessonStations(net).map((id) => layout.get(id))
     .filter((p): p is Point => p !== undefined), [net, layout]);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -663,7 +661,7 @@ export function DispatcherScreen({
             activeStation={null}
             backdrop={backdrop}
             districts={districts}
-            emphasisSet={lessonLines ?? lines}
+            emphasisRanges={lesson?.career.served ?? run.served}
             fitTo={lesson ? lessonFrame : tipFrame ?? leanFrame ?? frame}
             fitKey={lesson ? 'dispatch:lesson' : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey}
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}

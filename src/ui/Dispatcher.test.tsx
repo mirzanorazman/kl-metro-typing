@@ -169,6 +169,13 @@ describe('DispatcherScreen', () => {
     }
   });
 
+  it('passes the Career served ranges to the map', () => {
+    const initial = careerWith([], [{ line: 'KJ', from: 2, to: 17 }, { line: 'AG', from: 10, to: 12 }]);
+    renderShift(initial);
+    expect(mapProps().emphasisRanges).toEqual(initial.served);
+    expect(mapProps().emphasisSet).toBeUndefined();
+  });
+
   it("each Held Train shows its Signal's Station name", () => {
     const initial = startCareer(net, 7);
     renderShift(initial);
@@ -1302,6 +1309,7 @@ describe('The guided first Shift', () => {
     renderLesson();
     expect(screen.getByText('This train is waiting at a red signal. Type Jelatek to send it on.')).toBeTruthy();
     expect(mapProps().fitKey).toBe('dispatch:lesson');
+    expect(mapProps().emphasisRanges).toEqual([{ line: 'KJ', from: 3, to: 6 }]);
     expect(signalLabels().map((el) => el.textContent)).toEqual(['Jelatek']);
     expect(screen.queryByTestId('streak')).toBeNull();
   });
