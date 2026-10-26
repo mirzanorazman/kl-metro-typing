@@ -2,7 +2,7 @@ import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject,
 } from 'react';
 import { music, sound } from '../audio/sound';
-import type { LineCode, Point } from '../data/types';
+import type { Point } from '../data/types';
 import type { KeySource } from '../engine/keylog';
 import type { NetworkIndex } from '../engine/network';
 import {
@@ -28,7 +28,6 @@ import { DISPATCH_KEYLOG_MAX_EVENTS } from '../engine/dispatchBalance';
 import { LESSON_SEEN, lessonStations } from '../engine/dispatchLesson';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { servedKey, servedLines, servedStations } from '../engine/dispatchNetwork';
-import type { Incident } from '../engine/dispatchSim';
 import { candidates, sameRef, visibleTargets, type Target } from '../engine/dispatchTargets';
 import type { TypingState } from '../engine/typing';
 import { networkLayout } from '../geo/networkLayout';
@@ -45,11 +44,12 @@ import { clearedSignals, liveMarks, useFreshWave, waveNoteDelays } from '../rend
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { ClosureGauge, closureBand } from './ClosureGauge';
 import { ConfirmEndButton } from './ConfirmEndButton';
+import { leanIn, subjectStations } from './dispatchCamera';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
 import { DispatchSummary } from './DispatchSummary';
 import {
-  dispatchTipText, newDispatchTips, tipSubject, type DispatchTipId, type TipSubject,
+  dispatchTipText, newDispatchTips, tipSubject, type DispatchTipId,
 } from './dispatchTips';
 import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
@@ -145,56 +145,6 @@ function ShiftBar({ career, lines, stations, grown, closed, slots, fresh }: {
       </dl>
     </header>
   );
-}
-
-/**
- * The frame while a fix is typed: a lean towards the Incident, never a
- * close-up. It holds the place and its Served neighbours on its Line, so the
- * shot never closes in on one dot, and every waiting train's Station, so no
- * train waits out of view. The key carries the waiting Stations: one that
- * starts waiting mid-fix moves the key, and the map refits to take it in.
- */
-function leanIn(
-  net: NetworkIndex, sim: CareerState['sim'], incident: Incident, targets: readonly Target[],
-  served: ReadonlySet<string>,
-): { stations: string[]; key: string } {
-  const near = withNeighbours(net, incident.line, incident.place, served);
-  const waiting = new Set<string>();
-  for (const target of targets) {
-    if (target.ref.kind === 'fix') continue;
-    const id = target.ref.train;
-    const train = sim.trains.find((t) => t.id === id);
-    const station = train && net.lines.get(train.line)!.stations[train.at];
-    if (station) waiting.add(station);
-  }
-  return {
-    stations: [...new Set([...near, ...waiting])],
-    key: `fix:${incident.id}:${[...waiting].sort().join(',')}`,
-  };
-}
-
-/** A Station and its Served neighbours on `line`: a frame that never closes in on one dot. */
-function withNeighbours(net: NetworkIndex, line: LineCode, station: string, served: ReadonlySet<string>): string[] {
-  const ids = net.lines.get(line)!.stations;
-  const at = ids.indexOf(station);
-  if (at < 0) return [station];
-  return [ids[at - 1], station, ids[at + 1]]
-    .filter((id): id is string => id !== undefined && (id === station || served.has(id)));
-}
-
-/**
- * The Stations a tip about trains frames, with the lean-in's framing: those it
- * is about and each of its trains' own, each with its Served neighbours on the
- * trains' Line.
- */
-function subjectStations(
-  net: NetworkIndex, sim: CareerState['sim'], subject: TipSubject, served: ReadonlySet<string>,
-): string[] {
-  const trains = subject.trains.flatMap((id) => sim.trains.filter((t) => t.id === id));
-  const at = trains.map((train) => net.lines.get(train.line)!.stations[train.at]!);
-  const lines = [...new Set(trains.map((train) => train.line))];
-  return [...new Set([...subject.stations, ...at].flatMap((station) => lines.length === 0 ? [station]
-    : lines.flatMap((line) => withNeighbours(net, line, station, served))))];
 }
 
 /** The panels floating over the Dispatcher's map: the top bar, the Incidents panel and the typing panel. */
