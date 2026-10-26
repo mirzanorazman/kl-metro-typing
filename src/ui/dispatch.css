@@ -145,6 +145,32 @@
   overflow-y: auto;
 }
 
+/* Keep each count and its growth visible when the desktop row cannot fit.
+   The gauge gets its own row, and the Incidents start below the taller bar. */
+@media (max-width: 899px) {
+  .dispatch-bar {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .dispatch-shift { grid-column: 1; grid-row: 1; white-space: nowrap; }
+  .dispatch-phase { grid-column: 2; grid-row: 1; min-width: 0; }
+  .dispatch-left { grid-column: 3; grid-row: 1; white-space: nowrap; }
+  .dispatch-clock { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+  .dispatch-bar .closure-gauge { grid-column: 1 / -1; }
+
+  .dispatch-stats {
+    grid-column: 1 / -1;
+    grid-auto-flow: row;
+    grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 0.25rem var(--s);
+  }
+
+  .dispatch-stats dt { white-space: nowrap; }
+  .dispatch-stats dd { margin: 0; text-align: right; white-space: nowrap; }
+  .dispatch-side { top: calc(var(--s2) + 8rem); }
+}
+
 .dispatch-calm {
   margin: 0;
   padding: var(--s) var(--s2);
