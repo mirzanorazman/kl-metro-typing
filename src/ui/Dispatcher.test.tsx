@@ -25,6 +25,7 @@ import { ClosureGauge, closureBand } from './ClosureGauge';
 import { closureText, failureText } from './dispatchTips';
 import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
+import { DISPATCH_CAMERA_KEY } from './useCloseCamera';
 import { liveMarks, RIPPLE_LEAD_MS, RIPPLE_STEP_MS } from '../render/useSignalMarks';
 import { MapCanvas } from '../render/MapCanvas';
 import { DispatchOverlay } from '../render/DispatchOverlay';
@@ -2178,5 +2179,54 @@ describe('DispatchSummary', () => {
     expect(screen.queryByText('Checking your Career…')).toBeNull();
     expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
     expect(screen.queryByRole('textbox', { name: 'Your name' })).toBeNull();
+  });
+});
+
+describe('the dev camera panel', () => {
+  const toggle = () => screen.getByRole('checkbox', { name: 'Close camera' }) as HTMLInputElement;
+  const doneKeys = () => screen.getByTestId('dispatch-typing').querySelectorAll('[data-state="done"]').length;
+
+  it('is on the Dispatcher screen, off by default', () => {
+    renderShift();
+    expect(toggle().checked).toBe(false);
+  });
+
+  it('keeps its settings in browser storage', () => {
+    const { unmount } = renderShift();
+    fireEvent.click(toggle());
+    unmount();
+    renderShift();
+    expect(toggle().checked).toBe(true);
+  });
+
+  it('falls back to the defaults when storage holds bad JSON', () => {
+    localStorage.setItem(DISPATCH_CAMERA_KEY, '{');
+    renderShift();
+    expect(toggle().checked).toBe(false);
+  });
+
+  it('falls back to the defaults when storage throws', () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    try {
+      renderShift();
+      expect(toggle().checked).toBe(false);
+    } finally {
+      getItem.mockRestore();
+    }
+  });
+
+  it('typing after using the panel reaches the game', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    toggle().focus();
+    fireEvent.click(toggle());
+    type('J');
+    expect(doneKeys()).toBe(1);
+  });
+
+  it('a key pressed on a focused panel control does not reach the game', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    toggle().focus();
+    fireEvent.keyDown(toggle(), { key: 'J' });
+    expect(doneKeys()).toBe(0);
   });
 });

@@ -44,7 +44,8 @@ import { clearedSignals, liveMarks, useFreshWave, waveNoteDelays } from '../rend
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { ClosureGauge, closureBand } from './ClosureGauge';
 import { ConfirmEndButton } from './ConfirmEndButton';
-import { leanIn, subjectStations } from './dispatchCamera';
+import { closeness, leanIn, subjectStations } from './dispatchCamera';
+import { DispatchCameraPanel } from './DispatchCameraPanel';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
 import { DispatchSummary } from './DispatchSummary';
@@ -55,6 +56,7 @@ import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
 import { useGameInput } from './TypingInputProvider';
 import { lessonCaption, useDispatchLesson } from './useDispatchLesson';
+import { useCloseCamera } from './useCloseCamera';
 import { useFailHold } from './useFailHold';
 import { runTick, useRunRecorder } from './useRunRecorder';
 import './dispatch.css';
@@ -270,6 +272,9 @@ export function DispatcherScreen({
   const [openedAt] = useState(runTick);
   const recorder = useRunRecorder(openedAt, DISPATCH_KEYLOG_MAX_EVENTS);
   const actions = useRef<DispatchAction[]>([]);
+
+  // The close camera, tuned from the dev camera panel (development only).
+  const [camera, setCamera] = useCloseCamera();
 
   // Tips: the seen list is read once; a tip is marked seen when it is shown.
   const seenTips = useRef(new Set(loadProfile().dispatchTipsSeen ?? []));
@@ -695,6 +700,10 @@ export function DispatcherScreen({
         <DispatchIncidents net={net} career={run}
           closing={freshClosings(closings, run.sim.shiftMs, CLOSING_CARD_MS).filter((c) => c.incident !== null)} />
       </aside>
+      {import.meta.env.DEV && (
+        <DispatchCameraPanel settings={camera} onChange={setCamera} stations={served.size}
+          closenessNow={closeness(served.size, camera)} />
+      )}
     </div>
   );
 }
