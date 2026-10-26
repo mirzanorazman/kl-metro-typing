@@ -178,8 +178,18 @@ The gap between consecutive Trains on a Line in one direction.
 Two or more Trains running close together with a large gap behind them.
 
 **Incident**:
-A breakdown at a place on the network that holds or slows Trains until fixed.
+A problem at a place on the network that holds or slows Trains until its fix
+is typed: a random breakdown (signal fault, train fault, crowd surge), or a
+player-caused Service gap. Left unfixed too long, its place goes Out of
+service.
 _Avoid_: fire, issue, event
+
+**Service gap**:
+A player-caused Incident: two Trains on one Line and direction stay within one
+block of each other for too long, so the Station behind them waits longer. It
+is fixed by holding the rear Train ("Hold at <Station>"), or ends by itself
+when the pair separates.
+_Avoid_: bunching incident
 
 **Out of service**:
 A Station or stretch that has collapsed and no longer carries Passengers.
