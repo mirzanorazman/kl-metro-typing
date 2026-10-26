@@ -482,6 +482,10 @@ close. Off, the camera is exactly as before.
 fix landed and kept today's lean-in while typing. Playing it, the user saw
 the zoom arrive after the fix and called it a bug: the intent was always
 zoom in while typing, out on the clear. The hold and its slider are gone.
+The new-train and out-of-service tips now point too (2026-10-27): the first
+at the train that joined (it pulses), the second at the closed Station and
+its neighbours. Like the Service gap and late tips, they lean in with the
+close camera off and zoom close with it on. Seen live in Shift 1.
 
 Probe (`DISPATCH_PROBE=1 npx vitest run src/ui/dispatchCameraProbe.test.ts`,
 60 WPM, seeds 1–5), zoom against the normal frame, median:

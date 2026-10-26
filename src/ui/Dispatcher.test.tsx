@@ -634,6 +634,27 @@ describe('DispatcherScreen', () => {
       expect(loadProfile().dispatchTipsSeen).toContain('start');
     });
 
+    it('the out-of-service tip points at the closed Station and its neighbours, close with the close camera', () => {
+      allowMotion();
+      closeCameraOn();
+      seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
+      const clock = fakeClock();
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
+      initial.sim.platforms[idOf('KLCC')] = {
+        waiting: { [idOf('KL Sentral')]: 200 }, fullMs: OOS_CROWD_MS - 100, lastCall: {},
+      };
+      renderShift(initial);
+      type('J');
+      clock.now += 100;
+      type('e');
+      expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toContain('A station is out of service.');
+      expect(mapProps().fitKey).toMatch(/^tip:out-of-service:close:/);
+      expect(mapProps().fitView!.w).toBeLessThan(normalBox(initial.served).w);
+      const kj = net.lines.get('KJ')!.stations;
+      const i = kj.indexOf(idOf('KLCC'));
+      for (const id of [kj[i - 1]!, kj[i]!, kj[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
+    });
+
     it('a tip ignores the keys of a Station name; only Enter dismisses it', () => {
       seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
       const clock = fakeClock();

@@ -71,17 +71,20 @@ export function withNeighbours(net: NetworkIndex, line: LineCode, station: strin
 }
 
 /**
- * The Stations a tip about trains frames, with the lean-in's framing: those it
- * is about and each of its trains' own, each with its Served neighbours on the
- * trains' Line.
+ * The Stations a tip frames, with the lean-in's framing: those it is about and
+ * each of its trains' own, each with its Served neighbours on the trains' Line.
+ * A tip about no train (a closed Station) takes the neighbours on every Line
+ * through each Station.
  */
 export function subjectStations(
   net: NetworkIndex, sim: CareerState['sim'], subject: TipSubject, served: ReadonlySet<string>,
 ): string[] {
   const trains = subject.trains.flatMap((id) => sim.trains.filter((t) => t.id === id));
   const at = trains.map((train) => net.lines.get(train.line)!.stations[train.at]!);
-  const lines = [...new Set(trains.map((train) => train.line))];
-  return [...new Set([...subject.stations, ...at].flatMap((station) => lines.length === 0 ? [station]
-    : lines.flatMap((line) => withNeighbours(net, line, station, served))))];
+  const trainLines = [...new Set(trains.map((train) => train.line))];
+  const linesThrough = (station: string) => trainLines.length > 0 ? trainLines
+    : [...net.lines].filter(([, line]) => line.stations.includes(station)).map(([code]) => code);
+  return [...new Set([...subject.stations, ...at]
+    .flatMap((station) => linesThrough(station).flatMap((line) => withNeighbours(net, line, station, served))))];
 }
 
