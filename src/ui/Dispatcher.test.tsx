@@ -9,11 +9,11 @@ import { buildNetwork } from '../engine/network';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { careerScore, SHIFT_MS, startCareer, type CareerState } from '../engine/dispatch';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
-import { GAP_TRIGGER_MS, INCIDENT_LIMIT_MS, OOS_CROWD_MS, TICK_MS, TRAVEL_MS } from '../engine/dispatchBalance';
+import { GAP_TRIGGER_MS, INCIDENT_LIMIT_MS, LATE_FACTOR, OOS_CROWD_MS, TICK_MS, TRAVEL_MS } from '../engine/dispatchBalance';
 import {
   applyExpansion, ERAS, eraFor, servedLines, servedStations, STARTING_NETWORK, type Expansion, type Served,
 } from '../engine/dispatchNetwork';
-import { cloneSim, startShiftSim, type Dir, type Incident, type Train } from '../engine/dispatchSim';
+import { cloneSim, startShiftSim, targetHeadwayMs, type Dir, type Incident, type Train } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
 import { replayDispatch, type DispatchEvidence } from '../engine/replay';
 import { drive } from '../engine/dispatchDrive.testutil';
@@ -697,6 +697,25 @@ describe('DispatcherScreen', () => {
         press('x'); // dismiss
         expect(mapProps().fitKey).not.toBe('tip:service-gap');
         expect(document.querySelector('[data-spotlight]')).toBeNull();
+      });
+
+      it('a late tip frames its train with its Station and that Station\'s neighbours, as the lean-in does', () => {
+        allowMotion();
+        seenTips(ALL_TIPS.filter((id) => id !== 'late'));
+        const clock = fakeClock();
+        const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+        // Jelatek's platform turns late halfway through the Shift's first tick.
+        const lateMs = LATE_FACTOR * targetHeadwayMs(initial.served.find((r) => r.line === 'KJ')!);
+        initial.sim.platforms[idOf('Jelatek')]!.lastCall['KJ:1'] = initial.sim.shiftMs + TICK_MS / 2 - lateMs;
+        renderShift(initial);
+        type('J');
+        clock.now += TICK_MS;
+        type('e');
+        expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toMatch(/This train is late/);
+        expect(mapProps().fitKey).toBe('tip:late');
+        const kj = net.lines.get('KJ')!.stations;
+        const i = kj.indexOf(idOf('Jelatek'));
+        for (const id of [kj[i - 1]!, kj[i]!, kj[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
       });
 
       it('under reduced motion the pointing tip keeps the camera still, and the highlight still shows', () => {

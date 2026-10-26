@@ -7,8 +7,8 @@ import { visibleTargets } from '../engine/dispatchTargets';
 export const DISPATCH_TIPS = [
   { id: 'start', text: "Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift." },
   { id: 'incident', text: 'An incident holds trains until you type its fix. Left too long, the station goes out of service.' },
-  { id: 'service-gap', text: "You sent these two trains too close together, so the Station behind them has no train coming. Type the fix to hold the second one, or leave it at its signal for a moment." },
-  { id: 'late', text: 'This train is late: its next platform has waited too long. Type the farther Station on its name to run it express.' },
+  { id: 'service-gap', text: 'These two trains are too close together, so the Station behind them waits longer. Type the fix to hold the second one, or get the front one moving.' },
+  { id: 'late', text: 'This train is late: its next platform has waited too long. Type the farther Station shown beside it to run it express.' },
   { id: 'new-train', text: 'A new train has joined at the end of the line. Trains join during the peaks until each line has its full fleet; longer lines get more trains.' },
   { id: 'out-of-service', text: 'A station is out of service. Each closure fills the gauge at the top; when it is full, the Shift fails.' },
   { id: 'expansion', text: "Shift cleared. Choose where your network grows. Type a station's name or click it." },

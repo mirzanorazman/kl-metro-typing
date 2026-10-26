@@ -146,10 +146,10 @@ describe('newDispatchTips', () => {
     expect(dispatchTipText('incident'))
       .toBe('An incident holds trains until you type its fix. Left too long, the station goes out of service.');
     expect(dispatchTipText('service-gap')).toBe(
-      'You sent these two trains too close together, so the Station behind them has no train coming. Type the fix to hold the second one, or leave it at its signal for a moment.',
+      'These two trains are too close together, so the Station behind them waits longer. Type the fix to hold the second one, or get the front one moving.',
     );
     expect(dispatchTipText('late')).toBe(
-      'This train is late: its next platform has waited too long. Type the farther Station on its name to run it express.',
+      'This train is late: its next platform has waited too long. Type the farther Station shown beside it to run it express.',
     );
     expect(dispatchTipText('new-train')).toBe(
       'A new train has joined at the end of the line. Trains join during the peaks until each line has its full fleet; longer lines get more trains.',

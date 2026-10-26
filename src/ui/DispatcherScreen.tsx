@@ -2,7 +2,7 @@ import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject,
 } from 'react';
 import { music, sound } from '../audio/sound';
-import type { Point } from '../data/types';
+import type { LineCode, Point } from '../data/types';
 import type { KeySource } from '../engine/keylog';
 import type { NetworkIndex } from '../engine/network';
 import {
@@ -158,10 +158,7 @@ function leanIn(
   net: NetworkIndex, sim: CareerState['sim'], incident: Incident, targets: readonly Target[],
   served: ReadonlySet<string>,
 ): { stations: string[]; key: string } {
-  const line = net.lines.get(incident.line)!.stations;
-  const at = line.indexOf(incident.place);
-  const near = [line[at - 1], incident.place, line[at + 1]]
-    .filter((id): id is string => id !== undefined && (id === incident.place || served.has(id)));
+  const near = withNeighbours(net, incident.line, incident.place, served);
   const waiting = new Set<string>();
   for (const target of targets) {
     if (target.ref.kind === 'fix') continue;
@@ -176,13 +173,28 @@ function leanIn(
   };
 }
 
-/** The Stations a tip about trains frames: those it is about, and each of its trains' own. */
-function subjectStations(net: NetworkIndex, sim: CareerState['sim'], subject: TipSubject): string[] {
-  const at = subject.trains.flatMap((id) => {
-    const train = sim.trains.find((t) => t.id === id);
-    return train ? [net.lines.get(train.line)!.stations[train.at]!] : [];
-  });
-  return [...new Set([...subject.stations, ...at])];
+/** A Station and its Served neighbours on `line`: a frame that never closes in on one dot. */
+function withNeighbours(net: NetworkIndex, line: LineCode, station: string, served: ReadonlySet<string>): string[] {
+  const ids = net.lines.get(line)!.stations;
+  const at = ids.indexOf(station);
+  if (at < 0) return [station];
+  return [ids[at - 1], station, ids[at + 1]]
+    .filter((id): id is string => id !== undefined && (id === station || served.has(id)));
+}
+
+/**
+ * The Stations a tip about trains frames, with the lean-in's framing: those it
+ * is about and each of its trains' own, each with its Served neighbours on the
+ * trains' Line.
+ */
+function subjectStations(
+  net: NetworkIndex, sim: CareerState['sim'], subject: TipSubject, served: ReadonlySet<string>,
+): string[] {
+  const trains = subject.trains.flatMap((id) => sim.trains.filter((t) => t.id === id));
+  const at = trains.map((train) => net.lines.get(train.line)!.stations[train.at]!);
+  const lines = [...new Set(trains.map((train) => train.line))];
+  return [...new Set([...subject.stations, ...at].flatMap((station) => lines.length === 0 ? [station]
+    : lines.flatMap((line) => withNeighbours(net, line, station, served))))];
 }
 
 /** The panels floating over the Dispatcher's map: the top bar, the Incidents panel and the typing panel. */
@@ -622,7 +634,7 @@ export function DispatcherScreen({
   const subject = tips[0] && !lesson ? tipSubject(net, run, tips[0]) : null;
   const spotlight = subject ? new Set(subject.trains) : undefined;
   const tipFrame = subject && !prefersReducedMotion()
-    ? subjectStations(net, run.sim, subject).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
+    ? subjectStations(net, run.sim, subject, served).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
     : null;
 
   // The urgent edge holds off behind the Pause and Tip dialogs.
