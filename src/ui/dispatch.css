@@ -888,3 +888,26 @@
   font-size: var(--t-xs);
   color: var(--ink-muted);
 }
+
+/* A solid backing keeps the new Line legible over every map and theme. */
+.dispatch-network-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--s);
+  margin-bottom: var(--s2);
+  padding: var(--s) var(--s2);
+  background: linear-gradient(var(--panel), var(--panel)), var(--paper);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  color: var(--ink);
+  animation: dispatch-network-in 240ms ease-out;
+}
+
+@keyframes dispatch-network-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dispatch-network-notice { animation: none; }
+}

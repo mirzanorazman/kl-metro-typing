@@ -47,6 +47,7 @@ import { ClosureGauge, closureBand } from './ClosureGauge';
 import { ConfirmEndButton } from './ConfirmEndButton';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
+import { DispatchNetworkNotice } from './DispatchNetworkNotice';
 import { DispatchSummary } from './DispatchSummary';
 import {
   dispatchTipText, newDispatchTips, tipSubject, type DispatchTipId, type TipSubject,
@@ -356,9 +357,9 @@ export function DispatcherScreen({
     // A key can settle the entry deadline before React renders the lesson.
     inLesson.current = true;
   }, [startLesson]);
-  const { event: reveal, blocksInput, cancel: cancelReveal } = useDispatchReveal(
-    net, run.served, initial === undefined, entryDone,
-  );
+  const {
+    event: reveal, joining, celebration, blocksInput, beginExpansion, clearNotice, cancel: cancelReveal,
+  } = useDispatchReveal(net, run.served, initial === undefined, entryDone);
   const exit = useCallback(() => {
     cancelReveal();
     onExit();
@@ -380,14 +381,15 @@ export function DispatcherScreen({
 
   /** Applies a non-key action, logging it only if the engine took it. */
   const act = useCallback((body: DispatchActionBody) => {
-    if (body.a === 'abandon') cancelReveal();
     const prev = currentRun.current;
     const now = runTick();
     const next = applyDispatchAction(net, prev, body, now);
     if (next === prev) return;
+    if (body.a === 'expand') beginExpansion(prev.served, next.served);
+    if (next.status === 'ended') cancelReveal();
     actions.current.push({ ...body, i: recorder.snapshot().events.length, t: now } as DispatchAction);
     commit(next);
-  }, [cancelReveal, commit, net, recorder]);
+  }, [beginExpansion, cancelReveal, commit, net, recorder]);
 
   const onKey = useCallback((key: string, source?: KeySource) => {
     const cur = currentRun.current;
@@ -416,8 +418,10 @@ export function DispatcherScreen({
     const synced = advanceCareer(net, cur, now);
     if (synced.status === 'ended' || synced.status === 'between') return commit(synced);
     recorder.record(key, source, now);
-    commit(enterDispatchCharacter(net, synced, key, now));
-  }, [act, blocksInput, commit, dismissTip, exit, lessonOnKey, markSeen, net, phoneLandscape, recorder]);
+    const next = enterDispatchCharacter(net, synced, key, now);
+    if (synced.status === 'ready' && next.status === 'running') clearNotice();
+    commit(next);
+  }, [act, blocksInput, clearNotice, commit, dismissTip, exit, lessonOnKey, markSeen, net, phoneLandscape, recorder]);
 
   // Between Shifts, unless a tip is showing, the Expansion picker owns the keys.
   const screenKeys = !phoneLandscape && run.status !== 'ended' && (run.status !== 'between' || tips.length > 0);
@@ -471,6 +475,15 @@ export function DispatcherScreen({
   useLayoutEffect(() => {
     if (phoneLandscape && currentRun.current.status === 'running') act({ a: 'pause' });
   }, [phoneLandscape, act]);
+
+  // A celebration survives reduced motion and the reveal deadline. Consume a
+  // hidden cue too, so returning to the tab cannot replay a stale welcome.
+  const heardLine = useRef<number | null>(null);
+  useEffect(() => {
+    if (!celebration || heardLine.current === celebration.id) return;
+    heardLine.current = celebration.id;
+    if (document.visibilityState !== 'hidden') sound.lineOpen();
+  }, [celebration]);
 
   // Sounds run from effects, never from inside a state update.
   const heard = useRef(run);
@@ -696,6 +709,7 @@ export function DispatcherScreen({
         }
         panel={
           <>
+            {joining && <DispatchNetworkNotice key={celebration!.id} net={net} line={joining} />}
             {reveal ? (
               <>
                 <p className="dispatch-tip-inline" role="status">Opening the network…</p>

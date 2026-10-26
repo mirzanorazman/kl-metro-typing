@@ -89,6 +89,7 @@ describe('sound', () => {
       sound.sound.error();
       sound.sound.arrive();
       sound.sound.complete();
+      sound.sound.lineOpen();
       sound.sound.wave([0, 150]);
     }).not.toThrow();
 
@@ -127,6 +128,18 @@ describe('sound', () => {
     expect(toneMock.membraneTrigger).toHaveBeenCalledTimes(1);
   });
 
+  it('opens a Line with three ascending notes once unlocked', async () => {
+    const sound = await loadSound();
+    sound.installAudioUnlock();
+    window.dispatchEvent(new Event('pointerdown'));
+    await flushPromises();
+    sound.sound.lineOpen();
+    await flushPromises();
+    expect(toneMock.synthTrigger.mock.calls).toEqual([
+      ['D5', 0.12, '+0.00'], ['A5', 0.12, '+0.11'], ['D6', 0.12, '+0.22'],
+    ]);
+  });
+
   it('a closure is one low membrane hit, lower and longer when heavy', async () => {
     const sound = await loadSound();
 
@@ -155,6 +168,8 @@ describe('sound', () => {
     sound.setMuted(true);
     sound.sound.key();
     sound.sound.error();
+    sound.sound.lineOpen();
+    await flushPromises();
 
     expect(toneMock.synthTrigger).not.toHaveBeenCalled();
     expect(toneMock.membraneTrigger).not.toHaveBeenCalled();

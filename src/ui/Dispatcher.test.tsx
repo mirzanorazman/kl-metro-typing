@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { LineCode } from '../data/types';
@@ -49,6 +50,13 @@ vi.mock('../render/MapCanvas', async (importOriginal) => {
 });
 const mapSpy = vi.mocked(MapCanvas);
 const mapProps = () => mapSpy.mock.lastCall![0];
+
+// Pass-through spy: stale and refused picks exercise the screen's engine boundary.
+vi.mock('./DispatchExpansion', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./DispatchExpansion')>();
+  return { ...actual, DispatchExpansion: vi.fn(actual.DispatchExpansion) };
+});
+const expansionSpy = vi.mocked(DispatchExpansion);
 
 const net = buildNetwork(loadNetworkData());
 const type = (text: string) => {
@@ -143,6 +151,7 @@ const labelFor = (name: string) => signalLabels().find((el) => el.textContent?.i
 beforeEach(() => {
   localStorage.clear();
   judgeSpy.mockClear();
+  vi.spyOn(sound, 'lineOpen').mockImplementation(() => {});
   // Tips are marked seen so they never interrupt; tip tests opt back in.
   seenTips(ALL_TIPS);
   Element.prototype.getBoundingClientRect = function () {
@@ -466,6 +475,8 @@ describe('DispatcherScreen', () => {
   });
 
   it('after an Expansion the bar shows what grew, until the Shift starts', () => {
+    allowMotion();
+    const clock = fakeClock();
     const offer = offerAt('AG', 'Ampang');
     renderShift({ ...startCareer(net, 7), status: 'between', shift: 1, cleared: 1, startedAt: 1_000, stoppedAt: 2_000,
       offers: [offer], history: [{ shift: 1, delivered: 40, calls: 10, onTimeCalls: 9, cleared: true }] });
@@ -478,6 +489,7 @@ describe('DispatcherScreen', () => {
     expect(stat('Lines').textContent).toBe(`${servedLines(after).length}+1`);
     expect(stat('Stations').textContent).toBe(`${servedStations(net, after).length}+${servedStations(net, after).length - before}`);
     expect(within(stat('Stations')).getByLabelText(`${servedStations(net, after).length - before} new`)).toBeTruthy();
+    clock.now += 800;
     type(screen.getAllByTestId('dispatch-signal')[0]!.textContent![0]!);
     expect(bar.querySelector('.dispatch-grown')).toBeNull();
   });
@@ -543,6 +555,7 @@ describe('DispatcherScreen', () => {
   }, 60_000);
 
   it('typing an Expansion name picks it, the map grows, and picker keys stay out of the Keylog', async () => {
+    allowMotion();
     const { clock, script, expand } = playShiftOne();
     const offerName = screen.getAllByRole('button').map((b) => b.querySelector('.dispatch-offer-name')?.textContent)
       .filter((n): n is string => !!n)[(expand as { pick: number }).pick]!;
@@ -571,6 +584,191 @@ describe('DispatcherScreen', () => {
     expect(replayed!.complete).toBe(true);
     expect(replayed!.cleared).toBe(1);
   }, 60_000);
+
+  describe('Expansion reveals', () => {
+    beforeEach(() => { allowMotion(); vi.useFakeTimers(); });
+    afterEach(() => { vi.useRealTimers(); });
+    const between = (offers: Expansion[], served: Served = STARTING_NETWORK): CareerState => ({
+      ...startCareer(net, 7), served, status: 'between', cleared: 1,
+      startedAt: 1000, stoppedAt: 2000, offers,
+    });
+    const pick = () => fireEvent.click(screen.getByRole('button', { name: /Ampang/ }));
+
+    it('installs the reveal before a subsequent key and keeps notice and growth until an accepted Shift key', () => {
+      seenTips(ALL_TIPS.filter((id) => id !== 'start'));
+      const clock = fakeClock();
+      renderShift(between([offerAt('AG', 'Ampang')]));
+      act(() => { pick(); type('x'); });
+      expect(mapProps().trackReveal).toMatchObject({ before: STARTING_NETWORK, duration: 800 });
+      expect(screen.getByRole('status', { name: 'New Line' }).textContent).toContain('joins the network');
+      expect(sound.lineOpen).toHaveBeenCalledTimes(1);
+      const left = document.querySelector('.dispatch-left')!.textContent;
+      clock.now += 799;
+      act(() => vi.advanceTimersByTime(799));
+      for (const key of ['x', ' ', 'Enter', 'Backspace']) press(key);
+      expect(document.querySelector('.dispatch-left')!.textContent).toBe(left);
+      expect(loadProfile().dispatchTipsSeen).not.toContain('start');
+      expect(screen.queryByTestId('dispatch-typing')).toBeNull();
+      clock.now += 1;
+      act(() => vi.advanceTimersByTime(1));
+      expect(mapProps().trackReveal).toBeNull();
+      expect(screen.getByRole('status', { name: 'New Line' })).toBeTruthy();
+      press('Backspace');
+      expect(screen.getByRole('status', { name: 'New Line' })).toBeTruthy();
+      expect(document.querySelectorAll('.dispatch-grown').length).toBeGreaterThan(0);
+      type(screen.getAllByTestId('dispatch-signal')[0]!.textContent![0]!);
+      expect(screen.queryByRole('status', { name: 'New Line' })).toBeNull();
+      expect(document.querySelectorAll('.dispatch-grown')).toHaveLength(0);
+      expect(loadProfile().dispatchTipsSeen).toContain('start');
+      expect(sound.lineOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores the immediate letter following a typed choice, including in a phone input burst', () => {
+      const clock = fakeClock();
+      render(<TypingInputProvider enabled>
+        <DispatcherScreen net={net} onExit={() => {}} onAgain={() => {}}
+          initial={between([offerAt('AG', 'Ampang')])} />
+      </TypingInputProvider>);
+      const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+      fireEvent.input(input, { target: { value: 'Ampangx' } });
+      expect(mapProps().trackReveal?.duration).toBe(800);
+      expect(screen.queryByTestId('dispatch-typing')).toBeNull();
+      clock.now += 800;
+      act(() => vi.advanceTimersByTime(800));
+      expect(document.querySelectorAll('.prompt [data-state="done"]')).toHaveLength(0);
+      expect(sound.lineOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('reveals an extension without a new-Line notice or cue', () => {
+      fakeClock();
+      renderShift(between([offerAt('KJ', 'Gombak')]));
+      fireEvent.click(screen.getByRole('button', { name: /Gombak/ }));
+      expect(mapProps().trackReveal?.segments.length).toBeGreaterThan(0);
+      expect(screen.queryByRole('status', { name: 'New Line' })).toBeNull();
+      expect(sound.lineOpen).not.toHaveBeenCalled();
+    });
+
+    it('celebrates a shared-track Line with +1 Line, no new Station and no Station pop', () => {
+      fakeClock();
+      const served: Served = [{ line: 'AG', from: 0, to: 5 }];
+      const stations = net.lines.get('SP')!.stations;
+      const offer: Expansion = { line: 'SP', from: 0, to: 5, farEnd: stations[5]!, added: [] };
+      renderShift(between([offer], served));
+      fireEvent.click(screen.getByRole('button', { name: /Shared track/ }));
+      expect(mapProps().trackReveal?.segments).toEqual([{ line: 'SP', from: 0, to: 5, reverse: false }]);
+      expect(mapProps().trackReveal?.stations.size).toBe(0);
+      const bar = screen.getByRole('banner', { name: 'Shift' });
+      expect(within(bar).getByText('Lines').nextElementSibling!.textContent).toBe('2+1');
+      expect(within(bar).getByText('Stations').nextElementSibling!.textContent).toBe('6');
+      expect(screen.getByRole('status', { name: 'New Line' }).textContent).toContain(net.lines.get('SP')!.name);
+      expect(sound.lineOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('Continue and an accepted no-op choice do not reveal, lock input, or celebrate', () => {
+      fakeClock();
+      const view = renderShift(between([]));
+      fireEvent.click(screen.getByRole('button', { name: /Continue/ }));
+      expect(mapProps().trackReveal).toBeNull();
+      expect(screen.queryByRole('status', { name: 'New Line' })).toBeNull();
+      expect(screen.getByTestId('dispatch-typing')).toBeTruthy();
+      expect(sound.lineOpen).not.toHaveBeenCalled();
+      endCareer();
+      act(() => vi.advanceTimersByTime(2000));
+      expect(judgeSpy.mock.calls[0]![1].actions.map((action) => action.a)).toEqual(['expand', 'abandon']);
+      view.unmount();
+      const existing: Expansion = { ...offerAt('KJ', 'Ampang Park'), from: 4, to: 8 };
+      renderShift(between([existing]));
+      fireEvent.click(screen.getByRole('button', { name: /Ampang Park/ }));
+      expect(mapProps().trackReveal).toBeNull();
+      expect(sound.lineOpen).not.toHaveBeenCalled();
+    });
+
+    it('refused and stale picker actions never create another reveal or cue', () => {
+      const clock = fakeClock();
+      renderShift(between([offerAt('AG', 'Ampang')]));
+      const onPick = expansionSpy.mock.lastCall![0].onPick;
+      act(() => onPick(999));
+      expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
+      expect(mapProps().trackReveal).toBeNull();
+      expect(sound.lineOpen).not.toHaveBeenCalled();
+      pick();
+      const reveal = mapProps().trackReveal;
+      act(() => onPick(0));
+      expect(mapProps().trackReveal).toBe(reveal);
+      clock.now += 800;
+      act(() => vi.advanceTimersByTime(800));
+      act(() => onPick(0));
+      expect(mapProps().trackReveal).toBeNull();
+      expect(sound.lineOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('reduced motion keeps one notice and cue without a reveal or lock', () => {
+      window.matchMedia = ((q: string) => ({ matches: true, media: q,
+        addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
+      fakeClock();
+      renderShift(between([offerAt('AG', 'Ampang')]));
+      pick();
+      expect(mapProps().trackReveal).toBeNull();
+      expect(screen.getByRole('status', { name: 'New Line' })).toBeTruthy();
+      expect(sound.lineOpen).toHaveBeenCalledTimes(1);
+      type(screen.getAllByTestId('dispatch-signal')[0]!.textContent![0]!);
+      expect(screen.queryByRole('status', { name: 'New Line' })).toBeNull();
+    });
+
+    it('StrictMode, rerenders, resize and pause do not replay a Line cue', () => {
+      const clock = fakeClock();
+      const initial = between([offerAt('AG', 'Ampang')]);
+      const tree = () => <StrictMode><TypingInputProvider enabled={false}>
+        <DispatcherScreen net={net} onExit={() => {}} onAgain={() => {}} initial={initial} />
+      </TypingInputProvider></StrictMode>;
+      const view = render(tree());
+      pick();
+      view.rerender(tree());
+      act(() => { window.dispatchEvent(new Event('resize')); window.dispatchEvent(new Event('blur')); });
+      clock.now += 800;
+      act(() => vi.advanceTimersByTime(800));
+      press('Escape');
+      expect(sound.lineOpen).toHaveBeenCalledTimes(1);
+      type(screen.getAllByTestId('dispatch-signal')[0]!.textContent![0]!);
+      press('Escape'); press('Enter');
+      expect(sound.lineOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it('consumes a hidden Line cue without replaying it when visible', () => {
+      const clock = fakeClock();
+      const visible = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+      renderShift(between([offerAt('AG', 'Ampang')]));
+      pick();
+      expect(screen.getByRole('status', { name: 'New Line' })).toBeTruthy();
+      expect(sound.lineOpen).not.toHaveBeenCalled();
+      visible.mockReturnValue('visible');
+      act(() => document.dispatchEvent(new Event('visibilitychange')));
+      clock.now += 800;
+      act(() => vi.advanceTimersByTime(800));
+      expect(sound.lineOpen).not.toHaveBeenCalled();
+    });
+
+    it('drops reveal keys from real judged evidence and retires cleanly during the reveal', () => {
+      const { clock, script, expand } = playShiftOne();
+      const choice = screen.getAllByRole('button').find((b) => b.querySelector('.dispatch-offer-name'))!;
+      fireEvent.click(choice);
+      expect(mapProps().trackReveal?.duration).toBe(800);
+      clock.now += 799;
+      for (const key of ['x', ' ', 'Enter', 'Backspace']) press(key);
+      endCareer();
+      expect(screen.getByRole('heading', { name: 'Career retired' })).toBeTruthy();
+      clock.now += 2000;
+      act(() => vi.advanceTimersByTime(2000));
+      expect(judgeSpy).toHaveBeenCalledTimes(1);
+      const evidence = judgeSpy.mock.calls[0]![1];
+      expect(evidence.keylog.events.map((event) => event.k)).toEqual(script.keylog.events.slice(0, expand.i).map((event) => event.k));
+      expect(evidence.actions.filter((action) => action.a === 'expand')).toHaveLength(1);
+      expect(evidence.actions[evidence.actions.length - 1]!.a).toBe('abandon');
+      expect(replayDispatch(net, evidence)!.complete).toBe(true);
+      expect(screen.queryByText('Opening the network…')).toBeNull();
+      expect(screen.queryByRole('status', { name: 'New Line' })).toBeNull();
+    }, 60_000);
+  });
 
   it('Enter on a focused End Career button does not end the Career', () => {
     renderShift(careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]));
@@ -1317,6 +1515,7 @@ describe('Opening a Dispatcher Career', () => {
     const start = vi.spyOn(lessonEngine, 'startLesson');
     renderLesson();
     expect(screen.getByRole('status').textContent).toBe('Opening the network…');
+    expect(sound.lineOpen).not.toHaveBeenCalled();
     expect(mapProps().fitKey).not.toBe('dispatch:lesson');
     expect(mapProps().emphasisRanges).toEqual(STARTING_NETWORK);
     expect(mapProps().trackReveal).toMatchObject({ before: [], duration: 1000 });

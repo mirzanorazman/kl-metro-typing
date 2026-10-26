@@ -267,6 +267,13 @@ export const sound = {
     });
   }),
 
+  /** A newly joined Dispatcher Line: a bright ascending welcome. */
+  lineOpen: () => play(({ complete }) => {
+    ['D5', 'A5', 'D6'].forEach((note, i) => {
+      complete.triggerAttackRelease(note, 0.12, `+${(i * 0.11).toFixed(2)}`);
+    });
+  }),
+
   /** Rush Hour passengers alighting at their Line: a bright three-note chime. */
   delivered: () => play(({ complete }) => {
     ['G5', 'B5', 'D6'].forEach((note, index) => {
