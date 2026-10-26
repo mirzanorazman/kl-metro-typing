@@ -5,7 +5,7 @@ import type { Target } from '../engine/dispatchTargets';
 import type { NetworkIndex } from '../engine/network';
 import type { TipSubject } from './dispatchTips';
 
-/** The close camera's settings, tuned from the dev camera panel. */
+/** The close camera's settings: on by default, and tuned from the dev camera panel in development. */
 export interface CloseCameraSettings {
   on: boolean;
   /** How much closer than the normal frame, at CLOSE_EARLY_STATIONS served Stations or fewer. */
@@ -14,7 +14,7 @@ export interface CloseCameraSettings {
   late: number;
 }
 
-export const CLOSE_CAMERA_DEFAULTS: CloseCameraSettings = { on: false, early: 3, late: 1.2 };
+export const CLOSE_CAMERA_DEFAULTS: CloseCameraSettings = { on: true, early: 3, late: 1.2 };
 
 /** Shift 1's network: 14 Stations. */
 export const CLOSE_EARLY_STATIONS = 14;

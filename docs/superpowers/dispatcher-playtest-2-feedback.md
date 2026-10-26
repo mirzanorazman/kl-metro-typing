@@ -487,6 +487,11 @@ at the train that joined (it pulses), the second at the closed Station and
 its neighbours. Like the Service gap and late tips, they lean in with the
 close camera off and zoom close with it on. Seen live in Shift 1.
 
+**On by default (2026-10-27):** the user played it and kept 3× early and
+1.2× late. The close camera is now on in every build, production included,
+with those numbers fixed there; the dev panel stays in development, where
+Close camera can be switched off to compare.
+
 Probe (`DISPATCH_PROBE=1 npx vitest run src/ui/dispatchCameraProbe.test.ts`,
 60 WPM, seeds 1–5), zoom against the normal frame, median:
 
@@ -656,8 +661,8 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   of letting go (F18); ending between Shifts reaches the leaderboard (F3).
 - **Quick wins.** The home subtitle (F2); the Green wave sound (F9); the
   Lines and Stations counts and "+N" after an Expansion (F17).
-- **Close camera (F27).** On the dev server, switch Close camera on and off
-  in the dev panel (bottom left). Does each close view draw your eye to the
+- **Close camera (F27).** It is on by default now. On the dev server, switch
+  Close camera off and on in the dev panel (bottom left) to compare. Does each close view draw your eye to the
   right thing, and does it still feel special by the tenth Incident, or does
   it get old? Tune Early and Late closeness with the sliders and note the
   values that feel right, and at how many Stations (the readout shows it).

@@ -6,7 +6,7 @@ import { CLOSE_CAMERA_DEFAULTS } from './dispatchCamera';
 describe('DispatchCameraPanel', () => {
   it('shows the settings and the readout', () => {
     render(<DispatchCameraPanel settings={CLOSE_CAMERA_DEFAULTS} onChange={() => {}} stations={27} closenessNow={2.1} />);
-    expect((screen.getByRole('checkbox', { name: 'Close camera' }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('checkbox', { name: 'Close camera' }) as HTMLInputElement).checked).toBe(true);
     for (const text of ['3.0×', '1.2×', 'Now 2.1× at 27 Stations']) expect(screen.getByText(text)).toBeTruthy();
   });
 
@@ -16,7 +16,7 @@ describe('DispatchCameraPanel', () => {
     const toggle = screen.getByRole('checkbox', { name: 'Close camera' });
     toggle.focus();
     fireEvent.click(toggle);
-    expect(onChange).toHaveBeenCalledWith({ ...CLOSE_CAMERA_DEFAULTS, on: true });
+    expect(onChange).toHaveBeenCalledWith({ ...CLOSE_CAMERA_DEFAULTS, on: false });
     expect(document.activeElement).not.toBe(toggle);
   });
 

@@ -37,9 +37,9 @@ function saveSettings(settings: CloseCameraSettings): void {
 const noChange = () => {};
 
 /**
- * The close camera's settings and a setter. Development only: in a production
- * build it is always the defaults (close camera off), and storage is never
- * touched.
+ * The close camera's settings and a setter. The panel and its storage are
+ * development only: a production build always uses the defaults (close camera
+ * on, 3× early, 1.2× late) and never touches storage.
  */
 export function useCloseCamera(): [CloseCameraSettings, (next: CloseCameraSettings) => void] {
   const [settings, setSettings] = useState(() => (import.meta.env.DEV ? loadSettings() : CLOSE_CAMERA_DEFAULTS));

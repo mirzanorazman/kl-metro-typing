@@ -1,7 +1,7 @@
 # Dispatcher — the close camera (behind a dev panel)
 
 **Date:** 2026-10-26
-**Status:** Agreed with the user in a brainstorming session; built (plan `plans/2026-10-26-dispatcher-close-camera.md`). **Amended 2026-10-27:** for Incidents the close view is while the fix is typed, not a hold after it lands (the user's intent, misread in the first version). The hold and its slider are gone.
+**Status:** Agreed with the user in a brainstorming session; built (plan `plans/2026-10-26-dispatcher-close-camera.md`). **Amended 2026-10-27:** for Incidents the close view is while the fix is typed, not a hold after it lands (the user's intent, misread in the first version). The hold and its slider are gone. **Decided 2026-10-27:** the user played it and kept 3× early and 1.2× late; the close camera is now on by default in every build, and the dev panel stays in development for switching it off to compare.
 **Covers:** a new playtest 2 tracker item, F27 (the camera pulls in close when something matters). It also takes the camera half of F11. See `docs/superpowers/dispatcher-playtest-2-feedback.md`.
 **Amends:** the onboarding design (`2026-10-24-dispatcher-onboarding-design.md`, the lesson's frame) and the Service gap design (`2026-10-26-dispatcher-service-gap-design.md`, the pointing tips). Vocabulary follows `CONTEXT.md`.
 **Branch:** `feat/dispatcher`.
@@ -45,7 +45,7 @@ The user wants the camera to pull in close in three situations, the lesson, the 
 
 - F11's "Crowd cleared" stamp, crowd burst and sound. They pair with the close view on a fix but stay in F11.
 - Any other camera change: the normal frame, the frame between Shifts, the player's own pan and wheel zoom.
-- Making the close camera the default, or shipping the dev panel to players. Both are decided after playtest 3; the numbers the user settles on then become the defaults in the code.
+- Shipping the dev panel to players. (Making the close camera the default was first left until after playtest 3; the user decided it on 2026-10-27, see Status.)
 - The camera on the full-size map (F13, parked), beyond not breaking it.
 
 ## Anti-goals
@@ -62,7 +62,7 @@ A small camera panel in a corner of the Dispatcher screen, shown only in develop
 
 | Control | Range | Starts at |
 |---|---|---|
-| Close camera on / off | | off |
+| Close camera on / off | | on (was off until 2026-10-27) |
 | Early closeness: at 14 Stations or fewer | 1× to 5× | 3× |
 | Late closeness: at 40 Stations or more | 1× to 3× | 1.2× |
 
@@ -82,7 +82,7 @@ The close view is set by a **closeness**: how much closer than the normal view o
 - The late closeness (default 1.2×) at 40 Stations or more.
 - Linear between them, on the count of served Stations.
 
-The defaults are our guess; the dev panel tunes them. Keep the defaults as named constants in one place, so the numbers from playtest 3 go in with a one-line change.
+The defaults began as our guess; the user kept them after playing (2026-10-27), and the dev panel still tunes them. Keep the defaults as named constants in one place, so the numbers from playtest 3 go in with a one-line change.
 
 A close frame is centred on what it is about (its subject Stations and Trains), and its size is the normal frame's size divided by the closeness. If the subject does not fit in that size, the frame grows to fit it, and is never larger than the normal frame. The frame keeps `DISPATCH_FIT_PADDING`, so it stays clear of the panels.
 

@@ -155,6 +155,9 @@ beforeEach(() => {
   judgeSpy.mockClear();
   // Tips are marked seen so they never interrupt; tip tests opt back in.
   seenTips(ALL_TIPS);
+  // The close camera is on by default; most tests pin the camera underneath it,
+  // so they start with it switched off. Close camera tests switch it on.
+  localStorage.setItem(DISPATCH_CAMERA_KEY, JSON.stringify({ ...CLOSE_CAMERA_DEFAULTS, on: false }));
   Element.prototype.getBoundingClientRect = function () {
     return { x: 0, y: 0, top: 0, left: 0, right: 1512, bottom: 690,
       width: 1512, height: 690, toJSON: () => ({}) } as DOMRect;
@@ -786,6 +789,17 @@ describe('DispatcherScreen', () => {
         type('e');
         expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toMatch(/This train is late/);
         expect(mapProps().fitKey).toMatch(/^tip:late:close:/);
+        expect(mapProps().fitView).toBeDefined();
+      });
+
+      it('the close camera is on by default: with nothing stored, a tip frames close', () => {
+        allowMotion();
+        localStorage.removeItem(DISPATCH_CAMERA_KEY);
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        oneTick(clock);
+        expect(mapProps().fitKey).toMatch(/^tip:service-gap:close:3\.00$/);
         expect(mapProps().fitView).toBeDefined();
       });
 
@@ -2421,9 +2435,10 @@ describe('the dev camera panel', () => {
   const toggle = () => screen.getByRole('checkbox', { name: 'Close camera' }) as HTMLInputElement;
   const doneKeys = () => screen.getByTestId('dispatch-typing').querySelectorAll('[data-state="done"]').length;
 
-  it('is on the Dispatcher screen, off by default', () => {
+  it('is on the Dispatcher screen, the close camera on by default', () => {
+    localStorage.removeItem(DISPATCH_CAMERA_KEY);
     renderShift();
-    expect(toggle().checked).toBe(false);
+    expect(toggle().checked).toBe(true);
   });
 
   it('keeps its settings in browser storage', () => {
@@ -2437,14 +2452,14 @@ describe('the dev camera panel', () => {
   it('falls back to the defaults when storage holds bad JSON', () => {
     localStorage.setItem(DISPATCH_CAMERA_KEY, '{');
     renderShift();
-    expect(toggle().checked).toBe(false);
+    expect(toggle().checked).toBe(true);
   });
 
   it('falls back to the defaults when storage throws', () => {
     const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
     try {
       renderShift();
-      expect(toggle().checked).toBe(false);
+      expect(toggle().checked).toBe(true);
     } finally {
       getItem.mockRestore();
     }
