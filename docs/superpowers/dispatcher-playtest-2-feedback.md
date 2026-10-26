@@ -41,7 +41,7 @@ spec and plan.
 | F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
 | F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
 | F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |
-| F22 | Tips point at the train they are about (bunching, late) | P1 | M | open | |
+| F22 | Tips point at the train they are about (bunching, late) | P1 | L | spec drafted | |
 | F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
 | F16 | Repetition, unattended trains, what to prioritise | P2 | L | open | F12 |
@@ -392,8 +392,14 @@ game terms:
 
 Check the "why" against the sim before writing final copy (what bunching
 actually costs: calls, on-time %, crowding). Consider the same pointing for
-the Incident, out-of-service and new-train tips. **Decide:** is a lean plus
-pulse enough, or does bunching need its own guided moment like F8?
+the Incident, out-of-service and new-train tips.
+
+**Reshaped (2026-10-26):** measuring showed holding back does not pay in
+today's rules, and the user judged that players in a frantic typing game
+won't read numbers or refrain from typing. Bunching becomes a player-caused
+**Service gap Incident** with a typed fix ("Hold at <Station>"), and the
+bunching tip becomes a pointing Service gap tip; the late tip points too.
+Spec: `specs/2026-10-26-dispatcher-service-gap-design.md`.
 
 ### F23. Tip card is trapped in the typing panel
 
