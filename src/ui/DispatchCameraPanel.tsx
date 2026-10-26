@@ -12,8 +12,17 @@ interface DispatchCameraPanelProps {
 
 // A used control lets go of focus, so the next key is the game's again.
 const letGo = (e: PointerEvent<HTMLInputElement>) => e.currentTarget.blur();
+/** The keys a slider or the toggle uses. */
+const PANEL_KEYS = new Set([
+  'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', ' ', 'Enter', 'Tab',
+]);
 // Keys meant for a focused control never reach the game's window listener.
-const keepKeys = (e: KeyboardEvent) => e.stopPropagation();
+// Any other key (a letter of a Station name) lets go of the control and goes on
+// to the game: a click on a label focuses its control with no pointer-up on it.
+const keepKeys = (e: KeyboardEvent<HTMLElement>) => {
+  if (PANEL_KEYS.has(e.key)) e.stopPropagation();
+  else if (e.target instanceof HTMLElement) e.target.blur();
+};
 
 /** Dev only: tunes the close camera while playing. */
 export function DispatchCameraPanel({ settings, onChange, stations, closenessNow }: DispatchCameraPanelProps) {

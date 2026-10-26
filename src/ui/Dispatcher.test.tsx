@@ -2390,10 +2390,23 @@ describe('the dev camera panel', () => {
     expect(doneKeys()).toBe(1);
   });
 
-  it('a key pressed on a focused panel control does not reach the game', () => {
+  it('a letter typed while a panel control has focus goes to the game, and lets go of the control', () => {
     renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    // A click on a slider's label focuses the slider with no pointer-up on it.
+    const slider = screen.getByRole('slider', { name: 'Early closeness' });
+    slider.focus();
+    fireEvent.keyDown(slider, { key: 'J' });
+    expect(doneKeys()).toBe(1);
+    expect(document.activeElement).not.toBe(slider);
+  });
+
+  it('a key a panel control uses stays in the panel', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    type('J');
     toggle().focus();
-    fireEvent.keyDown(toggle(), { key: 'J' });
-    expect(doneKeys()).toBe(0);
+    // Reaching the game, Space would be a wrong key for Jelatek and stall the line.
+    fireEvent.keyDown(toggle(), { key: ' ' });
+    expect(screen.getByTestId('dispatch-typing').getAttribute('data-stalled')).toBeNull();
+    expect(doneKeys()).toBe(1);
   });
 });

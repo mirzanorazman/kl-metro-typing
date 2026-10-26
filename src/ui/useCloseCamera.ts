@@ -46,7 +46,8 @@ export function useCloseCamera(): [CloseCameraSettings, (next: CloseCameraSettin
   const [settings, setSettings] = useState(() => (import.meta.env.DEV ? loadSettings() : CLOSE_CAMERA_DEFAULTS));
   const change = useCallback((next: CloseCameraSettings) => {
     setSettings(next);
-    saveSettings(next);
+    // Guarded here as well, so a production build drops the storage code.
+    if (import.meta.env.DEV) saveSettings(next);
   }, []);
   return import.meta.env.DEV ? [settings, change] : [CLOSE_CAMERA_DEFAULTS, noChange];
 }
