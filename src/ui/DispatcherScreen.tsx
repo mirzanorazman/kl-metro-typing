@@ -30,6 +30,7 @@ import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { servedKey, servedLines, servedStations } from '../engine/dispatchNetwork';
 import { candidates, sameRef, visibleTargets, type Target } from '../engine/dispatchTargets';
 import type { TypingState } from '../engine/typing';
+import { closeFrame } from '../geo/fit';
 import { networkLayout } from '../geo/networkLayout';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import {
@@ -591,6 +592,19 @@ export function DispatcherScreen({
   const tipFrame = subject && !prefersReducedMotion()
     ? subjectStations(net, run.sim, subject, served).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
     : null;
+  // The close camera (dev camera panel): the lesson and a pointing tip frame
+  // closer than the normal frame, less close as the Served network grows.
+  const near = closeness(served.size, camera);
+  const close = !camera.on ? null
+    : lesson ? {
+      view: closeFrame(frame, lessonFrame, DISPATCH_FIT_PADDING, camera.early),
+      key: `dispatch:lesson:close:${camera.early.toFixed(2)}`,
+    }
+    : tipFrame ? {
+      view: closeFrame(frame, tipFrame, DISPATCH_FIT_PADDING, near),
+      key: `tip:${tips[0]}:close:${near.toFixed(2)}`,
+    }
+    : null;
 
   // The urgent edge holds off behind the Pause and Tip dialogs.
   const urgent = fixing && run.status === 'running' && tips.length === 0;
@@ -620,7 +634,8 @@ export function DispatcherScreen({
             districts={districts}
             emphasisSet={lessonLines ?? lines}
             fitTo={lesson ? lessonFrame : tipFrame ?? leanFrame ?? frame}
-            fitKey={lesson ? 'dispatch:lesson' : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey}
+            fitKey={close?.key ?? (lesson ? 'dispatch:lesson' : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey)}
+            fitView={close?.view}
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
             overlay={({ layout: l, markScale, view, screen, tracks }) => (
               <DispatchOverlay net={net} layout={l} markScale={markScale} career={shown} targets={targets} aimed={aimed}
@@ -702,7 +717,7 @@ export function DispatcherScreen({
       </aside>
       {import.meta.env.DEV && (
         <DispatchCameraPanel settings={camera} onChange={setCamera} stations={served.size}
-          closenessNow={closeness(served.size, camera)} />
+          closenessNow={near} />
       )}
     </div>
   );

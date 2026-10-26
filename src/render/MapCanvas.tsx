@@ -73,6 +73,8 @@ export interface MapCanvasProps {
   focusTo?: readonly Point[];
   /** Changing this reframes the view. Use something like `${mode}:${line ?? 'all'}`. */
   fitKey?: string;
+  /** An explicit frame. When given, it replaces the frame fitted from `fitTo`; `fitKey` still decides when the view refits. */
+  fitView?: ViewBox;
   /** Per-side padding, to keep content clear of overlaying panels. */
   fitPadding?: number | EdgePadding;
   /** How far through the current station's name, 0..1. Drives the train. */
@@ -145,6 +147,7 @@ export function MapCanvas({
   fitTo,
   focusTo,
   fitKey,
+  fitView,
   fitPadding = 0.08,
   trainProgress,
   trainErrorTick,
@@ -186,8 +189,8 @@ export function MapCanvas({
   }, []);
 
   const framed = useMemo(
-    () => fitViewBox(fitTo ?? [...layout.values()], fitPadding),
-    [fitTo, layout, fitPadding],
+    () => fitView ?? fitViewBox(fitTo ?? [...layout.values()], fitPadding),
+    [fitView, fitTo, layout, fitPadding],
   );
 
   // The size of the followed shot, kept separate from `framed` because the two

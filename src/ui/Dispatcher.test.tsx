@@ -26,6 +26,9 @@ import { closureText, failureText } from './dispatchTips';
 import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
 import { DISPATCH_CAMERA_KEY } from './useCloseCamera';
+import { CLOSE_CAMERA_DEFAULTS, type CloseCameraSettings } from './dispatchCamera';
+import { fitViewBox } from '../geo/fit';
+import { DISPATCH_FIT_PADDING } from '../render/dispatchLayout';
 import { liveMarks, RIPPLE_LEAD_MS, RIPPLE_STEP_MS } from '../render/useSignalMarks';
 import { MapCanvas } from '../render/MapCanvas';
 import { DispatchOverlay } from '../render/DispatchOverlay';
@@ -107,6 +110,13 @@ const allowMotion = () => {
     addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
   })) as unknown as typeof window.matchMedia;
 };
+
+/** The dev camera panel's close camera, switched on before the screen renders. */
+const closeCameraOn = (over: Partial<CloseCameraSettings> = {}) =>
+  localStorage.setItem(DISPATCH_CAMERA_KEY, JSON.stringify({ ...CLOSE_CAMERA_DEFAULTS, on: true, ...over }));
+/** The normal frame of a Served network, as the screen fits it. */
+const normalBox = (served: Served) => fitViewBox(
+  servedStations(net, served).map((id) => mapProps().layout.get(id)!), DISPATCH_FIT_PADDING);
 
 /** Controls `performance.now`, which `runTick` reads. */
 function fakeClock(start = 1_000) {
@@ -719,6 +729,73 @@ describe('DispatcherScreen', () => {
         for (const id of [kj[i - 1]!, kj[i]!, kj[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
       });
 
+      it('a late tip frames its train close', () => {
+        allowMotion();
+        closeCameraOn();
+        seenTips(ALL_TIPS.filter((id) => id !== 'late'));
+        const clock = fakeClock();
+        const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+        // Jelatek's platform turns late halfway through the Shift's first tick.
+        const lateMs = LATE_FACTOR * targetHeadwayMs(initial.served.find((r) => r.line === 'KJ')!);
+        initial.sim.platforms[idOf('Jelatek')]!.lastCall['KJ:1'] = initial.sim.shiftMs + TICK_MS / 2 - lateMs;
+        renderShift(initial);
+        type('J');
+        clock.now += TICK_MS;
+        type('e');
+        expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toMatch(/This train is late/);
+        expect(mapProps().fitKey).toMatch(/^tip:late:close:/);
+        expect(mapProps().fitView).toBeDefined();
+      });
+
+      it('close camera off: a tip\'s frame key is as today, with no explicit frame', () => {
+        allowMotion();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        oneTick(clock);
+        expect(mapProps().fitKey).toBe('tip:service-gap');
+        expect(mapProps().fitView).toBeUndefined();
+      });
+
+      it('a Service gap tip frames its pair close', () => {
+        allowMotion();
+        closeCameraOn();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        const initial = gapCareer();
+        renderShift(initial);
+        oneTick(clock);
+        expect(mapProps().fitKey).toMatch(/^tip:service-gap:close:/);
+        expect(mapProps().fitView!.w).toBeLessThan(normalBox(initial.served).w);
+        const at = (name: string) => mapProps().layout.get(idOf(name));
+        for (const name of ['Kampung Baru', 'Dang Wangi', 'KLCC']) expect(mapProps().fitTo).toContainEqual(at(name));
+        press('x'); // dismiss
+        expect(mapProps().fitView).toBeUndefined();
+      });
+
+      it('under reduced motion a tip leaves the camera alone, close camera or not', () => {
+        closeCameraOn();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        oneTick(clock);
+        expect(screen.getByRole('dialog', { name: 'Tip' })).toBeTruthy();
+        expect(mapProps().fitView).toBeUndefined();
+      });
+
+      it('a closeness change refits the close frame', () => {
+        allowMotion();
+        closeCameraOn();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        oneTick(clock);
+        const before = mapProps().fitKey;
+        fireEvent.change(screen.getByRole('slider', { name: 'Early closeness' }), { target: { value: '4.5' } });
+        expect(mapProps().fitKey).not.toBe(before);
+        expect(mapProps().fitKey).toMatch(/^tip:service-gap:close:/);
+      });
+
       it('under reduced motion the pointing tip keeps the camera still, and the highlight still shows', () => {
         // beforeEach reports reduced motion.
         seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
@@ -1307,6 +1384,28 @@ describe('The guided first Shift', () => {
     expect(screen.queryByTestId('streak')).toBeNull();
   });
 
+  it('with the close camera on, the lesson frames its Stations at the early closeness', () => {
+    fresh();
+    closeCameraOn();
+    renderLesson();
+    expect(mapProps().fitKey).toBe('dispatch:lesson:close:3.00');
+    expect(mapProps().fitView!.w).toBeCloseTo(normalBox(startCareer(net, 7).served).w / 3);
+  });
+
+  it('the lesson keeps its close frame under reduced motion', () => {
+    // beforeEach reports reduced motion.
+    fresh();
+    closeCameraOn();
+    renderLesson();
+    expect(mapProps().fitView).toBeDefined();
+  });
+
+  it('with the close camera off, the lesson has no explicit frame', () => {
+    fresh();
+    renderLesson();
+    expect(mapProps().fitView).toBeUndefined();
+  });
+
   it('typing both names ends the lesson on the ready screen; its keys never reach the Keylog', async () => {
     fresh();
     const clock = fakeClock();
@@ -1485,6 +1584,15 @@ describe('Leaning in on an Incident fix', () => {
     const i = kj.indexOf(idOf('Ampang Park'));
     expect(props.fitTo).toContainEqual(props.layout.get(kj[i - 1]!));
     expect(props.fitTo).toContainEqual(props.layout.get(kj[i + 1]!));
+  });
+
+  it('the lean-in is the same with the close camera on: no explicit frame while a fix is typed', () => {
+    allowMotion();
+    closeCameraOn();
+    renderShift(surgeWithWaiting());
+    type('C');
+    expect(mapProps().fitKey).toMatch(/^fix:1/);
+    expect(mapProps().fitView).toBeUndefined();
   });
 
   it('a train that starts waiting mid-fix joins the frame, and the map refits to take it in', async () => {
