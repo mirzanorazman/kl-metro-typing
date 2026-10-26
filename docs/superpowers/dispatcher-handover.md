@@ -21,7 +21,8 @@ Task 12.
   (F1, F3, F6, F7, F18) are done, and so is the onboarding group (F8 guided
   first Shift, F5 How to play, F14 new-train tip, with F2). The remaining P1s
   are F20, F15, F11, F19 and F4 (F21 is set aside). Note F18 bumped
-  `DISPATCH_EVIDENCE_VERSION` to 2. The checklist it answers is
+  `DISPATCH_EVIDENCE_VERSION` to 2, and F22's Service gap Incident (see
+  "Service gap balance" below) bumped it to 3. The checklist it answers is
   `docs/superpowers/dispatcher-playtest-2-checklist.md`. The 90 WPM ceiling is
   the open design question. Task 12 of the first plan
   (retire Rush Hour) is still **gated**: do not start it until the user says
@@ -239,6 +240,108 @@ which undoes Task 4's spread. `SHIFT_PHASES`, `COMBO_EVERY` and
   eviction, the subtle lean-in, small marks) are in
   `dispatcher-playtest-2-checklist.md`; the plan's ledger was deleted at the
   end of the run.
+
+## Service gap balance (F22, 2026-10-26)
+
+Spec `specs/2026-10-26-dispatcher-service-gap-design.md`, plan
+`plans/2026-10-26-dispatcher-service-gap.md`. A bunched pair that stays a pair
+for `GAP_TRIGGER_MS` starts a Service gap Incident on its rear train; typing
+"Hold at <Station>" holds that train for `GAP_HOLD_MS`.
+`DISPATCH_EVIDENCE_VERSION` is 3 (Service gap Incidents), so Careers recorded
+under version 2 would replay differently.
+
+| Constant | Start | Tuned | Why |
+|---|---|---|---|
+| `GAP_TRIGGER_MS` | 6 000 | 16 000 | At 6 s, 60 WPM Careers were about 10 % shorter and a 60 WPM typist met about 2 Service gaps a Shift. At 16 s both are on target over 100 seeds (below). |
+| `GAP_HOLD_MS` | 6 000 | 6 000 | 3, 6 and 9 s give the same Career lengths and gap rates within noise. |
+
+### Survey with Service gaps
+
+The probe now prints Service gaps per Shift: the median over seeds of each
+Career's gaps divided by the Shifts it played. Seeds 1–5, 30-minute cap.
+
+| Typist | Career | Shifts cleared | Waves | Service gaps per Shift | First closure, seeds 1–5 | Career before |
+|---|---|---|---|---|---|---|
+| 40 WPM, 94 % | 6.0 min | 3 | 6 | 0.25 | crowd surge, crowding, crowd surge, crowd surge, signal fault | 6.0 min |
+| 60 WPM, 96 % | 15.0 min | 9 | 40 | 0.33 | crowding, crowding, crowd surge, running, crowding | 19.5 min |
+| 90 WPM, 98 % | 29.9 min (cap) | 19 | 217 | 0.55 | running, crowding, running ×3 | 29.9 min (cap) |
+| 60 WPM, 96 %, inattentive | 6.0 min | 3 | 13 | 0.20 | signal fault ×2, crowd surge ×2, train fault | 7.5 min |
+
+With Service gaps turned off the probe reproduces the "Final survey" table
+above exactly. The five-seed 60 WPM drop (19.5 to 15.0 min) is noise:
+any gap or hold shifts train timings, so the random Incidents land elsewhere
+and each seed's Career reshuffles. At a 20 s trigger seed 5 still drops from
+15.0 to 13.5 min with only 1 Service gap in it. Judge on many seeds. Over
+seeds 1–100 (40 and 60 WPM, hold 6 s):
+
+| Trigger | 40 WPM mean / median | 60 WPM mean / median | 60 WPM running at 30 min | Gaps per Shift, 40 / 60 WPM |
+|---|---|---|---|---|
+| none | 6.5 / 6.0 min | 22.0 / 24.0 min | 48 of 100 | — |
+| 10 s | 6.2 / 6.0 min | 20.1 / 19.5 min | 35 | 0.67 / 1.30 |
+| 12 s | 6.4 / 6.0 min | 20.9 / 21.0 min | 40 | 0.50 / 1.40 |
+| 14 s | 6.6 / 6.0 min | 20.5 / 19.5 min | 35 | 0.33 / 0.95 |
+| **16 s** | **6.2 / 6.0 min** | **21.4 / 21.0 min** | **46** | **0.33 / 1.10** |
+| 20 s | 6.2 / 6.0 min | 21.7 / 22.5 min | 45 | 0.20 / 0.90 |
+
+At 16 s, 40 and 60 WPM Careers are within 5 % of no Service gaps, and a
+60 WPM typist meets about one a Shift (the median Career). The rate climbs
+with the network: at 60 WPM, 0.1–0.3 a Shift in Shifts 1–7, 1–2 in Shifts
+9–11, 3–5 from Shift 12 (20 seeds). The probe's balance assertions all pass
+unchanged. Two tests moved with the trigger: the "waits for a free slot"
+Service gap test now dates its three blocking Incidents so that none
+escalates during the longer wait, and "waves replay" is back on seed 2
+(Task 1 had moved it to seed 3, which now runs past 30 minutes).
+
+What the survey found:
+
+- **Service gaps do not lengthen Careers.** Task 1 saw one 60 WPM seed
+  (0.99 accuracy) go from failing at 12 min to running past 90 min; another
+  seed moved the other way. That is the reshuffle above, not a trend. Short
+  triggers shorten 60 WPM Careers a little (−9 % mean at 10 s): more Stations
+  close to unfixed gaps (192 in 100 Careers at 10 s, 99 at 16 s), and the
+  fixes cost keys.
+- **90 WPM gets fewer Service gaps than 60 WPM, not more.** At 20 seeds
+  (gaps per Shift, 60 / 90 WPM): 6 s 1.64 / 1.50, 10 s 1.00 / 0.90, 16 s
+  1.10 / 0.55. At the same Shift number 90 WPM sees 0.1–0.4 a Shift until
+  Shift 14. The spec's "more at 90 WPM" is not met at any setting tried.
+- **Service gaps mostly mark a backlog, not a rush.** When one starts at
+  60 WPM, both trains are waiting at their Signals 72 % of the time (90 WPM:
+  49 %), and 76 % of all trains are waiting. A train queued behind a waiting
+  leader is a pair, whoever typed what. Holding the rear does not break such
+  a pair; clearing the leader does. The scripted typist always clears the
+  longest-waiting train first, so it rarely rushes a rear train after its
+  leader; a human who types the nearest name might.
+
+### The hold experiment, again
+
+The experiment from the spec's Why section, with Service gaps in the rules: a
+throwaway copy of the scripted typist skips the rear train of a pair
+(`pairedRears`) until it has waited 4 s or 8 s. Seeds 1–8, 15-minute cap.
+Delivered per minute and on-time % are pooled over the 8 Careers.
+
+| Rules | Typist | Hold | Median Career | Delivered / min | On time | Failed |
+|---|---|---|---|---|---|---|
+| No Service gaps | 60 WPM | 0 | 14.9 min | 45.0 | 66.3 % | 2 of 8 |
+| | | 4 s | 14.9 min | 46.7 | 66.3 % | 3 of 8 |
+| | | 8 s | 11.2 min | 50.8 | 66.8 % | 5 of 8 |
+| | 90 WPM | 0 / 4 / 8 s | 15.0 min | 98.1 / 98.3 / 98.3 | 66.3 / 66.3 / 65.9 % | 0 of 8 |
+| Service gaps, 16 s | 60 WPM | 0 | 14.9 min | 44.1 | 66.2 % | 2 of 8 |
+| | | 4 s | 14.9 min | 46.8 | 66.4 % | 3 of 8 |
+| | | 8 s | 11.2 min | 50.5 | 66.4 % | 5 of 8 |
+| | 90 WPM | 0 / 4 / 8 s | 15.0 min | 98.6 / 97.1 / 97.8 | 66.6 / 66.2 / 66.0 % | 0 of 8 |
+| Service gaps, 6 s | 60 WPM | 0 | 14.9 min | 45.7 | 66.8 % | 2 of 8 |
+| | | 4 s | 13.4 min | 47.4 | 66.1 % | 4 of 8 |
+| | | 8 s | 12.7 min | 47.4 | 66.7 % | 4 of 8 |
+
+**Holding still does not pay at 60 WPM.** On-time % does not move, and
+more Careers fail as the hold grows (2, 3, 5 of 8), as they did with no
+Service gaps. Delivered per minute rises, but over shorter Careers. Holding by
+hand cuts the Service gaps (0.48 to 0.24 a Shift at 16 s; at 6 s, only 1.44
+to 1.19), but they were too rare in a 15-minute Career, and too often formed
+behind a waiting leader, to change the outcome. A Service gap now makes
+bunching visible and gives it a typed fix, but in today's rules leaving a
+rear train waiting is still not a winning strategy for the scripted typist.
+This is for the user to decide on, not something to tune.
 
 ## Where things are
 

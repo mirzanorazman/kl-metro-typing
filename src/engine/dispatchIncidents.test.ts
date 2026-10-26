@@ -350,8 +350,9 @@ describe('Dispatcher incidents', () => {
 
     it('waits for a free slot when INCIDENT_MAX Incidents are up, and draws nothing from incidentDebt or rng', () => {
       const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      // Dated so that none escalates, and frees its slot, while the pair waits.
       s.incidents = ['setiawangsa', 'pasar-seni', 'bangsar'].map((place, i) =>
-        incident('crowd-surge', { id: 100 + i, place, stations: [place] }));
+        incident('crowd-surge', { id: 100 + i, place, stations: [place], startedMs: GAP_TRIGGER_MS }));
       expect(s.incidents).toHaveLength(INCIDENT_MAX);
       run(s, GAP_TRIGGER_MS + 10 * TICK_MS, quiet);
       expect(gaps(s)).toEqual([]);

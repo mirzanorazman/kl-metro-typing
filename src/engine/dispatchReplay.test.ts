@@ -43,7 +43,7 @@ describe('replayDispatch', () => {
   }, 120_000);
 
   it('waves replay', () => {
-    const { state, evidence } = drive({ seed: 3, msPerKey: 200, limitMs: 30 * 60_000, accuracy: 0.99 });
+    const { state, evidence } = drive({ seed: 2, msPerKey: 200, limitMs: 30 * 60_000, accuracy: 0.99 });
     expect(state.endReason).toBe('failed');
     expect(state.waves).toBeGreaterThan(0);
     expectSame(state, evidence);

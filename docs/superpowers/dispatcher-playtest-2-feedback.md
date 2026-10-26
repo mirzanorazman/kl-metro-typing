@@ -5,9 +5,9 @@ so that later sessions can take one item or one group at a time. Item numbers
 (F1–F21) match the order of the original notes, so they stay stable when
 priorities move.
 
-**Where it stands (2026-10-24):** all P0s and the first-time-clarity group
-are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so is F20. F21 is set
-aside. Next up: F23 (small bug), F22, then F15, F11, F19, F4. The branch is kept as is (not merged) until
+**Where it stands (2026-10-26):** all P0s and the first-time-clarity group
+are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20 and F22. F21 is set
+aside. Next up: F23 (small bug), then F15, F11, F19, F4. The branch is kept as is (not merged) until
 the user has playtested the onboarding; see "Check in playtest 3" at the end.
 
 The checklist this answers is `dispatcher-playtest-2-checklist.md`; the
@@ -41,7 +41,7 @@ spec and plan.
 | F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
 | F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
 | F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |
-| F22 | Tips point at the train they are about (bunching, late) | P1 | L | spec drafted | |
+| F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..e73a997 + balance | |
 | F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
 | F16 | Repetition, unattended trains, what to prioritise | P2 | L | open | F12 |
@@ -400,6 +400,25 @@ won't read numbers or refrain from typing. Bunching becomes a player-caused
 **Service gap Incident** with a typed fix ("Hold at <Station>"), and the
 bunching tip becomes a pointing Service gap tip; the late tip points too.
 Spec: `specs/2026-10-26-dispatcher-service-gap-design.md`.
+
+**Done:** a pair that stays bunched for 16 s (`GAP_TRIGGER_MS`) starts a
+Service gap Incident on its rear train, with its own card and glyph. Its
+place is the last Station the rear train called at. Typing "Hold at
+<Station>" holds the rear train at that Signal for 6 s (`GAP_HOLD_MS`). The
+Incident ends by itself if the pair breaks up, and unfixed it closes its
+place like any Incident. The bunching tip is replaced by a Service gap tip,
+and it and the late tip lean the camera in on their trains, which pulse
+(a steady ring under reduced motion). `DISPATCH_EVIDENCE_VERSION` is 3. Survey
+(100 seeds): 40 and 60 WPM Careers are within 5 % of before, and a 60 WPM
+typist meets about one Service gap a Shift, rising with the network; 90 WPM
+meets fewer, not more. The hold experiment, rerun with Service gaps: holding
+the rear train 4 s or 8 s **still does not pay** at 60 WPM (on time
+unchanged at 66 %, failed Careers 2 → 3 → 5 of 8), because most Service
+gaps form behind a leader that is itself waiting at its Signal (72 % at
+60 WPM), where holding the rear changes nothing. Numbers and reasons are in
+`dispatcher-handover.md`, "Service gap balance". For the user: whether the
+trigger should only count a pair whose leader is moving, so a Service gap
+marks a rushed train rather than a backlog.
 
 ### F23. Tip card is trapped in the typing panel
 

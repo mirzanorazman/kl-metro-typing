@@ -15,14 +15,26 @@ const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[Math.floor(xs.len
 const minutes = (s: CareerState) => s.gameMs / MIN;
 const firstCause = (s: CareerState) => s.failure?.closures[0]?.cause ?? s.status;
 
+/** A driven Career and the Service gaps that started in it. */
+interface Run { state: CareerState; gaps: number }
+
 // Each typist's five Careers are driven once and shared by the tests below.
-const memo = new Map<Typist, CareerState[]>();
-const careers = (typist: Typist): CareerState[] => {
+const memo = new Map<Typist, Run[]>();
+const runs = (typist: Typist): Run[] => {
   if (!memo.has(typist)) {
-    memo.set(typist, SEEDS.map((seed) => drive({ ...typist, seed, limitMs: 30 * MIN }).state));
+    memo.set(typist, SEEDS.map((seed) => {
+      const seen = new Set<string>();
+      const watch = (s: CareerState) => {
+        for (const inc of s.sim.incidents) if (inc.kind === 'service-gap') seen.add(`${s.shift}:${inc.id}`);
+      };
+      return { state: drive({ ...typist, seed, limitMs: 30 * MIN, watch }).state, gaps: seen.size };
+    }));
   }
   return memo.get(typist)!;
 };
+const careers = (typist: Typist): CareerState[] => runs(typist).map((r) => r.state);
+/** Service gaps per Shift played, counting the Shift a Career ended or stopped in. */
+const gapsPerShift = (r: Run) => r.gaps / r.state.shift;
 
 describe('dispatcher balance', () => {
   it('a 40 WPM, 94% Career lasts 5 to 8 minutes (median)', () => {
@@ -58,13 +70,16 @@ describe('dispatcher balance', () => {
 
   // Opt-in survey for tuning: DISPATCH_PROBE=1 npx vitest run src/engine/dispatchProbe.test.ts
   it.skipIf(!process.env.DISPATCH_PROBE)('prints the survey per typist', () => {
-    console.log('median of 5 seeds — Career minutes / Shifts cleared / waves / delivered / score; first closure cause per seed');
+    console.log('median of 5 seeds — Career minutes / Shifts cleared / waves / Service gaps per Shift / delivered / score; '
+      + 'per seed minutes / cleared / Service gaps / first closure cause');
     for (const typist of [SLOW, MID, FAST, INATTENTIVE]) {
-      const runs = careers(typist);
-      console.log(`${typist.label.padEnd(24)} ${median(runs.map(minutes)).toFixed(1)} min  `
-        + `${median(runs.map((s) => s.cleared))} cleared  ${median(runs.map((s) => s.waves))} waves  `
-        + `${median(runs.map((s) => careerTotals(s).delivered))}d  ${median(runs.map(careerScore))}pts  `
-        + `[${runs.map((s) => `${minutes(s).toFixed(1)}m/${s.cleared}c/${firstCause(s)}`).join(', ')}]`);
+      const all = runs(typist);
+      const states = all.map((r) => r.state);
+      console.log(`${typist.label.padEnd(24)} ${median(states.map(minutes)).toFixed(1)} min  `
+        + `${median(states.map((s) => s.cleared))} cleared  ${median(states.map((s) => s.waves))} waves  `
+        + `${median(all.map(gapsPerShift)).toFixed(2)} gaps/Shift  `
+        + `${median(states.map((s) => careerTotals(s).delivered))}d  ${median(states.map(careerScore))}pts  `
+        + `[${all.map(({ state: s, gaps }) => `${minutes(s).toFixed(1)}m/${s.cleared}c/${gaps}g/${firstCause(s)}`).join(', ')}]`);
     }
   }, 900_000);
 });
