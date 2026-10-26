@@ -6,8 +6,9 @@ so that later sessions can take one item or one group at a time. Item numbers
 priorities move.
 
 **Where it stands (2026-10-26):** all P0s and the first-time-clarity group
-are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20 and F22. F21 is set
-aside. Next up: F23 (small bug), then F15, F11, F19, F4. The branch is kept as is (not merged) until
+are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20, F22 and F27 (the
+close camera, behind a dev panel). F21 is set aside. F4, F15 and F19 are with another agent.
+Next up: F23 (small bug), then F11. The branch is kept as is (not merged) until
 the user has playtested the onboarding; see "Check in playtest 3" at the end.
 
 The checklist this answers is `dispatcher-playtest-2-checklist.md`; the
@@ -43,6 +44,7 @@ spec and plan.
 | F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |
 | F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..2042dbd | |
 | F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
+| F27 | The camera pulls in close for the lesson, train tips and a cleared fix (dev panel) | P1 | M | done 1a9d6e5..1f79255 | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
 | F16 | Repetition, unattended trains, what to prioritise | P2 | L | open | F12 |
 | F10 | Combo spacing: every 3, or growing gaps (3, 7, 13)? | P2 | S | open | F12 |
@@ -354,6 +356,9 @@ network the lean is barely visible (checklist §2). The dispersal pop shows
 clear, a crowd-burst animation, a "Crowd cleared" stamp and a sound. Keep
 reduced motion still.
 
+**Camera part done in F27** (behind the dev camera panel): the close hold
+after a fix lands. What is left here is the burst, the stamp and the sound.
+
 ### F19. Celebrate a new Line joining
 
 **Reported (nice to have):** when a new Line joins (e.g. the Kajang Line for
@@ -446,6 +451,50 @@ class and probably has the same problem.
 or move them out of `PlayLayout`'s panel slot), or give the card its own
 solid background. Pairs with F22: if the map is meant to stay visible behind
 a pointing tip, the card should sit over the panel only, opaque.
+
+### F27. The camera pulls in close when something matters
+
+**Reported (2026-10-26, from measuring):** the camera never got closer in
+Shifts 1–8. Every frame is floored at 200 layout units (`MIN_SPAN`, `fit.ts`)
+and Shift 1's 14 Stations span 154 × 137, so the lesson, the tips and the fix
+lean-in only panned. The user wants close views for the lesson, the train
+tips and Incidents, closest early and easing to a lean as the network grows,
+and wants to playtest whether that feels special or gets old.
+
+Spec `specs/2026-10-26-dispatcher-close-camera-design.md`, plan
+`plans/2026-10-26-dispatcher-close-camera.md`, run inline with one final
+review.
+
+**Done:** a dev-only camera panel (bottom left; development builds only, so
+playtest 3 runs on `npm run dev`): a Close camera toggle, Early closeness (1–5×,
+default 3× at 14 Stations or fewer), Late closeness (1–3×, default 1.2× at 40 or
+more, linear between), Hold after a fix (0–3 s, default 1 s) and a readout of
+the closeness now. Settings stay in browser storage. With it on, the lesson
+and the Service gap and late tips frame close (`closeFrame`, through a new
+`MapCanvas` prop `fitView`), and when a typed fix clears an Incident the
+camera holds close on its place for the hold time. Typing a fix keeps
+today's lean-in; locking onto another fix ends a hold. Reduced motion keeps
+the camera still for tips and the hold; the lesson stays close. Off, the
+camera is exactly as before.
+
+Probe (`DISPATCH_PROBE=1 npx vitest run src/ui/dispatchCameraProbe.test.ts`,
+60 WPM, seeds 1–5), zoom against the normal frame, median:
+
+| Frame | Shifts 1–3 | Shifts 4–8 | Shift 9+ |
+|---|---|---|---|
+| Late tip, today → close | 1.00× → 2.79× | 1.02× → 2.17× | 1.44× → 1.20× |
+| Service gap tip, today → close | 1.00× → 2.72× | 1.12× → 1.89× | 1.44× → 1.20× |
+| Lean-in (unchanged) | 1.00× | 1.00× | 1.10× |
+| Hold after a fix (new) | 2.79× | 2.24× | 1.20× |
+| Lesson against Shift 1 | 1.00× → 3.00× | | |
+
+**Worth knowing:** from Shift 9 the close camera at its 1.2× default frames
+tips *wider* than today's (1.44×), because the close size comes from the
+closeness, not the subject's own fit. Raise Late closeness if that feels
+wrong. Seen live (1440 × 900): the lesson at 3× and 5×, a slider moving the
+camera at once, a Station name typed right after clicking the panel, the
+late tip on `?dispatch=full`. Not seen live: a Service gap tip and a cleared
+fix's hold (unit tested only).
 
 ## P2: balance and depth (design talk first)
 
@@ -594,6 +643,13 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   of letting go (F18); ending between Shifts reaches the leaderboard (F3).
 - **Quick wins.** The home subtitle (F2); the Green wave sound (F9); the
   Lines and Stations counts and "+N" after an Expansion (F17).
+- **Close camera (F27).** On the dev server, switch Close camera on and off
+  in the dev panel (bottom left). Does each close view draw your eye to the
+  right thing, and does it still feel special by the tenth Incident, or does
+  it get old? Tune Early and Late closeness with the sliders and note the
+  values that feel right, and at how many Stations (the readout shows it).
+  After a fix lands, is the close hold a reward or a distraction while other
+  Trains wait? Try a few hold times.
 - **Closure gauge (F20).** Is the first closure noticed when it happens? Does a
   failed Shift now feel like it was coming? Is the gauge visible enough up in
   the Shift bar, given the eyes are on the chips and the Incidents panel?
