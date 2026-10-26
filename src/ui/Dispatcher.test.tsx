@@ -1626,6 +1626,65 @@ describe('Leaning in on an Incident fix', () => {
     expect(mapProps().fitKey).toBe(normalKey);
   });
 
+  describe('the close hold after a fix lands', () => {
+    /** A second crowd surge, at Masjid Jamek. */
+    const twoSurges = () => {
+      const initial = surgeWithWaiting();
+      initial.sim.incidents.push({ id: 2, kind: 'crowd-surge', place: idOf('Masjid Jamek'),
+        stations: [idOf('Masjid Jamek')], line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0 });
+      initial.sim.nextIncidentId = 3;
+      return initial;
+    };
+
+    it('clearing a fix holds a close frame on its place, then lets go', async () => {
+      allowMotion();
+      closeCameraOn({ holdMs: 100 });
+      const initial = surgeWithWaiting();
+      renderShift(initial);
+      const normalKey = mapProps().fitKey;
+      type('Crowd control at Ampang Park');
+      expect(mapProps().fitKey).toMatch(/^hold:1:close:/);
+      expect(mapProps().fitView!.w).toBeLessThan(normalBox(initial.served).w);
+      const kj = net.lines.get('KJ')!.stations;
+      const i = kj.indexOf(idOf('Ampang Park'));
+      for (const id of [kj[i - 1]!, kj[i]!, kj[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
+      await waitFor(() => expect(mapProps().fitKey).toBe(normalKey));
+      expect(mapProps().fitView).toBeUndefined();
+    });
+
+    it('locking onto another fix during the hold hands over to its lean-in', () => {
+      allowMotion();
+      closeCameraOn({ holdMs: 3000 });
+      renderShift(twoSurges());
+      type('Crowd control at Ampang Park');
+      expect(mapProps().fitKey).toMatch(/^hold:1:close:/);
+      type('Crowd control at M');
+      expect(mapProps().fitKey).toMatch(/^fix:2/);
+      expect(mapProps().fitView).toBeUndefined();
+      type('asjid Jamek');
+      expect(mapProps().fitKey).toMatch(/^hold:2:close:/);
+    });
+
+    it('under reduced motion a cleared fix leaves the camera alone', () => {
+      // beforeEach reports reduced motion.
+      closeCameraOn();
+      renderShift(surgeWithWaiting());
+      const normalKey = mapProps().fitKey;
+      type('Crowd control at Ampang Park');
+      expect(mapProps().fitKey).toBe(normalKey);
+      expect(mapProps().fitView).toBeUndefined();
+    });
+
+    it('a hold of 0 s does nothing', () => {
+      allowMotion();
+      closeCameraOn({ holdMs: 0 });
+      renderShift(surgeWithWaiting());
+      const normalKey = mapProps().fitKey;
+      type('Crowd control at Ampang Park');
+      expect(mapProps().fitKey).toBe(normalKey);
+    });
+  });
+
   it('Backspacing a fix away lets go: no urgency, no glow, and the normal frame is back', () => {
     allowMotion();
     const { container } = renderShift(surgeWithWaiting());
