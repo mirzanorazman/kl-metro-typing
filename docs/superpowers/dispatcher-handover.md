@@ -2,13 +2,17 @@
 
 ## Resume here (updated after every task)
 
-**Next approved plan (2026-10-26, not implemented):**
+**Active plan (2026-10-26, implementation started):**
 [`2026-10-26-dispatcher-network-reveal.md`](plans/2026-10-26-dispatcher-network-reveal.md),
 with [approved design](specs/2026-10-26-dispatcher-network-reveal-design.md).
 Eight tasks cover F15 exact served track, F4 entry before the lesson on every
 new Career, then F19 Expansion reveals and new-Line badge/chime. Planning branch
 `codex/dispatcher-network-reveal`, based on `feat/dispatcher` at `64e0d4d`.
-No application implementation has started. The user chose **ignore typing until
+Tasks 1–4 are implemented and have passed spec and quality review; Task 5
+(the UI deadline controller) is in progress. Commits: `7e1902a`, `d5dd5ca`,
+`36a9ceb`, `075b6f7`, `8e74f29`. The last fixes an entrance/partial-reveal
+Station-pop precedence finding from spec review. Baseline: 79 suites, 1,132 tests passed (2 skipped).
+The user chose **ignore typing until
 the reveal finishes**, without buffering or recording it: 1,000 ms entry,
 800 ms Expansion, no wait under reduced motion. F17 counts, shared-track lanes,
 zero-new-Station additions and onboarding handoff are included; F11 and F23 are

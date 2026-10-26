@@ -13,8 +13,8 @@ the user has playtested the onboarding; see "Check in playtest 3" at the end.
 **Planned (2026-10-26):** the user approved F15, F4 and F19 as one served-track
 and network-reveal group. [Design](specs/2026-10-26-dispatcher-network-reveal-design.md)
 and [eight-task implementation plan](plans/2026-10-26-dispatcher-network-reveal.md)
-are written on `codex/dispatcher-network-reveal`. Implementation has not
-started; the items remain open. Decisions and related improvements are
+are written on `codex/dispatcher-network-reveal`. Implementation started with subagent-driven development; F15 is in progress,
+with F4 and F19 queued. Decisions and related improvements are
 tracked under "Planning group" below. F11 and F23 stay separate.
 
 The checklist this answers is `dispatcher-playtest-2-checklist.md`; the
@@ -44,7 +44,7 @@ spec and plan.
 | F4 | Line Track transition on first entry | P1 | S–M | open | F15 |
 | F20 | List of closed Stations during the Shift | P1 | M | done f6b446e..e5bed05 | |
 | F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done fb732cc | |
-| F15 | Paint a Line only as far as it is served | P1 | M | open | |
+| F15 | Paint a Line only as far as it is served | P1 | M | in progress | |
 | F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
 | F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
 | F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |

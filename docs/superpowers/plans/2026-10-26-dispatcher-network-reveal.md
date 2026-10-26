@@ -10,7 +10,7 @@
 
 **Spec:** [approved design](../specs/2026-10-26-dispatcher-network-reveal-design.md).
 **Source baseline:** `feat/dispatcher` at `64e0d4d`; planning branch `codex/dispatcher-network-reveal`.
-**Status:** Ready to implement; every task below is unstarted. The user's request here is planning, not execution.
+**Status:** Implementation started 2026-10-26, using subagent-driven development with spec and quality review per task. Checkboxes record verified steps; the execution ledger is `/tmp/myrapid-network-reveal-progress.md`.
 
 ---
 
@@ -60,7 +60,7 @@ Do not split or refactor unrelated screen concerns.
 **Files:** Create `src/render/trackRanges.ts`, `src/render/trackRanges.test.ts`;
 modify `src/render/DispatchOverlay.tsx`.
 
-- [ ] **Step 1 — Add failing geometry tests.** Use the real network and layout:
+- [x] **Step 1 — Add failing geometry tests.** Use the real network and layout:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -111,9 +111,9 @@ membership at both inclusive endpoints, and a shared Interchange counted once.
 Use endpoint ids from `net.lines`, rather than assuming sorted Station ids
 encode travel order. Confirm the AG/SP fixture actually shares the chosen ids.
 
-- [ ] **Step 2 — Run red:** `npx vitest run src/render/trackRanges.test.ts`.
+- [x] **Step 2 — Run red:** `npx vitest run src/render/trackRanges.test.ts`.
   Expected: failure because the new module is absent.
-- [ ] **Step 3 — Implement the contracts and algorithms below.** Move the
+- [x] **Step 3 — Implement the contracts and algorithms below.** Move the
   overlay's existing subset-point logic here; it already resolves ids into
   full-Line lane indices.
 
@@ -177,16 +177,16 @@ function, and use it for offers too:
 const points = linePoints(net, layout, tracks, offer.line, ids);
 ```
 
-- [ ] **Step 4 — Run green:** `npx vitest run src/render/trackRanges.test.ts src/render/dispatchLayout.test.ts src/render/dispatchReadability.test.ts src/ui/Dispatcher.test.tsx`.
+- [x] **Step 4 — Run green:** `npx vitest run src/render/trackRanges.test.ts src/render/dispatchLayout.test.ts src/render/dispatchReadability.test.ts src/ui/Dispatcher.test.tsx`.
   Expected: all pass, including existing Incident/wave rendering.
-- [ ] **Step 5 — Commit:** `git add src/render/trackRanges.ts src/render/trackRanges.test.ts src/render/DispatchOverlay.tsx`, then `git commit -m "refactor: share lane-aware track subsets and range differences"`.
+- [x] **Step 5 — Commit:** `git add src/render/trackRanges.ts src/render/trackRanges.test.ts src/render/DispatchOverlay.tsx`, then `git commit -m "refactor: share lane-aware track subsets and range differences"`.
 
 ## Task 2: Static served-range rendering (F15)
 
 **Files:** Modify `src/render/MapCanvas.tsx`, `src/render/MapCanvas.test.tsx`,
 `src/ui/DispatcherScreen.tsx`, `src/ui/Dispatcher.test.tsx`.
 
-- [ ] **Step 1 — Add failing rendering tests.** Extend the real-render
+- [x] **Step 1 — Add failing rendering tests.** Extend the real-render
   `MapCanvas` tests with these checks:
 
 ```tsx
@@ -211,9 +211,9 @@ state. Render `emphasisRanges={[]}` to require a fully faded network, distinct
 from absent/null props. Keep the existing seven-base-polylines and emphasis
 tests unchanged for ordinary callers.
 
-- [ ] **Step 2 — Run red:** `npx vitest run src/render/MapCanvas.test.tsx`.
+- [x] **Step 2 — Run red:** `npx vitest run src/render/MapCanvas.test.tsx`.
   Expected: new served-track assertions fail.
-- [ ] **Step 3 — Add the optional prop and rendering branch.** Import
+- [x] **Step 3 — Add the optional prop and rendering branch.** Import
   `LineRange`, `linePoints`, `rangeIds`, `rangeStations`; remove the local
   helper which ignored subsets when lanes existed.
 
@@ -256,15 +256,15 @@ In Dispatcher, replace `emphasisSet={lessonLines ?? lines}` with
 `emphasisRanges={lesson?.career.served ?? run.served}`. Remove only the unused
 `lessonLines` memo, keeping `lines` for ShiftBar counts. Preserve closure marks.
 
-- [ ] **Step 4 — Run green:** `npx vitest run src/render/MapCanvas.test.tsx src/ui/Dispatcher.test.tsx src/ui/HomeMap.test.tsx src/ui/LineRunScreen.test.tsx src/ui/QuickRunScreen.test.tsx src/ui/RushHour.test.tsx`.
+- [x] **Step 4 — Run green:** `npx vitest run src/render/MapCanvas.test.tsx src/ui/Dispatcher.test.tsx src/ui/HomeMap.test.tsx src/ui/LineRunScreen.test.tsx src/ui/QuickRunScreen.test.tsx src/ui/RushHour.test.tsx`.
   Expected: all pass; Dispatcher no longer brightens whole served Lines.
-- [ ] **Step 5 — Commit:** stage these four files; `git commit -m "feat: paint only Dispatcher served track and Stations"`.
+- [x] **Step 5 — Commit:** stage these four files; `git commit -m "feat: paint only Dispatcher served track and Stations"`.
 
 ## Task 3: Reveal timing constrained to the complete window
 
 **Files:** Create `src/render/trackReveal.ts`, `src/render/trackReveal.test.ts`.
 
-- [ ] **Step 1 — Test the timing contract.** For a directed KJ range with
+- [x] **Step 1 — Test the timing contract.** For a directed KJ range with
   deliberately unequal adjacent coordinate distances, assert the first new
   Station's delay is based on cumulative distance through the offset path,
   rather than Station index. Use this test shape:
@@ -284,9 +284,9 @@ calling the production timing helper. Add reversed-path, duplicate-Interchange
 (earliest arrival wins), zero-length-path (finite timings), and 1,000 ms entry
 tests. Newly served ids are `afterStations − beforeStations`.
 
-- [ ] **Step 2 — Run red:** `npx vitest run src/render/trackReveal.test.ts`.
+- [x] **Step 2 — Run red:** `npx vitest run src/render/trackReveal.test.ts`.
   Expected: missing module/export failure.
-- [ ] **Step 3 — Implement this public contract and distance calculation.**
+- [x] **Step 3 — Implement this public contract and distance calculation.**
 
 ```ts
 export interface TrackReveal {
@@ -328,16 +328,16 @@ Imports: range types/helpers from Task 1, `NetworkIndex`, `Layout`, and
 `timeToReach` from `src/render/entrance.ts`. All layout points are present in
 the validated network. Do not change the existing home timing constants.
 
-- [ ] **Step 4 — Run green:** `npx vitest run src/render/trackReveal.test.ts src/render/entrance.test.ts`.
+- [x] **Step 4 — Run green:** `npx vitest run src/render/trackReveal.test.ts src/render/entrance.test.ts`.
   Expected: both timing suites pass with no home entrance changes.
-- [ ] **Step 5 — Commit:** stage the new helper/test; `git commit -m "feat: time partial track reveals by path distance"`.
+- [x] **Step 5 — Commit:** stage the new helper/test; `git commit -m "feat: time partial track reveals by path distance"`.
 
 ## Task 4: Render only the changing track and Station pops
 
 **Files:** Modify `src/render/MapCanvas.tsx`, `src/render/MapCanvas.test.tsx`,
 `src/render/map.css` only if new selectors are needed.
 
-- [ ] **Step 1 — Add failing DOM behavior tests.** Supply target ranges plus a
+- [x] **Step 1 — Add failing DOM behavior tests.** Supply target ranges plus a
   `TrackReveal` with a known before range and one extension. Assert the static
   bright path covers only the before range, the animated path contains the old
   endpoint and only the added tail, and the new Station has a pop delay. Existing
@@ -358,9 +358,9 @@ expect(container.querySelector('g[data-labels]')?.getAttribute('data-pop')).toBe
 Use a second fixture with `reverse: true` to assert reversed point order, and
 an entry fixture with `before: []` to assert no bright static path underneath.
 
-- [ ] **Step 2 — Run red:** `npx vitest run src/render/MapCanvas.test.tsx`.
+- [x] **Step 2 — Run red:** `npx vitest run src/render/MapCanvas.test.tsx`.
   Expected: temporary reveal path/pop assertions fail.
-- [ ] **Step 3 — Add optional `trackReveal?: TrackReveal | null`.** Compute
+- [x] **Step 3 — Add optional `trackReveal?: TrackReveal | null`.** Compute
   timings from Task 3. The static range layer becomes
   `trackReveal?.before ?? emphasisRanges`; membership remains the target
   `emphasisRanges`. Append directed animated segments after static track:
@@ -392,9 +392,9 @@ Keep the old home entrance's global furniture/label delay tied exclusively to
 `entrance`. Keep stable keys independent of points, camera or elapsed time.
 Reuse existing CSS keyframes. Do not introduce a whole-network overlay entrance.
 
-- [ ] **Step 4 — Run green:** `npx vitest run src/render/MapCanvas.test.tsx src/render/trackReveal.test.ts src/ui/HomeMap.test.tsx src/ui/Dispatcher.test.tsx`.
+- [x] **Step 4 — Run green:** `npx vitest run src/render/MapCanvas.test.tsx src/render/trackReveal.test.ts src/ui/HomeMap.test.tsx src/ui/Dispatcher.test.tsx`.
   Expected: no new-layer behavior leaks to whole-Line callers.
-- [ ] **Step 5 — Commit:** stage renderer/test/CSS changes; `git commit -m "feat: draw only newly served track during network reveals"`.
+- [x] **Step 5 — Commit:** stage renderer/test/CSS changes; `git commit -m "feat: draw only newly served track during network reveals"`.
 
 ## Task 5: UI reveal controller with a synchronous deadline gate
 
@@ -774,5 +774,5 @@ No balance survey is required because there are no simulation changes.
 | StrictMode, cleanup, hidden tabs, dynamic reduced motion | 5, 6, 7, 8 |
 | Existing callers, closures, wave and engine behavior | 2, 4, 8 |
 
-The plan is a planning artifact. Its code examples specify the implementation
-shape; none of these application changes or tests has been executed yet.
+Code examples specify the implementation shape. Completion and verification
+are recorded by the checkboxes above and the feedback tracker.
