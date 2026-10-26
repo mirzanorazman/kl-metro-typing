@@ -473,6 +473,21 @@ describe('MapCanvas partial track reveal', () => {
     }
   });
 
+  it('uses only partial reveal station timings when a home entrance is also supplied', () => {
+    const { container } = render(<MapCanvas {...props} entrance={entranceTiming(net)} />);
+    const timing = trackRevealTiming(net, layout, null, reveal);
+    for (const element of container.querySelectorAll<SVGCircleElement>('circle[data-station], circle[data-core]')) {
+      const id = element.getAttribute('data-station') ?? element.getAttribute('data-core')!;
+      if (reveal.stations.has(id)) {
+        expect(element.getAttribute('data-pop')).toBe('true');
+        expect(element.style.getPropertyValue('--pop-delay')).toBe(`${Math.round(timing.station.get(id)!)}ms`);
+      } else {
+        expect(element.getAttribute('data-pop'), id).toBeNull();
+        expect(element.style.getPropertyValue('--pop-delay'), id).toBe('');
+      }
+    }
+  });
+
   it('retains the animated node while layout and camera geometry change', () => {
     const { container, rerender } = render(<MapCanvas {...props} laneOffsetPx={7} />);
     const extension = container.querySelector('polyline[data-reveal-line="KJ"]')!;

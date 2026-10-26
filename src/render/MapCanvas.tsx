@@ -507,7 +507,9 @@ export function MapCanvas({
               (emphasisSet && !codes.some((c) => emphasisSet.has(c))))
               ? 'true'
               : undefined;
-          const pop = revealTiming?.station.get(station.id) ?? entrance?.station.get(station.id);
+          const pop = trackReveal
+            ? revealTiming?.station.get(station.id)
+            : entrance?.station.get(station.id);
           const popStyle =
             pop === undefined
               ? undefined
