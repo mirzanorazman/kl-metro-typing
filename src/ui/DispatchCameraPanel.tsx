@@ -26,7 +26,7 @@ const keepKeys = (e: KeyboardEvent<HTMLElement>) => {
 
 /** Dev only: tunes the close camera while playing. */
 export function DispatchCameraPanel({ settings, onChange, stations, closenessNow }: DispatchCameraPanelProps) {
-  const slider = (key: 'early' | 'late' | 'holdMs', label: string, step: number, shown: string) => (
+  const slider = (key: 'early' | 'late', label: string, step: number, shown: string) => (
     <label className="dispatch-camera-row">
       <span>{label}</span>
       <input type="range" aria-label={label} min={CLOSE_RANGES[key][0]} max={CLOSE_RANGES[key][1]} step={step} value={settings[key]}
@@ -47,7 +47,6 @@ export function DispatchCameraPanel({ settings, onChange, stations, closenessNow
       </label>
       {slider('early', 'Early closeness', 0.1, `${settings.early.toFixed(1)}×`)}
       {slider('late', 'Late closeness', 0.1, `${settings.late.toFixed(1)}×`)}
-      {slider('holdMs', 'Hold after a fix', 100, `${(settings.holdMs / 1000).toFixed(1)} s`)}
       <p className="dispatch-camera-now">{`Now ${closenessNow.toFixed(1)}× at ${stations} Stations`}</p>
     </aside>
   );

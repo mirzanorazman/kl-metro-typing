@@ -44,7 +44,7 @@ spec and plan.
 | F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |
 | F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..2042dbd | |
 | F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
-| F27 | The camera pulls in close for the lesson, train tips and a cleared fix (dev panel) | P1 | M | done 1a9d6e5..1f79255 | |
+| F27 | The camera pulls in close for the lesson, train tips and a fix being typed (dev panel) | P1 | M | done 1a9d6e5..c152d88, amended | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
 | F16 | Repetition, unattended trains, what to prioritise | P2 | L | open | F12 |
 | F10 | Combo spacing: every 3, or growing gaps (3, 7, 13)? | P2 | S | open | F12 |
@@ -356,8 +356,9 @@ network the lean is barely visible (checklist §2). The dispersal pop shows
 clear, a crowd-burst animation, a "Crowd cleared" stamp and a sound. Keep
 reduced motion still.
 
-**Camera part done in F27** (behind the dev camera panel): the close hold
-after a fix lands. What is left here is the burst, the stamp and the sound.
+**Camera part done in F27** (behind the dev camera panel): the camera zooms
+in on the Incident while its fix is typed and out when it clears. What is
+left here is the burst, the stamp and the sound.
 
 ### F19. Celebrate a new Line joining
 
@@ -468,14 +469,19 @@ review.
 **Done:** a dev-only camera panel (bottom left; development builds only, so
 playtest 3 runs on `npm run dev`): a Close camera toggle, Early closeness (1–5×,
 default 3× at 14 Stations or fewer), Late closeness (1–3×, default 1.2× at 40 or
-more, linear between), Hold after a fix (0–3 s, default 1 s) and a readout of
-the closeness now. Settings stay in browser storage. With it on, the lesson
-and the Service gap and late tips frame close (`closeFrame`, through a new
-`MapCanvas` prop `fitView`), and when a typed fix clears an Incident the
-camera holds close on its place for the hold time. Typing a fix keeps
-today's lean-in; locking onto another fix ends a hold. Reduced motion keeps
-the camera still for tips and the hold; the lesson stays close. Off, the
-camera is exactly as before.
+more, linear between) and a readout of the closeness now. Settings stay in
+browser storage. With it on, the lesson and the Service gap and late tips
+frame close (`closeFrame`, through a new `MapCanvas` prop `fitView`), and
+locking onto a fix zooms in on the Incident's place and its neighbours
+(leaving the waiting trains out of the frame); clearing or Backspacing the
+fix zooms straight out. A signal fault stays close through all its names.
+Reduced motion keeps the camera still for tips and fixes; the lesson stays
+close. Off, the camera is exactly as before.
+
+**Amended 2026-10-27:** the first build held a close view for 1 s *after* a
+fix landed and kept today's lean-in while typing. Playing it, the user saw
+the zoom arrive after the fix and called it a bug: the intent was always
+zoom in while typing, out on the clear. The hold and its slider are gone.
 
 Probe (`DISPATCH_PROBE=1 npx vitest run src/ui/dispatchCameraProbe.test.ts`,
 60 WPM, seeds 1–5), zoom against the normal frame, median:
@@ -484,8 +490,8 @@ Probe (`DISPATCH_PROBE=1 npx vitest run src/ui/dispatchCameraProbe.test.ts`,
 |---|---|---|---|
 | Late tip, today → close | 1.00× → 2.79× | 1.02× → 2.17× | 1.44× → 1.20× |
 | Service gap tip, today → close | 1.00× → 2.72× | 1.12× → 1.89× | 1.44× → 1.20× |
-| Lean-in (unchanged) | 1.00× | 1.00× | 1.10× |
-| Hold after a fix (new) | 2.79× | 2.24× | 1.20× |
+| Lean-in, today | 1.00× | 1.00× | 1.10× |
+| Fix being typed, close camera | 3.00× | 1.82× | 1.20× |
 | Lesson against Shift 1 | 1.00× → 3.00× | | |
 
 **Worth knowing:** from Shift 9 the close camera at its 1.2× default frames
@@ -493,8 +499,8 @@ tips *wider* than today's (1.44×), because the close size comes from the
 closeness, not the subject's own fit. Raise Late closeness if that feels
 wrong. Seen live (1440 × 900): the lesson at 3× and 5×, a slider moving the
 camera at once, a Station name typed right after clicking the panel, the
-late tip on `?dispatch=full`. Not seen live: a Service gap tip and a cleared
-fix's hold (unit tested only).
+late tip on `?dispatch=full`. Not seen live: a Service gap tip (unit tested
+only); the close view on a fix is checked live after the amendment.
 
 ## P2: balance and depth (design talk first)
 
@@ -648,8 +654,8 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   right thing, and does it still feel special by the tenth Incident, or does
   it get old? Tune Early and Late closeness with the sliders and note the
   values that feel right, and at how many Stations (the readout shows it).
-  After a fix lands, is the close hold a reward or a distraction while other
-  Trains wait? Try a few hold times.
+  While you type a fix, does the close view help, or do you lose track of the
+  Trains waiting elsewhere?
 - **Closure gauge (F20).** Is the first closure noticed when it happens? Does a
   failed Shift now feel like it was coming? Is the gauge visible enough up in
   the Shift bar, given the eyes are on the chips and the Incidents panel?

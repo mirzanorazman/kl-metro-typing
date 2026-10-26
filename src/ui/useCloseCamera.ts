@@ -20,7 +20,6 @@ function loadSettings(): CloseCameraSettings {
       on: typeof s.on === 'boolean' ? s.on : d.on,
       early: clamp(s.early, CLOSE_RANGES.early, d.early),
       late: clamp(s.late, CLOSE_RANGES.late, d.late),
-      holdMs: clamp(s.holdMs, CLOSE_RANGES.holdMs, d.holdMs),
     };
   } catch {
     return CLOSE_CAMERA_DEFAULTS;

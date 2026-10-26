@@ -1586,15 +1586,6 @@ describe('Leaning in on an Incident fix', () => {
     expect(props.fitTo).toContainEqual(props.layout.get(kj[i + 1]!));
   });
 
-  it('the lean-in is the same with the close camera on: no explicit frame while a fix is typed', () => {
-    allowMotion();
-    closeCameraOn();
-    renderShift(surgeWithWaiting());
-    type('C');
-    expect(mapProps().fitKey).toMatch(/^fix:1/);
-    expect(mapProps().fitView).toBeUndefined();
-  });
-
   it('a train that starts waiting mid-fix joins the frame, and the map refits to take it in', async () => {
     allowMotion();
     const clock = fakeClock();
@@ -1626,7 +1617,7 @@ describe('Leaning in on an Incident fix', () => {
     expect(mapProps().fitKey).toBe(normalKey);
   });
 
-  describe('the close hold after a fix lands', () => {
+  describe('the close camera while a fix is typed', () => {
     /** A second crowd surge, at Masjid Jamek. */
     const twoSurges = () => {
       const initial = surgeWithWaiting();
@@ -1635,61 +1626,23 @@ describe('Leaning in on an Incident fix', () => {
       initial.sim.nextIncidentId = 3;
       return initial;
     };
+    const kj = () => net.lines.get('KJ')!.stations;
 
-    it('clearing a fix holds a close frame on its place, then lets go', async () => {
+    it('locking onto a fix zooms in on its place and its neighbours, leaving the waiting trains out', () => {
       allowMotion();
-      closeCameraOn({ holdMs: 100 });
+      closeCameraOn();
       const initial = surgeWithWaiting();
       renderShift(initial);
-      const normalKey = mapProps().fitKey;
-      type('Crowd control at Ampang Park');
-      expect(mapProps().fitKey).toMatch(/^hold:1:close:/);
+      type('C');
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
       expect(mapProps().fitView!.w).toBeLessThan(normalBox(initial.served).w);
-      const kj = net.lines.get('KJ')!.stations;
-      const i = kj.indexOf(idOf('Ampang Park'));
-      for (const id of [kj[i - 1]!, kj[i]!, kj[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
-      await waitFor(() => expect(mapProps().fitKey).toBe(normalKey));
-      expect(mapProps().fitView).toBeUndefined();
+      const i = kj().indexOf(idOf('Ampang Park'));
+      for (const id of [kj()[i - 1]!, kj()[i]!, kj()[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
+      expect(mapProps().fitTo).not.toContainEqual(mapProps().layout.get(idOf('Kerinchi')));
     });
 
-    it('locking onto another fix during the hold hands over to its lean-in', () => {
+    it('clearing the fix zooms straight out', () => {
       allowMotion();
-      closeCameraOn({ holdMs: 3000 });
-      renderShift(twoSurges());
-      type('Crowd control at Ampang Park');
-      expect(mapProps().fitKey).toMatch(/^hold:1:close:/);
-      type('Crowd control at M');
-      expect(mapProps().fitKey).toMatch(/^fix:2/);
-      expect(mapProps().fitView).toBeUndefined();
-      type('asjid Jamek');
-      expect(mapProps().fitKey).toMatch(/^hold:2:close:/);
-    });
-
-    it('a Shift ending during the hold ends it: the next Shift opens on its normal frame', () => {
-      allowMotion();
-      closeCameraOn({ holdMs: 3000 });
-      const clock = fakeClock();
-      const initial = surgeWithWaiting();
-      // A Career 100 ms short of the end of Shift 1.
-      initial.gameMs = SHIFT_MS - 100;
-      initial.sim.shiftMs = SHIFT_MS - 100;
-      initial.startedAt = clock.now - initial.gameMs;
-      renderShift(initial);
-      type('Crowd control at Ampang Park');
-      expect(mapProps().fitKey).toMatch(/^hold:1:close:/);
-      clock.now += 200;
-      type('J');
-      expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
-      const offer = screen.getAllByRole('button').map((b) => b.querySelector('.dispatch-offer-name')?.textContent)
-        .find((n): n is string => !!n)!;
-      type(offer);
-      expect(screen.queryByRole('region', { name: 'Expansion' })).toBeNull();
-      type(screen.getAllByTestId('dispatch-signal')[0]!.textContent![0]!);
-      expect(mapProps().fitKey).not.toMatch(/^hold:/);
-    });
-
-    it('under reduced motion a cleared fix leaves the camera alone', () => {
-      // beforeEach reports reduced motion.
       closeCameraOn();
       renderShift(surgeWithWaiting());
       const normalKey = mapProps().fitKey;
@@ -1698,13 +1651,63 @@ describe('Leaning in on an Incident fix', () => {
       expect(mapProps().fitView).toBeUndefined();
     });
 
-    it('a hold of 0 s does nothing', () => {
+    it('Backspacing the fix away zooms straight out', () => {
       allowMotion();
-      closeCameraOn({ holdMs: 0 });
+      closeCameraOn();
       renderShift(surgeWithWaiting());
       const normalKey = mapProps().fitKey;
-      type('Crowd control at Ampang Park');
+      type('C');
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
+      press('Backspace');
       expect(mapProps().fitKey).toBe(normalKey);
+      expect(mapProps().fitView).toBeUndefined();
+    });
+
+    it('locking onto the next fix moves the close view to it', () => {
+      allowMotion();
+      closeCameraOn();
+      renderShift(twoSurges());
+      type('Crowd control at Ampang Park');
+      type('Crowd control at M');
+      expect(mapProps().fitKey).toMatch(/^fix:2:close:/);
+      expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(idOf('Masjid Jamek')));
+    });
+
+    it('a closeness change refits the close view', () => {
+      allowMotion();
+      closeCameraOn();
+      renderShift(surgeWithWaiting());
+      type('C');
+      const before = mapProps().fitKey;
+      fireEvent.change(screen.getByRole('slider', { name: 'Early closeness' }), { target: { value: '4.5' } });
+      expect(mapProps().fitKey).not.toBe(before);
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
+    });
+
+    it('a signal fault keeps its close view from its first name until its last clears it', () => {
+      allowMotion();
+      closeCameraOn();
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+      initial.sim.incidents = [signalFault()];
+      initial.sim.nextIncidentId = 2;
+      renderShift(initial);
+      const normalKey = mapProps().fitKey;
+      type('Dang Wangi');
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
+      type('Masjid Jamek');
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
+      type('Pasar Seni');
+      expect(mapProps().fitKey).toBe(normalKey);
+    });
+
+    it('under reduced motion locking onto a fix leaves the camera alone', () => {
+      // beforeEach reports reduced motion.
+      closeCameraOn();
+      renderShift(surgeWithWaiting());
+      const normalKey = mapProps().fitKey;
+      type('C');
+      expect(mapProps().fitKey).toBe(normalKey);
+      expect(mapProps().fitView).toBeUndefined();
     });
   });
 

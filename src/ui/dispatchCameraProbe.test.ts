@@ -42,10 +42,7 @@ it.skipIf(!process.env.DISPATCH_PROBE)('prints the camera zooms', () => {
   const close: Table = new Map();
   for (const seed of [1, 2, 3, 4, 5]) {
     const seen = new Set<string>();
-    let prev: CareerState | null = null;
     drive({ seed, msPerKey: 200, limitMs: 30 * 60_000, watch: (s) => {
-      const before = prev;
-      prev = s;
       if (s.status !== 'running') return;
       const servedList = servedStations(net, s.served);
       const served = new Set(servedList);
@@ -56,12 +53,7 @@ it.skipIf(!process.env.DISPATCH_PROBE)('prints the camera zooms', () => {
       if (fixing && !seen.has(`fix:${fixing.id}`)) {
         seen.add(`fix:${fixing.id}`);
         push(today, `lean-in, ${band(s)}`, fitted(leanIn(net, s.sim, fixing, visibleTargets(net, s.sim), served).stations) / base);
-      }
-      // A hold where the fix the aim was locked on has just gone, its place in service.
-      const was = before?.aim.lock?.kind === 'fix' ? before.aim.lock.incident : null;
-      const done = was === null ? undefined : before!.sim.incidents.find((inc) => inc.id === was);
-      if (done && !s.sim.incidents.some((inc) => inc.id === was) && !s.sim.outOfService[done.place]) {
-        push(close, `hold, ${band(s)}`, closed(servedList, withNeighbours(net, done.line, done.place, served)) / base);
+        push(close, `lean-in, ${band(s)}`, closed(servedList, withNeighbours(net, fixing.line, fixing.place, served)) / base);
       }
       // Each tip subject, once per Shift.
       for (const id of ['service-gap', 'late'] as const) {

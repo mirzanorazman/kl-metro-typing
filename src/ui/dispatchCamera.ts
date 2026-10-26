@@ -1,6 +1,6 @@
 import type { LineCode } from '../data/types';
 import type { CareerState } from '../engine/dispatch';
-import type { Incident, SimState } from '../engine/dispatchSim';
+import type { Incident } from '../engine/dispatchSim';
 import type { Target } from '../engine/dispatchTargets';
 import type { NetworkIndex } from '../engine/network';
 import type { TipSubject } from './dispatchTips';
@@ -12,18 +12,16 @@ export interface CloseCameraSettings {
   early: number;
   /** How much closer than the normal frame, at CLOSE_LATE_STATIONS served Stations or more. */
   late: number;
-  /** How long the close view holds after a typed fix clears an Incident. */
-  holdMs: number;
 }
 
-export const CLOSE_CAMERA_DEFAULTS: CloseCameraSettings = { on: false, early: 3, late: 1.2, holdMs: 1000 };
+export const CLOSE_CAMERA_DEFAULTS: CloseCameraSettings = { on: false, early: 3, late: 1.2 };
 
 /** Shift 1's network: 14 Stations. */
 export const CLOSE_EARLY_STATIONS = 14;
 export const CLOSE_LATE_STATIONS = 40;
 
 /** What the dev camera panel's sliders allow. */
-export const CLOSE_RANGES = { early: [1, 5], late: [1, 3], holdMs: [0, 3000] } as const;
+export const CLOSE_RANGES = { early: [1, 5], late: [1, 3] } as const;
 
 /**
  * How much closer than the normal frame a close view is, for a Served network
@@ -35,15 +33,6 @@ export function closeness(
 ): number {
   const t = Math.min(1, Math.max(0, (stations - CLOSE_EARLY_STATIONS) / (CLOSE_LATE_STATIONS - CLOSE_EARLY_STATIONS)));
   return settings.early + (settings.late - settings.early) * t;
-}
-
-/**
- * The Incidents the player's typing cleared between two states at the same
- * tick: gone from `after`, and their place not Out of service. With no tick
- * between them, nothing else can have ended them.
- */
-export function typedClears(before: SimState, after: SimState): Incident[] {
-  return before.incidents.filter((inc) => !after.incidents.some((i) => i.id === inc.id) && !after.outOfService[inc.place]);
 }
 
 /**

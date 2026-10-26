@@ -28,7 +28,6 @@ import { DISPATCH_KEYLOG_MAX_EVENTS } from '../engine/dispatchBalance';
 import { LESSON_SEEN, lessonStations } from '../engine/dispatchLesson';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { servedKey, servedLines, servedStations } from '../engine/dispatchNetwork';
-import type { Incident } from '../engine/dispatchSim';
 import { candidates, sameRef, visibleTargets, type Target } from '../engine/dispatchTargets';
 import type { TypingState } from '../engine/typing';
 import { closeFrame } from '../geo/fit';
@@ -46,7 +45,7 @@ import { clearedSignals, liveMarks, useFreshWave, waveNoteDelays } from '../rend
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { ClosureGauge, closureBand } from './ClosureGauge';
 import { ConfirmEndButton } from './ConfirmEndButton';
-import { closeness, leanIn, subjectStations, typedClears, withNeighbours } from './dispatchCamera';
+import { closeness, leanIn, subjectStations, withNeighbours } from './dispatchCamera';
 import { DispatchCameraPanel } from './DispatchCameraPanel';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
@@ -277,23 +276,6 @@ export function DispatcherScreen({
 
   // The close camera, tuned from the dev camera panel (development only).
   const [camera, setCamera] = useCloseCamera();
-  // The Incident the player's typing cleared last: the close camera holds on
-  // its place for a moment. Locking onto another fix lets go at once.
-  const [hold, setHold] = useState<Incident | null>(null);
-  const noteInput = useCallback((before: CareerState, after: CareerState) => {
-    if (after.aim.lock?.kind === 'fix') return setHold(null);
-    const cleared = typedClears(before.sim, after.sim);
-    if (cleared.length > 0) setHold(cleared[cleared.length - 1]!);
-  }, []);
-  useEffect(() => {
-    if (!hold) return;
-    const timer = setTimeout(() => setHold(null), camera.holdMs);
-    return () => clearTimeout(timer);
-  }, [hold, camera.holdMs]);
-  // A Shift's end ends the hold at once, so it never returns in the next Shift.
-  useEffect(() => {
-    if (run.status !== 'running' && run.status !== 'paused') setHold(null);
-  }, [run.status]);
 
   // Tips: the seen list is read once; a tip is marked seen when it is shown.
   const seenTips = useRef(new Set(loadProfile().dispatchTipsSeen ?? []));
@@ -342,11 +324,9 @@ export function DispatcherScreen({
     const now = runTick();
     const next = applyDispatchAction(net, prev, body, now);
     if (next === prev) return;
-    // Confirm syncs to `now` first; from the synced state, only the key acted.
-    if (body.a === 'confirm') noteInput(advanceCareer(net, prev, now), next);
     actions.current.push({ ...body, i: recorder.snapshot().events.length, t: now } as DispatchAction);
     commit(next);
-  }, [commit, net, noteInput, recorder]);
+  }, [commit, net, recorder]);
 
   const onKey = useCallback((key: string, source?: KeySource) => {
     const cur = currentRun.current;
@@ -371,10 +351,8 @@ export function DispatcherScreen({
     const synced = advanceCareer(net, cur, now);
     if (synced.status === 'ended' || synced.status === 'between') return commit(synced);
     recorder.record(key, source, now);
-    const next = enterDispatchCharacter(net, synced, key, now);
-    noteInput(synced, next);
-    commit(next);
-  }, [act, commit, dismissTip, lessonOnKey, markSeen, net, noteInput, onExit, phoneLandscape, recorder]);
+    commit(enterDispatchCharacter(net, synced, key, now));
+  }, [act, commit, dismissTip, lessonOnKey, markSeen, net, onExit, phoneLandscape, recorder]);
 
   // Between Shifts, unless a tip is showing, the Expansion picker owns the keys.
   const screenKeys = !phoneLandscape && run.status !== 'ended' && (run.status !== 'between' || tips.length > 0);
@@ -614,13 +592,13 @@ export function DispatcherScreen({
   const tipFrame = subject && !prefersReducedMotion()
     ? subjectStations(net, run.sim, subject, served).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
     : null;
-  // The close camera (dev camera panel): the lesson, a pointing tip and the
-  // place of a fix just typed frame closer than the normal frame, less close as
-  // the Served network grows. A fix being typed keeps its lean-in.
+  // The close camera (dev camera panel): the lesson, a pointing tip and a fix
+  // being typed frame closer than the normal frame, less close as the Served
+  // network grows. A fix's close view is its place and its Served neighbours
+  // only: the waiting trains elsewhere leave the shot until it clears.
   const near = closeness(served.size, camera);
-  const holdFrame = hold && camera.on && camera.holdMs > 0 && !lean && !failHold && !prefersReducedMotion()
-    && (run.status === 'running' || run.status === 'paused')
-    ? withNeighbours(net, hold.line, hold.place, served).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
+  const fixFrame = camera.on && lean && fixing
+    ? withNeighbours(net, fixing.line, fixing.place, served).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
     : null;
   const close = !camera.on ? null
     : lesson ? {
@@ -631,10 +609,9 @@ export function DispatcherScreen({
       view: closeFrame(frame, tipFrame, DISPATCH_FIT_PADDING, near),
       key: `tip:${tips[0]}:close:${near.toFixed(2)}`,
     }
-    : lean ? null
-    : holdFrame ? {
-      view: closeFrame(frame, holdFrame, DISPATCH_FIT_PADDING, near),
-      key: `hold:${hold!.id}:close:${near.toFixed(2)}`,
+    : fixFrame ? {
+      view: closeFrame(frame, fixFrame, DISPATCH_FIT_PADDING, near),
+      key: `fix:${fixing!.id}:close:${near.toFixed(2)}`,
     }
     : null;
 
@@ -665,7 +642,7 @@ export function DispatcherScreen({
             backdrop={backdrop}
             districts={districts}
             emphasisSet={lessonLines ?? lines}
-            fitTo={lesson ? lessonFrame : tipFrame ?? leanFrame ?? holdFrame ?? frame}
+            fitTo={lesson ? lessonFrame : tipFrame ?? fixFrame ?? leanFrame ?? frame}
             fitKey={close?.key ?? (lesson ? 'dispatch:lesson' : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey)}
             fitView={close?.view}
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
