@@ -41,7 +41,7 @@ spec and plan.
 | F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
 | F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
 | F19 | Celebrate a new Line joining the network | P1 | M | open | F4, F15 |
-| F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..e73a997 + balance | |
+| F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..2042dbd | |
 | F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
 | F16 | Repetition, unattended trains, what to prioritise | P2 | L | open | F12 |
@@ -409,16 +409,23 @@ Incident ends by itself if the pair breaks up, and unfixed it closes its
 place like any Incident. The bunching tip is replaced by a Service gap tip,
 and it and the late tip lean the camera in on their trains, which pulse
 (a steady ring under reduced motion). `DISPATCH_EVIDENCE_VERSION` is 3. Survey
-(100 seeds): 40 and 60 WPM Careers are within 5 % of before, and a 60 WPM
-typist meets about one Service gap a Shift, rising with the network; 90 WPM
-meets fewer, not more. The hold experiment, rerun with Service gaps: holding
-the rear train 4 s or 8 s **still does not pay** at 60 WPM (on time
-unchanged at 66 %, failed Careers 2 → 3 → 5 of 8), because most Service
-gaps form behind a leader that is itself waiting at its Signal (72 % at
-60 WPM), where holding the rear changes nothing. Numbers and reasons are in
-`dispatcher-handover.md`, "Service gap balance". For the user: whether the
-trigger should only count a pair whose leader is moving, so a Service gap
-marks a rushed train rather than a backlog.
+(100 seeds): 46 of 100 60 WPM Careers still run at the 30-minute cap,
+against 48 before. By the mean, 40 and 60 WPM Careers are within 5 % of
+before; by the median, 60 WPM is 12.5 % shorter (21.0 against 24.0 min),
+outside the spec's "about 10 %", though that median is unstable because
+about half those Careers hit the cap. A 60 WPM typist meets 1.59 Service
+gaps a Shift (all gaps ÷ all Shifts played, 100 seeds), rising with the
+network from 0.13 in Shifts 1–6 to 4.28 from Shift 13; 90 WPM meets fewer,
+not more (0.51 against 1.57, 20 seeds). Service gaps barely crowd out random
+Incidents (3.00 against 3.00 a Shift through Shift 12, 2.96 against 3.00
+after). The hold experiment, rerun with Service gaps: holding the rear train
+4 s or 8 s shows **no on-time gain** at 60 WPM (66 % throughout); failed
+Careers were 2, 3, 5 of 8, which is inconclusive at this sample. Most
+Service gaps form behind a leader that is itself waiting at its Signal (72 %
+at 60 WPM), where holding the rear changes nothing. Numbers and reasons are
+in `dispatcher-handover.md`, "Service gap balance". For the user: whether
+the trigger should only count a pair whose leader is moving, so a Service
+gap marks a rushed train rather than a backlog.
 
 ### F23. Tip card is trapped in the typing panel
 

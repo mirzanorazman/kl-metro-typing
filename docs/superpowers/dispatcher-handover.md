@@ -250,22 +250,42 @@ for `GAP_TRIGGER_MS` starts a Service gap Incident on its rear train; typing
 `DISPATCH_EVIDENCE_VERSION` is 3 (Service gap Incidents), so Careers recorded
 under version 2 would replay differently.
 
+The Service gap and late tips ship with final copy, not the spec's drafts.
+The Service gap tip no longer says the player sent the trains too close or
+that the Station has no train coming, since most gaps form behind a waiting
+leader; it says the Station behind waits longer, and offers holding the
+second train or getting the front one moving. Both tips frame their
+Stations with their Served neighbours, as the fix lean-in does.
+
+**How Service gaps per Shift are counted here:** all Service gaps divided by
+all Shifts played, pooled over the seeds (the Shift a Career ended or stopped
+in counts as played). Where a table shows another figure, it says so. The
+probe prints a different one, the median over seeds of each Career's own
+rate. It can read very differently: at 60 WPM it reads much lower, because
+a few long Careers hold most of the gaps.
+
 | Constant | Start | Tuned | Why |
 |---|---|---|---|
-| `GAP_TRIGGER_MS` | 6 000 | 16 000 | At 6 s, 60 WPM Careers were about 10 % shorter and a 60 WPM typist met about 2 Service gaps a Shift. At 16 s both are on target over 100 seeds (below). |
+| `GAP_TRIGGER_MS` | 6 000 | 16 000 | At 6 s, 60 WPM Careers were about 11 % shorter (mean, 20 seeds) and a 60 WPM typist met 2.35 Service gaps a Shift (20 seeds). At 16 s the rate is 1.58 a Shift (40 seeds; 1.59 over 100) and 60 WPM Careers stay close to before (below). |
 | `GAP_HOLD_MS` | 6 000 | 6 000 | 3, 6 and 9 s give the same Career lengths and gap rates within noise. |
 
 ### Survey with Service gaps
 
-The probe now prints Service gaps per Shift: the median over seeds of each
-Career's gaps divided by the Shifts it played. Seeds 1–5, 30-minute cap.
+Seeds 1–5, 30-minute cap. The probe's own column is the median per Career;
+the pooled rate is beside it.
 
-| Typist | Career | Shifts cleared | Waves | Service gaps per Shift | First closure, seeds 1–5 | Career before |
-|---|---|---|---|---|---|---|
-| 40 WPM, 94 % | 6.0 min | 3 | 6 | 0.25 | crowd surge, crowding, crowd surge, crowd surge, signal fault | 6.0 min |
-| 60 WPM, 96 % | 15.0 min | 9 | 40 | 0.33 | crowding, crowding, crowd surge, running, crowding | 19.5 min |
-| 90 WPM, 98 % | 29.9 min (cap) | 19 | 217 | 0.55 | running, crowding, running ×3 | 29.9 min (cap) |
-| 60 WPM, 96 %, inattentive | 6.0 min | 3 | 13 | 0.20 | signal fault ×2, crowd surge ×2, train fault | 7.5 min |
+| Typist | Career | Shifts cleared | Waves | Service gaps per Shift, pooled | Probe's median per Career | First closure, seeds 1–5 | Career before |
+|---|---|---|---|---|---|---|---|
+| 40 WPM, 94 % | 6.0 min | 3 | 6 | 0.39 | 0.25 | crowd surge, crowding, crowd surge, crowd surge, signal fault | 6.0 min |
+| 60 WPM, 96 % | 15.0 min | 9 | 40 | 1.36 | 0.33 | crowding, crowding, crowd surge, running, crowding | 19.5 min |
+| 90 WPM, 98 % | 29.9 min (cap) | 19 | 217 | 0.49 | 0.55 | running, crowding, running ×3 | 29.9 min (cap) |
+| 60 WPM, 96 %, inattentive | 6.0 min | 3 | 13 | 0.15 | 0.20 | signal fault ×2, crowd surge ×2, train fault | 7.5 min |
+
+The probe's medians make 90 WPM look busier than 60 WPM (0.55 against 0.33).
+That is an artefact of five seeds and of the median: at 60 WPM one seed that
+ran to the cap had 60 of the 75 Service gaps, and the median skips it. Pooled,
+the same five seeds give 1.36 at 60 WPM and 0.49 at 90 WPM. Trust the 20-seed
+comparison below, not the probe row.
 
 With Service gaps turned off the probe reproduces the "Final survey" table
 above exactly. The five-seed 60 WPM drop (19.5 to 15.0 min) is noise:
@@ -274,36 +294,63 @@ and each seed's Career reshuffles. At a 20 s trigger seed 5 still drops from
 15.0 to 13.5 min with only 1 Service gap in it. Judge on many seeds. Over
 seeds 1–100 (40 and 60 WPM, hold 6 s):
 
-| Trigger | 40 WPM mean / median | 60 WPM mean / median | 60 WPM running at 30 min | Gaps per Shift, 40 / 60 WPM |
+| Trigger | 40 WPM mean / median | 60 WPM mean / median | 60 WPM running at 30 min | Service gaps per Shift, 40 / 60 WPM |
 |---|---|---|---|---|
 | none | 6.5 / 6.0 min | 22.0 / 24.0 min | 48 of 100 | — |
-| 10 s | 6.2 / 6.0 min | 20.1 / 19.5 min | 35 | 0.67 / 1.30 |
-| 12 s | 6.4 / 6.0 min | 20.9 / 21.0 min | 40 | 0.50 / 1.40 |
-| 14 s | 6.6 / 6.0 min | 20.5 / 19.5 min | 35 | 0.33 / 0.95 |
-| **16 s** | **6.2 / 6.0 min** | **21.4 / 21.0 min** | **46** | **0.33 / 1.10** |
-| 20 s | 6.2 / 6.0 min | 21.7 / 22.5 min | 45 | 0.20 / 0.90 |
+| 10 s | 6.2 / 6.0 min | 20.1 / 19.5 min | 35 | 0.79 / 2.19 |
+| 12 s | 6.4 / 6.0 min | 20.9 / 21.0 min | 40 | 0.76 / 2.04 |
+| 14 s | 6.6 / 6.0 min | 20.5 / 19.5 min | 35 | 0.67 / 1.66 |
+| **16 s** | **6.2 / 6.0 min** | **21.4 / 21.0 min** | **46** | **0.44 / 1.59** |
+| 20 s | 6.2 / 6.0 min | 21.7 / 22.5 min | 45 | 0.29 / 1.20 |
 
-At 16 s, 40 and 60 WPM Careers are within 5 % of no Service gaps, and a
-60 WPM typist meets about one a Shift (the median Career). The rate climbs
-with the network: at 60 WPM, 0.1–0.3 a Shift in Shifts 1–7, 1–2 in Shifts
-9–11, 3–5 from Shift 12 (20 seeds). The probe's balance assertions all pass
-unchanged. Two tests moved with the trigger: the "waits for a free slot"
-Service gap test now dates its three blocking Incidents so that none
-escalates during the longer wait, and "waves replay" is back on seed 2
-(Task 1 had moved it to seed 3, which now runs past 30 minutes).
+The steadiest signal is how many 60 WPM Careers are still running at the
+30-minute cap: 48 of 100 with no Service gaps, 46 at 16 s. By the mean,
+Careers are within 5 % of before (40 WPM 6.2 against 6.5 min, −5 %; 60 WPM
+21.4 against 22.0, −3 %). By the median, 40 WPM is unchanged (6.0) but
+60 WPM is 21.0 against 24.0 min, −12.5 %, which is outside the spec's "about
+10 %". The 60 WPM median is unstable: about half of those Careers hit the
+30-minute cap, so the median sits on the edge of that pile-up and jumps a
+Shift (1.5 min) when one or two seeds move. 16 s was chosen over 20 s
+because both keep Careers as before (46 and 45 of 100 running at the cap),
+and 16 s keeps more Service gaps (1.59 against 1.20 a Shift at 60 WPM), which
+the player needs to meet for the Incident to teach anything.
+
+The rate climbs with the network. At 16 s and 60 WPM (seeds 1–100, per Shift
+played in each band): 0.13 a Shift in Shifts 1–6, 1.25 in Shifts 7–12, 4.28
+from Shift 13. The probe's balance assertions all pass unchanged. Two tests
+moved with the trigger: the "waits for a free slot" Service gap test now
+dates its three blocking Incidents so that none escalates during the longer
+wait, and "waves replay" is back on seed 2 (Task 1 had moved it to seed 3,
+which now runs to the 30-minute cap).
+
+**Do Service gaps crowd out random Incidents?** Barely. The random spawner
+adds nothing to its budget while all `INCIDENT_MAX` slots are taken, and a
+Service gap takes a slot. Measured over seeds 1–100 at 60 WPM (30-minute cap;
+throwaway probe, not committed), random Incidents per Shift played, with
+Service gaps / without: Shifts 1–6 3.00 / 3.00, Shifts 7–12 3.00 / 3.00,
+Shift 13 on 2.96 / 3.00 (per completed Shift 2.98 / 3.00). Only 8 of 329
+completed Shifts from Shift 13 on lost one random Incident, and none before.
+Seeds 1–20 alone read the same (3.00, 3.00, 2.96 against 3.00 throughout).
+All three slots are full 2.9 % of the running time with Service gaps, never
+without. It stays small because a Shift's budget comes to just under 4
+Incidents (about 3.99 before the full-network escalation), so a Shift spawns
+3 unless more than about one Incident's worth of budget is lost.
 
 What the survey found:
 
 - **Service gaps do not lengthen Careers.** Task 1 saw one 60 WPM seed
-  (0.99 accuracy) go from failing at 12 min to running past 90 min; another
-  seed moved the other way. That is the reshuffle above, not a trend. Short
-  triggers shorten 60 WPM Careers a little (−9 % mean at 10 s): more Stations
-  close to unfixed gaps (192 in 100 Careers at 10 s, 99 at 16 s), and the
-  fixes cost keys.
-- **90 WPM gets fewer Service gaps than 60 WPM, not more.** At 20 seeds
-  (gaps per Shift, 60 / 90 WPM): 6 s 1.64 / 1.50, 10 s 1.00 / 0.90, 16 s
-  1.10 / 0.55. At the same Shift number 90 WPM sees 0.1–0.4 a Shift until
-  Shift 14. The spec's "more at 90 WPM" is not met at any setting tried.
+  (seed 2, 0.99 accuracy) go from failing at about 12 min to still running
+  at the 30-minute cap of the "waves replay" test, with a 6 s trigger; seed
+  1 moved the other way. That is the reshuffle above, not a trend: at 16 s
+  seed 2 fails at 12.0 min again. Short triggers shorten 60 WPM Careers a
+  little (−9 % mean at 10 s): more Stations close to unfixed gaps (192 in
+  100 Careers at 10 s, 99 at 16 s), and the fixes cost keys.
+- **90 WPM gets fewer Service gaps than 60 WPM, not more.** Seeds 1–20,
+  Service gaps per Shift at 60 / 90 WPM: 6 s 2.35 / 1.51, 10 s 2.27 / 0.94,
+  16 s 1.57 / 0.51. The median per Career says the same (1.64 / 1.50,
+  1.00 / 0.90, 1.10 / 0.55). At the same Shift number 90 WPM sees 0.1–0.4 a
+  completed Shift until Shift 14. The spec's "more at 90 WPM" is not met at
+  any setting tried.
 - **Service gaps mostly mark a backlog, not a rush.** When one starts at
   60 WPM, both trains are waiting at their Signals 72 % of the time (90 WPM:
   49 %), and 76 % of all trains are waiting. A train queued behind a waiting
@@ -332,13 +379,17 @@ Delivered per minute and on-time % are pooled over the 8 Careers.
 | Service gaps, 6 s | 60 WPM | 0 | 14.9 min | 45.7 | 66.8 % | 2 of 8 |
 | | | 4 s | 13.4 min | 47.4 | 66.1 % | 4 of 8 |
 | | | 8 s | 12.7 min | 47.4 | 66.7 % | 4 of 8 |
+| | 90 WPM | 0 / 4 / 8 s | 15.0 / 14.9 / 14.9 min | 96.6 / 97.4 / 96.3 | 66.5 / 65.8 / 66.0 % | 0 of 8 |
 
-**Holding still does not pay at 60 WPM.** On-time % does not move, and
-more Careers fail as the hold grows (2, 3, 5 of 8), as they did with no
-Service gaps. Delivered per minute rises, but over shorter Careers. Holding by
-hand cuts the Service gaps (0.48 to 0.24 a Shift at 16 s; at 6 s, only 1.44
-to 1.19), but they were too rare in a 15-minute Career, and too often formed
-behind a waiting leader, to change the outcome. A Service gap now makes
+**Holding shows no gain at 60 WPM.** On-time % does not move (66–67 % in
+every row). Failed Careers were 2, 3 and 5 of 8 for no hold, 4 s and 8 s
+(at a 6 s trigger, 2, 4 and 4); with no Service gaps the same 2, 3, 5. That
+is inconclusive at 8 seeds, not a trend: it says holding does not help, not
+that it hurts. Delivered per minute rises, but over shorter Careers. Holding
+by hand cuts the Service gaps (0.48 to 0.24 a Shift at 16 s; at 6 s, only
+1.44 to 1.19; Service gaps ÷ Shifts played, pooled over the 8 seeds), but
+they were too rare in a 15-minute Career, and too often formed behind a
+waiting leader, to change the outcome. A Service gap now makes
 bunching visible and gives it a typed fix, but in today's rules leaving a
 rear train waiting is still not a winning strategy for the scripted typist.
 This is for the user to decide on, not something to tune.
