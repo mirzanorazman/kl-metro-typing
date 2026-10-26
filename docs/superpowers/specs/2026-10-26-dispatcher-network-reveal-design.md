@@ -116,8 +116,8 @@ ordinary ready Shift: there is no additional engine action or pause/resume.
 Show "Opening the network…" during the reveal and restore the idle typing
 prompt when it finishes. End Career remains available and retains its existing
 between-Shift ranking behavior. Navigation and confirmation buttons remain
-usable by pointer or normal focused-button activation; game typing does not
-activate an incidental focused button.
+usable by pointer; the existing click/tap-only confirmation rule and
+Enter/Space button shields stay in place.
 
 Keep the current camera transition to the expanded served network. There is
 no extra zoom, camera tour or new screen. Remove dashed offers when the choice
@@ -151,8 +151,8 @@ if a throttled browser has not delivered the completion timer yet.
 Before the first Career key, Escape exits through the existing Back to map
 path. It does not skip into the lesson or mark the lesson seen. During an
 Expansion reveal, preserve existing later-Shift Escape behavior and let End
-Career handle retirement. Give deliberate keyboard navigation to exit and
-confirmation controls priority over gameplay interception.
+Career handle retirement. Escape still provides the keyboard exit before the
+first Career key; do not broaden keyboard confirmation behavior in this work.
 
 UI reveal state includes a stable event id, before/after ranges, the deadline,
 and the joining Line if any. Its lifetime is independent of simulation ticks,

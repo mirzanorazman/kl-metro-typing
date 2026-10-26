@@ -10,6 +10,13 @@ are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20 and F22
 aside. Next up: F23 (small bug), then F15, F11, F19, F4. The branch is kept as is (not merged) until
 the user has playtested the onboarding; see "Check in playtest 3" at the end.
 
+**Planned (2026-10-26):** the user approved F15, F4 and F19 as one served-track
+and network-reveal group. [Design](specs/2026-10-26-dispatcher-network-reveal-design.md)
+and [eight-task implementation plan](plans/2026-10-26-dispatcher-network-reveal.md)
+are written on `codex/dispatcher-network-reveal`. Implementation has not
+started; the items remain open. Decisions and related improvements are
+tracked under "Planning group" below. F11 and F23 stay separate.
+
 The checklist this answers is `dispatcher-playtest-2-checklist.md`; the
 background is in `dispatcher-handover.md`.
 
@@ -34,7 +41,7 @@ spec and plan.
 | F2 | Home screen subtitle for Dispatcher (rename to Career?) | P1 | S | done d06af61 | |
 | F14 | How to play explains why new trains appear | P1 | S | done 62d318a | F5 |
 | F21 | Explain the thin line from a name to its train | P1 | S | set aside | F5 |
-| F4 | Line Track transition on first entry | P1 | S–M | open | |
+| F4 | Line Track transition on first entry | P1 | S–M | open | F15 |
 | F20 | List of closed Stations during the Shift | P1 | M | done f6b446e..e5bed05 | |
 | F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done fb732cc | |
 | F15 | Paint a Line only as far as it is served | P1 | M | open | |
@@ -264,6 +271,82 @@ train end).
 entering Dispatcher for the first time.
 **Direction:** reuse the transition the other modes use on entry. Small if it
 is a shared component.
+
+### Planning group: served track and network reveals (F15, F19, F4)
+
+**Why brainstorm first:** F15 defines the track that is actually in service;
+F4 and F19 animate that same track at different moments. Agree on timing,
+onboarding and Expansion feedback together before planning their shared
+rendering changes. This group does not include F11's crowd-surge camera work.
+
+**Agreed with the user (2026-10-26):** F4 plays on **every new Career**, before
+the guided lesson when it is shown. The lesson and the entry reveal run in
+sequence. Every Expansion draws its added stretch outward from the existing
+network; the Line badge and chime are reserved for a Line joining for the
+first time. **Ignore typing until the reveal finishes**: do not buffer or
+forward those keys, and do not let them start the Shift clock. This overrides
+the suggested cut-short-on-typing behavior.
+
+**Approved design:** keep the complete network faded,
+paint only served stretches and their Stations, reuse the existing draw-on
+style for entry, and draw only the newly added stretch after an Expansion.
+Reserve a Line badge and chime for the first time a Line joins; ordinary
+extensions get the quieter draw. Alternatives considered: static served
+track with badge-only Expansion feedback (less work, weaker sense of growth),
+or a dedicated camera move and celebration screen (more work and interruption).
+
+Entry takes 1,000 ms and an Expansion 800 ms, including Station pops. The
+new-Line code/name notice sits above the typing prompt until the next Shift's
+first accepted key; exit controls remain usable. Reduced motion immediately
+settles the network and removes the input wait, retaining the notice and
+optional sound. The user approved this design in chat. See the linked spec
+and plan for geometry, lifecycle and verification details.
+
+**Related improvements included in the plan** (unchecked means not implemented):
+
+- [ ] **F15 — exact served geometry:** use inclusive served-range endpoints;
+  brighten only edges inside the range and Station marks/labels served by at
+  least one active range. An Interchange must not light the unserved arms of
+  its other Lines. Out-of-service Stations keep their closure marks; closure
+  does not change the Career's served ranges.
+- [ ] **Shared-track alignment:** `MapCanvas`'s local `linePoints` currently
+  returns the complete offset Line whenever lanes are enabled, ignoring its
+  Station subset argument. Partial track must slice the existing offset
+  geometry and stay aligned with trains and overlays. Check dashed Expansion
+  previews against those same lanes at the join.
+- [ ] **Expansion difference and direction:** compare previous and next served
+  ranges, rather than using `Expansion.added` (which counts only globally new
+  Stations). A new Line on shared track can add zero Stations and still need
+  its own reveal. Include the old endpoint so extensions join without a gap;
+  reveal from the existing network toward the new far end in either direction.
+- [ ] **F17 — growth feedback:** coordinate the existing +Lines/+Stations
+  counts with the reveal; only new Stations pop, and existing track and
+  Interchanges should not replay their entrance. A complete-network Continue
+  with no added track has no Expansion reveal.
+- [ ] **F4/F8/F5 — onboarding handoff:** the entry reveal precedes the guided
+  lesson; finishing, skipping or replaying How to play must not accidentally
+  replay the Career entrance. Ignore typing during the reveal (user's choice),
+  without recording it or advancing the Career. Typing never skips the reveal;
+  Back to map/End Career stay usable.
+- [ ] **F19 — readable and audible feedback:** show the new Line's code/name
+  as well as colour; audio follows the sound preference and gesture unlock.
+  The notice sits above the typing prompt until the next Shift starts.
+- [ ] **Reduced motion and lifecycle:** show the resulting served network
+  immediately under reduced motion, with readable new-Line feedback; avoid
+  replaying animations or sounds on ticks, camera changes or StrictMode effect
+  re-runs. The typing gate lasts only as long as the reveal; under reduced
+  motion there is no animation wait.
+- [ ] **Verification:** cover exact range boundaries, shared-track and
+  zero-new-Station additions, extension in both directions, entry/lesson
+  sequencing, no-op Continue, reduced motion and sound deduplication. Browser
+  checks must cover reveal timing, lane alignment and panel/badge overlap;
+  regression-check callers using whole-Line emphasis and the home entrance.
+
+**Implementation order agreed:** F15's served geometry, F4's entry reveal
+and lesson handoff, then F19's Expansion reveal and new-Line celebration.
+Keep presentation state outside Career evidence; these changes should not
+need new engine actions or an evidence-version change. F23 remains a separate
+open overlay defect; check it when verifying any new feedback near the panel.
 
 ## P1: feedback and stakes
 
@@ -594,6 +677,12 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   of letting go (F18); ending between Shifts reaches the leaderboard (F3).
 - **Quick wins.** The home subtitle (F2); the Green wave sound (F9); the
   Lines and Stations counts and "+N" after an Expansion (F17).
+- **Served track and reveals (F15/F4/F19), after implementation.** Is only
+  the operated stretch bright? Does the one-second entry before the lesson
+  feel worth its wait? Does every Expansion draw clearly outward, with a
+  noticeable badge/chime for a new Line? Is ignoring typing during the
+  800 ms Expansion reveal comfortable? Check shared track, growth counts,
+  muted sound and reduced motion with no input wait.
 - **Closure gauge (F20).** Is the first closure noticed when it happens? Does a
   failed Shift now feel like it was coming? Is the gauge visible enough up in
   the Shift bar, given the eyes are on the chips and the Incidents panel?

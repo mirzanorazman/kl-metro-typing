@@ -2,7 +2,19 @@
 
 ## Resume here (updated after every task)
 
-**Active plan:** `docs/superpowers/plans/2026-10-24-dispatcher-playtest-1.md`
+**Next approved plan (2026-10-26, not implemented):**
+[`2026-10-26-dispatcher-network-reveal.md`](plans/2026-10-26-dispatcher-network-reveal.md),
+with [approved design](specs/2026-10-26-dispatcher-network-reveal-design.md).
+Eight tasks cover F15 exact served track, F4 entry before the lesson on every
+new Career, then F19 Expansion reveals and new-Line badge/chime. Planning branch
+`codex/dispatcher-network-reveal`, based on `feat/dispatcher` at `64e0d4d`.
+No application implementation has started. The user chose **ignore typing until
+the reveal finishes**, without buffering or recording it: 1,000 ms entry,
+800 ms Expansion, no wait under reduced motion. F17 counts, shared-track lanes,
+zero-new-Station additions and onboarding handoff are included; F11 and F23 are
+separate. The feedback tracker links the plan and tracks related improvements.
+
+**Previous implementation plan:** `docs/superpowers/plans/2026-10-24-dispatcher-playtest-1.md`
 (spec `docs/superpowers/specs/2026-10-24-dispatcher-playtest-1-design.md`,
 which amends `2026-10-23-dispatcher-design.md`), executed subagent-driven on
 branch `feat/dispatcher`. All 11 tasks are done; see "Playtest 1" below. The
@@ -20,7 +32,8 @@ Task 12.
   `docs/superpowers/dispatcher-playtest-2-feedback.md` (F1–F21). The P0 items
   (F1, F3, F6, F7, F18) are done, and so is the onboarding group (F8 guided
   first Shift, F5 How to play, F14 new-train tip, with F2). The remaining P1s
-  are F20, F15, F11, F19 and F4 (F21 is set aside). Note F18 bumped
+  are F15, F11, F19, F4 and F23 (F20 and F22 are done; F21 is set aside).
+  F15/F4/F19 now have the approved plan linked above. Note F18 bumped
   `DISPATCH_EVIDENCE_VERSION` to 2, and F22's Service gap Incident (see
   "Service gap balance" below) bumped it to 3. The checklist it answers is
   `docs/superpowers/dispatcher-playtest-2-checklist.md`. The 90 WPM ceiling is
