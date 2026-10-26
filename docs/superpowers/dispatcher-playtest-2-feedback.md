@@ -8,9 +8,18 @@ priorities move.
 **Where it stands (2026-10-27, Kuala Lumpur):** all P0s and the first-time-clarity group
 are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20,
 F22 and F27 (close camera on by default, with a development tuning panel).
-F21 is set aside. F15/F4/F19 are implemented and verified; F23 (small bug),
-then F11 remain open. Keep `feat/dispatcher` unmerged to main until the user
-has playtested the onboarding; see "Check in playtest 3" at the end.
+F21 is set aside. F15/F4/F19 are implemented and verified, and so is F28
+(tips close with Enter only). F23 (small bug), then F11 remain open.
+`feat/dispatcher` was merged to `main` on 2026-10-27 at the user's request,
+before playtest 3; see "Check in playtest 3" at the end.
+
+**Merged (2026-10-27):** the close camera work (F27, F28) and Codex's
+network reveal work (F15, F4, F19) were merged on `feat/dispatcher`
+(`cdd8300`), then into `main`. Verified on the merged tree: TypeScript
+passes, 85 suites with 1,238 tests pass (3 skipped), the Vite build passes
+and has no dev camera panel in it. Seen live where the two meet: on a first
+Career the reveal draws the served track in, then the lesson frames Jelatek
+close, with only the served stretch painted.
 
 **Verified (2026-10-27):** the user approved F15, F4 and F19 as one served-track
 and network-reveal group. [Design](specs/2026-10-26-dispatcher-network-reveal-design.md)
@@ -58,7 +67,8 @@ spec and plan.
 | F19 | Celebrate a new Line joining the network | P1 | M | done 0f5bf3a | F4, F15 |
 | F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..2042dbd | |
 | F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
-| F27 | The camera pulls in close for the lesson, train tips and a fix being typed (dev panel) | P1 | M | done 1a9d6e5..c152d88, amended | |
+| F27 | The camera pulls in close for the lesson, tips and a fix being typed; on by default | P1 | M | done 1a9d6e5..7212d03 | |
+| F28 | Tips close on any key, so a stray Station key skips one unread | P1 | S | done 6f3a628 | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
 | F16 | Repetition, unattended trains, what to prioritise | P2 | L | open | F12 |
 | F10 | Combo spacing: every 3, or growing gaps (3, 7, 13)? | P2 | S | open | F12 |
@@ -626,6 +636,15 @@ camera at once, a Station name typed right after clicking the panel, the
 late tip on `?dispatch=full`. Not seen live: a Service gap tip (unit tested
 only); the close view on a fix is checked live after the amendment.
 
+### F28. Tips close with Enter only
+
+**Reported (2026-10-27):** "Any key" dismissed a tip, and the user sometimes
+typed a Station name into one and never saw it.
+
+**Done (`6f3a628`):** a tip closes with Enter or a click on its button
+("Enter Got it"); every other key is dropped while it shows. Rush Hour's tips
+still close on any key (not asked for).
+
 ## P2: balance and depth (design talk first)
 
 ### F12. Difficulty weighted by the player's WPM
@@ -750,8 +769,9 @@ leader lines crossing in the centre, dropped interchange names, shared track
 
 These checklist §5 decisions were not answered in this playtest:
 clear the Dispatcher leaderboard (pair with F3) and retire Rush Hour (Task 12
-of the first plan, gated). On merging: the user chose to keep
-`feat/dispatcher` as is until they have playtested the onboarding.
+of the first plan, gated). On merging: the user first chose to keep
+`feat/dispatcher` as is until they had playtested the onboarding, then asked
+for it to be merged to `main` on 2026-10-27, before playtest 3.
 
 ---
 
