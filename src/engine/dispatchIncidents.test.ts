@@ -262,9 +262,9 @@ describe('Dispatcher incidents', () => {
     it('a pair that stays together for GAP_TRIGGER_MS starts a Service gap on the rear train', () => {
       const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
       run(s, GAP_TRIGGER_MS - TICK_MS, quiet);
-      expect(s.incidents.filter((i) => i.kind === 'service-gap')).toEqual([]);
+      expect(gaps(s)).toEqual([]);
       run(s, TICK_MS, quiet);
-      const gap = s.incidents.find((i) => i.kind === 'service-gap')!;
+      const gap = gaps(s)[0]!;
       expect(gap).toMatchObject({ line: 'KJ', train: REAR, stations: [] });
       expect(fixItems(net, gap, s)).toEqual(['Hold at Kampung Baru']);
     });
@@ -375,6 +375,75 @@ describe('Dispatcher incidents', () => {
         expect(new Set(trains).size).toBe(trains.length);
         expect(trains).not.toContain(3);
       }
+    });
+
+    it('a pair whose place is taken starts no gap when the place frees, only once the pair changes', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      s.incidents = [incident('crowd-surge', { id: 100, startedMs: 0 })];
+      run(s, GAP_TRIGGER_MS + TICK_MS, quiet);
+      expect(gaps(s)).toEqual([]);
+      s.incidents = [];
+      run(s, GAP_TRIGGER_MS, quiet);
+      expect(gaps(s)).toEqual([]);
+      s.trains[1] = train(3, { at: at('Dang Wangi') });
+      run(s, GAP_TRIGGER_MS, quiet);
+      expect(gaps(s)).toMatchObject([{ train: REAR, place: 'klcc' }]);
+    });
+
+    it('a pair whose place is closed starts no gap at its next call', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      s.outOfService.klcc = 'crowding';
+      run(s, GAP_TRIGGER_MS + TICK_MS, quiet);
+      expect(gaps(s)).toEqual([]);
+      expect(clearSignal(net, s, REAR)).toBe(true);
+      run(s, GAP_TRIGGER_MS, quiet);
+      expect(s.trains[0]!.lastExchange?.station).toBe('kampung-baru');
+      expect(gaps(s)).toEqual([]);
+    });
+
+    it('a pair whose gap closed its place starts no new gap at the rear train\'s next call', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(s, GAP_TRIGGER_MS, quiet);
+      expect(gaps(s)).toMatchObject([{ place: 'klcc' }]);
+      // The rear calls at Kampung Baru while the gap is up, then the gap closes KLCC.
+      expect(clearSignal(net, s, REAR)).toBe(true);
+      run(s, INCIDENT_LIMIT_MS, quiet);
+      expect(s.outOfService.klcc).toBe('service-gap');
+      expect(s.trains[0]!.lastExchange?.station).toBe('kampung-baru');
+      run(s, GAP_TRIGGER_MS, quiet);
+      expect(gaps(s)).toEqual([]);
+      expect(s.outOfService['kampung-baru']).toBeUndefined();
+    });
+
+    it('a rear already cleared to its platform is held at the Signal after it, and the fix names that Station', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      run(s, GAP_TRIGGER_MS, quiet);
+      const gap = gaps(s)[0]!;
+      Object.assign(s.trains[1]!, { stage: 'dwell', ms: 60_000 });
+      expect(clearSignal(net, s, REAR)).toBe(true);
+      expect(fixItems(net, gap, s)).toEqual(['Hold at Dang Wangi']);
+      advanceFix(net, s, gap.id);
+      const rear = s.trains[0]!;
+      run(s, TICK_MS, quiet);
+      expect(rear).toMatchObject({ stage: 'dwell', at: at('Kampung Baru') });
+      run(s, 2_000 + TRAVEL_MS, quiet);
+      expect(rear).toMatchObject({ stage: 'signal', at: at('Dang Wangi') });
+      expect(heldTrains(net, s).has(REAR)).toBe(true);
+      run(s, GAP_HOLD_MS, quiet);
+      expect(heldTrains(net, s).has(REAR)).toBe(false);
+    });
+
+    it('the fix names the next open Station past a closed one, and an express run\'s stop', () => {
+      const s = pairOnKJ('Kampung Baru', 'Dang Wangi');
+      const gap = incident('service-gap', { train: REAR, place: 'klcc' });
+      const rear = s.trains[0]!;
+      rear.stage = 'cleared';
+      s.outOfService['dang-wangi'] = 'crowding';
+      expect(fixItems(net, gap, s)).toEqual(['Hold at Masjid Jamek']);
+      rear.skipTo = at('Pasar Seni');
+      expect(fixItems(net, gap, s)).toEqual(['Hold at Pasar Seni']);
+      s.trains = [];
+      expect(fixItems(net, gap, s)).toEqual(['Hold at KLCC']);
     });
 
     it('a new leader restarts the pair timer', () => {

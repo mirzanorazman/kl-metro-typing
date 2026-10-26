@@ -94,6 +94,8 @@ export interface SimState {
   pairs: Record<string, number>;
   /** Service gap hold left per Train id, counted down while it waits at a Signal. */
   gapHolds: Record<number, number>;
+  /** Pair keys that start no Service gap until the pair changes: their place was taken or closed, or their gap closed it. */
+  spentPairs: Record<string, true>;
 }
 
 export interface PhaseNow {
@@ -151,6 +153,24 @@ export function nextStationId(net: NetworkIndex, t: Train): string | null {
   const ids = net.lines.get(t.line)!.stations;
   const at = t.stage === 'signal' || t.stage === 'cleared' ? t.at
     : t.stage === 'turnaround' ? t.at - t.dir : t.at + t.dir;
+  return ids[at] ?? null;
+}
+
+/**
+ * The Station whose Signal a Train will next wait at: past an express run,
+ * a terminal reversal and any closed Station it will run through.
+ */
+export function nextSignalStationId(net: NetworkIndex, s: SimState, t: Train): string | null {
+  if (t.stage === 'signal') return nextStationId(net, t);
+  const ids = net.lines.get(t.line)!.stations;
+  const range = s.served.find((r) => r.line === t.line)!;
+  const terminal = (t.dir === 1 && t.at === range.to) || (t.dir === -1 && t.at === range.from);
+  let dir: Dir = t.stage === 'turnaround' || (t.stage === 'cleared' && terminal) ? (t.dir === 1 ? -1 : 1) : t.dir;
+  let at = t.skipTo ?? t.at + dir;
+  for (let blocks = 0; blocks < 2 * (range.to - range.from) && s.outOfService[ids[at] ?? '']; blocks++) {
+    if (at + dir > range.to || at + dir < range.from) dir = dir === 1 ? -1 : 1;
+    at += dir;
+  }
   return ids[at] ?? null;
 }
 
@@ -297,6 +317,11 @@ export function closeStation(s: SimState, id: string, cause: OosCause): boolean 
     s.stranded += t.load[id] ?? 0;
     delete t.load[id];
   }
+  // A Service gap that closes its place spends its pair: no new gap at the rear Train's next call.
+  for (const inc of s.incidents) {
+    if (inc.kind !== 'service-gap' || inc.place !== id) continue;
+    for (const key of Object.keys(s.pairs)) if (key.startsWith(`${inc.train}:`)) s.spentPairs[key] = true;
+  }
   // A closed place cannot remain an active repair target.
   s.incidents = s.incidents.filter((inc) => inc.place !== id);
   return true;
@@ -383,7 +408,7 @@ export function startShiftSim(net: NetworkIndex, served: Served, rng: number): S
     served: served.map((r) => ({ ...r })), trains: [], nextTrainId: 1, rng, shiftMs: 0,
     platforms: {}, outOfService: {}, oosOrder: [], delivered: 0, stranded: 0,
     calls: 0, onTimeCalls: 0, spawnDebt: {}, incidents: [], nextIncidentId: 1, incidentDebt: 0, entries: {},
-    dispersed: 0, lastDispersal: null, pairs: {}, gapHolds: {},
+    dispersed: 0, lastDispersal: null, pairs: {}, gapHolds: {}, spentPairs: {},
   };
   for (const id of servedStations(net, served)) {
     s.platforms[id] = { waiting: {}, fullMs: 0, lastCall: {} };
@@ -546,6 +571,7 @@ export function cloneSim(s: SimState): SimState {
     lastDispersal: s.lastDispersal && { ...s.lastDispersal },
     pairs: { ...s.pairs },
     gapHolds: { ...s.gapHolds },
+    spentPairs: { ...s.spentPairs },
   };
 }
 

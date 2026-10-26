@@ -6,7 +6,7 @@ import {
 } from './dispatchBalance';
 import { servedStations } from './dispatchNetwork';
 import {
-  closeStation, crowdAt, heldTrains, nextStationId, pairedRears, stepSim,
+  closeStation, crowdAt, heldTrains, nextSignalStationId, nextStationId, pairedRears, stepSim,
   type Incident, type IncidentKind, type PhaseNow, type SimState, type Train,
 } from './dispatchSim';
 import type { NetworkIndex } from './network';
@@ -23,7 +23,7 @@ export function fixItems(net: NetworkIndex, inc: Incident, s: SimState): string[
     }
     case 'service-gap': {
       const train = s.trains.find((t) => t.id === inc.train);
-      return [`Hold at ${name(train ? nextStationId(net, train) ?? inc.place : inc.place)}`];
+      return [`Hold at ${name(train ? nextSignalStationId(net, s, train) ?? inc.place : inc.place)}`];
     }
   }
 }
@@ -110,7 +110,8 @@ function gapPlace(net: NetworkIndex, s: SimState, rear: Train): string {
  * Player-caused, so no draw on `incidentDebt` or the rng: a pair that stays
  * bunched for GAP_TRIGGER_MS starts a Service gap on its rear Train, which
  * ends by itself once the pair breaks up. A rear Train still owed a hold has
- * no pair timer, so a pair still standing after the hold starts afresh.
+ * no pair timer, so a pair still standing after the hold starts afresh. A
+ * pair whose place is taken or closed is spent until it changes.
  */
 function stepServiceGaps(net: NetworkIndex, s: SimState, endMs: number): void {
   for (const [key, left] of Object.entries(s.gapHolds)) {
@@ -128,14 +129,19 @@ function stepServiceGaps(net: NetworkIndex, s: SimState, endMs: number): void {
     pairs[key] = s.pairs[key] ?? s.shiftMs;
   }
   s.pairs = pairs;
+  const live = new Set([...rears].map(([rear, leader]) => `${rear}:${leader}`));
+  for (const key of Object.keys(s.spentPairs)) if (!live.has(key)) delete s.spentPairs[key];
   s.incidents = s.incidents.filter((inc) => inc.kind !== 'service-gap' || (inc.train !== null && rears.has(inc.train)));
   for (const [key, startMs] of Object.entries(s.pairs)) {
     if (s.incidents.length >= INCIDENT_MAX) break;
     const rear = s.trains.find((t) => t.id === Number(key.split(':')[0]))!;
-    if (endMs - startMs < GAP_TRIGGER_MS
+    if (endMs - startMs < GAP_TRIGGER_MS || s.spentPairs[key]
       || s.incidents.some((inc) => inc.kind === 'service-gap' && inc.train === rear.id)) continue;
     const place = gapPlace(net, s, rear);
-    if (s.outOfService[place] || s.incidents.some((inc) => inc.place === place || inc.stations.includes(place))) continue;
+    if (s.outOfService[place] || s.incidents.some((inc) => inc.place === place || inc.stations.includes(place))) {
+      s.spentPairs[key] = true;
+      continue;
+    }
     s.incidents.push({ id: s.nextIncidentId++, kind: 'service-gap', place, stations: [], line: rear.line,
       train: rear.id, startedMs: endMs, step: 0, extra: 0 });
   }
