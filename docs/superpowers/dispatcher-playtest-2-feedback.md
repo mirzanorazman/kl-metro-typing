@@ -47,6 +47,9 @@ spec and plan.
 | F16 | Repetition, unattended trains, what to prioritise | P2 | L | open | F12 |
 | F10 | Combo spacing: every 3, or growing gaps (3, 7, 13)? | P2 | S | open | F12 |
 | F13 | The full-size map (`?dispatch=full`) | Parked | L | parked | |
+| F24 | Service gap trigger: count a pair only while its front train moves? | Parked | M | parked | F22 |
+| F25 | "Reset train at" can name a Signal the train has passed | P2 | S | open | |
+| F26 | Service gap card sits at the Station left behind but names the next Signal | P2 | S | watch in playtest | F22 |
 
 **P0** is broken or blocks a normal session; do these next, roughly in this
 order. **P1** is what a first-time player needs to understand and feel the
@@ -503,6 +506,55 @@ the survey; the code change itself is small.
 ---
 
 ## Parked
+
+### F24. Service gap trigger: rushing or falling behind?
+
+**Parked by the user (2026-10-26)** after F22 shipped, to decide after
+playtesting it.
+
+**The finding.** F22 was meant to teach "don't rush: not everything needs to
+be fast". The shipped trigger counts any pair of trains that stays within one
+block for `GAP_TRIGGER_MS` (16 s). Because every train waits at every Signal,
+a pair that persists is mostly a front train the player has not cleared yet,
+not a rear train sent too early:
+
+- 72 % of 60 WPM Service gaps start with the front train also waiting at its
+  Signal (a backlog, not rushing).
+- 90 WPM players get fewer Service gaps than 60 WPM players.
+- Holding the rear train back still does not pay: no on-time gain, and failed
+  Careers 2, 3, 5 of 8 for no hold, 4 s and 8 s (inconclusive at 8 seeds).
+- A random signal fault or train fault that holds a front train can also build
+  a pair behind it, so the gap's tip can blame the player for an Incident.
+
+The tip copy was made true in both cases ("…Type the fix to hold the second
+one, or get the front one moving."), so nothing on screen is wrong today.
+
+**The option on the table.** Count a pair only while its front train is
+moving (running, or dwelling and about to leave), so only a rear train sent
+too close behind a moving one starts the timer. That targets real rushing and
+leaves Incident-held front trains out. It would need the survey and the hold
+experiment rerun, and possibly the tip copy changed back toward "hold the
+second one".
+
+**Decide (after playtest):** keep the current trigger, switch to "front train
+moving", or something else. Numbers: `dispatcher-handover.md`, Service gap
+section.
+
+### F25. "Reset train at" can name a Signal the train has passed
+
+Found during F22 (pre-existing). A train fault's fix text and `strain()` use
+`nextStationId`, which for a train already cleared through its Signal names
+that Signal, not the next one. F22 fixed the same problem for Service gaps
+with `nextSignalStationId`; the train fault should use it too. Small; check
+that `strain()` should change as well.
+
+### F26. Service gap card place vs fix text
+
+The Service gap's fix chip sits at its `place` (the Station the pair left
+behind, which closes if it escalates) but reads "Hold at <next Signal>", so
+the map can show "Hold at Kampung Baru" beside KLCC. The spec allows it.
+Watch in the playtest whether it confuses; if it does, move the chip to the
+Signal named, or say both in the text.
 
 ### F13. The full-size map (`?dispatch=full`)
 
