@@ -14,6 +14,7 @@ import { INCIDENT_GLYPH } from './incidentGlyphs';
 import { NO_MOMENTS, type DispersalPop, type ExchangePop, type PassengerMoments } from './usePassengerMoments';
 import { prefersReducedMotion } from './useLayoutMode';
 import { useSignalMarks } from './useSignalMarks';
+import { linePoints } from './trackRanges';
 
 export interface DispatchOverlayProps {
   net: NetworkIndex;
@@ -131,22 +132,6 @@ function Dispersal({ pop, layout, m }: { pop: DispersalPop; layout: Layout; m: n
 }
 
 /**
- * A stretch of `line` through these Stations, as the map draws it: on its own
- * lane where Lines share track, through the Stations otherwise.
- */
-function linePoints(
-  net: NetworkIndex, layout: Layout, tracks: ReadonlyMap<LineCode, readonly Point[]> | null,
-  line: LineCode, ids: readonly string[],
-): string {
-  const lane = tracks?.get(line);
-  const stations = net.lines.get(line)!.stations;
-  return ids.map((id) => {
-    const i = stations.indexOf(id);
-    return lane && i >= 0 ? lane[i] : layout.get(id);
-  }).filter((p): p is Point => !!p).map((p) => `${p.x},${p.y}`).join(' ');
-}
-
-/**
  * The live Shift on the map: Trains with their Line code, each waiting Train's
  * Station name beside it, Incidents as a pulsing badge with a glyph for their
  * kind (signal head, Train front, crowd) and their current fix, and Out of service Stations crossed out. Every state has a
@@ -190,8 +175,7 @@ export function DispatchOverlay({
         return (
           <g key={`offer-${offer.line}-${offer.from}-${offer.to}`} data-testid="dispatch-offer" className="dispatch-offer-path">
             {paths.map((ids) => {
-              const points = ids.map((id) => layout.get(id)).filter((p): p is Point => !!p)
-                .map((p) => `${p.x},${p.y}`).join(' ');
+              const points = linePoints(net, layout, tracks, offer.line, ids);
               // A paper-coloured bed under the dashes keeps them readable over
               // the Line's own track.
               return (
