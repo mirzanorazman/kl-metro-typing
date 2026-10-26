@@ -1,7 +1,8 @@
 # Dispatcher network reveal verification
 
 Verified on 2026-10-27 (Asia/Kuala_Lumpur), on
-`codex/dispatcher-network-reveal`. The branch is not merged or deployed.
+`codex/dispatcher-network-reveal`, then integrated with `feat/dispatcher` as
+recorded below. No main merge or deployment was performed.
 The [design](specs/2026-10-26-dispatcher-network-reveal-design.md) and
 [plan](plans/2026-10-26-dispatcher-network-reveal.md) retain their original dates.
 
@@ -134,8 +135,24 @@ production build (TypeScript plus Vite, 1,107 modules, 2.58 s) on the final
 application source. The warnings above remain; no application source changed
 after those gates.
 
-Branch `codex/dispatcher-network-reveal` and its existing worktree are kept for
-playtesting. No merge or deployment was performed.
+At the original handoff, `codex/dispatcher-network-reveal` and its worktree
+were kept for playtesting. The subsequent integration check follows.
+
+### Integration with `feat/dispatcher` (2026-10-27)
+
+The user requested merging this work into `feat/dispatcher`. The target had
+advanced to `7212d03`, adding the default close camera, explicit map framing,
+Enter-only tip dismissal and additional tip subjects. The screen, stylesheet
+and feedback tracker conflicts were resolved by retaining both sets of changes.
+One test query was narrowed because the development camera panel adds implicit
+status readouts; a new regression checks entry before the close lesson frame.
+
+The combined result passed a merge-specific review with no findings and these
+fresh gates: `npm test` (1,238 passed, 3 skipped across 86 files, 26.50 s),
+`npm run build` (TypeScript and Vite; 1,110 modules, 2.66 s), and staged
+whitespace checks. The existing `act(...)` and bundle-size warnings remain.
+Only documentation changed after those gates. No main merge or deployment was
+performed.
 
 ## Playtest 3
 

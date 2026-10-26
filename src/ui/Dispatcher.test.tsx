@@ -27,6 +27,10 @@ import { ClosureGauge, closureBand } from './ClosureGauge';
 import { closureText, failureText } from './dispatchTips';
 import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
+import { DISPATCH_CAMERA_KEY } from './useCloseCamera';
+import { CLOSE_CAMERA_DEFAULTS, type CloseCameraSettings } from './dispatchCamera';
+import { fitViewBox } from '../geo/fit';
+import { DISPATCH_FIT_PADDING } from '../render/dispatchLayout';
 import { liveMarks, RIPPLE_LEAD_MS, RIPPLE_STEP_MS } from '../render/useSignalMarks';
 import { MapCanvas } from '../render/MapCanvas';
 import { DispatchOverlay } from '../render/DispatchOverlay';
@@ -116,6 +120,13 @@ const allowMotion = () => {
   })) as unknown as typeof window.matchMedia;
 };
 
+/** The dev camera panel's close camera, switched on before the screen renders. */
+const closeCameraOn = (over: Partial<CloseCameraSettings> = {}) =>
+  localStorage.setItem(DISPATCH_CAMERA_KEY, JSON.stringify({ ...CLOSE_CAMERA_DEFAULTS, on: true, ...over }));
+/** The normal frame of a Served network, as the screen fits it. */
+const normalBox = (served: Served) => fitViewBox(
+  servedStations(net, served).map((id) => mapProps().layout.get(id)!), DISPATCH_FIT_PADDING);
+
 /** Controls `performance.now`, which `runTick` reads. */
 function fakeClock(start = 1_000) {
   const clock = { now: start };
@@ -154,6 +165,9 @@ beforeEach(() => {
   vi.spyOn(sound, 'lineOpen').mockImplementation(() => {});
   // Tips are marked seen so they never interrupt; tip tests opt back in.
   seenTips(ALL_TIPS);
+  // The close camera is on by default; most tests pin the camera underneath it,
+  // so they start with it switched off. Close camera tests switch it on.
+  localStorage.setItem(DISPATCH_CAMERA_KEY, JSON.stringify({ ...CLOSE_CAMERA_DEFAULTS, on: false }));
   Element.prototype.getBoundingClientRect = function () {
     return { x: 0, y: 0, top: 0, left: 0, right: 1512, bottom: 690,
       width: 1512, height: 690, toJSON: () => ({}) } as DOMRect;
@@ -829,7 +843,49 @@ describe('DispatcherScreen', () => {
       expect(loadProfile().dispatchTipsSeen).toContain('start');
     });
 
-    it('a tip pauses the Career with the ordinary pause action, and any key resumes it', () => {
+    it('the out-of-service tip points at the closed Station and its neighbours, close with the close camera', () => {
+      allowMotion();
+      closeCameraOn();
+      seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
+      const clock = fakeClock();
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
+      initial.sim.platforms[idOf('KLCC')] = {
+        waiting: { [idOf('KL Sentral')]: 200 }, fullMs: OOS_CROWD_MS - 100, lastCall: {},
+      };
+      renderShift(initial);
+      type('J');
+      clock.now += 100;
+      type('e');
+      expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toContain('A station is out of service.');
+      expect(mapProps().fitKey).toMatch(/^tip:out-of-service:close:/);
+      expect(mapProps().fitView!.w).toBeLessThan(normalBox(initial.served).w);
+      const kj = net.lines.get('KJ')!.stations;
+      const i = kj.indexOf(idOf('KLCC'));
+      for (const id of [kj[i - 1]!, kj[i]!, kj[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
+    });
+
+    it('a tip ignores the keys of a Station name; only Enter dismisses it', () => {
+      seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
+      const clock = fakeClock();
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
+      initial.sim.platforms[idOf('KLCC')] = {
+        waiting: { [idOf('KL Sentral')]: 200 }, fullMs: OOS_CROWD_MS - 100, lastCall: {},
+      };
+      renderShift(initial);
+      type('J');
+      clock.now += 100;
+      type('e');
+      const tip = screen.getByRole('dialog', { name: 'Tip' });
+      expect(within(tip).getByRole('button').textContent).toBe('Enter Got it');
+      type('Pasar Seni');
+      press('Escape');
+      expect(screen.getByRole('dialog', { name: 'Tip' })).toBeTruthy();
+      press('Enter');
+      expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
+      expect(screen.getByLabelText('Type Jelatek')).toBeTruthy();
+    });
+
+    it('a tip pauses the Career with the ordinary pause action, and Enter resumes it', () => {
       seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
       const clock = fakeClock();
       const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
@@ -847,7 +903,7 @@ describe('DispatcherScreen', () => {
       expect(loadProfile().dispatchTipsSeen).toContain('out-of-service');
 
       clock.now += 5_000;
-      type('x');
+      press('Enter');
       expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
       expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
       expect(screen.getByLabelText('Type Jelatek')).toBeTruthy();
@@ -869,7 +925,7 @@ describe('DispatcherScreen', () => {
       type('e');
       expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
       expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toContain('Shift cleared.');
-      type('x');
+      press('Enter');
       expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
       expect(screen.getByRole('region', { name: 'Expansion' })).toBeTruthy();
     });
@@ -900,7 +956,7 @@ describe('DispatcherScreen', () => {
         for (const name of ['Kampung Baru', 'Dang Wangi', 'KLCC']) expect(mapProps().fitTo).toContainEqual(at(name));
         expect(trainEl(REAR).getAttribute('data-spotlight')).toBe('true');
         expect(trainEl(LEADER).getAttribute('data-spotlight')).toBe('true');
-        press('x'); // dismiss
+        press('Enter'); // dismiss
         expect(mapProps().fitKey).not.toBe('tip:service-gap');
         expect(document.querySelector('[data-spotlight]')).toBeNull();
       });
@@ -922,6 +978,84 @@ describe('DispatcherScreen', () => {
         const kj = net.lines.get('KJ')!.stations;
         const i = kj.indexOf(idOf('Jelatek'));
         for (const id of [kj[i - 1]!, kj[i]!, kj[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
+      });
+
+      it('a late tip frames its train close', () => {
+        allowMotion();
+        closeCameraOn();
+        seenTips(ALL_TIPS.filter((id) => id !== 'late'));
+        const clock = fakeClock();
+        const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+        // Jelatek's platform turns late halfway through the Shift's first tick.
+        const lateMs = LATE_FACTOR * targetHeadwayMs(initial.served.find((r) => r.line === 'KJ')!);
+        initial.sim.platforms[idOf('Jelatek')]!.lastCall['KJ:1'] = initial.sim.shiftMs + TICK_MS / 2 - lateMs;
+        renderShift(initial);
+        type('J');
+        clock.now += TICK_MS;
+        type('e');
+        expect(screen.getByRole('dialog', { name: 'Tip' }).textContent).toMatch(/This train is late/);
+        expect(mapProps().fitKey).toMatch(/^tip:late:close:/);
+        expect(mapProps().fitView).toBeDefined();
+      });
+
+      it('the close camera is on by default: with nothing stored, a tip frames close', () => {
+        allowMotion();
+        localStorage.removeItem(DISPATCH_CAMERA_KEY);
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        oneTick(clock);
+        expect(mapProps().fitKey).toMatch(/^tip:service-gap:close:3\.00$/);
+        expect(mapProps().fitView).toBeDefined();
+      });
+
+      it('close camera off: a tip\'s frame key is as today, with no explicit frame', () => {
+        allowMotion();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        oneTick(clock);
+        expect(mapProps().fitKey).toBe('tip:service-gap');
+        expect(mapProps().fitView).toBeUndefined();
+      });
+
+      it('a Service gap tip frames its pair close', () => {
+        allowMotion();
+        closeCameraOn();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        const initial = gapCareer();
+        renderShift(initial);
+        oneTick(clock);
+        expect(mapProps().fitKey).toMatch(/^tip:service-gap:close:/);
+        expect(mapProps().fitView!.w).toBeLessThan(normalBox(initial.served).w);
+        const at = (name: string) => mapProps().layout.get(idOf(name));
+        for (const name of ['Kampung Baru', 'Dang Wangi', 'KLCC']) expect(mapProps().fitTo).toContainEqual(at(name));
+        press('Enter'); // dismiss
+        expect(mapProps().fitView).toBeUndefined();
+      });
+
+      it('under reduced motion a tip leaves the camera alone, close camera or not', () => {
+        closeCameraOn();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        oneTick(clock);
+        expect(screen.getByRole('dialog', { name: 'Tip' })).toBeTruthy();
+        expect(mapProps().fitView).toBeUndefined();
+      });
+
+      it('a closeness change refits the close frame', () => {
+        allowMotion();
+        closeCameraOn();
+        seenTips(ALL_TIPS.filter((id) => id !== 'service-gap'));
+        const clock = fakeClock();
+        renderShift(gapCareer());
+        oneTick(clock);
+        const before = mapProps().fitKey;
+        fireEvent.change(screen.getByRole('slider', { name: 'Early closeness' }), { target: { value: '4.5' } });
+        expect(mapProps().fitKey).not.toBe(before);
+        expect(mapProps().fitKey).toMatch(/^tip:service-gap:close:/);
       });
 
       it('under reduced motion the pointing tip keeps the camera still, and the highlight still shows', () => {
@@ -1514,7 +1648,7 @@ describe('Opening a Dispatcher Career', () => {
     const clock = fakeClock();
     const start = vi.spyOn(lessonEngine, 'startLesson');
     renderLesson();
-    expect(screen.getByRole('status').textContent).toBe('Opening the network…');
+    expect(screen.getByText('Opening the network…').getAttribute('role')).toBe('status');
     expect(sound.lineOpen).not.toHaveBeenCalled();
     expect(mapProps().fitKey).not.toBe('dispatch:lesson');
     expect(mapProps().emphasisRanges).toEqual(STARTING_NETWORK);
@@ -1539,6 +1673,22 @@ describe('Opening a Dispatcher Career', () => {
     expect(mapProps().fitKey).toBe('dispatch:lesson');
     expect(mapProps().trackReveal).toBeNull();
     expect(document.querySelectorAll('.prompt [data-state="done"]')).toHaveLength(0);
+    expect(screen.getByText(/Type Jelatek to send it on/)).toBeTruthy();
+  });
+
+  it('finishes the network entry before applying the lesson close camera', () => {
+    fresh();
+    closeCameraOn();
+    const clock = fakeClock();
+    renderLesson();
+    expect(mapProps().trackReveal).toMatchObject({ before: [], duration: 1000 });
+    expect(mapProps().fitView).toBeUndefined();
+
+    clock.now += 1000;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(mapProps().trackReveal).toBeNull();
+    expect(mapProps().fitKey).toBe('dispatch:lesson:close:3.00');
+    expect(mapProps().fitView!.w).toBeCloseTo(normalBox(STARTING_NETWORK).w / 3);
     expect(screen.getByText(/Type Jelatek to send it on/)).toBeTruthy();
   });
 
@@ -1657,6 +1807,28 @@ describe('The guided first Shift', () => {
     expect(screen.queryByTestId('streak')).toBeNull();
     expect(screen.queryByText('Opening the network…')).toBeNull();
     expect(mapProps().trackReveal).toBeNull();
+  });
+
+  it('with the close camera on, the lesson frames its Stations at the early closeness', () => {
+    fresh();
+    closeCameraOn();
+    renderLesson();
+    expect(mapProps().fitKey).toBe('dispatch:lesson:close:3.00');
+    expect(mapProps().fitView!.w).toBeCloseTo(normalBox(startCareer(net, 7).served).w / 3);
+  });
+
+  it('the lesson keeps its close frame under reduced motion', () => {
+    // beforeEach reports reduced motion.
+    fresh();
+    closeCameraOn();
+    renderLesson();
+    expect(mapProps().fitView).toBeDefined();
+  });
+
+  it('with the close camera off, the lesson has no explicit frame', () => {
+    fresh();
+    renderLesson();
+    expect(mapProps().fitView).toBeUndefined();
   });
 
   it('typing both names ends the lesson on the ready screen; its keys never reach the Keylog', async () => {
@@ -1877,6 +2049,100 @@ describe('Leaning in on an Incident fix', () => {
     expect(mapProps().fitKey).toBe(normalKey);
   });
 
+  describe('the close camera while a fix is typed', () => {
+    /** A second crowd surge, at Masjid Jamek. */
+    const twoSurges = () => {
+      const initial = surgeWithWaiting();
+      initial.sim.incidents.push({ id: 2, kind: 'crowd-surge', place: idOf('Masjid Jamek'),
+        stations: [idOf('Masjid Jamek')], line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0 });
+      initial.sim.nextIncidentId = 3;
+      return initial;
+    };
+    const kj = () => net.lines.get('KJ')!.stations;
+
+    it('locking onto a fix zooms in on its place and its neighbours, leaving the waiting trains out', () => {
+      allowMotion();
+      closeCameraOn();
+      const initial = surgeWithWaiting();
+      renderShift(initial);
+      type('C');
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
+      expect(mapProps().fitView!.w).toBeLessThan(normalBox(initial.served).w);
+      const i = kj().indexOf(idOf('Ampang Park'));
+      for (const id of [kj()[i - 1]!, kj()[i]!, kj()[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
+      expect(mapProps().fitTo).not.toContainEqual(mapProps().layout.get(idOf('Kerinchi')));
+    });
+
+    it('clearing the fix zooms straight out', () => {
+      allowMotion();
+      closeCameraOn();
+      renderShift(surgeWithWaiting());
+      const normalKey = mapProps().fitKey;
+      type('Crowd control at Ampang Park');
+      expect(mapProps().fitKey).toBe(normalKey);
+      expect(mapProps().fitView).toBeUndefined();
+    });
+
+    it('Backspacing the fix away zooms straight out', () => {
+      allowMotion();
+      closeCameraOn();
+      renderShift(surgeWithWaiting());
+      const normalKey = mapProps().fitKey;
+      type('C');
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
+      press('Backspace');
+      expect(mapProps().fitKey).toBe(normalKey);
+      expect(mapProps().fitView).toBeUndefined();
+    });
+
+    it('locking onto the next fix moves the close view to it', () => {
+      allowMotion();
+      closeCameraOn();
+      renderShift(twoSurges());
+      type('Crowd control at Ampang Park');
+      type('Crowd control at M');
+      expect(mapProps().fitKey).toMatch(/^fix:2:close:/);
+      expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(idOf('Masjid Jamek')));
+    });
+
+    it('a closeness change refits the close view', () => {
+      allowMotion();
+      closeCameraOn();
+      renderShift(surgeWithWaiting());
+      type('C');
+      const before = mapProps().fitKey;
+      fireEvent.change(screen.getByRole('slider', { name: 'Early closeness' }), { target: { value: '4.5' } });
+      expect(mapProps().fitKey).not.toBe(before);
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
+    });
+
+    it('a signal fault keeps its close view from its first name until its last clears it', () => {
+      allowMotion();
+      closeCameraOn();
+      const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
+      initial.sim.incidents = [signalFault()];
+      initial.sim.nextIncidentId = 2;
+      renderShift(initial);
+      const normalKey = mapProps().fitKey;
+      type('Dang Wangi');
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
+      type('Masjid Jamek');
+      expect(mapProps().fitKey).toMatch(/^fix:1:close:/);
+      type('Pasar Seni');
+      expect(mapProps().fitKey).toBe(normalKey);
+    });
+
+    it('under reduced motion locking onto a fix leaves the camera alone', () => {
+      // beforeEach reports reduced motion.
+      closeCameraOn();
+      renderShift(surgeWithWaiting());
+      const normalKey = mapProps().fitKey;
+      type('C');
+      expect(mapProps().fitKey).toBe(normalKey);
+      expect(mapProps().fitView).toBeUndefined();
+    });
+  });
+
   it('Backspacing a fix away lets go: no urgency, no glow, and the normal frame is back', () => {
     allowMotion();
     const { container } = renderShift(surgeWithWaiting());
@@ -1924,7 +2190,7 @@ describe('Leaning in on an Incident fix', () => {
     type('r');
     expect(screen.getByRole('dialog', { name: 'Tip' })).toBeTruthy();
     expect(root(container).getAttribute('data-urgent')).toBeNull();
-    type('x');
+    press('Enter');
     expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
     expect(root(container).getAttribute('data-urgent')).toBe('true');
   });
@@ -2155,7 +2421,7 @@ describe('a closing Incident', () => {
     // The closure animations stand still behind the tip.
     expect(document.querySelector('.dispatcher')!.getAttribute('data-paused')).toBe('true');
     clock.now += 5_000;
-    type('x');
+    press('Enter');
     expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
     expect(list()!.querySelector('[data-closed="true"]')).not.toBeNull();
     clock.now += 1_600;
@@ -2538,5 +2804,68 @@ describe('DispatchSummary', () => {
     expect(screen.queryByText('Checking your Career…')).toBeNull();
     expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
     expect(screen.queryByRole('textbox', { name: 'Your name' })).toBeNull();
+  });
+});
+
+describe('the dev camera panel', () => {
+  const toggle = () => screen.getByRole('checkbox', { name: 'Close camera' }) as HTMLInputElement;
+  const doneKeys = () => screen.getByTestId('dispatch-typing').querySelectorAll('[data-state="done"]').length;
+
+  it('is on the Dispatcher screen, the close camera on by default', () => {
+    localStorage.removeItem(DISPATCH_CAMERA_KEY);
+    renderShift();
+    expect(toggle().checked).toBe(true);
+  });
+
+  it('keeps its settings in browser storage', () => {
+    const { unmount } = renderShift();
+    fireEvent.click(toggle());
+    unmount();
+    renderShift();
+    expect(toggle().checked).toBe(true);
+  });
+
+  it('falls back to the defaults when storage holds bad JSON', () => {
+    localStorage.setItem(DISPATCH_CAMERA_KEY, '{');
+    renderShift();
+    expect(toggle().checked).toBe(true);
+  });
+
+  it('falls back to the defaults when storage throws', () => {
+    const getItem = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    try {
+      renderShift();
+      expect(toggle().checked).toBe(true);
+    } finally {
+      getItem.mockRestore();
+    }
+  });
+
+  it('typing after using the panel reaches the game', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    toggle().focus();
+    fireEvent.click(toggle());
+    type('J');
+    expect(doneKeys()).toBe(1);
+  });
+
+  it('a letter typed while a panel control has focus goes to the game, and lets go of the control', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    // A click on a slider's label focuses the slider with no pointer-up on it.
+    const slider = screen.getByRole('slider', { name: 'Early closeness' });
+    slider.focus();
+    fireEvent.keyDown(slider, { key: 'J' });
+    expect(doneKeys()).toBe(1);
+    expect(document.activeElement).not.toBe(slider);
+  });
+
+  it('a key a panel control uses stays in the panel', () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    type('J');
+    toggle().focus();
+    // Reaching the game, Space would be a wrong key for Jelatek and stall the line.
+    fireEvent.keyDown(toggle(), { key: ' ' });
+    expect(screen.getByTestId('dispatch-typing').getAttribute('data-stalled')).toBeNull();
+    expect(doneKeys()).toBe(1);
   });
 });

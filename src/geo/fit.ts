@@ -74,6 +74,38 @@ export function fitViewBox(
   };
 }
 
+/** The points' bounds: midpoint and spans. */
+function bounds(points: readonly Point[]): { cx: number; cy: number; w: number; h: number } {
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const [minX, maxX, minY, maxY] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  return { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, w: maxX - minX, h: maxY - minY };
+}
+
+/**
+ * A frame `closeness` times closer than `fitViewBox(normal, padding)`, of the
+ * same shape. The subject sits where the normal frame's content centre sits,
+ * so the padding still keeps it clear of the panels. A subject too big for
+ * that size grows the frame to fit it, never past the normal frame.
+ */
+export function closeFrame(
+  normal: readonly Point[],
+  subject: readonly Point[],
+  padding: number | EdgePadding,
+  closeness: number,
+): ViewBox {
+  const n = fitViewBox(normal, padding);
+  if (normal.length === 0 || subject.length === 0) return n;
+  const content = bounds(normal);
+  const s = bounds(subject);
+  const k = Math.min(1, Math.max(
+    1 / closeness, s.w / Math.max(content.w, MIN_SPAN), s.h / Math.max(content.h, MIN_SPAN),
+  ));
+  const fx = (content.cx - n.x) / n.w;
+  const fy = (content.cy - n.y) / n.h;
+  return { x: s.cx - fx * n.w * k, y: s.cy - fy * n.h * k, w: n.w * k, h: n.h * k };
+}
+
 /** How many stations of the route stay in shot either side of the train. */
 export interface FollowWindow {
   behind: number;

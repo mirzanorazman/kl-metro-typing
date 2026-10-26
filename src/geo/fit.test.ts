@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { clampSpan, coverAspect, fitViewBox, followPoints, scaleToContain } from './fit';
+import { clampSpan, closeFrame, coverAspect, fitViewBox, followPoints, scaleToContain } from './fit';
 import type { Point } from '../data/types';
 
 const pts: Point[] = [
@@ -183,5 +183,47 @@ describe('scaleToContain', () => {
   it('never shrinks the shot', () => {
     expect(scaleToContain(size, focus, 0.5, [], 0)).toBe(1);
     expect(scaleToContain(size, focus, 0.5, [{ x: 1, y: 1 }], 0)).toBe(1);
+  });
+});
+
+describe('closeFrame', () => {
+  // A normal set spanning 300 x 200 units, with its content centre at (150, 100).
+  const normal: Point[] = [{ x: 0, y: 0 }, { x: 300, y: 200 }];
+  const PAD = { top: 0.12, right: 0.24, bottom: 0.3, left: 0.06 };
+  const n = fitViewBox(normal, PAD);
+
+  it('a small subject gets a frame closeness times smaller than the normal frame', () => {
+    const f = closeFrame(normal, [{ x: 100, y: 100 }], PAD, 3);
+    expect(f.w).toBeCloseTo(n.w / 3);
+    expect(f.h).toBeCloseTo(n.h / 3);
+  });
+
+  it("the subject sits where the normal frame's content centre sits", () => {
+    const f = closeFrame(normal, [{ x: 100, y: 100 }], PAD, 3);
+    const fx = (150 - n.x) / n.w;
+    const fy = (100 - n.y) / n.h;
+    expect(f.x + fx * f.w).toBeCloseTo(100);
+    expect(f.y + fy * f.h).toBeCloseTo(100);
+  });
+
+  it('a subject wider than the close size grows the frame to fit it', () => {
+    const f = closeFrame(normal, [{ x: 0, y: 100 }, { x: 150, y: 100 }], PAD, 4);
+    expect(f.w).toBeCloseTo(n.w * 0.5);
+  });
+
+  it('never larger than the normal frame', () => {
+    const f = closeFrame(normal, normal, PAD, 3);
+    expect(f.w).toBeCloseTo(n.w);
+    expect(f.h).toBeCloseTo(n.h);
+  });
+
+  it('closeness 1 keeps the normal size, recentred on the subject', () => {
+    const f = closeFrame(normal, [{ x: 100, y: 100 }], PAD, 1);
+    expect(f.w).toBeCloseTo(n.w);
+    expect(f.x).not.toBeCloseTo(n.x);
+  });
+
+  it('an empty subject returns the normal frame', () => {
+    expect(closeFrame(normal, [], PAD, 3)).toEqual(n);
   });
 });

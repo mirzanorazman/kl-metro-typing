@@ -81,6 +81,18 @@ describe('newDispatchTips', () => {
     expect(tipSubject(net, pair, 'expansion')).toBeNull();
   });
 
+  it('tipSubject points at the newest train for a new train, and at the last closed Station for a closure', () => {
+    const joined = running([waiting(1, 'KJ', 'Jelatek'), waiting(3, 'KJ', 'Gombak'), waiting(2, 'KJ', 'Bangsar')]);
+    expect(tipSubject(net, joined, 'new-train')).toEqual({ trains: [3], stations: [idOf('Gombak')] });
+    expect(tipSubject(net, withSim(joined, (sim) => { sim.trains = []; }), 'new-train')).toBeNull();
+
+    const closed = withSim(running([waiting(1, 'KJ', 'Jelatek')]), (sim) => {
+      sim.oosOrder = [idOf('Ampang Park'), idOf('KLCC')];
+    });
+    expect(tipSubject(net, closed, 'out-of-service')).toEqual({ trains: [], stations: [idOf('KLCC')] });
+    expect(tipSubject(net, running([waiting(1, 'KJ', 'Jelatek')]), 'out-of-service')).toBeNull();
+  });
+
   it('sees a late Train offer a Station further ahead', () => {
     const prev = running([waiting(1, 'KJ', 'Jelatek')]);
     const next = withSim(prev, (sim) => {

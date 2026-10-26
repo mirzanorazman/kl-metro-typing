@@ -2,6 +2,14 @@
 
 ## Resume here (updated after every task)
 
+**Integration into `feat/dispatcher` (2026-10-27):** the network-reveal work is
+combined with the target branch's close-camera and Enter-only tip updates
+through `7212d03`. Both rendering paths and the reveal input gate are retained.
+A regression checks entry finishing before the lesson's close camera starts.
+The combined result passed review, TypeScript/Vite build, whitespace checks,
+and the full suite: 1,238 passed, 3 skipped across 86 files. Playtest this
+combined branch before merging to main or deploying.
+
 **Latest implementation (verified 2026-10-27, Kuala Lumpur):**
 [`2026-10-26-dispatcher-network-reveal.md`](plans/2026-10-26-dispatcher-network-reveal.md),
 with [approved design](specs/2026-10-26-dispatcher-network-reveal-design.md).
@@ -20,7 +28,8 @@ See [verification evidence and limits](dispatcher-network-reveal-verification.md
 including browser screenshots, measured phone/tablet bounds, and audio/native
 reduced-motion/device checks that still need playtesting. Whole-branch review
 of `f3879b3..0d68fd0` passed with no Critical, Important or Minor findings.
-The branch and worktree are preserved for playtesting; not merged or deployed.
+The feature was subsequently integrated with `feat/dispatcher` as recorded
+above; main merge and deployment remain pending playtesting.
 The user chose **ignore typing until
 the reveal finishes**, without buffering or recording it: 1,000 ms entry,
 800 ms Expansion, no wait under reduced motion. F17 counts, shared-track lanes,

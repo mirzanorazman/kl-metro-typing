@@ -12,7 +12,7 @@ import { runTick } from './useRunRecorder';
 const CAPTIONS: Record<LessonStep, string | null> = {
   first: 'This train is waiting at a red signal. Type Jelatek to send it on.',
   moving: 'There it goes.',
-  second: 'It stopped at Jelatek and is waiting again. Every Station needs you. Type Setiawangsa.',
+  second: 'It stopped at Setiawangsa and is waiting again. Every Station needs you. Type Setiawangsa.',
   done: null,
 };
 

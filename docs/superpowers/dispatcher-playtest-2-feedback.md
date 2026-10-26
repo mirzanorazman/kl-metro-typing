@@ -6,9 +6,11 @@ so that later sessions can take one item or one group at a time. Item numbers
 priorities move.
 
 **Where it stands (2026-10-27, Kuala Lumpur):** all P0s and the first-time-clarity group
-are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20 and F22. F21 is set
-aside. F15/F4/F19 are implemented and verified; F23 (small bug) and F11 remain open. The branch is kept as is (not merged) until
-the user has playtested the onboarding; see "Check in playtest 3" at the end.
+are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20,
+F22 and F27 (close camera on by default, with a development tuning panel).
+F21 is set aside. F15/F4/F19 are implemented and verified; F23 (small bug),
+then F11 remain open. Keep `feat/dispatcher` unmerged to main until the user
+has playtested the onboarding; see "Check in playtest 3" at the end.
 
 **Verified (2026-10-27):** the user approved F15, F4 and F19 as one served-track
 and network-reveal group. [Design](specs/2026-10-26-dispatcher-network-reveal-design.md)
@@ -56,6 +58,7 @@ spec and plan.
 | F19 | Celebrate a new Line joining the network | P1 | M | done 0f5bf3a | F4, F15 |
 | F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..2042dbd | |
 | F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
+| F27 | The camera pulls in close for the lesson, train tips and a fix being typed (dev panel) | P1 | M | done 1a9d6e5..c152d88, amended | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
 | F16 | Repetition, unattended trains, what to prioritise | P2 | L | open | F12 |
 | F10 | Combo spacing: every 3, or growing gaps (3, 7, 13)? | P2 | S | open | F12 |
@@ -461,6 +464,10 @@ network the lean is barely visible (checklist §2). The dispersal pop shows
 clear, a crowd-burst animation, a "Crowd cleared" stamp and a sound. Keep
 reduced motion still.
 
+**Camera part done in F27** (behind the dev camera panel): the camera zooms
+in on the Incident while its fix is typed and out when it clears. What is
+left here is the burst, the stamp and the sound.
+
 ### F19. Celebrate a new Line joining
 
 **Reported (nice to have):** when a new Line joins (e.g. the Kajang Line for
@@ -560,6 +567,64 @@ class and probably has the same problem.
 or move them out of `PlayLayout`'s panel slot), or give the card its own
 solid background. Pairs with F22: if the map is meant to stay visible behind
 a pointing tip, the card should sit over the panel only, opaque.
+
+### F27. The camera pulls in close when something matters
+
+**Reported (2026-10-26, from measuring):** the camera never got closer in
+Shifts 1–8. Every frame is floored at 200 layout units (`MIN_SPAN`, `fit.ts`)
+and Shift 1's 14 Stations span 154 × 137, so the lesson, the tips and the fix
+lean-in only panned. The user wants close views for the lesson, the train
+tips and Incidents, closest early and easing to a lean as the network grows,
+and wants to playtest whether that feels special or gets old.
+
+Spec `specs/2026-10-26-dispatcher-close-camera-design.md`, plan
+`plans/2026-10-26-dispatcher-close-camera.md`, run inline with one final
+review.
+
+**Done:** a dev-only camera panel (bottom left; development builds only, so
+playtest 3 runs on `npm run dev`): a Close camera toggle, Early closeness (1–5×,
+default 3× at 14 Stations or fewer), Late closeness (1–3×, default 1.2× at 40 or
+more, linear between) and a readout of the closeness now. Settings stay in
+browser storage. With it on, the lesson and the Service gap and late tips
+frame close (`closeFrame`, through a new `MapCanvas` prop `fitView`), and
+locking onto a fix zooms in on the Incident's place and its neighbours
+(leaving the waiting trains out of the frame); clearing or Backspacing the
+fix zooms straight out. A signal fault stays close through all its names.
+Reduced motion keeps the camera still for tips and fixes; the lesson stays
+close. Off, the camera is exactly as before.
+
+**Amended 2026-10-27:** the first build held a close view for 1 s *after* a
+fix landed and kept today's lean-in while typing. Playing it, the user saw
+the zoom arrive after the fix and called it a bug: the intent was always
+zoom in while typing, out on the clear. The hold and its slider are gone.
+The new-train and out-of-service tips now point too (2026-10-27): the first
+at the train that joined (it pulses), the second at the closed Station and
+its neighbours. Like the Service gap and late tips, they lean in with the
+close camera off and zoom close with it on. Seen live in Shift 1.
+
+**On by default (2026-10-27):** the user played it and kept 3× early and
+1.2× late. The close camera is now on in every build, production included,
+with those numbers fixed there; the dev panel stays in development, where
+Close camera can be switched off to compare.
+
+Probe (`DISPATCH_PROBE=1 npx vitest run src/ui/dispatchCameraProbe.test.ts`,
+60 WPM, seeds 1–5), zoom against the normal frame, median:
+
+| Frame | Shifts 1–3 | Shifts 4–8 | Shift 9+ |
+|---|---|---|---|
+| Late tip, today → close | 1.00× → 2.79× | 1.02× → 2.17× | 1.44× → 1.20× |
+| Service gap tip, today → close | 1.00× → 2.72× | 1.12× → 1.89× | 1.44× → 1.20× |
+| Lean-in, today | 1.00× | 1.00× | 1.10× |
+| Fix being typed, close camera | 3.00× | 1.82× | 1.20× |
+| Lesson against Shift 1 | 1.00× → 3.00× | | |
+
+**Worth knowing:** from Shift 9 the close camera at its 1.2× default frames
+tips *wider* than today's (1.44×), because the close size comes from the
+closeness, not the subject's own fit. Raise Late closeness if that feels
+wrong. Seen live (1440 × 900): the lesson at 3× and 5×, a slider moving the
+camera at once, a Station name typed right after clicking the panel, the
+late tip on `?dispatch=full`. Not seen live: a Service gap tip (unit tested
+only); the close view on a fix is checked live after the amendment.
 
 ## P2: balance and depth (design talk first)
 
@@ -703,6 +768,9 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   you wanted from a walkthrough?
 - **Tips.** The new start caption ("Every red signal on your Line…") and
   the new-train tip (F14): clear, and not too many interruptions?
+  Tips now close with Enter only (or a click), not any key, so a Station
+  name typed by mistake no longer skips one unread (2026-10-27). Does Enter
+  feel natural?
 - **P0 fixes.** Back to map before starting (F1); "Yes, end it" in red (F6);
   calm music once the last Incident is fixed (F7); Backspace undoes instead
   of letting go (F18); ending between Shifts reaches the leaderboard (F3).
@@ -714,6 +782,13 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   noticeable badge/chime for a new Line? Is ignoring typing during the
   800 ms Expansion reveal comfortable? Check shared track, growth counts,
   muted sound and reduced motion with no input wait.
+- **Close camera (F27).** It is on by default now. On the dev server, switch
+  Close camera off and on in the dev panel (bottom left) to compare. Does each close view draw your eye to the
+  right thing, and does it still feel special by the tenth Incident, or does
+  it get old? Tune Early and Late closeness with the sliders and note the
+  values that feel right, and at how many Stations (the readout shows it).
+  While you type a fix, does the close view help, or do you lose track of the
+  Trains waiting elsewhere?
 - **Closure gauge (F20).** Is the first closure noticed when it happens? Does a
   failed Shift now feel like it was coming? Is the gauge visible enough up in
   the Shift bar, given the eyes are on the chips and the Incidents panel?

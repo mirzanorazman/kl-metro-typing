@@ -59,9 +59,11 @@ export interface TipSubject { trains: number[]; stations: string[] }
 /**
  * The trains and Stations a tip is about, so the map can frame and pulse them
  * while it shows: the newest Service gap's rear train, its leader and the
- * Station it left behind; or the first late train (by id) offering a Station
- * further ahead, at its platform. Null for a tip about no train, and for a subject
- * that has gone, including between Shifts, when the Shift's trains are out of play.
+ * Station it left behind; the first late train (by id) offering a Station
+ * further ahead, at its platform; the train that joined last (the highest id),
+ * where it is; or the Station that went Out of service last. Null for any other
+ * tip, and for a subject that has gone, including between Shifts, when the
+ * Shift's trains are out of play.
  */
 export function tipSubject(net: NetworkIndex, career: CareerState, id: DispatchTipId): TipSubject | null {
   if (career.status !== 'running' && career.status !== 'paused') return null;
@@ -80,6 +82,14 @@ export function tipSubject(net: NetworkIndex, career: CareerState, id: DispatchT
     // Skip offers come in train id order.
     const skip = visibleTargets(net, sim).find((t) => t.ref.kind === 'skip');
     return skip?.ref.kind === 'skip' ? { trains: [skip.ref.train], stations: [stationOf(skip.ref.train)!] } : null;
+  }
+  if (id === 'new-train') {
+    const newest = Math.max(...sim.trains.map((t) => t.id));
+    return Number.isFinite(newest) ? { trains: [newest], stations: [stationOf(newest)!] } : null;
+  }
+  if (id === 'out-of-service') {
+    const last = sim.oosOrder[sim.oosOrder.length - 1];
+    return last === undefined ? null : { trains: [], stations: [last] };
   }
   return null;
 }

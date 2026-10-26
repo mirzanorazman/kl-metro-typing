@@ -2,7 +2,7 @@ import {
   useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject,
 } from 'react';
 import { music, sound } from '../audio/sound';
-import type { LineCode, Point } from '../data/types';
+import type { Point } from '../data/types';
 import type { KeySource } from '../engine/keylog';
 import type { NetworkIndex } from '../engine/network';
 import {
@@ -28,9 +28,9 @@ import { DISPATCH_KEYLOG_MAX_EVENTS } from '../engine/dispatchBalance';
 import { LESSON_SEEN, lessonStations } from '../engine/dispatchLesson';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { servedKey, servedLines, servedStations } from '../engine/dispatchNetwork';
-import type { Incident } from '../engine/dispatchSim';
 import { candidates, sameRef, visibleTargets, type Target } from '../engine/dispatchTargets';
 import type { TypingState } from '../engine/typing';
+import { closeFrame } from '../geo/fit';
 import { networkLayout } from '../geo/networkLayout';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import {
@@ -45,17 +45,20 @@ import { clearedSignals, liveMarks, useFreshWave, waveNoteDelays } from '../rend
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { ClosureGauge, closureBand } from './ClosureGauge';
 import { ConfirmEndButton } from './ConfirmEndButton';
+import { closeness, leanIn, subjectStations, withNeighbours } from './dispatchCamera';
+import { DispatchCameraPanel } from './DispatchCameraPanel';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
 import { DispatchNetworkNotice } from './DispatchNetworkNotice';
 import { DispatchSummary } from './DispatchSummary';
 import {
-  dispatchTipText, newDispatchTips, tipSubject, type DispatchTipId, type TipSubject,
+  dispatchTipText, newDispatchTips, tipSubject, type DispatchTipId,
 } from './dispatchTips';
 import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
 import { PlayLayout } from './PlayLayout';
 import { useGameInput } from './TypingInputProvider';
 import { lessonCaption, useDispatchLesson } from './useDispatchLesson';
+import { useCloseCamera } from './useCloseCamera';
 import { useDispatchReveal } from './useDispatchReveal';
 import { useFailHold } from './useFailHold';
 import { runTick, useRunRecorder } from './useRunRecorder';
@@ -88,13 +91,17 @@ function PauseOverlay({ onResume }: { onResume: () => void }) {
 const RANKED_NOTE = 'Your Career will be ranked.';
 const UNRANKED_NOTE = "Mid-Shift, it won't be ranked. Clear the Shift to keep your score.";
 
-/** A one-time tip. A running Career is paused while it shows; any key or click dismisses it. */
+/**
+ * A one-time tip. A running Career is paused while it shows; Enter or a click
+ * dismisses it. Other keys are dropped, so a Station name typed by mistake
+ * never dismisses a tip unread.
+ */
 function TipCard({ id, onDismiss }: { id: DispatchTipId; onDismiss: () => void }) {
   return (
     <div className="dispatch-paused dispatch-tip" role="dialog" aria-label="Tip">
       <p>{dispatchTipText(id)}</p>
       <button type="button" onClick={onDismiss}>
-        <kbd>any key</kbd> Got it
+        <kbd>Enter</kbd> Got it
       </button>
     </div>
   );
@@ -147,56 +154,6 @@ function ShiftBar({ career, lines, stations, grown, closed, slots, fresh }: {
       </dl>
     </header>
   );
-}
-
-/**
- * The frame while a fix is typed: a lean towards the Incident, never a
- * close-up. It holds the place and its Served neighbours on its Line, so the
- * shot never closes in on one dot, and every waiting train's Station, so no
- * train waits out of view. The key carries the waiting Stations: one that
- * starts waiting mid-fix moves the key, and the map refits to take it in.
- */
-function leanIn(
-  net: NetworkIndex, sim: CareerState['sim'], incident: Incident, targets: readonly Target[],
-  served: ReadonlySet<string>,
-): { stations: string[]; key: string } {
-  const near = withNeighbours(net, incident.line, incident.place, served);
-  const waiting = new Set<string>();
-  for (const target of targets) {
-    if (target.ref.kind === 'fix') continue;
-    const id = target.ref.train;
-    const train = sim.trains.find((t) => t.id === id);
-    const station = train && net.lines.get(train.line)!.stations[train.at];
-    if (station) waiting.add(station);
-  }
-  return {
-    stations: [...new Set([...near, ...waiting])],
-    key: `fix:${incident.id}:${[...waiting].sort().join(',')}`,
-  };
-}
-
-/** A Station and its Served neighbours on `line`: a frame that never closes in on one dot. */
-function withNeighbours(net: NetworkIndex, line: LineCode, station: string, served: ReadonlySet<string>): string[] {
-  const ids = net.lines.get(line)!.stations;
-  const at = ids.indexOf(station);
-  if (at < 0) return [station];
-  return [ids[at - 1], station, ids[at + 1]]
-    .filter((id): id is string => id !== undefined && (id === station || served.has(id)));
-}
-
-/**
- * The Stations a tip about trains frames, with the lean-in's framing: those it
- * is about and each of its trains' own, each with its Served neighbours on the
- * trains' Line.
- */
-function subjectStations(
-  net: NetworkIndex, sim: CareerState['sim'], subject: TipSubject, served: ReadonlySet<string>,
-): string[] {
-  const trains = subject.trains.flatMap((id) => sim.trains.filter((t) => t.id === id));
-  const at = trains.map((train) => net.lines.get(train.line)!.stations[train.at]!);
-  const lines = [...new Set(trains.map((train) => train.line))];
-  return [...new Set([...subject.stations, ...at].flatMap((station) => lines.length === 0 ? [station]
-    : lines.flatMap((line) => withNeighbours(net, line, station, served))))];
 }
 
 /** The panels floating over the Dispatcher's map: the top bar, the Incidents panel and the typing panel. */
@@ -323,6 +280,9 @@ export function DispatcherScreen({
   const recorder = useRunRecorder(openedAt, DISPATCH_KEYLOG_MAX_EVENTS);
   const actions = useRef<DispatchAction[]>([]);
 
+  // The close camera, tuned from the dev camera panel (development only).
+  const [camera, setCamera] = useCloseCamera();
+
   // Tips: the seen list is read once; a tip is marked seen when it is shown.
   const seenTips = useRef(new Set(loadProfile().dispatchTipsSeen ?? []));
   const [tips, setTips] = useState<DispatchTipId[]>([]);
@@ -398,7 +358,7 @@ export function DispatcherScreen({
       if (key === 'Escape' && cur.startedAt === null) exit();
       return;
     }
-    if (tipsShowing.current) return dismissTip();
+    if (tipsShowing.current) return key === 'Enter' ? dismissTip() : undefined;
     // The lesson's keys are its own: none reaches the Career or the Keylog.
     if (inLesson.current) return lessonOnKey(key);
     // Between Shifts the Expansion picker owns the keys.
@@ -668,6 +628,28 @@ export function DispatcherScreen({
   const tipFrame = subject && !prefersReducedMotion()
     ? subjectStations(net, run.sim, subject, served).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
     : null;
+  // The close camera (dev camera panel): the lesson, a pointing tip and a fix
+  // being typed frame closer than the normal frame, less close as the Served
+  // network grows. A fix's close view is its place and its Served neighbours
+  // only: the waiting trains elsewhere leave the shot until it clears.
+  const near = closeness(served.size, camera);
+  const fixFrame = camera.on && lean && fixing
+    ? withNeighbours(net, fixing.line, fixing.place, served).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
+    : null;
+  const close = !camera.on ? null
+    : lesson ? {
+      view: closeFrame(frame, lessonFrame, DISPATCH_FIT_PADDING, camera.early),
+      key: `dispatch:lesson:close:${camera.early.toFixed(2)}`,
+    }
+    : tipFrame ? {
+      view: closeFrame(frame, tipFrame, DISPATCH_FIT_PADDING, near),
+      key: `tip:${tips[0]}:close:${near.toFixed(2)}`,
+    }
+    : fixFrame ? {
+      view: closeFrame(frame, fixFrame, DISPATCH_FIT_PADDING, near),
+      key: `fix:${fixing!.id}:close:${near.toFixed(2)}`,
+    }
+    : null;
 
   // The urgent edge holds off behind the Pause and Tip dialogs.
   const urgent = fixing && run.status === 'running' && tips.length === 0;
@@ -697,8 +679,9 @@ export function DispatcherScreen({
             districts={districts}
             emphasisRanges={lesson?.career.served ?? run.served}
             trackReveal={reveal?.track ?? null}
-            fitTo={lesson ? lessonFrame : tipFrame ?? leanFrame ?? frame}
-            fitKey={lesson ? 'dispatch:lesson' : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey}
+            fitTo={lesson ? lessonFrame : tipFrame ?? fixFrame ?? leanFrame ?? frame}
+            fitKey={close?.key ?? (lesson ? 'dispatch:lesson' : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey)}
+            fitView={close?.view}
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
             overlay={({ layout: l, markScale, view, screen, tracks }) => (
               <DispatchOverlay net={net} layout={l} markScale={markScale} career={shown} targets={targets} aimed={aimed}
@@ -791,6 +774,10 @@ export function DispatcherScreen({
         <DispatchIncidents net={net} career={run}
           closing={freshClosings(closings, run.sim.shiftMs, CLOSING_CARD_MS).filter((c) => c.incident !== null)} />
       </aside>
+      {import.meta.env.DEV && (
+        <DispatchCameraPanel settings={camera} onChange={setCamera} stations={served.size}
+          closenessNow={near} />
+      )}
     </div>
   );
 }
