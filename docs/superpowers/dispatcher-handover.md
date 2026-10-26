@@ -8,7 +8,7 @@ with [approved design](specs/2026-10-26-dispatcher-network-reveal-design.md).
 Eight tasks cover F15 exact served track, F4 entry before the lesson on every
 new Career, then F19 Expansion reveals and new-Line badge/chime. Planning branch
 `codex/dispatcher-network-reveal`, based on `feat/dispatcher` at `64e0d4d`.
-Tasks 1–7 are implemented and have passed separate spec and quality reviews.
+Tasks 1–8 are implemented and have passed separate spec and quality reviews.
 F15 is `d5dd5ca`, F4 is `ca689f1`, and F19 is `0f5bf3a`; shared geometry,
 timing, rendering and controller commits are `7e1902a`, `36a9ceb`, `075b6f7`,
 `8e74f29` and `3dc27ae`. Task 8 found and fixed narrow Shift-bar overflow in
@@ -19,7 +19,8 @@ test `act(...)` warning and Vite's over-500 kB chunk warning remain.
 See [verification evidence and limits](dispatcher-network-reveal-verification.md),
 including browser screenshots, measured phone/tablet bounds, and audio/native
 reduced-motion/device checks that still need playtesting. Whole-branch review
-follows this handoff; the branch is not merged or deployed.
+of `f3879b3..0d68fd0` passed with no Critical, Important or Minor findings.
+The branch and worktree are preserved for playtesting; not merged or deployed.
 The user chose **ignore typing until
 the reveal finishes**, without buffering or recording it: 1,000 ms entry,
 800 ms Expansion, no wait under reduced motion. F17 counts, shared-track lanes,

@@ -14,7 +14,8 @@ the user has playtested the onboarding; see "Check in playtest 3" at the end.
 and network-reveal group. [Design](specs/2026-10-26-dispatcher-network-reveal-design.md)
 and [eight-task implementation plan](plans/2026-10-26-dispatcher-network-reveal.md)
 were implemented on `codex/dispatcher-network-reveal`, with separate spec and
-quality reviews for Tasks 1–7. Full verification passed: 83 suites, 1,197 tests
+quality reviews for Tasks 1–8. Whole-branch review of `f3879b3..0d68fd0`
+passed with no findings. Full verification passed: 83 suites, 1,197 tests
 and 2 skipped; TypeScript/Vite build and whitespace checks passed. Browser
 verification found and fixed narrow Shift-bar growth/count overflow in
 `9d98057`. See [observations, screenshots and limitations](dispatcher-network-reveal-verification.md).

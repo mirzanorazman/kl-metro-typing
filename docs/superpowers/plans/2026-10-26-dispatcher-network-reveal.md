@@ -10,7 +10,7 @@
 
 **Spec:** [approved design](../specs/2026-10-26-dispatcher-network-reveal-design.md).
 **Source baseline:** `feat/dispatcher` at `64e0d4d`; planning branch `codex/dispatcher-network-reveal`.
-**Status:** Tasks 1–8 implemented and verified by 2026-10-27 (Kuala Lumpur), with separate spec and quality reviews for Tasks 1–7. Task 8 review and whole-branch review follow this handoff. Full gates passed at `9d98057` (83 files, 1,197 passed tests, 2 skipped); browser evidence and bounded manual coverage are recorded in [verification results](../dispatcher-network-reveal-verification.md). Not merged or deployed. The execution ledger is `/tmp/myrapid-network-reveal-progress.md`.
+**Status:** Tasks 1–8 implemented and verified by 2026-10-27 (Kuala Lumpur), with separate spec and quality reviews for Tasks 1–8. Whole-branch review of `f3879b3..0d68fd0` passed with no findings; ready for playtest. Full gates passed at `9d98057` (83 files, 1,197 passed tests, 2 skipped); browser evidence and bounded manual coverage are recorded in [verification results](../dispatcher-network-reveal-verification.md). Not merged or deployed. The execution ledger is `/tmp/myrapid-network-reveal-progress.md`.
 
 ---
 
