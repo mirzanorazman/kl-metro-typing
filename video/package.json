@@ -1,0 +1,40 @@
+{
+  "name": "kl-metro-typing-reel",
+  "version": "1.0.0",
+  "description": "51.5-second vertical promo reel for KL-Metro Typing, built with Remotion",
+  "repository": {},
+  "license": "UNLICENSED",
+  "engines": {
+    "node": "^20.19.0 || ^22.13.0 || >=24"
+  },
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "4.0.539",
+    "@remotion/fonts": "4.0.539",
+    "@remotion/media": "4.0.539",
+    "@remotion/transitions": "4.0.539",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.539"
+  },
+  "devDependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
+    "@remotion/eslint-config-flat": "4.0.539",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "10.12.0",
+    "prettier": "3.8.1",
+    "tsx": "^4.23.15",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "soundtrack": "tsx scripts/soundtrack.ts",
+    "dev": "npm run soundtrack && remotion studio",
+    "render": "npm run soundtrack && remotion render Reel out/kl-metro-typing-reel.mp4 --codec=h264 --crf=18 --audio-codec=aac --audio-bitrate=192k",
+    "lint": "eslint src scripts && tsc"
+  },
+  "allowScripts": {
+    "esbuild": false
+  }
+}
