@@ -74,7 +74,7 @@ spec and plan.
 | F10 | Combo spacing: every 3, or growing gaps (3, 7, 13)? | P2 | S | open | F12 |
 | F13 | The full-size map (`?dispatch=full`) | Parked | L | parked | |
 | F24 | Service gap trigger: count a pair only while its front train moves? | Parked | M | parked | F22 |
-| F25 | "Reset train at" can name a Signal the train has passed | P2 | S | open | |
+| F25 | "Reset train at" can name a Signal the train has passed | P2 | S | not a bug (2026-10-28) | |
 | F26 | Service gap card sits at the Station left behind but names the next Signal | P2 | S | watch in playtest | F22 |
 
 **P0** is broken or blocks a normal session; do these next, roughly in this
@@ -775,6 +775,22 @@ Found during F22 (pre-existing). A train fault's fix text and `strain()` use
 that Signal, not the next one. F22 fixed the same problem for Service gaps
 with `nextSignalStationId`; the train fault should use it too. Small; check
 that `strain()` should change as well.
+
+**Checked 2026-10-28: not a bug, no code change.** A faulted train is frozen
+(`heldTrains` skips it in `stepSim`), and a `cleared` train is drawn at
+`t.at`, the Station it is entering, which is also the fault's `place` (glyph,
+chip, closure). So "Reset train at <t.at>" names where the train is.
+`nextSignalStationId` would name the Station after it, one the train has not
+reached, and open an F26-style gap between the chip's place and its text.
+"Hold at" needs the next Signal because a hold applies at a Signal; a reset
+does not. In the other stages (`signal`, `dwell`, `running`, `turnaround`)
+the two helpers agree, except on an express run or a closed Station ahead;
+a fault whose place closes is removed with it (`closeStation`). Survey, 60
+and 90 WPM, 15 seeds each, 20 minutes: 150 train faults, none where the two
+helpers differ at the start (80 at a Signal, 40 running, 26 dwelling, 4
+turning; none `cleared`). `strain()` stays too: a held train counts at the
+Station it waits outside, and changing it would move where Incidents spawn
+(a balance and evidence-version change for no gain).
 
 ### F26. Service gap card place vs fix text
 
