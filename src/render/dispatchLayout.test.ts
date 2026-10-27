@@ -1,5 +1,79 @@
 import { describe, expect, it } from 'vitest';
-import { hits, layoutPops, popBox, type PopWant } from './dispatchLayout';
+import { loadNetworkData } from '../data/load';
+import { STARTING_NETWORK } from '../engine/dispatchNetwork';
+import { clearSignal, startShiftSim, stepSim, type PhaseNow, type Train } from '../engine/dispatchSim';
+import { buildNetwork } from '../engine/network';
+import { networkLayout } from '../geo/networkLayout';
+import { hits, layoutPops, placeTrain, popBox, type PopWant } from './dispatchLayout';
+
+describe('a Train moving on the map', () => {
+  const net = buildNetwork(loadNetworkData());
+  const { geo: layout } = networkLayout();
+  const MIDDAY: PhaseNow = { multiplier: 0, flow: 'none', trainFactor: 1, escalation: 1 };
+  const ids = net.lines.get('KJ')!.stations;
+  const indexOf = (name: string) => ids.findIndex((id) => net.stations.get(id)!.name === name);
+
+  /** One Train at the Signal before `name`, alone on the map. */
+  function lone(name: string) {
+    const s = startShiftSim(net, STARTING_NETWORK, 1);
+    const train: Train = { id: 1, line: 'KJ', dir: 1, at: indexOf(name), stage: 'signal', ms: 0,
+      skipTo: null, load: {}, lastExchange: null };
+    s.trains = [train];
+    return s;
+  }
+
+  /**
+   * How far the Train is drawn moving along the track on each tick, from now
+   * until it next waits at a Signal: along the stretch it is running on, or
+   * the one it came in on when it stands. A negative step is the sprite
+   * jumping back.
+   */
+  function steps(s: ReturnType<typeof lone>) {
+    const moves: number[] = [];
+    let was = placeTrain(net, layout, s.trains[0]!, 1)!.at;
+    for (let tick = 0; tick < 400; tick++) {
+      stepSim(net, s, MIDDAY);
+      const t = s.trains[0]!;
+      const placed = placeTrain(net, layout, t, 1)!;
+      const [a, b] = t.stage === 'running' ? [t.at, t.at + t.dir] : [t.at - t.dir, t.at];
+      const from = layout.get(ids[a]!)!;
+      const to = layout.get(ids[b]!)!;
+      const len = Math.hypot(to.x - from.x, to.y - from.y);
+      moves.push(((placed.at.x - was.x) * (to.x - from.x) + (placed.at.y - was.y) * (to.y - from.y)) / len);
+      was = placed.at;
+      if (tick > 5 && s.trains[0]!.stage === 'signal') break;
+    }
+    return moves;
+  }
+
+  /**
+   * A step back smaller than this is invisible (about 0.2 px at Shift 1's
+   * framing): on a short block with a bend, crossing to the right-hand side of
+   * the new direction can cost a hair of forward progress. The jump this
+   * guards against was 6.5.
+   */
+  const HAIR = 0.05;
+
+  it('never jumps back as it leaves a Station on a bend or arrives at the next Signal', () => {
+    // Jelatek sits on a bend of about 53 degrees.
+    const s = lone('Jelatek');
+    expect(clearSignal(net, s, 1)).toBe(true);
+    const moves = steps(s);
+    expect(s.trains[0]!.stage).toBe('signal');
+    expect(s.trains[0]!.at).toBe(indexOf('Jelatek') + 1);
+    expect(Math.min(...moves)).toBeGreaterThan(-HAIR);
+  });
+
+  it('an express never jumps back as it passes the Station it skips', () => {
+    const s = lone('Jelatek');
+    // As `skipSignal` leaves a late Train: cleared to run through to two Stations on.
+    const t = s.trains[0]!;
+    Object.assign(t, { stage: 'cleared', skipTo: t.at + 2 });
+    const moves = steps(s);
+    expect(s.trains[0]!.at).toBe(indexOf('Jelatek') + 2);
+    expect(Math.min(...moves)).toBeGreaterThan(-HAIR);
+  });
+});
 
 describe('exchange pops', () => {
   const pop = (key: string, own = true, lines: 1 | 2 = 2): PopWant =>

@@ -29,11 +29,22 @@ export function unit(dx: number, dy: number): Point {
 
 export interface Placed { train: Train; at: Point; heading: Point; side: Point }
 
+/** How much of a run a Train takes to turn onto its new direction at a bend. */
+const TURN_SHARE = 0.2;
+
+/** Screen y points down, so (-y, x) is the right-hand side of travel. */
+const rightOf = (heading: Point): Point => ({ x: -heading.y, y: heading.x });
+
 /**
  * Where a Train is drawn. A Train at its Signal waits short of the Station,
  * back along the track it came in on, and every Train keeps to the right-hand
  * side of its direction of travel: the two directions at one Station never
  * share a spot, and neither do their labels.
+ *
+ * A running Train goes straight from where it was last drawn standing to
+ * where it will wait at the next Signal. Run to the Station itself, it passed
+ * the Signal and jumped back on arriving; and at a bend, swinging its
+ * right-hand offset round at once threw it backwards as it left.
  */
 export function placeTrain(net: NetworkIndex, layout: Layout, t: Train, m: number): Placed | null {
   const ids = net.lines.get(t.line)!.stations;
@@ -41,23 +52,43 @@ export function placeTrain(net: NetworkIndex, layout: Layout, t: Train, m: numbe
   const from = layout.get(pos.from);
   const to = layout.get(pos.to);
   if (!from || !to) return null;
-  let at = { x: from.x + (to.x - from.x) * pos.t, y: from.y + (to.y - from.y) * pos.t };
-  let heading: Point;
+  /** The direction a Train comes into the Station at `index` from, if there is a Station before it. */
+  const into = (index: number): Point | null => {
+    const station = layout.get(ids[index]!)!;
+    const behind = layout.get(ids[index - t.dir] ?? '');
+    return behind ? unit(station.x - behind.x, station.y - behind.y) : null;
+  };
+  /** Standing at the Station at `index`: at its platform, or short of it at its Signal. */
+  const standing = (index: number, heading: Point, atSignal: boolean): Point => {
+    const station = layout.get(ids[index]!)!;
+    const behind = layout.get(ids[index - t.dir] ?? '');
+    const back = atSignal && behind
+      ? Math.min(16 * m, 0.4 * Math.hypot(station.x - behind.x, station.y - behind.y))
+      : 0;
+    const side = rightOf(heading);
+    return {
+      x: station.x - heading.x * back + side.x * 8 * m,
+      y: station.y - heading.y * back + side.y * 8 * m,
+    };
+  };
+
   if (pos.from !== pos.to) {
-    heading = unit(to.x - from.x, to.y - from.y);
-  } else {
-    const behind = layout.get(ids[t.at - t.dir] ?? '');
-    const ahead = layout.get(ids[t.at + t.dir] ?? '');
-    heading = behind ? unit(from.x - behind.x, from.y - behind.y)
-      : ahead ? unit(ahead.x - from.x, ahead.y - from.y) : { x: 1, y: 0 };
-    if ((t.stage === 'signal' || t.stage === 'cleared') && behind) {
-      const back = Math.min(16 * m, 0.4 * Math.hypot(from.x - behind.x, from.y - behind.y));
-      at = { x: at.x - heading.x * back, y: at.y - heading.y * back };
-    }
+    const out = unit(to.x - from.x, to.y - from.y);
+    const left = into(t.at) ?? out;
+    // An express leaves from the Signal of a Station it ran through, where it
+    // was drawn; every other run leaves from the platform.
+    const start = standing(t.at, left, t.skipTo !== null);
+    const end = standing(t.at + t.dir, out, true);
+    const turned = Math.min(1, pos.t / TURN_SHARE);
+    const heading = unit(left.x + (out.x - left.x) * turned, left.y + (out.y - left.y) * turned);
+    const at = { x: start.x + (end.x - start.x) * pos.t, y: start.y + (end.y - start.y) * pos.t };
+    return { train: t, at, heading, side: rightOf(heading) };
   }
-  // Screen y points down, so (-y, x) is the right-hand side of travel.
-  const side = { x: -heading.y, y: heading.x };
-  return { train: t, at: { x: at.x + side.x * 8 * m, y: at.y + side.y * 8 * m }, heading, side };
+
+  const ahead = layout.get(ids[t.at + t.dir] ?? '');
+  const heading = into(t.at) ?? (ahead ? unit(ahead.x - from.x, ahead.y - from.y) : { x: 1, y: 0 });
+  const at = standing(t.at, heading, t.stage === 'signal' || t.stage === 'cleared');
+  return { train: t, at, heading, side: rightOf(heading) };
 }
 
 export interface ChipWant {
