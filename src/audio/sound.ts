@@ -294,6 +294,13 @@ export const sound = {
     });
   }),
 
+  /** A Dispatcher Crowd surge cleared: a quick falling major arpeggio, the crowd letting go. */
+  disperse: () => play(({ complete }) => {
+    ['C6', 'G5', 'E5', 'C5'].forEach((note, index) => {
+      complete.triggerAttackRelease(note, 0.12, `+${(index * 0.06).toFixed(2)}`);
+    });
+  }),
+
   /** A Rush Hour Overflow ring passing halfway: two low, insistent pulses. */
   warning: () => play(({ error }) => {
     error.triggerAttackRelease('A1', 0.12);

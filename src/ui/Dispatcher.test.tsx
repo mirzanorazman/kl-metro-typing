@@ -1666,6 +1666,30 @@ describe('DispatcherScreen', () => {
         expect(meter()!.querySelector('[data-count="to"]')!.textContent).toBe('10');
       });
 
+      it('a Crowd surge clear plays its release cue in place of the usual fix sound', () => {
+        const arrive = vi.spyOn(sound, 'arrive').mockImplementation(() => {});
+        const disperse = vi.spyOn(sound, 'disperse').mockImplementation(() => {});
+        renderShift(surgeCareer());
+        type('Crowd control at Ampang Par');
+        expect(disperse).not.toHaveBeenCalled();
+        type('k');
+        expect(disperse).toHaveBeenCalledTimes(1);
+        expect(arrive).not.toHaveBeenCalled();
+      });
+
+      it('any other fix keeps the usual fix sound', () => {
+        const arrive = vi.spyOn(sound, 'arrive').mockImplementation(() => {});
+        const disperse = vi.spyOn(sound, 'disperse').mockImplementation(() => {});
+        const initial = careerWith([waiting(1, 'KJ', 'Jelatek'), waiting(2, 'KJ', 'Pasar Seni')]);
+        initial.sim.incidents = [{ id: 1, kind: 'train-fault', place: idOf('Jelatek'), stations: [],
+          line: 'KJ', train: 1, startedMs: 0, step: 0, extra: 0 }];
+        initial.sim.nextIncidentId = 2;
+        renderShift(initial);
+        type('Reset train at Jelatek');
+        expect(arrive).toHaveBeenCalledTimes(1);
+        expect(disperse).not.toHaveBeenCalled();
+      });
+
       it('aiming another Crowd surge fix during the clear shows its live count instead', () => {
         allowMotion();
         vi.useFakeTimers();

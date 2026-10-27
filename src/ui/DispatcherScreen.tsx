@@ -475,7 +475,11 @@ export function DispatcherScreen({
       const now = run.sim.incidents.find((i) => i.id === inc.id);
       return now ? now.step > inc.step : !run.sim.outOfService[inc.place];
     });
-    if (cleared || fixed) sound.arrive();
+    // A Crowd surge ends only when fixed or when its place closes.
+    const dispersed = prev.sim.incidents.some((inc) => inc.kind === 'crowd-surge'
+      && !run.sim.incidents.some((i) => i.id === inc.id) && !run.sim.outOfService[inc.place]);
+    if (dispersed) sound.disperse();
+    else if (cleared || fixed) sound.arrive();
     if (run.waves > prev.waves && run.lastWave) {
       sound.wave(waveNoteDelays(run.lastWave.cleared.length, prefersReducedMotion()));
     }
