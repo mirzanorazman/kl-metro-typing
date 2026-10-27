@@ -5,11 +5,11 @@ so that later sessions can take one item or one group at a time. Item numbers
 (F1–F21) match the order of the original notes, so they stay stable when
 priorities move.
 
-**Where it stands (2026-10-27, Kuala Lumpur):** all P0s and the first-time-clarity group
+**Where it stands (2026-10-28, Kuala Lumpur):** all P0s and the first-time-clarity group
 are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20,
 F22 and F27 (close camera on by default, with a development tuning panel).
 F21 is set aside. F15/F4/F19 are implemented and verified, and so is F28
-(tips close with Enter only). F23 (small bug), then F11 remain open.
+(tips close with Enter only). F23 is done (2026-10-28); F11 remains open.
 `feat/dispatcher` was merged to `main` on 2026-10-27 at the user's request,
 before playtest 3; see "Check in playtest 3" at the end.
 
@@ -66,7 +66,7 @@ spec and plan.
 | F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
 | F19 | Celebrate a new Line joining the network | P1 | M | done 0f5bf3a | F4, F15 |
 | F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..2042dbd | |
-| F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | open | |
+| F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | done 48996dc | |
 | F27 | The camera pulls in close for the lesson, tips and a fix being typed; on by default | P1 | M | done 1a9d6e5..7212d03 | |
 | F28 | Tips close on any key, so a stray Station key skips one unread | P1 | S | done 6f3a628 | |
 | F12 | Difficulty weighted by the player's WPM | P2 | L | open | checklist §5 ceiling decision |
@@ -388,8 +388,8 @@ Stations pop steadily from about 80 ms to 750 ms. The typing block keeps its
 **Implementation order agreed:** F15's served geometry, F4's entry reveal
 and lesson handoff, then F19's Expansion reveal and new-Line celebration.
 Keep presentation state outside Career evidence; these changes should not
-need new engine actions or an evidence-version change. F23 remains a separate
-open overlay defect; check it when verifying any new feedback near the panel.
+need new engine actions or an evidence-version change. F23 was a separate
+overlay defect, since fixed (`48996dc`).
 
 ## P1: feedback and stakes
 
@@ -591,6 +591,22 @@ class and probably has the same problem.
 or move them out of `PlayLayout`'s panel slot), or give the card its own
 solid background. Pairs with F22: if the map is meant to stay visible behind
 a pointing tip, the card should sit over the panel only, opaque.
+
+**Done (`48996dc`, 2026-10-28):** the cause was as guessed, and the panel's
+`transform` traps fixed children too. Both cards now render after the panel,
+as children of `.dispatcher`. The Pause dialog is the full-screen wash it was
+meant to be (Shift bar and Incidents panel included). A tip does not wash the
+map, because the pointing tips (F22, F27) need it: the card is a second
+`.play-panel` in the typing panel's place, and the typing panel goes
+`visibility: hidden` while it shows (`data-tip` on the root). The panel keeps
+its size and stays mounted, so chips do not move and an Expansion pick in
+progress survives a tip. The tip card is measured with the other panels.
+Seen live at 1280 × 800: Pause over the whole screen; the new-train tip
+covering the hidden panel exactly (same width, a little taller) with the
+pointed train clear above it; the panel back on Enter; no console errors.
+Not checked: phone width (the card takes the phone `.play-panel` rules), and
+the dev camera panel still draws over the tip card's left corner, as it does
+over the typing panel.
 
 ### F27. The camera pulls in close when something matters
 
@@ -804,7 +820,9 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   the new-train tip (F14): clear, and not too many interruptions?
   Tips now close with Enter only (or a click), not any key, so a Station
   name typed by mistake no longer skips one unread (2026-10-27). Does Enter
-  feel natural?
+  feel natural? A tip now takes the typing panel's place, opaque, with the
+  map left clear (F23); Pause washes the whole screen. Check both at phone
+  width.
 - **P0 fixes.** Back to map before starting (F1); "Yes, end it" in red (F6);
   calm music once the last Incident is fixed (F7); Backspace undoes instead
   of letting go (F18); ending between Shifts reaches the leaderboard (F3).
