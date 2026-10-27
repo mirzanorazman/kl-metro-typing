@@ -1,10 +1,13 @@
 # KL-Metro Typing — promo reel
 
-A 40-second vertical (1080 × 1920, 30 fps) reel built with
+A 51.5-second vertical (1080 × 1920, 30 fps) reel built with
 [Remotion](https://www.remotion.dev). Each Era of KL rail history introduces
 one Mode: the 1990s teach the core loop, 2003 is Line Run on the Monorail,
 2015–17 is Adventure at Putra Heights, 2022–23 is Quick Run on the Putrajaya
-Line, and the finished network becomes Dispatcher.
+Line, and the finished network becomes Dispatcher. A two-second breath sits
+between modes: the panel leaves, the camera glides while the Era ticks over,
+and only then does the next mode arrive. In Dispatcher, the Line being acted
+on stays lit while the rest of the board dims.
 
 The map is drawn from the game's own data and projection
 (`src/geo/networkLayout.ts`), and the Era order comes from Dispatcher's

@@ -11,16 +11,24 @@
  */
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DISPATCH, DURATION, FPS, cues } from '../src/timeline';
+import { DISPATCH, DURATION, FPS, SCENE, cues } from '../src/timeline';
 
 const SR = 48000;
 const LEN = Math.round((DURATION / FPS) * SR);
 const BEAT = 0.5;
 
-/** Section starts, in seconds. */
+/** Section starts, in seconds. Each layer enters as its Era ticks over in a breath. */
 const T = {
-  pad: 3, hats: 9, bass: 13, drums: 18, clap: 23, dispatch: 26,
-  rewind: DISPATCH.rewind[0] / FPS, replay: DISPATCH.replay[0] / FPS, end: 36,
+  pad: SCENE.core / FPS,
+  hats: SCENE.breathA / FPS,
+  bass: SCENE.breathB / FPS,
+  // The 2022–23 tick lands on frame 776; the drums start on the beat at 26 s.
+  drums: 26,
+  clap: SCENE.latest / FPS,
+  dispatch: SCENE.dispatcher / FPS,
+  rewind: DISPATCH.rewind[0] / FPS,
+  replay: DISPATCH.replay[0] / FPS,
+  end: SCENE.end / FPS,
 };
 
 /* ---------- primitives ---------- */
@@ -138,7 +146,7 @@ function padLayer() {
   const bars: { t0: number; t1: number; notes: number[] }[] = [];
   for (let t = T.pad; t < T.end; t += 2) bars.push({ t0: t, t1: t + 2, notes: chordAt(t + 0.01).notes });
   // The end card resolves onto a long, open Am9.
-  bars.push({ t0: T.end, t1: 40, notes: [45, 57, 64, 67, 71, 76] });
+  bars.push({ t0: T.end, t1: LEN / SR, notes: [45, 57, 64, 67, 71, 76] });
   for (const bar of bars) {
     for (const note of bar.notes) {
       for (const [det, pan] of [[-0.08, -0.7], [0, 0], [0.08, 0.7]] as const) {

@@ -6,9 +6,9 @@ import { toScreen, type Cam } from './camera';
 import { LINES, LINE_ORDER, along, heading, pos } from './net';
 import { linePath, lineWidth, toD } from './MapLayer';
 import { C } from './theme';
-import { DISPATCH, ramp } from './timeline';
+import { DISPATCH, SCENE, lineBrightness, ramp } from './timeline';
 
-const START = 780;
+const START = SCENE.dispatcher;
 /** Stations per second, for every Train on the board. */
 const SPEED = 0.8;
 
@@ -18,15 +18,16 @@ interface Held {
   at: number;
   forward: boolean;
   clear: number;
+  /** When its Signal lamp appears: only once its Line has the spotlight. */
+  show: number;
 }
 
 /** The Trains the script holds at red Signals, and when each is Cleared. */
 const HELD: Held[] = [
-  { line: 'KJ', at: 12.72, forward: true, clear: DISPATCH.clear1 },
-  { line: 'MR', at: 4.72, forward: true, clear: DISPATCH.clear2 },
-  { line: 'KG', at: 9.72, forward: true, clear: DISPATCH.greenWaveSignals[0]! },
-  { line: 'KG', at: 11.72, forward: true, clear: DISPATCH.greenWaveSignals[1]! },
-  { line: 'KG', at: 13.72, forward: true, clear: DISPATCH.greenWaveSignals[2]! },
+  { line: 'KJ', at: 12.72, forward: true, clear: DISPATCH.clear1, show: DISPATCH.entrance[1] },
+  { line: 'KG', at: 9.72, forward: true, clear: DISPATCH.greenWaveSignals[0]!, show: DISPATCH.greenWave - 10 },
+  { line: 'KG', at: 11.72, forward: true, clear: DISPATCH.greenWaveSignals[1]!, show: DISPATCH.greenWave - 10 },
+  { line: 'KG', at: 13.72, forward: true, clear: DISPATCH.greenWaveSignals[2]!, show: DISPATCH.greenWave - 10 },
 ];
 
 /** Ampang Line Trains stopped by the Signal fault around Maluri until it is fixed. */
@@ -35,8 +36,8 @@ const STOPPED: { at: number; forward: boolean }[] = [
   { at: 13.6, forward: false },
 ];
 
-/** Free-running Trains per Line, so the whole board is visibly alive. */
-const RUNNING: Record<LineCode, number> = { KJ: 4, AG: 2, SP: 3, MR: 1, KG: 3, PY: 4, SA: 2 };
+/** Free-running Trains per Line: enough that the board is alive, few enough to read. */
+const RUNNING: Record<LineCode, number> = { KJ: 1, AG: 1, SP: 1, MR: 1, KG: 1, PY: 1, SA: 1 };
 
 function heldAt(h: Held, f: number): number {
   const s = h.forward ? 1 : -1;
@@ -72,8 +73,8 @@ export const DispatchLayer: React.FC<{ cam: Cam }> = ({ cam }) => {
   for (const t of STOPPED) trains.push({ line: 'AG', at: stoppedAt(t, f), forward: t.forward });
 
   // The Green wave: a bright pulse running down the Kajang Line as its Signals clear.
-  const wave = ramp(f, DISPATCH.greenWave - 4, DISPATCH.greenWave + 22, 8, 16, (t) => t);
-  const waveOn = ramp(f, DISPATCH.greenWave - 4, DISPATCH.greenWave, 0, 1) * ramp(f, DISPATCH.greenWave + 18, DISPATCH.greenWave + 28, 1, 0);
+  const wave = ramp(f, DISPATCH.greenWave - 4, DISPATCH.greenWave + 30, 8, 16, (t) => t);
+  const waveOn = ramp(f, DISPATCH.greenWave - 4, DISPATCH.greenWave, 0, 1) * ramp(f, DISPATCH.greenWave + 26, DISPATCH.greenWave + 36, 1, 0);
 
   const incident = toScreen(pos('maluri'), cam);
   const incIn = ramp(f, DISPATCH.incidentAt, DISPATCH.incidentAt + 8, 0, 1);
@@ -90,8 +91,10 @@ export const DispatchLayer: React.FC<{ cam: Cam }> = ({ cam }) => {
         const p = toScreen(along(t.line, t.at), cam);
         const h = heading(t.line, t.at, t.forward);
         const angle = (Math.atan2(h.y, h.x) * 180) / Math.PI;
+        // Trains off the spotlit Line step back: fainter and a little smaller.
+        const b = lineBrightness(t.line, f, 0.35);
         return (
-          <g key={i} transform={`translate(${p.x} ${p.y}) rotate(${angle}) scale(${scale})`}>
+          <g key={i} opacity={b} transform={`translate(${p.x} ${p.y}) rotate(${angle}) scale(${scale * (0.8 + 0.2 * b)})`}>
             <rect x={-15} y={-8} width={30} height={16} rx={8} fill={LINES[t.line].colour} stroke="#ffffff" strokeWidth={3} />
           </g>
         );
@@ -107,7 +110,7 @@ export const DispatchLayer: React.FC<{ cam: Cam }> = ({ cam }) => {
         const ny = d.x * 26 * scale;
         const green = f >= h.clear;
         return (
-          <g key={i} opacity={lampOn * ramp(f, START + 6, START + 16, 0, 1)}>
+          <g key={i} opacity={lampOn * ramp(f, h.show, h.show + 10, 0, 1)}>
             <g transform={`translate(${p.x + nx} ${p.y + ny}) scale(${scale})`}>
               <rect x={-10} y={-16} width={20} height={32} rx={6} fill={C.signalHead} stroke="#334155" strokeWidth={2} />
               <circle cx={0} cy={green ? 6 : -6} r={10} fill={green ? C.signalGreen : C.signalRed} filter="url(#softglow)" />

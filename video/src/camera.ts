@@ -1,6 +1,6 @@
 import type { Point } from '../../src/data/types';
 import { LINES, along, pos } from './net';
-import { SCENE, TYPE, WIDTH, completedEased, easeInOut, ramp } from './timeline';
+import { CORE_END, DISPATCH, DURATION, SCENE, TYPE, WIDTH, completedEased, easeInOut, ramp } from './timeline';
 
 /** A view of the map: the world point at the focus, and a zoom over the base scale. */
 export interface Cam {
@@ -62,19 +62,23 @@ const SHOTS: Shot[] = [
     at: 70, blend: 40,
     cam: (f) => ({ ...along('KJ', completedEased(TYPE.core, f, 14) + 0.5), z: 6 }),
   },
-  { at: 236, blend: 40, cam: still(VIEW.nineties) },
-  { at: 270, blend: 24, cam: (f) => ({ ...VIEW.monorail, z: VIEW.monorail.z * ramp(f, 270, 390, 1, 1.08) }) },
-  { at: 384, blend: 34, cam: still(VIEW.southWest) },
-  { at: 456, blend: 80, cam: still(VIEW.kajang) },
-  { at: 538, blend: 22, cam: still(VIEW.putrajaya) },
+  { at: CORE_END - 6, blend: 44, cam: still(VIEW.nineties) },
+  // Breath into 2003: the camera glides to the city on its own.
+  { at: 316, blend: 44, cam: (f) => ({ ...VIEW.monorail, z: VIEW.monorail.z * ramp(f, 316, SCENE.breathB, 1, 1.08) }) },
+  // Breath into 2015–17: south-west, while the extensions reach Putra Heights.
+  { at: SCENE.breathB + 2, blend: 50, cam: still(VIEW.southWest) },
+  { at: 698, blend: 72, cam: still(VIEW.kajang) },
+  // Breath into 2022–23: pull back as the Putrajaya Line sweeps south.
+  { at: 772, blend: 30, cam: still(VIEW.putrajaya) },
   {
-    at: 586, blend: 18,
+    at: 826, blend: 20,
     cam: (f) => ({ ...along('PY', 28.6 + completedEased(TYPE.quickRun, f, 14)), z: 5.2 }),
   },
-  { at: 680, blend: 40, cam: (f) => ({ ...VIEW.all, z: VIEW.all.z * ramp(f, 680, 780, 1, 1.03) }) },
-  { at: 776, blend: 32, cam: still(VIEW.city) },
-  { at: 900, blend: 26, cam: still(VIEW.maluri) },
-  { at: 986, blend: 26, cam: (f) => ({ ...VIEW.all, z: VIEW.all.z * ramp(f, 986, 1200, 1, 0.94, (t) => t) }) },
+  { at: 946, blend: 40, cam: (f) => ({ ...VIEW.all, z: VIEW.all.z * ramp(f, 946, SCENE.dispatcher + 60, 1, 1.03) }) },
+  // Dispatcher: the whole board comes alive, then the camera leans into the city.
+  { at: DISPATCH.entrance[1] - 6, blend: 34, cam: still(VIEW.city) },
+  { at: DISPATCH.incidentAt - 6, blend: 28, cam: still(VIEW.maluri) },
+  { at: 1344, blend: 30, cam: (f) => ({ ...VIEW.all, z: VIEW.all.z * ramp(f, 1344, DURATION, 1, 0.94, (t) => t) }) },
 ];
 
 export function cameraAt(f: number): Cam {

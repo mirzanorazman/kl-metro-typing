@@ -5,7 +5,10 @@ import { cameraAt, toScreen, type Cam } from './camera';
 import { BACKDROP, INTERCHANGES, LINES, LINE_ORDER, SHARED_SLOT, along, heading, nameOf, pos } from './net';
 import { C, SANS } from './theme';
 import { DispatchLayer } from './DispatchLayer';
-import { HEIGHT, JUNCTION, TYPE, WIDTH, clamp01, drawnTo, playerTrain, ramp, revealFrame } from './timeline';
+import {
+  CORE_END, DISPATCH, HEIGHT, JUNCTION, LINE_RUN_END, SCENE, TYPE, WIDTH, clamp01, drawnTo, lineBrightness, playerTrain,
+  ramp, revealFrame,
+} from './timeline';
 
 function backOut(t: number): number {
   const c = 2.2;
@@ -54,26 +57,26 @@ export const toD = (pts: Point[]) =>
   pts.length < 2 ? '' : `M${pts.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join('L')}`;
 
 /** Station labels: who is named, when, and on which side of the dot. */
+const CORE_LABELS_OUT = CORE_END + 16;
 const LABELS: { id: string; from: number; to: number; side?: 'left' }[] = [
-  { id: 'gombak', from: 50, to: 262 },
-  { id: 'taman-melati', from: 136, to: 262 },
-  { id: 'wangsa-maju', from: 171, to: 262 },
-  { id: 'sri-rampai', from: 200, to: 262 },
-  { id: 'setiawangsa', from: 242, to: 262 },
-  { id: 'kl-sentral', from: 282, to: 388, side: 'left' },
-  { id: 'titiwangsa', from: 368, to: 388, side: 'left' },
-  { id: 'kelana-jaya', from: 392, to: 452, side: 'left' },
-  { id: 'putra-heights', from: TYPE.junctionArrive.end, to: 534 },
-  { id: 'puchong-prima', from: TYPE.junctionLeave.end, to: 540 },
-  { id: 'upm', from: TYPE.quickRun[0]!.end, to: 686 },
-  { id: 'taman-equine', from: TYPE.quickRun[1]!.end, to: 686 },
-  { id: 'putra-permai', from: TYPE.quickRun[2]!.end, to: 686 },
-  { id: '16-sierra', from: TYPE.quickRun[3]!.end, to: 686 },
-  { id: 'pasar-seni', from: 800, to: 896, side: 'left' },
-  { id: 'bukit-bintang', from: 836, to: 896 },
-  { id: 'miharja', from: 912, to: 990, side: 'left' },
-  { id: 'maluri', from: 912, to: 990 },
-  { id: 'pandan-jaya', from: 912, to: 990 },
+  { id: 'gombak', from: TYPE.hook.end, to: CORE_LABELS_OUT },
+  { id: 'taman-melati', from: TYPE.core[0]!.end, to: CORE_LABELS_OUT },
+  { id: 'wangsa-maju', from: TYPE.core[1]!.end, to: CORE_LABELS_OUT },
+  { id: 'sri-rampai', from: TYPE.core[2]!.end, to: CORE_LABELS_OUT },
+  { id: 'setiawangsa', from: TYPE.core[3]!.end, to: CORE_LABELS_OUT },
+  { id: 'kl-sentral', from: 374, to: 504, side: 'left' },
+  { id: 'titiwangsa', from: LINE_RUN_END, to: 504, side: 'left' },
+  { id: 'kelana-jaya', from: SCENE.breathB + 20, to: 610, side: 'left' },
+  { id: 'putra-heights', from: TYPE.junctionArrive.end, to: 744 },
+  { id: 'puchong-prima', from: TYPE.junctionLeave.end, to: 752 },
+  { id: 'upm', from: TYPE.quickRun[0]!.end, to: 952 },
+  { id: 'taman-equine', from: TYPE.quickRun[1]!.end, to: 952 },
+  { id: 'putra-permai', from: TYPE.quickRun[2]!.end, to: 952 },
+  { id: '16-sierra', from: TYPE.quickRun[3]!.end, to: 952 },
+  { id: 'pasar-seni', from: 1140, to: 1200, side: 'left' },
+  { id: 'miharja', from: DISPATCH.incidentAt + 4, to: 1350, side: 'left' },
+  { id: 'maluri', from: DISPATCH.incidentAt + 4, to: 1350 },
+  { id: 'pandan-jaya', from: DISPATCH.incidentAt + 4, to: 1350 },
 ];
 
 export const MapLayer: React.FC = () => {
@@ -87,8 +90,11 @@ export const MapLayer: React.FC = () => {
 
   // A station shows once some Line's track reaches it, popping in as it does.
   const shown = new Map<string, number>();
+  const bright = new Map<string, number>();
   for (const code of LINE_ORDER) {
     const d = drawn[code];
+    const b = lineBrightness(code, f);
+    for (const id of LINES[code].stations) bright.set(id, Math.max(bright.get(id) ?? 0, b));
     LINES[code].stations.forEach((id, i) => {
       if (d < 0 || d < i - 0.35) return;
       const s = i === 0 ? 1 : clamp01((d - (i - 0.35)) / 0.35);
@@ -99,9 +105,9 @@ export const MapLayer: React.FC = () => {
   if (shown.has('gombak') && vf < 120) shown.set('gombak', backOut(clamp01((vf - TYPE.hook.end) / 10)));
 
   const r = Math.max(4, Math.min(11, 4.5 + 1.6 * Math.log2(cam.z)));
-  const mrGlow = ramp(f, 368, 376, 0, 1) * ramp(f, 380, 406, 1, 0);
+  const mrGlow = ramp(f, LINE_RUN_END, LINE_RUN_END + 8, 0, 1) * ramp(f, LINE_RUN_END + 20, 506, 1, 0);
   const train = playerTrain(f);
-  const endDim = ramp(f, 1080, 1104, 1, 0.28);
+  const endDim = ramp(f, SCENE.end, SCENE.end + 24, 1, 0.28);
 
   return (
     <AbsoluteFill style={{ backgroundColor: C.paper }}>
@@ -135,7 +141,7 @@ export const MapLayer: React.FC = () => {
           const drawing = d !== before[code] && d < LINES[code].stations.length - 1;
           const tip = pts[pts.length - 1]!;
           return (
-            <g key={code}>
+            <g key={code} opacity={lineBrightness(code, f)}>
               {code === 'MR' && mrGlow > 0 && (
                 <path d={toD(pts)} stroke={LINES.MR.colour} strokeWidth={w * 3.2} fill="none"
                   strokeLinecap="round" strokeLinejoin="round" filter="url(#glow)" opacity={mrGlow} />
@@ -157,7 +163,7 @@ export const MapLayer: React.FC = () => {
           const big = INTERCHANGES.has(id);
           const rr = (big ? r * 1.35 : r) * s;
           return (
-            <circle key={id} cx={p.x} cy={p.y} r={rr} fill={big ? C.paper : '#ffffff'}
+            <circle key={id} cx={p.x} cy={p.y} r={rr} opacity={bright.get(id) ?? 1} fill={big ? C.paper : '#ffffff'}
               stroke={big ? '#ffffff' : C.paper} strokeWidth={big ? Math.max(2.5, r * 0.5) : Math.max(1.5, r * 0.3)} />
           );
         })}

@@ -4,8 +4,8 @@ import { AbsoluteFill, useCurrentFrame } from 'remotion';
 import { LINES, LINE_ORDER, STATION_COUNT } from './net';
 import { C, MONO, SANS, contrastText } from './theme';
 import {
-  BADGE_FRAMES, DISPATCH, ERAS, JUNCTION, SCENE, TYPE, WIDTH, activeIn, clamp01, drawnTo, easeOut,
-  eraAt, ramp, revealFrame, typedAt, type Typed,
+  BADGE_FRAMES, CORE_END, DISPATCH, ERAS, JUNCTION, LINE_RUN_END, SCENE, TYPE, WIDTH, activeIn, clamp01, drawnTo,
+  easeOut, eraAt, focusAmount, ramp, revealFrame, typedAt, type Typed,
 } from './timeline';
 
 const fadeWindow = (f: number, a: number, b: number, edge = 10) =>
@@ -26,7 +26,7 @@ export const Badge: React.FC<{ code: LineCode; size?: number }> = ({ code, size 
 
 export const EraBar: React.FC = () => {
   const f = useCurrentFrame();
-  const o = ramp(f, 36, 52, 0, 1) * ramp(f, SCENE.end - 6, SCENE.end + 8, 1, 0);
+  const o = ramp(f, 36, 52, 0, 1) * ramp(f, SCENE.end - 6, SCENE.end + 8, 1, 0) * (1 - 0.6 * focusAmount(f));
   if (o <= 0) return null;
   const vf = revealFrame(f);
   const era = eraAt(vf);
@@ -74,12 +74,12 @@ export const EraBar: React.FC = () => {
 /* ---------- headlines ---------- */
 
 const HEADLINES: { from: number; to: number; kicker?: string; colour?: string; lines: string[] }[] = [
-  { from: 96, to: 254, lines: ['Type the station.', 'Drive the train.'] },
-  { from: 280, to: 388, kicker: 'LINE RUN', colour: LINES.MR.colour, lines: ['End to end.'] },
-  { from: 398, to: 538, kicker: 'ADVENTURE', colour: LINES.KJ.colour, lines: ['Choose your way.'] },
-  { from: 548, to: 686, kicker: 'QUICK RUN', colour: LINES.PY.colour, lines: ['30 seconds. Go.'] },
-  { from: 786, to: 998, kicker: 'DISPATCHER', colour: C.signalGreen, lines: ['Now run', 'all of it.'] },
-  { from: 1002, to: 1080, kicker: 'DISPATCHER', colour: C.signalGreen, lines: ['Grow the network,', 'era by era.'] },
+  { from: 96, to: CORE_END + 8, lines: ['Type the station.', 'Drive the train.'] },
+  { from: 344, to: 504, kicker: 'LINE RUN', colour: LINES.MR.colour, lines: ['End to end.'] },
+  { from: 556, to: 744, kicker: 'ADVENTURE', colour: LINES.KJ.colour, lines: ['Choose your way.'] },
+  { from: 798, to: 954, kicker: 'QUICK RUN', colour: LINES.PY.colour, lines: ['30 seconds. Go.'] },
+  { from: 1086, to: DISPATCH.entrance[1] + 6, kicker: 'DISPATCHER', colour: C.signalGreen, lines: ['Now run', 'all of it.'] },
+  { from: 1354, to: SCENE.end, kicker: 'DISPATCHER', colour: C.signalGreen, lines: ['Grow the network,', 'era by era.'] },
 ];
 
 export const Headline: React.FC = () => {
@@ -98,7 +98,7 @@ export const Headline: React.FC = () => {
         </div>
       )}
       {h.lines.map((text, i) => {
-        const a = h.from + 4 + i * 14;
+        const a = h.from + (h.kicker ? 10 : 4) + i * 14;
         return (
           <div key={text} style={{
             font: `800 96px/1.08 ${SANS}`, color: C.ink, letterSpacing: -2, textAlign: 'center',
@@ -122,53 +122,52 @@ interface PanelView {
   meta?: string;
   typed?: Typed;
   note?: string;
+  /** An Incident's fix items, shown as chips under the prompt. */
+  chips?: Typed[];
   opacity: number;
 }
 
 const pad = (n: number) => String(Math.max(0, Math.floor(n))).padStart(2, '0');
 
 function panelAt(f: number): PanelView | null {
-  if (f >= 84 && f < 262) {
-    return { line: 'KJ', label: 'NEXT STATION', typed: activeIn(TYPE.core, f) ?? TYPE.core[0], opacity: fadeWindow(f, 84, 262, 12) };
+  if (f >= 84 && f < CORE_END + 14) {
+    return { line: 'KJ', label: 'NEXT STATION', typed: activeIn(TYPE.core, f) ?? TYPE.core[0], opacity: fadeWindow(f, 84, CORE_END + 14, 12) };
   }
-  if (f >= 276 && f < 390) {
+  if (f >= 370 && f < 508) {
     const done = TYPE.lineRun.filter((t) => t.end <= f).length;
     return {
       line: 'MR', label: 'LINE RUN · KL MONORAIL', meta: `${done}/10`, typed: activeIn(TYPE.lineRun, f) ?? TYPE.lineRun[0],
-      note: done === 10 && f > 372 ? 'Line complete' : undefined, opacity: fadeWindow(f, 276, 390, 8),
+      note: done === 10 && f > LINE_RUN_END + 4 ? 'Line complete' : undefined, opacity: fadeWindow(f, 370, 508, 10),
     };
   }
-  if (f >= 402 && f < JUNCTION.show + 2) {
-    return { line: 'KJ', label: 'NEXT STATION', typed: TYPE.junctionArrive, opacity: fadeWindow(f, 402, JUNCTION.show + 2, 8) };
+  if (f >= 578 && f < JUNCTION.show + 2) {
+    return { line: 'KJ', label: 'NEXT STATION', typed: TYPE.junctionArrive, opacity: fadeWindow(f, 578, JUNCTION.show + 2, 10) };
   }
-  if (f >= JUNCTION.hide - 2 && f < 544) {
-    return { line: 'SP', label: 'NEXT STATION', typed: TYPE.junctionLeave, opacity: fadeWindow(f, JUNCTION.hide - 2, 544, 8) };
+  if (f >= JUNCTION.hide - 2 && f < 754) {
+    return { line: 'SP', label: 'NEXT STATION', typed: TYPE.junctionLeave, opacity: fadeWindow(f, JUNCTION.hide - 2, 754, 8) };
   }
-  if (f >= 588 && f < 690) {
+  if (f >= 826 && f < 958) {
     const first = TYPE.quickRun[0]!.keys[0]!;
     const left = 30 - Math.max(0, f - first) / 30;
-    const wpm = Math.round(ramp(f, first + 10, 680, 45, 72, (t) => t));
+    const wpm = Math.round(ramp(f, first + 10, 940, 45, 72, (t) => t));
     return {
       line: 'PY', label: 'QUICK RUN', meta: `0:${pad(Math.ceil(left))}  ·  ${f < first + 10 ? '—' : wpm} WPM`,
-      typed: activeIn(TYPE.quickRun, f) ?? TYPE.quickRun[0], opacity: fadeWindow(f, 588, 690, 8),
+      typed: activeIn(TYPE.quickRun, f) ?? TYPE.quickRun[0], opacity: fadeWindow(f, 826, 958, 10),
     };
   }
-  if (f >= 794 && f < 876) {
-    const second = f >= DISPATCH.clear1 + 8;
-    return {
-      line: second ? 'MR' : 'KJ', label: 'CLEAR SIGNAL', typed: second ? TYPE.clear2 : TYPE.clear1,
-      opacity: fadeWindow(f, 794, 876, 6),
-    };
+  if (f >= DISPATCH.entrance[1] && f < 1200) {
+    return { line: 'KJ', label: 'CLEAR SIGNAL', typed: TYPE.clear1, opacity: fadeWindow(f, DISPATCH.entrance[1], 1200, 8) };
   }
-  if (f >= 876 && f < 912) {
-    return { line: 'KG', label: 'GREEN WAVE', note: '3 Signals cleared', opacity: fadeWindow(f, 876, 912, 6) };
+  if (f >= 1202 && f < 1258) {
+    return { line: 'KG', label: 'GREEN WAVE', note: '3 Signals cleared', opacity: fadeWindow(f, 1202, 1258, 8) };
   }
-  if (f >= 912 && f < 998) {
+  if (f >= DISPATCH.incidentAt + 2 && f < 1354) {
+    // The Incident lives in the one panel: its kind and place on top, its fix items as chips.
     const t = activeIn(TYPE.fix, f) ?? TYPE.fix[0]!;
     const i = TYPE.fix.indexOf(t);
     return {
-      line: 'AG', label: 'FIX · SIGNAL FAULT', meta: `${Math.min(3, i + (f >= t.end ? 1 : 0))}/3`, typed: t,
-      note: f >= DISPATCH.fixed + 2 ? 'Fixed' : undefined, opacity: fadeWindow(f, 912, 998, 8),
+      line: 'AG', label: '⚠ SIGNAL FAULT · MALURI', meta: `${Math.min(3, i + (f >= t.end ? 1 : 0))}/3`, typed: t,
+      chips: TYPE.fix, note: f >= DISPATCH.fixed + 2 ? 'Fixed' : undefined, opacity: fadeWindow(f, DISPATCH.incidentAt + 2, 1354, 8),
     };
   }
   return null;
@@ -212,7 +211,7 @@ export const Panel: React.FC = () => {
     <div style={{
       position: 'absolute', left: 60, right: 60, top: 1392, opacity: v.opacity,
       translate: `0px ${(1 - v.opacity) * 30}px`,
-      background: C.panel, border: `3px solid ${wrong ? C.error : colour}`, borderRadius: 30,
+      background: C.panel, border: `3px solid ${wrong ? C.error : v.chips ? (v.note ? C.signalGreen : C.warn) : colour}`, borderRadius: 30,
       boxShadow: `0 20px 50px rgba(0,0,0,0.5), 0 0 60px -10px ${wrong ? C.error : colour}`,
       padding: '30px 40px 36px', display: 'flex', flexDirection: 'column', gap: 22,
     }}>
@@ -228,6 +227,22 @@ export const Panel: React.FC = () => {
           <Prompt typed={v.typed} colour={lit} size={80} />
         ) : null}
       </div>
+      {v.chips && (
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          {v.chips.map((c) => {
+            const state = f >= c.end ? 'done' : f >= c.start ? 'current' : 'pending';
+            return (
+              <span key={c.text} style={{
+                font: `700 28px/1 ${MONO}`, padding: '10px 16px', borderRadius: 12,
+                border: `2px solid ${state === 'done' ? C.signalGreen : state === 'current' ? C.ink : C.panelEdge}`,
+                color: state === 'done' ? C.signalGreen : state === 'current' ? C.ink : C.inkFaint,
+              }}>
+                {state === 'done' ? '✓ ' : ''}{c.text}
+              </span>
+            );
+          })}
+        </div>
+      )}
       {wrong && (
         <span style={{ position: 'absolute', right: 40, bottom: 28, font: `700 28px/1 ${SANS}`, color: C.error }}>Wrong key</span>
       )}
@@ -303,47 +318,11 @@ export const Junction: React.FC = () => {
   );
 };
 
-/* ---------- the Dispatcher incident card ---------- */
-
-export const IncidentCard: React.FC = () => {
-  const f = useCurrentFrame();
-  const o = fadeWindow(f, DISPATCH.incidentAt, DISPATCH.fixed + 14, 8);
-  if (o <= 0) return null;
-  const worse = ramp(f, DISPATCH.incidentAt, DISPATCH.fixed, 0.12, 0.58, (t) => t);
-  return (
-    <div style={{
-      position: 'absolute', left: 60, right: 60, top: 1150, opacity: o, translate: `0px ${(1 - o) * 30}px`,
-      background: C.panel, border: `3px solid ${f >= DISPATCH.fixed ? C.signalGreen : C.warn}`, borderRadius: 26,
-      padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 16,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 18, font: `800 40px/1 ${SANS}`, color: C.ink }}>
-        <span style={{ color: C.warn }}>⚠</span> Signal fault <Badge code="AG" size={30} />
-        <span style={{ color: C.inkMuted, fontWeight: 600 }}>Maluri</span>
-      </div>
-      <div style={{ display: 'flex', gap: 22, alignItems: 'baseline', font: `700 34px/1 ${MONO}` }}>
-        <span style={{ color: C.inkMuted, fontFamily: SANS, fontSize: 30 }}>Type</span>
-        {TYPE.fix.map((t) => {
-          const state = f >= t.end ? 'done' : f >= t.start ? 'current' : 'pending';
-          return (
-            <span key={t.text} style={{
-              color: state === 'done' ? C.signalGreen : state === 'current' ? C.ink : C.inkFaint,
-              textDecoration: state === 'done' ? 'line-through' : 'none',
-            }}>{t.text}</span>
-          );
-        })}
-      </div>
-      <div style={{ height: 10, borderRadius: 5, background: C.paperEdge, overflow: 'hidden' }}>
-        <div style={{ width: `${worse * 100}%`, height: '100%', background: f >= DISPATCH.fixed ? C.signalGreen : C.warn }} />
-      </div>
-    </div>
-  );
-};
-
 /* ---------- Latest: the count lands ---------- */
 
 export const NetworkTotal: React.FC = () => {
   const f = useCurrentFrame();
-  const o = fadeWindow(f, 694, 780, 10);
+  const o = fadeWindow(f, SCENE.latest + 4, SCENE.dispatcher - 4, 12);
   if (o <= 0) return null;
   const vf = revealFrame(f);
   const seen = new Set<string>();
@@ -356,7 +335,7 @@ export const NetworkTotal: React.FC = () => {
     <AbsoluteFill style={{ opacity: o }}>
       <div style={{ position: 'absolute', top: 280, width: '100%', textAlign: 'center' }}>
         <div style={{ font: `800 230px/1 ${SANS}`, color: C.ink, letterSpacing: -6,
-          scale: landed ? String(1 + 0.06 * ramp(f, 742, 748, 1, 0)) : '1' }}>
+          scale: landed ? String(1 + 0.06 * ramp(f, 1012, 1018, 1, 0)) : '1' }}>
           {seen.size}
         </div>
         <div style={{ font: `700 56px/1.2 ${SANS}`, color: C.inkMuted, marginTop: 6 }}>stations · 7 lines</div>
@@ -376,7 +355,7 @@ export const NetworkTotal: React.FC = () => {
       </div>
       <div style={{
         position: 'absolute', top: 1580, width: '100%', textAlign: 'center', font: `700 48px/1 ${SANS}`, color: C.ink,
-        opacity: ramp(f, 760, 770, 0, 1),
+        opacity: ramp(f, 1038, 1048, 0, 1),
       }}>
         One keyboard.
       </div>
@@ -388,8 +367,9 @@ export const NetworkTotal: React.FC = () => {
 
 export const EndCard: React.FC = () => {
   const f = useCurrentFrame();
-  if (f < SCENE.end) return null;
-  const logo = ramp(f, 1088, 1104, 0, 1, (t) => 1 + 2.6 * Math.pow(t - 1, 3) + 1.6 * Math.pow(t - 1, 2));
+  const E = SCENE.end;
+  if (f < E) return null;
+  const logo = ramp(f, E + 8, E + 24, 0, 1, (t) => 1 + 2.6 * Math.pow(t - 1, 3) + 1.6 * Math.pow(t - 1, 2));
   return (
     <AbsoluteFill style={{ alignItems: 'center' }}>
       <svg viewBox="0 0 64 64" width={250} height={250} style={{
@@ -402,26 +382,26 @@ export const EndCard: React.FC = () => {
       </svg>
       <div style={{
         position: 'absolute', top: 770, font: `800 54px/1 ${SANS}`, letterSpacing: 6, color: C.ink,
-        opacity: ramp(f, 1098, 1110, 0, 1), translate: `0px ${ramp(f, 1098, 1112, 24, 0, easeOut)}px`,
+        opacity: ramp(f, E + 18, E + 30, 0, 1), translate: `0px ${ramp(f, E + 18, E + 32, 24, 0, easeOut)}px`,
       }}>
         KL-METRO TYPING
       </div>
       <div style={{
         position: 'absolute', top: 880, font: `800 88px/1.1 ${SANS}`, color: C.ink, textAlign: 'center', letterSpacing: -1.5,
-        opacity: ramp(f, 1106, 1120, 0, 1), translate: `0px ${ramp(f, 1106, 1122, 30, 0, easeOut)}px`,
+        opacity: ramp(f, E + 26, E + 40, 0, 1), translate: `0px ${ramp(f, E + 26, E + 42, 30, 0, easeOut)}px`,
       }}>
         Type your way<br />across the<br />Klang Valley.
       </div>
       <div style={{
         position: 'absolute', top: 1260, padding: '30px 44px', borderRadius: 999, background: C.ink,
-        opacity: ramp(f, 1116, 1124, 0, 1), scale: String(ramp(f, 1116, 1126, 0.85, 1, easeOut)),
+        opacity: ramp(f, E + 36, E + 44, 0, 1), scale: String(ramp(f, E + 36, E + 46, 0.85, 1, easeOut)),
         display: 'flex', alignItems: 'center',
       }}>
         <EndUrl />
       </div>
       <div style={{
         position: 'absolute', top: 1720, font: `500 26px/1.4 ${SANS}`, color: C.inkFaint, textAlign: 'center',
-        opacity: ramp(f, 1140, 1152, 0, 1),
+        opacity: ramp(f, E + 60, E + 72, 0, 1),
       }}>
         Unofficial fan project. Not affiliated with Prasarana or Rapid KL.
       </div>

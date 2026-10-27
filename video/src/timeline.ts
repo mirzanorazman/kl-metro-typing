@@ -10,18 +10,26 @@ import type { LineCode } from '../../src/data/types';
 export const FPS = 30;
 export const WIDTH = 1080;
 export const HEIGHT = 1920;
-export const DURATION = 40 * FPS;
+export const DURATION = 51.5 * FPS;
 
-/** Scene starts. Each lands on a beat of the 120 bpm score (15 frames). */
+/**
+ * Scene starts. Each lands on a beat of the 120 bpm score (15 frames).
+ * Between modes sits a two-second breath: the panel leaves, the camera
+ * glides alone while the Era ticks over, and only then does the next
+ * mode's headline and panel arrive.
+ */
 export const SCENE = {
   hook: 0,
   core: 90,
-  lineRun: 270,
-  adventure: 390,
-  quickRun: 540,
-  latest: 690,
-  dispatcher: 780,
-  end: 1080,
+  breathA: 300,
+  lineRun: 360,
+  breathB: 510,
+  adventure: 570,
+  breathC: 750,
+  quickRun: 810,
+  latest: 960,
+  dispatcher: 1080,
+  end: 1425,
 } as const;
 
 export const ERAS = ['1990s', '2003', '2015–17', '2022–23', 'Latest'] as const;
@@ -137,30 +145,59 @@ export const MR_NAMES = [
 
 export const TYPE = {
   hook: typeOne('Gombak', 24, 5.5),
-  core: typeSeq(['Taman Melati', 'Wangsa Maju', 'Sri Rampai', 'Setiawangsa'], 108, 2.4, 9, { 3: 5 }),
-  lineRun: typeSeq(MR_NAMES, 284, 0.8, 1),
-  junctionArrive: typeOne('Putra Heights', 418, 2.3),
-  junctionLeave: typeOne('Puchong Prima', 512, 2.0),
-  quickRun: typeSeq(['UPM', 'Taman Equine', 'Putra Permai', '16 Sierra'], 597, 2.1, 4),
-  clear1: typeOne('Pasar Seni', 806, 2.3),
-  clear2: typeOne('Bukit Bintang', 842, 2.2),
-  fix: typeSeq(['Miharja', 'Maluri', 'Pandan Jaya'], 926, 2.2, 5),
-  url: typeOne('kl-metro-typing.vercel.app', 1126, 1.5),
+  core: typeSeq(['Taman Melati', 'Wangsa Maju', 'Sri Rampai', 'Setiawangsa'], 108, 2.8, 12, { 3: 5 }),
+  lineRun: typeSeq(MR_NAMES, 384, 0.8, 1),
+  junctionArrive: typeOne('Putra Heights', 592, 2.4),
+  junctionLeave: typeOne('Puchong Prima', 716, 2.0),
+  quickRun: typeSeq(['UPM', 'Taman Equine', 'Putra Permai', '16 Sierra'], 840, 2.3, 6),
+  clear1: typeOne('Pasar Seni', 1150, 2.4),
+  fix: typeSeq(['Miharja', 'Maluri', 'Pandan Jaya'], 1278, 2.2, 6),
+  url: typeOne('kl-metro-typing.vercel.app', 1471, 1.5),
 };
+
+/** When the 1990s core loop finishes typing. */
+export const CORE_END = TYPE.core[TYPE.core.length - 1]!.end;
+/** When the Monorail's last name is typed. */
+export const LINE_RUN_END = TYPE.lineRun[TYPE.lineRun.length - 1]!.end;
 
 /** The junction choice: the "1" key that picks Sri Petaling toward Sentul Timur. */
-export const JUNCTION = { show: 458, pick: 492, hide: 512 };
+export const JUNCTION = { show: 640, pick: 690, hide: 712 };
 
 export const DISPATCH = {
+  /** The whole board at full brightness, before it settles into focus. */
+  entrance: [1080, 1140] as const,
   clear1: TYPE.clear1.end,
-  clear2: TYPE.clear2.end,
-  greenWave: 880,
-  greenWaveSignals: [880, 886, 892],
-  incidentAt: 906,
+  greenWave: 1206,
+  greenWaveSignals: [1210, 1216, 1222],
+  incidentAt: 1262,
   fixed: TYPE.fix[2]!.end,
-  rewind: [1004, 1024] as const,
-  replay: [1024, 1074] as const,
+  rewind: [1360, 1380] as const,
+  replay: [1380, 1420] as const,
 };
+
+/**
+ * Dispatcher's spotlight: which Line is being acted on, and when. Lines and
+ * Trains off the focus Line dim, so one thing at a time reads clearly.
+ */
+const FOCUS: { line: LineCode; from: number; to: number }[] = [
+  { line: 'KJ', from: 1136, to: 1202 },
+  { line: 'KG', from: 1202, to: 1258 },
+  { line: 'AG', from: 1258, to: 1352 },
+];
+
+/** How strongly the spotlight is on, 0 to 1. */
+export function focusAmount(f: number): number {
+  return ramp(f, 1132, 1146, 0, 1) * ramp(f, 1346, 1360, 1, 0);
+}
+
+/** A Line's brightness under the spotlight: 1 lit, `dim` when another Line has focus. */
+export function lineBrightness(line: LineCode, f: number, dim = 0.3): number {
+  let lit = 0;
+  for (const w of FOCUS) {
+    if (w.line === line) lit = Math.max(lit, ramp(f, w.from - 6, w.from + 6, 0, 1) * ramp(f, w.to - 6, w.to + 6, 1, 0));
+  }
+  return 1 - (1 - dim) * focusAmount(f) * (1 - lit);
+}
 
 /* ---------- the network, era by era ---------- */
 
@@ -173,43 +210,47 @@ export function revealFrame(f: number): number {
   const [r0, r1] = DISPATCH.rewind;
   const [p0, p1] = DISPATCH.replay;
   if (f < r0) return f;
-  if (f < r1) return ramp(f, r0, r1, 1000, 278, easeInOut);
-  if (f < p1) return ramp(f, p0, p1, 278, 1000, (t) => t);
-  return 1000;
+  if (f < r1) return ramp(f, r0, r1, FULL, NINETIES_DONE, easeInOut);
+  if (f < p1) return ramp(f, p0, p1, NINETIES_DONE, FULL, (t) => t);
+  return FULL;
 }
+
+/** Reveal frames: the 1990s network complete, and every Line complete. */
+const NINETIES_DONE = 300;
+const FULL = 1020;
 
 /** How far each Line is drawn, as a fractional station index; -1 is not at all. */
 export function drawnTo(line: LineCode, vf: number): number {
   switch (line) {
     case 'KJ': {
       if (vf < TYPE.hook.end) return -1;
-      if (vf < 245) return Math.min(4, typedProgress(TYPE.core, vf));
-      if (vf < 392) return ramp(vf, 245, 280, 4, 23);
-      return ramp(vf, 392, 440, 23, 36);
+      if (vf < CORE_END + 2) return Math.min(4, typedProgress(TYPE.core, vf));
+      if (vf < SCENE.breathB) return ramp(vf, CORE_END + 2, NINETIES_DONE - 4, 4, 23);
+      return ramp(vf, SCENE.breathB + 6, SCENE.breathB + 56, 23, 36);
     }
     case 'AG':
-      return vf < 228 ? -1 : ramp(vf, 228, 272, 0, 17);
+      return vf < CORE_END - 10 ? -1 : ramp(vf, CORE_END - 10, NINETIES_DONE - 8, 0, 17);
     case 'SP':
-      if (vf < 232) return -1;
-      return vf < 392 ? ramp(vf, 232, 276, 0, 17) : ramp(vf, 392, 440, 17, 28);
+      if (vf < CORE_END - 6) return -1;
+      return vf < SCENE.breathB ? ramp(vf, CORE_END - 6, NINETIES_DONE - 4, 0, 17) : ramp(vf, SCENE.breathB + 6, SCENE.breathB + 56, 17, 28);
     case 'MR':
-      return vf < 278 ? -1 : typedProgress(TYPE.lineRun, vf);
+      return vf < 372 ? -1 : typedProgress(TYPE.lineRun, vf);
     case 'KG':
-      return vf < 440 ? -1 : ramp(vf, 440, 530, 0, 28);
+      return vf < 680 ? -1 : ramp(vf, 680, 775, 0, 28);
     case 'PY':
-      return vf < 545 ? -1 : ramp(vf, 545, 588, 0, 35, (t) => 1 - Math.pow(1 - t, 2));
+      return vf < 778 ? -1 : ramp(vf, 778, 822, 0, 35, (t) => 1 - Math.pow(1 - t, 2));
     case 'SA':
-      return vf < 692 ? -1 : ramp(vf, 692, 742, 0, 19);
+      return vf < 962 ? -1 : ramp(vf, 962, 1012, 0, 19);
   }
 }
 
-/** Which Era the corner timeline shows, as a smooth index for its progress bar. */
+/** Which Era the corner timeline shows, as a smooth index for its progress bar. Each ticks over in a breath. */
 export function eraAt(vf: number): number {
-  if (vf < 270) return 0;
-  if (vf < 390) return ramp(vf, 270, 282, 0, 1);
-  if (vf < 540) return ramp(vf, 390, 402, 1, 2);
-  if (vf < 690) return ramp(vf, 540, 552, 2, 3);
-  return ramp(vf, 690, 702, 3, 4);
+  if (vf < SCENE.breathA) return 0;
+  if (vf < SCENE.breathB) return ramp(vf, SCENE.breathA, SCENE.breathA + 12, 0, 1);
+  if (vf < 776) return ramp(vf, SCENE.breathB, SCENE.breathB + 12, 1, 2);
+  if (vf < SCENE.latest) return ramp(vf, 776, 788, 2, 3);
+  return ramp(vf, SCENE.latest, SCENE.latest + 12, 3, 4);
 }
 
 /* ---------- the player's train ---------- */
@@ -223,26 +264,27 @@ export interface PlayerTrain {
 
 export function playerTrain(f: number): PlayerTrain | null {
   if (f < TYPE.hook.end) return null;
-  if (f < 270) {
-    return { line: 'KJ', at: completedEased(TYPE.core, f), forward: true, opacity: ramp(f, 248, 262, 1, 0) };
+  if (f < SCENE.breathA) {
+    return { line: 'KJ', at: completedEased(TYPE.core, f), forward: true, opacity: ramp(f, CORE_END + 4, CORE_END + 18, 1, 0) };
   }
-  if (f < 392) {
+  if (f < SCENE.breathB) {
     return { line: 'MR', at: completedEased(TYPE.lineRun, f, 4), forward: true,
-      opacity: Math.min(ramp(f, 274, 282, 0, 1), ramp(f, 384, 392, 1, 0)) };
+      opacity: Math.min(ramp(f, 370, 380, 0, 1), ramp(f, 498, 508, 1, 0)) };
   }
   if (f < JUNCTION.pick) {
-    const creep = ramp(f, 402, TYPE.junctionArrive.end, 33.4, 35.7, (t) => t);
-    return { line: 'KJ', at: creep + ramp(f, TYPE.junctionArrive.end, TYPE.junctionArrive.end + 10, 0, 36 - 35.7),
-      forward: true, opacity: ramp(f, 400, 410, 0, 1) };
+    const arrived = TYPE.junctionArrive.end;
+    const creep = ramp(f, 575, arrived, 33.4, 35.7, (t) => t);
+    return { line: 'KJ', at: creep + ramp(f, arrived, arrived + 10, 0, 36 - 35.7),
+      forward: true, opacity: ramp(f, 575, 585, 0, 1) };
   }
-  if (f < 545) {
-    return { line: 'SP', at: 28 - 0.25 * typedProgress([TYPE.junctionLeave], f) - ramp(f, TYPE.junctionLeave.end, 545, 0, 0.6),
-      forward: false, opacity: ramp(f, 536, 545, 1, 0) };
+  if (f < 760) {
+    return { line: 'SP', at: 28 - 0.25 * typedProgress([TYPE.junctionLeave], f) - ramp(f, TYPE.junctionLeave.end, 760, 0, 0.6),
+      forward: false, opacity: ramp(f, 744, 754, 1, 0) };
   }
-  if (f < 590) return null;
-  if (f < 692) {
+  if (f < 826) return null;
+  if (f < SCENE.latest + 2) {
     return { line: 'PY', at: 28 + completedEased(TYPE.quickRun, f), forward: true,
-      opacity: Math.min(ramp(f, 590, 598, 0, 1), ramp(f, 686, 692, 1, 0)) };
+      opacity: Math.min(ramp(f, 826, 834, 0, 1), ramp(f, 952, 960, 1, 0)) };
   }
   return null;
 }
@@ -261,7 +303,7 @@ export type Cue =
   | { f: number; kind: 'pluck'; note: number }
   | { f: number; kind: 'impact' };
 
-export const BADGE_FRAMES = [736, 740, 744, 748, 752, 756, 760];
+export const BADGE_FRAMES = [1008, 1012, 1016, 1020, 1024, 1028, 1032];
 
 export function cues(): Cue[] {
   const out: Cue[] = [];
@@ -281,23 +323,22 @@ export function cues(): Cue[] {
   TYPE.quickRun.forEach((t, i) => typed(t, false, scale[i + 3]));
   typed(TYPE.clear1);
   out.push({ f: DISPATCH.clear1, kind: 'clear' });
-  typed(TYPE.clear2);
-  out.push({ f: DISPATCH.clear2, kind: 'clear' });
   for (const f of DISPATCH.greenWaveSignals) out.push({ f, kind: 'clear' });
   out.push({ f: DISPATCH.incidentAt, kind: 'alert' });
   TYPE.fix.forEach((t) => typed(t));
   out.push({ f: DISPATCH.fixed + 1, kind: 'fixed' });
   typed(TYPE.url, true);
 
-  out.push({ f: 226, kind: 'whoosh', len: 1.4 });
-  out.push({ f: 276, kind: 'whoosh', len: 0.8 });
-  out.push({ f: 390, kind: 'whoosh', len: 1.4 });
-  out.push({ f: 438, kind: 'whoosh', len: 2.5 });
-  out.push({ f: 543, kind: 'whoosh', len: 1.4 });
-  out.push({ f: 690, kind: 'whoosh', len: 1.6 });
+  out.push({ f: CORE_END - 14, kind: 'whoosh', len: 1.4 });
+  out.push({ f: SCENE.breathA, kind: 'whoosh', len: 1.6 });
+  out.push({ f: SCENE.breathB, kind: 'whoosh', len: 2.0 });
+  out.push({ f: 680, kind: 'whoosh', len: 3.0 });
+  out.push({ f: 776, kind: 'whoosh', len: 1.6 });
+  out.push({ f: SCENE.latest, kind: 'whoosh', len: 1.6 });
+  out.push({ f: SCENE.dispatcher - 2, kind: 'whoosh', len: 1.2 });
   out.push({ f: DISPATCH.rewind[0], kind: 'whoosh', len: 0.7, reverse: true });
-  out.push({ f: DISPATCH.replay[0], kind: 'whoosh', len: 1.7 });
+  out.push({ f: DISPATCH.replay[0], kind: 'whoosh', len: 1.4 });
   BADGE_FRAMES.forEach((f, i) => out.push({ f, kind: 'pluck', note: [57, 60, 64, 67, 69, 72, 76][i]! }));
-  out.push({ f: 1092, kind: 'impact' });
+  out.push({ f: SCENE.end + 12, kind: 'impact' });
   return out.sort((a, b) => a.f - b.f);
 }
