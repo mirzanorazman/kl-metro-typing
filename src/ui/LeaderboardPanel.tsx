@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Qualification } from '../data/leaderboardStore';
+import { LeaderboardTrack } from './LeaderboardTrack';
 import './leaderboard.css';
 
 export interface LeaderboardPanelProps {
@@ -19,6 +20,7 @@ export function LeaderboardPanel({
   if (result) {
     return (
       <div className="leaderboard-panel" role="status">
+        <LeaderboardTrack />
         {result.lineRank !== null && <p>New {lineName} line record — #{result.lineRank}!</p>}
         {result.overallRank !== null && <p>#{result.overallRank} overall!</p>}
       </div>
@@ -30,6 +32,7 @@ export function LeaderboardPanel({
   if (!qualifies) {
     return (
       <div className="leaderboard-panel">
+        <LeaderboardTrack />
         <p>Didn't make the leaderboard this time.</p>
         {qualification.lineCutoff !== null && (
           <p>
@@ -56,6 +59,7 @@ export function LeaderboardPanel({
         setResult(onSubmit(trimmed));
       }}
     >
+      <LeaderboardTrack />
       <p>You made the leaderboard! Enter a name:</p>
       <input
         list="leaderboard-known-names"

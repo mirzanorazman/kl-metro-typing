@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import type { Qualification } from '../data/leaderboardStore';
 import { LeaderboardPanel } from './LeaderboardPanel';
@@ -22,6 +22,34 @@ const notQualifying: Qualification = {
 };
 
 describe('LeaderboardPanel', () => {
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('runs the track round the box whether it missed, asks for a name or shows the ranks', () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(160);
+    const track = () => document.querySelector('.leaderboard-panel > svg.leaderboard-track .leaderboard-track-train');
+    const panel = (qualification: Qualification) => (
+      <LeaderboardPanel
+        qualification={qualification}
+        score={60}
+        lineName="KL Monorail"
+        knownNames={[]}
+        onSubmit={() => ({ overallRank: 4, lineRank: 2 })}
+      />
+    );
+
+    const missed = render(panel(notQualifying));
+    expect(track()).not.toBeNull();
+    missed.unmount();
+
+    render(panel(qualifying));
+    expect(track()).not.toBeNull();
+    fireEvent.change(screen.getByLabelText(/your name/i), { target: { value: 'Ali' } });
+    fireEvent.click(screen.getByRole('button', { name: /save score/i }));
+    expect(screen.getByText(/#4 overall/i)).toBeTruthy();
+    expect(track()).not.toBeNull();
+  });
+
   it('shows the miss message with cutoff numbers when neither board qualifies', () => {
     render(
       <LeaderboardPanel

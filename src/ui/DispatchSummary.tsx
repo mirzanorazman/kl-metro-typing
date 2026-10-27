@@ -14,6 +14,7 @@ import { closureText, failureText } from './dispatchTips';
 import { careerCard } from '../share/shareCard';
 import { LineBadge } from './LineBadge';
 import { ShareButton } from './ShareButton';
+import { LeaderboardTrack } from './LeaderboardTrack';
 
 export interface DispatchSummaryProps {
   net: NetworkIndex;
@@ -46,6 +47,7 @@ function BoardEntry({ metrics, judgement, onSaved }: {
   if (saved) {
     return (
       <div className="leaderboard-panel dispatch-board">
+        <LeaderboardTrack />
         <p role="status">
           {saved.rank === null ? 'Saved, but it fell off the board.' : `#${saved.rank} on the Dispatcher board`}
         </p>
@@ -69,7 +71,12 @@ function BoardEntry({ metrics, judgement, onSaved }: {
   }
 
   if (!dispatchQualifies(board, judgement.score)) {
-    return <p className="leaderboard-panel">Didn't make the leaderboard this time.</p>;
+    return (
+      <p className="leaderboard-panel">
+        <LeaderboardTrack />
+        Didn't make the leaderboard this time.
+      </p>
+    );
   }
 
   return (
@@ -95,6 +102,7 @@ function BoardEntry({ metrics, judgement, onSaved }: {
         onSaved(result.rank);
       }}
     >
+      <LeaderboardTrack />
       <p>You made the leaderboard! Enter a name:</p>
       <input
         value={name}

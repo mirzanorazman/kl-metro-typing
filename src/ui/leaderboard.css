@@ -13,66 +13,38 @@
   backdrop-filter: var(--panel-blur);
 }
 
-/* Registered so the browser can smoothly interpolate the conic-gradient's
-   angle across the keyframe — an unregistered custom property can't be
-   animated, it only ever jumps straight to its end value. */
-@property --leaderboard-glow-angle {
-  syntax: '<angle>';
-  inherits: false;
-  initial-value: 0deg;
-}
-
-/* Two comet-like arcs of the run's line colour, circulating just outside
-   the panel's own edge. `--line-colour` is set by SummaryScreen on an
-   ancestor and inherits down; falls back to `--ink` otherwise, so the glow
-   still renders (in the neutral ink colour) where no line is in scope.
-   Two layers: `::before` is a thin ring masked to the band outside the
-   panel (so it reads as lines tracing the border, not a blob leaking
-   through it — the panel's own background is semi-transparent, so an
-   unmasked glow behind it just looked like a smudge); `::after` is a
-   larger, blurred, dimmer copy behind the panel for ambient bloom. Both
-   rotate the gradient's angle, not the element itself — rotating a
-   rectangular masked shape directly spins it out of alignment with the
-   panel underneath, which doesn't rotate. */
-.leaderboard-panel::before,
-.leaderboard-panel::after {
-  content: '';
+/* A train lapping the box (LeaderboardTrack). The track sits on the border,
+   in the run's line colour: `--line-colour` is set by SummaryScreen on an
+   ancestor and falls back to `--ink` where no single line is in scope. The
+   SVG overflows the box so the headlight can shine outside it. */
+.leaderboard-track {
   position: absolute;
-  border-radius: 14px;
-  background: conic-gradient(
-    from var(--leaderboard-glow-angle),
-    transparent 0%,
-    var(--line-colour, var(--ink)) 12%,
-    transparent 26%,
-    transparent 74%,
-    var(--line-colour, var(--ink)) 88%,
-    transparent 100%
-  );
-  animation: leaderboard-glow-spin 3s linear infinite;
+  top: -1px;
+  left: -1px;
+  overflow: visible;
   pointer-events: none;
 }
 
-.leaderboard-panel::before {
-  inset: -2px;
-  padding: 2px;
-  /* Alpha-only mask stops: mask-composite reads opacity here, not colour, so
-     this is not a rendered colour and is exempt from the token-only rule —
-     same as .line-strip's mask in index.css. */
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+.leaderboard-track-rail,
+.leaderboard-track-halo,
+.leaderboard-track-glow {
+  fill: none;
+  stroke: var(--line-colour, var(--ink));
+  stroke-linecap: round;
 }
+.leaderboard-track-rail { stroke-width: 3; opacity: 0.3; }
+.leaderboard-track-halo { stroke-width: 14; opacity: 0.5; }
+.leaderboard-track-glow { stroke-width: 3; }
 
-.leaderboard-panel::after {
-  inset: -10px;
-  z-index: -1;
-  filter: blur(14px);
-  opacity: 0.6;
-}
+.leaderboard-track-body { fill: var(--paper); stroke: var(--ink); stroke-width: 1; }
+.leaderboard-track-nose { fill: var(--line-colour, var(--ink)); }
+.leaderboard-track-window { fill: var(--ink); }
 
-@keyframes leaderboard-glow-spin {
-  to { --leaderboard-glow-angle: 360deg; }
-}
+/* Only midnight throws a headlight, as on the map: on paper it would be a smudge. */
+.leaderboard-track-beam { display: none; }
+[data-theme='midnight'] .leaderboard-track-beam { display: inline; }
+.leaderboard-track-beam-near { stop-color: var(--ink); stop-opacity: 0.32; }
+.leaderboard-track-beam-far { stop-color: var(--ink); stop-opacity: 0; }
 
 .leaderboard-panel input {
   width: 100%; padding: var(--s); font: inherit; color: var(--ink);

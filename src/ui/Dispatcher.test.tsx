@@ -2741,6 +2741,26 @@ describe('DispatchSummary', () => {
     expect(screen.getByRole('textbox', { name: 'Your name' })).toBeTruthy();
   });
 
+  it('runs the leaderboard track round the box whether it missed, asks for a name or shows the rank', () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(400);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(160);
+    const track = () => document.querySelector('.leaderboard-panel > svg.leaderboard-track .leaderboard-track-train');
+
+    saveDispatchBoard(fullBoard(1_000));
+    const missed = renderSummary(failed(), judgement());
+    expect(track()).not.toBeNull();
+    missed.unmount();
+
+    localStorage.clear();
+    renderSummary(failed(), judgement());
+    expect(track()).not.toBeNull();
+    const input = screen.getByRole('textbox', { name: 'Your name' });
+    fireEvent.change(input, { target: { value: 'Aina' } });
+    fireEvent.submit(input.closest('form')!);
+    expect(screen.getByRole('status').textContent).toMatch(/#1/);
+    expect(track()).not.toBeNull();
+  });
+
   it('submitting a name lists the entry with its rank, verified', () => {
     saveDispatchBoard(submitDispatchEntry(loadDispatchBoard(), {
       name: 'Top', score: 1_000, delivered: 1_000, shifts: 5, metrics, playedAt: 1, verified: true,
