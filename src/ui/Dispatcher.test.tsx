@@ -10,7 +10,9 @@ import { buildNetwork } from '../engine/network';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { careerScore, SHIFT_MS, startCareer, type CareerState } from '../engine/dispatch';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
-import { GAP_TRIGGER_MS, INCIDENT_LIMIT_MS, LATE_FACTOR, OOS_CROWD_MS, TICK_MS, TRAVEL_MS } from '../engine/dispatchBalance';
+import {
+  GAP_TRIGGER_MS, INCIDENT_LIMIT_MS, LATE_FACTOR, OOS_CROWD_MS, PLATFORM_CAPACITY, TICK_MS, TRAVEL_MS,
+} from '../engine/dispatchBalance';
 import {
   applyExpansion, ERAS, eraFor, servedLines, servedStations, STARTING_NETWORK, type Expansion, type Served,
 } from '../engine/dispatchNetwork';
@@ -35,7 +37,7 @@ import { liveMarks, RIPPLE_LEAD_MS, RIPPLE_STEP_MS } from '../render/useSignalMa
 import { MapCanvas } from '../render/MapCanvas';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import { chipBox, hits, layoutPops, overlayLayout, popBox } from '../render/dispatchLayout';
-import type { ExchangePop } from '../render/usePassengerMoments';
+import { DISPERSAL_MS, type ExchangePop } from '../render/usePassengerMoments';
 import { networkLayout } from '../geo/networkLayout';
 import { trackLines } from '../render/mapMarks';
 import { readFileSync } from 'node:fs';
@@ -1571,7 +1573,7 @@ describe('DispatcherScreen', () => {
       expect(within(card).getByTestId('crowd-count').textContent).toBe('40 waiting');
     });
 
-    it('fixing a Crowd surge drains its crowd: the count drops and people stream away, for about a second', () => {
+    it('fixing a Crowd surge drains its crowd: the count drops and people stream away, for under two seconds', () => {
       allowMotion();
       vi.useFakeTimers();
       fakeClock();
@@ -1582,10 +1584,10 @@ describe('DispatcherScreen', () => {
       expect(burst.querySelector('[data-count="from"]')!.textContent).toBe('40');
       expect(burst.querySelector('[data-count="to"]')!.textContent).toBe('10');
       expect(burst.textContent).toContain('−30 dispersed');
-      expect(within(burst as unknown as HTMLElement).getAllByTestId('person').length).toBeGreaterThanOrEqual(3);
-      later(800);
+      expect(within(burst as unknown as HTMLElement).getAllByTestId('person').length).toBeGreaterThanOrEqual(6);
+      later(DISPERSAL_MS - 100);
       expect(screen.getByTestId('dispersal')).toBeTruthy();
-      later(500);
+      later(200);
       expect(screen.queryByTestId('dispersal')).toBeNull();
     });
 
@@ -1607,6 +1609,79 @@ describe('DispatcherScreen', () => {
       renderShift(surgeCareer(0));
       type('Crowd control at Ampang Park');
       expect(screen.queryByTestId('dispersal')).toBeNull();
+    });
+
+    describe('the crowd in the typing row', () => {
+      const meter = () => screen.queryByTestId('crowd-meter');
+
+      it('aiming a Crowd surge fix brings its crowd count into the typing row', () => {
+        renderShift(surgeCareer());
+        expect(meter()).toBeNull();
+        type('C');
+        expect(meter()!.textContent).toBe('40 waiting');
+        expect(meter()!.closest('.dispatch-typing')).toBeTruthy();
+        expect(meter()!.getAttribute('data-full')).toBeNull();
+        expect(meter()!.getAttribute('role')).toBeNull();
+      });
+
+      it('turns amber once the crowd reaches platform capacity', () => {
+        const initial = surgeCareer();
+        initial.sim.platforms[idOf('Ampang Park')]!.waiting = { [idOf('KLCC')]: PLATFORM_CAPACITY };
+        renderShift(initial);
+        type('C');
+        expect(meter()!.textContent).toBe(`${PLATFORM_CAPACITY} waiting`);
+        expect(meter()!.getAttribute('data-full')).toBe('true');
+      });
+
+      it('a Station name shows no crowd count', () => {
+        renderShift(surgeCareer());
+        type('J');
+        expect(meter()).toBeNull();
+      });
+
+      it('the clear stays in the row: the count drops, with how many left, for the dispersal\'s length', () => {
+        allowMotion();
+        vi.useFakeTimers();
+        fakeClock();
+        renderShift(surgeCareer());
+        type('Crowd control at Ampang Park');
+        const cleared = meter()!;
+        expect(cleared.getAttribute('data-cleared')).toBe('true');
+        expect(cleared.getAttribute('role')).toBe('status');
+        expect(cleared.querySelector('[data-count="from"]')!.textContent).toBe('40');
+        expect(cleared.querySelector('[data-count="to"]')!.textContent).toBe('10');
+        expect(cleared.textContent).toContain('−30');
+        later(DISPERSAL_MS - 100);
+        expect(meter()).toBeTruthy();
+        later(200);
+        expect(meter()).toBeNull();
+      });
+
+      it('under reduced motion the clear shows only the new count', () => {
+        vi.useFakeTimers();
+        fakeClock();
+        renderShift(surgeCareer());
+        type('Crowd control at Ampang Park');
+        expect(meter()!.querySelector('[data-count="from"]')).toBeNull();
+        expect(meter()!.querySelector('[data-count="to"]')!.textContent).toBe('10');
+      });
+
+      it('aiming another Crowd surge fix during the clear shows its live count instead', () => {
+        allowMotion();
+        vi.useFakeTimers();
+        fakeClock();
+        const initial = surgeCareer();
+        initial.sim.incidents.push({ id: 2, kind: 'crowd-surge', place: idOf('KLCC'), stations: [idOf('KLCC')],
+          line: 'KJ', train: null, startedMs: 0, step: 0, extra: 10 });
+        initial.sim.nextIncidentId = 3;
+        initial.sim.platforms[idOf('KLCC')] = { waiting: { [idOf('Jelatek')]: 25 }, fullMs: 0, lastCall: {} };
+        renderShift(initial);
+        type('Crowd control at Ampang Park');
+        expect(meter()!.getAttribute('data-cleared')).toBe('true');
+        type('C');
+        expect(meter()!.getAttribute('data-cleared')).toBeNull();
+        expect(meter()!.textContent).toBe('25 waiting');
+      });
     });
 
     it('Shift cleared: before the offers, says how many passengers moved this Shift and its on-time %', () => {

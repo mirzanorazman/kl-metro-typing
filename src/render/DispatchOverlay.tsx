@@ -45,10 +45,10 @@ const CROSS_ICON = 'M-0.55,-0.55 L0.55,0.55 M0.55,-0.55 L-0.55,0.55';
 const LAMP_Y = { green: -19.5, red: -12.5 } as const;
 
 /** A person, about 12 nominal units tall, standing on the origin: a head, arms and legs. */
-const PERSON = 'M0,-6.5 V-1 M-2.8,-4.5 H2.8 M0,-1 L-2.2,4 M0,-1 L2.2,4';
+export const PERSON = 'M0,-6.5 V-1 M-2.8,-4.5 H2.8 M0,-1 L-2.2,4 M0,-1 L2.2,4';
 
 /** How many people stream away from a dispersal: enough to read as a crowd, never a swarm. */
-const peopleFor = (count: number) => Math.max(4, Math.min(10, Math.round(count / 4)));
+const peopleFor = (count: number) => Math.max(6, Math.min(12, Math.round(count / 4)));
 
 /** The lines of a pop: who boarded and, when anyone did, who got off. */
 const popText = (pop: ExchangePop) =>
@@ -101,7 +101,7 @@ function Dispersal({ pop, layout, m }: { pop: DispersalPop; layout: Layout; m: n
       {Array.from({ length: people }, (_, i) => {
         // Spread round the Station, a little uneven so they read as people, not a dial.
         const angle = (i / people) * Math.PI * 2 + (i % 2 ? 0.25 : -0.1);
-        const reach = (30 + (i % 3) * 7) * m;
+        const reach = (44 + (i % 3) * 12) * m;
         const style = {
           '--dx': `${Math.cos(angle) * reach}px`, '--dy': `${Math.sin(angle) * reach}px`, '--delay': `${(i % 4) * 60}ms`,
         } as CSSProperties;

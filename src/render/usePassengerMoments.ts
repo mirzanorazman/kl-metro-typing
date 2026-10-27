@@ -8,7 +8,7 @@ import { clearedSignals } from './useSignalMarks';
 /** How long a call's pop stays up. */
 export const POP_MS = 1_100;
 /** How long a fixed Crowd surge's dispersal shows. */
-export const DISPERSAL_MS = 1_100;
+export const DISPERSAL_MS = 1_800;
 /** At peak, the most pops on the map at once. */
 export const MAX_POPS = 4;
 

@@ -28,6 +28,7 @@ import { DISPATCH_KEYLOG_MAX_EVENTS } from '../engine/dispatchBalance';
 import { LESSON_SEEN, lessonStations } from '../engine/dispatchLesson';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
 import { servedKey, servedLines, servedStations } from '../engine/dispatchNetwork';
+import { crowdAt } from '../engine/dispatchSim';
 import { candidates, sameRef, visibleTargets, type Target } from '../engine/dispatchTargets';
 import type { TypingState } from '../engine/typing';
 import { closeFrame } from '../geo/fit';
@@ -40,11 +41,12 @@ import {
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { CLOSING_CARD_MS, CLOSURE_STAMP_MS, freshClosings, useClosures } from '../render/useClosures';
-import { usePassengerMoments } from '../render/usePassengerMoments';
+import { usePassengerMoments, type DispersalPop } from '../render/usePassengerMoments';
 import { clearedSignals, liveMarks, useFreshWave, waveNoteDelays } from '../render/useSignalMarks';
 import { prefersReducedMotion } from '../render/useLayoutMode';
 import { ClosureGauge, closureBand } from './ClosureGauge';
 import { ConfirmEndButton } from './ConfirmEndButton';
+import { ClearedCrowd, LiveCrowd } from './CrowdMeter';
 import { closeness, leanIn, subjectStations, withNeighbours } from './dispatchCamera';
 import { DispatchCameraPanel } from './DispatchCameraPanel';
 import { DispatchExpansion } from './DispatchExpansion';
@@ -219,13 +221,22 @@ const WAVE_FLASH_MS = 1_200;
  * Beside it, the streak count builds towards a Green wave and flashes when one
  * fires. `waiting: false` (the lesson's train on the move) drops the idle prompt.
  */
-function TypingLine({ career, aimed, showStreak = true, waiting = true }: {
+function TypingLine({ career, aimed, showStreak = true, waiting = true, cleared = null }: {
   career: CareerState; aimed: readonly Target[]; showStreak?: boolean; waiting?: boolean;
+  /** A Crowd surge just fixed, shown draining beside the prompt. */
+  cleared?: DispersalPop | null;
 }) {
   const { aim } = career;
   const wave = useFreshWave(career.lastWave, WAVE_FLASH_MS);
   const stalled = career.gameMs < aim.stallUntil;
   const target = aim.lock ? aimed.find((t) => sameRef(t.ref, aim.lock!)) : aimed[0];
+  const ref = target?.ref;
+  const surge = ref?.kind === 'fix'
+    ? career.sim.incidents.find((inc) => inc.id === ref.incident && inc.kind === 'crowd-surge')
+    : undefined;
+  // A surge fix being aimed shows its live crowd, even over the last one's clear.
+  const crowd = surge ? <LiveCrowd waiting={crowdAt(career.sim, surge.place)} />
+    : cleared ? <ClearedCrowd key={cleared.key} pop={cleared} /> : null;
   let body: ReactNode;
   if (!target) {
     body = waiting && (
@@ -254,6 +265,7 @@ function TypingLine({ career, aimed, showStreak = true, waiting = true }: {
     <div className="dispatch-typing" data-testid="dispatch-typing" data-stalled={stalled ? 'true' : undefined}>
       <div className="dispatch-typing-row">
         <div className="dispatch-typing-body">{body}</div>
+        {crowd}
         {/* Keyed on the wave, so each one restarts the flash. */}
         {showStreak && (
           <p key={wave?.id ?? 0} className="dispatch-streak" data-testid="streak"
@@ -742,7 +754,7 @@ export function DispatcherScreen({
                 {run.status === 'ready' && !seenTips.current.has('start') && (
                   <p className="dispatch-tip-inline" role="note">{dispatchTipText('start')}</p>
                 )}
-                <TypingLine career={run} aimed={aimed} />
+                <TypingLine career={run} aimed={aimed} cleared={moments.dispersal} />
                 {failHold ? null : run.startedAt === null ? (
                   <>
                     <button type="button" className="dispatch-end" onClick={exit}>
