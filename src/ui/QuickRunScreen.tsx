@@ -32,6 +32,7 @@ import { verifyKeyLog, type Verdict } from '../engine/integrity';
 import { recordIntegrityFail } from '../engine/progress';
 import type { KeySource } from '../engine/keylog';
 import type { Metrics } from '../engine/metrics';
+import { quickRunCard } from '../share/shareCard';
 import './mobile.css';
 
 export interface QuickRunScreenProps {
@@ -174,6 +175,8 @@ export function QuickRunScreen({
   const completionSaved = useRef(false);
   const [summaryBest, setSummaryBest] = useState<number | null>(bestAtStart.current);
   const [newBest, setNewBest] = useState(false);
+  /** The completed Run replayed and passed its Verdict. */
+  const [verified, setVerified] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const dismissedRef = useRef(false);
   const [awaitingPortrait, setAwaitingPortrait] = useState(false);
@@ -337,6 +340,7 @@ export function QuickRunScreen({
       return;
     }
 
+    setVerified(true);
     const previousBest = bestAtStart.current ?? 0;
     if (replayed.metrics.score <= previousBest) {
       setSummaryBest(bestAtStart.current);
@@ -365,6 +369,7 @@ export function QuickRunScreen({
     heard.current = { chars: 0, errors: 0, stations: 0 };
     setSummaryBest(bestAtStart.current);
     setNewBest(false);
+    setVerified(false);
     setLiveMetrics(null);
     setDisplayNow(performance.now());
     commitRun(next);
@@ -387,6 +392,7 @@ export function QuickRunScreen({
         metrics={metrics}
         personalBest={summaryBest}
         newBest={newBest}
+        share={run.status === 'completed' ? quickRunCard(net, run, { metrics, verified, newBest }) : null}
         onAgain={runAgain}
         onBack={onBack}
         phoneLandscape={phoneLandscape}

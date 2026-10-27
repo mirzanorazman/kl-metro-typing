@@ -44,6 +44,14 @@ const PAPER = luminance('#ffffff');
  * would make half the badges illegible in one atmosphere.
  */
 export function contrastText(hex: string): string {
+  return contrastHex(hex) === '#ffffff' ? 'var(--badge-paper)' : 'var(--badge-ink)';
+}
+
+/**
+ * The same choice as a literal colour, for the share card's canvas, which
+ * cannot resolve a CSS custom property.
+ */
+export function contrastHex(hex: string): '#ffffff' | '#14181f' {
   const fill = luminance(hex);
-  return ratio(fill, PAPER) >= ratio(fill, INK) ? 'var(--badge-paper)' : 'var(--badge-ink)';
+  return ratio(fill, PAPER) >= ratio(fill, INK) ? '#ffffff' : '#14181f';
 }

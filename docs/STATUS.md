@@ -1,6 +1,6 @@
 # KL-Metro Typing — status and handoff
 
-**Last updated:** 2026-10-23
+**Last updated:** 2026-10-27
 
 A typing game on the Kuala Lumpur Rapid KL rail network. Type station names to
 drive a train across the Klang Valley.
@@ -118,6 +118,15 @@ survey, leans, gotchas and deviations from the spec are in
 `docs/superpowers/dispatcher-handover.md` ("Playtest 1"). Next: the user
 playtests again.
 
+**Share result** — every summary but Rush Hour's offers the result as a
+1080 × 1080 dark PNG card: Mode, headline, Line badges, the route over the
+faint network, four stats, and stamps (Verified only for a Run that passed
+replay and its Verdict; a leaderboard rank once a name is saved). Phones get
+the share sheet, desktops Copy image, everyone Save image. It is drawn on a
+canvas in the browser from the shared layout, so it makes no network request.
+An interrupted Quick Run or abandoned Career offers none. Spec:
+`docs/superpowers/specs/2026-10-27-share-result-card-design.md`.
+
 **Local leaderboard** — Line Run, plus a separate Dispatcher tab. Completing a
 line end to end offers a name entry if the run's score would place in the top
 20 overall or the top 20 for that line. Longer lines are weighted more heavily on the overall board, so
@@ -155,6 +164,7 @@ src/
   ui/        screens: HomeMap, QuickRunScreen, LineRunScreen, AdventureScreen,
              SummaryScreen, LeaderboardScreen, LeaderboardPanel
   audio/     Tone.js-backed synthesised sound, menu ambience, UI cues
+  share/     share card: pure per-Mode model, canvas painter, share/copy/save
 ```
 
 ### Invariants that are easy to break

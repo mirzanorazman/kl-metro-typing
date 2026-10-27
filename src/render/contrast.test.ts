@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { luminance, contrastText } from './contrast';
+import { luminance, contrastHex, contrastText } from './contrast';
 
 describe('luminance', () => {
   it('is 0 for black and 1 for white', () => {
@@ -9,6 +9,13 @@ describe('luminance', () => {
 
   it('accepts shorthand hex', () => {
     expect(luminance('#fff')).toBeCloseTo(1, 5);
+  });
+});
+
+describe('contrastHex', () => {
+  it('makes the same choice as contrastText, as a literal colour', () => {
+    expect(contrastHex('#ED254E')).toBe('#ffffff'); // KJ
+    expect(contrastHex('#FFC72C')).toBe('#14181f'); // PY
   });
 });
 

@@ -157,6 +157,7 @@ export function LineRunScreen({ net, line, from, onExit, phoneLandscape = false 
         net={net}
         run={run}
         onExit={onExit}
+        mode="line"
         leaderboardLine={leaderboardLine}
         leaderboardFrom={from}
         keylog={recorder.snapshot()}

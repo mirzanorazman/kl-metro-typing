@@ -11,6 +11,8 @@ import type { KeyLog } from '../engine/keylog';
 import { verifyKeyLog, type IntegrityReason } from '../engine/integrity';
 import { replayLineRun } from '../engine/replay';
 import { loadProfile, recordIntegrityFail, saveProfile } from '../engine/progress';
+import { adventureCard, lineRunCard } from '../share/shareCard';
+import { ShareButton } from './ShareButton';
 import './summary.css';
 
 export function SummaryScreen({
@@ -20,10 +22,13 @@ export function SummaryScreen({
   leaderboardLine = null,
   leaderboardFrom = null,
   keylog = null,
+  mode = 'adventure',
 }: {
   net: NetworkIndex;
   run: RunState;
   onExit: () => void;
+  /** Which Mode ended, for the share card. */
+  mode?: 'line' | 'adventure';
   leaderboardLine?: LineCode | null;
   /** The terminus the Line Run started from. Needed to replay it. */
   leaderboardFrom?: string | null;
@@ -93,6 +98,13 @@ export function SummaryScreen({
     () => (leaderboardLine && boardMetrics ? evaluateRun(net, store, leaderboardLine, boardMetrics) : null),
     [leaderboardLine, net, store, boardMetrics],
   );
+
+  // Ranks only once the player has saved a name: an unsaved place is not a place.
+  const [ranks, setRanks] = useState<{ overallRank: number | null; lineRank: number | null } | null>(null);
+  const [unlocked] = useState(() => loadProfile().visited.length);
+  const card = mode === 'line'
+    ? lineRunCard(net, run, { metrics, verified: Boolean(eligibility?.ok), ...ranks })
+    : adventureCard(net, run, { metrics, unlocked, total: net.stations.size });
 
   const split = hasJourney && Boolean(leaderboardLine) && eligibility !== null;
 
@@ -167,7 +179,9 @@ export function SummaryScreen({
                     verified: true,
                   });
                   setStore(result.store);
-                  return { overallRank: result.overallRank, lineRank: result.lineRank };
+                  const placed = { overallRank: result.overallRank, lineRank: result.lineRank };
+                  setRanks(placed);
+                  return placed;
                 }}
               />
             ) : (
@@ -204,6 +218,8 @@ export function SummaryScreen({
           <li>Slowest: {stationAt(net, slowest.id)?.name} ({(slowest.ms / 1000).toFixed(1)}s)</li>
         </ul>
       )}
+
+      {count > 0 && <ShareButton card={card} />}
 
       <button
         type="button"

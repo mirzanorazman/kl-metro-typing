@@ -1,0 +1,23 @@
+/* Share result: one row of plain buttons. They stay secondary, so a summary's
+   own primary action (Run again, New Career) is still the one that stands out. */
+.share-result {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s);
+  margin: var(--s2) 0 0;
+}
+
+.share-result button {
+  min-height: 44px;
+}
+
+/* Always present, so a message is announced without moving the buttons. */
+.share-result-status {
+  flex-basis: 100%;
+  min-height: 1.4em;
+  margin: 0;
+  text-align: center;
+  color: var(--ink-muted);
+  font-size: 0.9rem;
+}

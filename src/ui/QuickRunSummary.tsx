@@ -1,7 +1,9 @@
 import type { Metrics } from '../engine/metrics';
 import type { LineCode } from '../data/types';
 import { QUICK_RUN_MS } from '../engine/quickRun';
+import type { ShareCard } from '../share/shareCard';
 import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
+import { ShareButton } from './ShareButton';
 import './mobile.css';
 
 export interface QuickRunSummaryProps {
@@ -11,6 +13,8 @@ export interface QuickRunSummaryProps {
   metrics: Metrics;
   personalBest: number | null;
   newBest: boolean;
+  /** The card to share; null for an interrupted Run, which has nothing to show. */
+  share?: ShareCard | null;
   onAgain: () => void;
   onBack: () => void;
   phoneLandscape?: boolean;
@@ -23,6 +27,7 @@ export function QuickRunSummary({
   metrics,
   personalBest,
   newBest,
+  share = null,
   onAgain,
   onBack,
   phoneLandscape = false,
@@ -55,6 +60,7 @@ export function QuickRunSummary({
 
       {resultStatus && <p role="status">{resultStatus}</p>}
       {phoneLandscape && <PhoneLandscapeBlock />}
+      {share && <ShareButton card={share} />}
 
       <div className="quick-summary-actions">
         <button type="button" disabled={phoneLandscape} onClick={onAgain}>Run again</button>

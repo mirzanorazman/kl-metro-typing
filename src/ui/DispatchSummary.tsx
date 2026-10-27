@@ -11,7 +11,9 @@ import { servedLines, servedStations } from '../engine/dispatchNetwork';
 import type { Metrics } from '../engine/metrics';
 import type { NetworkIndex } from '../engine/network';
 import { closureText, failureText } from './dispatchTips';
+import { careerCard } from '../share/shareCard';
 import { LineBadge } from './LineBadge';
+import { ShareButton } from './ShareButton';
 
 export interface DispatchSummaryProps {
   net: NetworkIndex;
@@ -29,7 +31,12 @@ const DISPATCH_CREDIT = 'Ridership estimates informed by data.gov.my (CC BY 4.0)
  * A verified Career that would place gets a name form; submitting saves it
  * with its replayed score and shows the board with its rank.
  */
-function BoardEntry({ metrics, judgement }: { metrics: Metrics; judgement: DispatchJudgement }) {
+function BoardEntry({ metrics, judgement, onSaved }: {
+  metrics: Metrics;
+  judgement: DispatchJudgement;
+  /** Told the rank once a name is saved, for the share card. */
+  onSaved: (rank: number | null) => void;
+}) {
   const [board, setBoard] = useState<DispatchBoard>(() => loadDispatchBoard());
   const [name, setName] = useState('');
   const [saved, setSaved] = useState<{ id: string | null; rank: number | null } | null>(null);
@@ -85,6 +92,7 @@ function BoardEntry({ metrics, judgement }: { metrics: Metrics; judgement: Dispa
         const id = result.rank === null ? null : result.board.entries[result.rank - 1]!.id;
         setBoard(result.board);
         setSaved({ id, rank: result.rank });
+        onSaved(result.rank);
       }}
     >
       <p>You made the leaderboard! Enter a name:</p>
@@ -105,6 +113,7 @@ export function DispatchSummary({ net, career, metrics, judgement, onAgain, onBa
   const stations = servedStations(net, career.served).length;
   const lines = servedLines(career.served);
   const abandoned = career.endReason === 'abandoned';
+  const [rank, setRank] = useState<number | null>(null);
 
   return (
     <div className="summary dispatch-summary" role="region" aria-label="Career summary">
@@ -145,11 +154,15 @@ export function DispatchSummary({ net, career, metrics, judgement, onAgain, onBa
         <p className="dispatch-checking" role="status">Checking your Career…</p>
       )}
       {!abandoned && judgement && (judgement.eligible ? (
-        <BoardEntry metrics={metrics} judgement={judgement} />
+        <BoardEntry metrics={metrics} judgement={judgement} onSaved={setRank} />
       ) : (
         // Reasonless on purpose, like the Line Run summary.
         <p className="summary-ineligible" role="status">This Career wasn&apos;t eligible for the leaderboard.</p>
       ))}
+
+      {!abandoned && (
+        <ShareButton card={careerCard(net, career, { metrics, verified: Boolean(judgement?.eligible), rank })} />
+      )}
 
       <div className="summary-actions">
         <button type="button" onClick={onAgain}>New Career</button>
