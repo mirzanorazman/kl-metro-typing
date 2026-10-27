@@ -1,6 +1,6 @@
 import type { NetworkIndex } from '../engine/network';
 import type { Layout } from '../geo/layout';
-import { timeToReach } from './entrance';
+import { timeToReach, type DrawEase } from './entrance';
 import { rangeIds, trackPoints, type DirectedRange, type LineRange, type TrackLanes } from './trackRanges';
 
 export interface TrackReveal {
@@ -18,6 +18,17 @@ export interface TrackRevealTiming {
 }
 
 const FINAL_STATION_POP_MS = 320;
+
+/**
+ * The curve a reveal's stroke travels on. Not `DRAW_EASE`: that eases out hard,
+ * which suits seven staggered lines, but a lone line was over half drawn in its
+ * first 100 ms and then crawled. This matches the camera's `easeInOut`, so an
+ * Expansion's draw and the refit that starts with it speed up and settle together.
+ */
+export const REVEAL_EASE: DrawEase = {
+  control: [0.45, 0, 0.55, 1],
+  css: 'cubic-bezier(0.45, 0, 0.55, 1)',
+};
 
 /** Times newly reached stations against the distance travelled by each reveal segment. */
 export function trackRevealTiming(
@@ -44,7 +55,7 @@ export function trackRevealTiming(
     ids.forEach((id, index) => {
       if (!reveal.stations.has(id)) return;
       const progress = length > 0 ? distances[index]! / length : 0;
-      const arrival = timeToReach(progress) * draw;
+      const arrival = timeToReach(progress, REVEAL_EASE) * draw;
       const previous = station.get(id);
       if (previous === undefined || arrival < previous) station.set(id, arrival);
     });

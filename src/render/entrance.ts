@@ -29,10 +29,16 @@ const POP_MS = 320;
  * timed on a straight clock would be left behind by a tip that had already
  * passed them.
  */
-export const DRAW_EASE = {
-  control: [0.22, 1, 0.36, 1] as const,
+export const DRAW_EASE: DrawEase = {
+  control: [0.22, 1, 0.36, 1],
   css: 'cubic-bezier(0.22, 1, 0.36, 1)',
 };
+
+/** A stroke's curve as CSS animates it and as its control points, for `timeToReach`. */
+export interface DrawEase {
+  control: readonly [number, number, number, number];
+  css: string;
+}
 
 /** One axis of a cubic Bézier from (0,0) to (1,1), at parameter `t`. */
 function axis(a: number, b: number, t: number): number {
@@ -42,11 +48,11 @@ function axis(a: number, b: number, t: number): number {
 
 /**
  * The fraction of a line's draw at which its stroke has covered `progress`
- * of the line — the inverse of `DRAW_EASE`, and so where a station's dot
- * belongs in time.
+ * of the line — the inverse of the curve (`DRAW_EASE` unless another is
+ * given), and so where a station's dot belongs in time.
  */
-export function timeToReach(progress: number): number {
-  const [x1, y1, x2, y2] = DRAW_EASE.control;
+export function timeToReach(progress: number, ease: DrawEase = DRAW_EASE): number {
+  const [x1, y1, x2, y2] = ease.control;
   // The curve is monotonic in t for these control points, so bisection is
   // both correct and short; 30 halvings resolve far finer than a millisecond.
   let lo = 0;

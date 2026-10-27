@@ -371,6 +371,20 @@ The 390 px Shift-bar fix (`9d98057`) keeps every metric and +N delta visible,
 with the closure gauge and Incidents below the enlarged header. Audible chime,
 native reduced-motion and real device checks remain for playtest 3.
 
+**Retimed (2026-10-28):** the user found the reveals laggy and not smooth.
+Frame rate was not the cause (120 fps throughout, about 2 ms of React work a
+frame during an Expansion). The reveals had reused the home map's hard
+ease-out (`DRAW_EASE`), which suits seven lines drawn one after another: a
+lone line was 55 % drawn by 100 ms, and 12 of Shift 1's 14 Stations popped
+within 160 ms, then the line crawled. On an Expansion the camera's 500 ms
+ease-in-out refit started with the draw, so the line was about 90 % drawn
+before the camera really moved. Reveals now use `REVEAL_EASE`
+(`cubic-bezier(0.45, 0, 0.55, 1)`, within 1 % of the camera's `easeInOut`),
+and Station pops follow it. Measured live: on an Expansion the draw and the
+camera stay within 5 points of each other (51 % and 46 % at 258 ms). On entry,
+Stations pop steadily from about 80 ms to 750 ms. The typing block keeps its
+1,000 ms and 800 ms, as the user asked.
+
 **Implementation order agreed:** F15's served geometry, F4's entry reveal
 and lesson handoff, then F19's Expansion reveal and new-Line celebration.
 Keep presentation state outside Career evidence; these changes should not

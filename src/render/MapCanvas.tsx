@@ -17,7 +17,7 @@ import { TrainMarker, tweenPoint } from './TrainMarker';
 import { MapBackdrop } from './MapBackdrop';
 import { DRAW_EASE, type EntranceTiming } from './entrance';
 import { linePoints, rangeIds, rangeStations, type LineRange } from './trackRanges';
-import { trackRevealTiming, type TrackReveal } from './trackReveal';
+import { REVEAL_EASE, trackRevealTiming, type TrackReveal } from './trackReveal';
 
 /** Where the focused point sits vertically; above centre, clear of the panel. */
 const FOCUS_BIAS_Y = 0.34;
@@ -461,7 +461,7 @@ export function MapCanvas({
             style={{
               '--draw-delay': '0ms',
               '--draw-dur': `${revealTiming!.draw}ms`,
-              '--draw-ease': DRAW_EASE.css,
+              '--draw-ease': REVEAL_EASE.css,
             } as React.CSSProperties}
             points={points}
             fill="none"

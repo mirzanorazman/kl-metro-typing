@@ -6,7 +6,7 @@ import { buildSchematic } from '../geo/schematic';
 import { networkLayout } from '../geo/networkLayout';
 import { MapCanvas } from './MapCanvas';
 import { DRAW_EASE, entranceTiming } from './entrance';
-import { trackRevealTiming, type TrackReveal } from './trackReveal';
+import { REVEAL_EASE, trackRevealTiming, type TrackReveal } from './trackReveal';
 
 const data = loadNetworkData();
 const net = buildNetwork(data);
@@ -439,7 +439,7 @@ describe('MapCanvas partial track reveal', () => {
     expect(extension.getAttribute('data-draw')).toBe('true');
     expect(extension.style.getPropertyValue('--draw-delay')).toBe('0ms');
     expect(extension.style.getPropertyValue('--draw-dur')).toBe('480ms');
-    expect(extension.style.getPropertyValue('--draw-ease')).toBe(DRAW_EASE.css);
+    expect(extension.style.getPropertyValue('--draw-ease')).toBe(REVEAL_EASE.css);
     expect(extension.getAttribute('stroke')).toBe(net.lines.get('KJ')!.colour);
     expect(extension.getAttribute('stroke-width')).toBe('6');
     expect(extension.getAttribute('stroke-linecap')).toBe('round');
