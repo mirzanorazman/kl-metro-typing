@@ -9,7 +9,9 @@ priorities move.
 are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20,
 F22 and F27 (close camera on by default, with a development tuning panel).
 F21 is set aside. F15/F4/F19 are implemented and verified, and so is F28
-(tips close with Enter only). F23 is done (2026-10-28); F11 remains open.
+(tips close with Enter only). F23 and F11 are done (2026-10-28), so every P0
+and P1 item is done or set aside. F25 was closed as not a bug, and F29
+(platform overflow) is parked.
 `feat/dispatcher` was merged to `main` on 2026-10-27 at the user's request,
 before playtest 3; see "Check in playtest 3" at the end.
 
@@ -63,7 +65,7 @@ spec and plan.
 | F17 | Show the network growing (Lines and Stations in service) | P1 | S–M | done fb732cc | |
 | F15 | Paint a Line only as far as it is served | P1 | M | done d5dd5ca | |
 | F9 | A sound for the Green wave | P1 | S | done a28dbf4 | |
-| F11 | A real moment when a crowd surge is cleared | P1 | M | open | |
+| F11 | A real moment when a crowd surge is cleared | P1 | M | done c9bba76, cfa3358 | |
 | F19 | Celebrate a new Line joining the network | P1 | M | done 0f5bf3a | F4, F15 |
 | F22 | Tips point at the train they are about (bunching, late) | P1 | L | done d470e0a..2042dbd | |
 | F23 | Tip card is trapped in the typing panel; panel text shows through | P1 | S | done 48996dc | |
@@ -493,6 +495,32 @@ reduced motion still.
 in on the Incident while its fix is typed and out when it clears. What is
 left here is the burst, the stamp and the sound.
 
+**Done (2026-10-28, direction A).** The user saw three animated directions
+(A: the count rides in the typing panel; B: a crowd standing on the map
+before the clear, with a ring, a "Crowd cleared" stamp and a green card;
+C: a queue of people in the panel) and chose A, their own idea.
+[Design](specs/2026-10-28-dispatcher-crowd-clear-design.md),
+[plan](plans/2026-10-28-dispatcher-crowd-clear.md).
+
+- `c9bba76`: while the prompt holds a surge's fix, `LiveCrowd`
+  (`CrowdMeter.tsx`) shows "N waiting" with a person figure in the typing row,
+  live, amber at `PLATFORM_CAPACITY` (55) or more. On the clear,
+  `ClearedCrowd` shows the drop (old count slides out, new one in), "−K" and,
+  for screen readers, one status line, in green, for `DISPERSAL_MS`. Aiming
+  another surge fix shows its live count instead. The map dispersal is bigger
+  and slower: 6 to 12 people, farther, over 1.3 s, and the pop holds 1.8 s
+  (was 1.1 s).
+- `cfa3358`: `sound.disperse`, a quick falling C6–G5–E5–C5, plays on a
+  surge's clear in place of `sound.arrive`. No ticks while typing (every key
+  already ticks).
+
+Calls I made (check in playtest 3): amber at 55; the timings; the live count
+winning over a clear; no tick sound. Seen live at 1280 × 800 (scripted keys,
+Shift 2, Bangsar): 21 → 25 → 39 waiting while the fix was aimed; on the
+clear 39 → 19, "−20" in green, 6 people on the map, gone by 1.95 s; an
+unfixed surge's count leaves the row when its Station closes. Not seen live:
+the amber state (unit tested), the sound, phone width, reduced motion.
+
 ### F19. Celebrate a new Line joining
 
 **Reported (nice to have):** when a new Line joins (e.g. the Kajang Line for
@@ -892,6 +920,9 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   noticeable badge/chime for a new Line? Is ignoring typing during the
   800 ms Expansion reveal comfortable? Check shared track, growth counts,
   muted sound and reduced motion with no input wait.
+- **Crowd cleared (F11).** Type a crowd surge's fix: does the count in the
+  typing row make the clear feel like a moment? Is amber at 55 right? Does the
+  release sound land? Does the panel row fit at phone width?
 - **Close camera (F27).** It is on by default now. On the dev server, switch
   Close camera off and on in the dev panel (bottom left) to compare. Does each close view draw your eye to the
   right thing, and does it still feel special by the tenth Incident, or does
