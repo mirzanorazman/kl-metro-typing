@@ -94,11 +94,15 @@ const UNRANKED_NOTE = "Mid-Shift, it won't be ranked. Clear the Shift to keep yo
 /**
  * A one-time tip. A running Career is paused while it shows; Enter or a click
  * dismisses it. Other keys are dropped, so a Station name typed by mistake
- * never dismisses a tip unread.
+ * never dismisses a tip unread. It stands in the typing panel's place, which
+ * hides while it shows, so the map it points at stays in view.
  */
-function TipCard({ id, onDismiss }: { id: DispatchTipId; onDismiss: () => void }) {
+function TipCard({ id, lineColour, onDismiss }: {
+  id: DispatchTipId; lineColour: string | null; onDismiss: () => void;
+}) {
   return (
-    <div className="dispatch-paused dispatch-tip" role="dialog" aria-label="Tip">
+    <div className="play-panel dispatch-tip" role="dialog" aria-label="Tip"
+      style={lineColour ? ({ '--line-colour': lineColour } as CSSProperties) : undefined}>
       <p>{dispatchTipText(id)}</p>
       <button type="button" onClick={onDismiss}>
         <kbd>Enter</kbd> Got it
@@ -157,7 +161,7 @@ function ShiftBar({ career, lines, stations, grown, closed, slots, fresh }: {
 }
 
 /** The panels floating over the Dispatcher's map: the top bar, the Incidents panel and the typing panel. */
-const PANELS = ['.dispatch-bar', '.dispatch-side', '.play-panel'] as const;
+const PANELS = ['.dispatch-bar', '.dispatch-side', '.play-panel', '.dispatch-tip'] as const;
 
 const sameRects = (a: readonly ScreenRect[], b: readonly ScreenRect[]) => a.length === b.length
   && a.every((r, i) => ['x', 'y', 'w', 'h'].every((k) =>
@@ -661,7 +665,7 @@ export function DispatcherScreen({
 
   return (
     <div className="dispatcher" ref={rootRef} data-urgent={urgent ? 'true' : undefined}
-      data-paused={paused ? 'true' : undefined}>
+      data-paused={paused ? 'true' : undefined} data-tip={tips.length > 0 ? 'true' : undefined}>
       <PlayLayout
         lineColour={lineColour}
         map={
@@ -759,11 +763,6 @@ export function DispatcherScreen({
                 )}
               </>
             )}
-            {tips.length > 0 ? (
-              <TipCard key={tips[0]} id={tips[0]!} onDismiss={dismissTip} />
-            ) : (
-              run.status === 'paused' && <PauseOverlay onResume={() => act({ a: 'resume' })} />
-            )}
           </>
         }
       />
@@ -777,6 +776,13 @@ export function DispatcherScreen({
       {import.meta.env.DEV && (
         <DispatchCameraPanel settings={camera} onChange={setCamera} stations={served.size}
           closenessNow={near} />
+      )}
+      {/* Outside the typing panel: its transform and backdrop-filter would make it the
+          containing block, trapping a card inside it with its text showing through. */}
+      {tips.length > 0 ? (
+        <TipCard key={tips[0]} id={tips[0]!} lineColour={lineColour} onDismiss={dismissTip} />
+      ) : (
+        run.status === 'paused' && <PauseOverlay onResume={() => act({ a: 'resume' })} />
       )}
     </div>
   );

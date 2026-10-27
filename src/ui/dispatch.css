@@ -863,6 +863,15 @@
 
 /* ---- Tips ---- */
 
+/* A Tip stands in the typing panel's place, opaque to it, so the map it points
+   at stays in view; the panel keeps its size so chips do not move. */
+.dispatcher[data-tip='true'] .play > .play-panel { visibility: hidden; }
+
+.dispatch-tip {
+  align-items: center;
+  z-index: 10;
+}
+
 .dispatch-tip p {
   max-width: 32ch;
   margin: 0;

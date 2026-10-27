@@ -2195,6 +2195,38 @@ describe('Leaning in on an Incident fix', () => {
     expect(root(container).getAttribute('data-urgent')).toBe('true');
   });
 
+  // The typing panel is a containing block for fixed children (transform, backdrop-filter),
+  // so a card inside it covered only the panel, with the panel's text showing through.
+  it('the Pause dialog sits outside the typing panel, over the whole screen', () => {
+    const { container } = renderShift(surgeWithWaiting());
+    type('C');
+    press('Escape');
+    const paused = screen.getByRole('dialog', { name: 'Paused' });
+    expect(paused.closest('.play-panel')).toBeNull();
+    expect(paused.parentElement).toBe(root(container));
+  });
+
+  it('a Tip stands in the typing panel\'s place, and the panel hides while it shows', () => {
+    seenTips(ALL_TIPS.filter((id) => id !== 'out-of-service'));
+    const clock = fakeClock();
+    const initial = surgeWithWaiting();
+    initial.sim.platforms[idOf('KLCC')] = {
+      waiting: { [idOf('KL Sentral')]: 200 }, fullMs: OOS_CROWD_MS - 100, lastCall: {},
+    };
+    const { container } = renderShift(initial);
+    type('C');
+    clock.now += 100;
+    type('r');
+    const tip = screen.getByRole('dialog', { name: 'Tip' });
+    expect(tip.closest('.play')).toBeNull();
+    expect(tip.classList.contains('play-panel')).toBe(true);
+    expect(root(container).getAttribute('data-tip')).toBe('true');
+    press('Enter');
+    expect(root(container).getAttribute('data-tip')).toBeNull();
+    const css = readFileSync('src/ui/dispatch.css', 'utf8');
+    expect(css).toMatch(/\.dispatcher\[data-tip='true'\] \.play > \.play-panel\s*\{[^}]*visibility:\s*hidden/);
+  });
+
   it('the edge pulse and the glow hold still under reduced motion', () => {
     const css = readFileSync('src/ui/dispatch.css', 'utf8');
     expect(css).toMatch(/\.dispatcher\[data-urgent='true'\]::after\s*\{[^}]*animation:\s*urgent-edge/);
@@ -2489,11 +2521,11 @@ describe('Chips and the panels over the map', () => {
     const { container } = renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
     const free = onScreen(container, 'Jelatek');
     const grown = { x: free.x0 - 20, y: free.y0 - 10, w: free.x1 - free.x0 + 40, h: 690 - free.y0 };
-    // The typing panel is a strip at the bottom until it holds the Pause dialog.
+    // The typing panel is a strip at the bottom until a render grows it: here, the one that pauses.
     const full = Element.prototype.getBoundingClientRect;
     Element.prototype.getBoundingClientRect = function (this: Element) {
       if (!this.matches('.play-panel')) return full.call(this);
-      const r = this.querySelector('.dispatch-paused') ? grown : { x: 100, y: 670, w: 300, h: 20 };
+      const r = document.querySelector('.dispatch-paused') ? grown : { x: 100, y: 670, w: 300, h: 20 };
       return { x: r.x, y: r.y, left: r.x, top: r.y, right: r.x + r.w, bottom: r.y + r.h,
         width: r.w, height: r.h, toJSON: () => ({}) } as DOMRect;
     };
