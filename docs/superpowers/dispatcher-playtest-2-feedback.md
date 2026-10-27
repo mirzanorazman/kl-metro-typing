@@ -76,6 +76,7 @@ spec and plan.
 | F24 | Service gap trigger: count a pair only while its front train moves? | Parked | M | parked | F22 |
 | F25 | "Reset train at" can name a Signal the train has passed | P2 | S | not a bug (2026-10-28) | |
 | F26 | Service gap card sits at the Station left behind but names the next Signal | P2 | S | watch in playtest | F22 |
+| F29 | A platform overflowing with no Incident gives no warning and no way to act on it | Parked | M–L | parked | F16 |
 
 **P0** is broken or blocks a normal session; do these next, roughly in this
 order. **P1** is what a first-time player needs to understand and feel the
@@ -799,6 +800,47 @@ behind, which closes if it escalates) but reads "Hold at <next Signal>", so
 the map can show "Hold at Kampung Baru" beside KLCC. The spec allows it.
 Watch in the playtest whether it confuses; if it does, move the chip to the
 Signal named, or say both in the text.
+
+### F29. Platform overflow: no warning, no direct way to act
+
+**Raised by the user (2026-10-28)** while designing F11; parked to explore
+later. Closely tied to F16 item 3 (what to prioritise when it's busy).
+
+**How a Station closes, today.** Two ways only: an Incident left unfixed for
+`INCIDENT_LIMIT_MS` (17 s), or **crowding**: 55 or more waiting
+(`PLATFORM_CAPACITY`) for 19 s straight (`OOS_CROWD_MS`). The 19 s start over
+the moment the crowd drops below 55 (`closeCrowdedPlatforms`). Crowding is how
+a player who keeps typing loses: the scripted 60 WPM typist's failures are
+mostly crowding in the Evening peak, and playtest 2's cascade of 12 closures
+was crowding, not Incidents.
+
+**What the player sees: nothing until it closes.** Only a crowd surge's card
+shows a waiting count. A filling platform has no number, colour or sound
+(F7 dropped the "platform over half full" music cue because it played 35–46 %
+of the time). The first sign is the closure stamp and the gauge.
+
+**Is it fixable? In principle, yes.** Only Trains drain a platform: a call
+boards up to `TRAIN_CAPACITY` (100) minus the load, of those heading its way.
+Trains move only when the player clears their Signal, so overflow means a
+backlog of uncleared Signals short of the Station ("a hub starved by a
+backlog of Signals closes", handover). In practice the player:
+
+1. cannot see which Station is filling, or how long it has;
+2. has nothing to type for the Station itself, only for Trains, so has to
+   work out which Trains are heading there and clear each in turn;
+3. may need a Train each way, since a Train takes only people going its way.
+
+**Measure before designing** (scripted typists, `dispatchDrive.testutil`):
+
+- **Preventable?** For each crowding closure, how many Trains waited at
+  Signals within a few Stations upstream in its last 19 s.
+- **Noise?** How often a platform sits at 55 or more without closing, so a
+  warning is a signal and not constant noise (the F7 trap).
+
+**Ideas to weigh after that:** a platform-fill mark or count on the map past
+capacity, counting down its 19 s; chips of Trains heading to it marked
+urgent (F16's ageing chip); a typed "relieve" action. Each changes balance or
+the typing load and needs the survey rerun.
 
 ### F13. The full-size map (`?dispatch=full`)
 
