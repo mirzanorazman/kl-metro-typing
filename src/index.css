@@ -219,9 +219,9 @@ body {
 .line-picker button:has(.line-badge) {
   grid-template-columns: auto 2.5rem 1fr auto;
 }
-/* The printed shortcut key. Same tablet as `.junction kbd`, so the home menu
-   and the direction chooser advertise their keys identically. */
-.line-picker kbd, .hint kbd {
+/* The printed shortcut key: one chip everywhere — the home menu, hints, the
+   direction chooser and Dispatcher's buttons — so a key always looks like a key. */
+kbd {
   padding: 0 0.4em; border: 1px solid var(--panel-edge); border-radius: 4px;
   color: var(--ink-muted); font: var(--t-xs) var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -372,10 +372,6 @@ body {
   box-shadow: 0 0 24px -6px var(--line-colour, transparent);
 }
 .junction button:hover, .junction button:focus-visible { border-color: var(--focus-ring); }
-.junction kbd {
-  padding: 0 0.4em; border: 1px solid var(--panel-edge); border-radius: 4px;
-  color: var(--ink-muted); font: var(--t-xs) var(--font-mono);
-}
 
 .station-search input {
   width: 100%; padding: var(--s2); font: inherit; color: var(--ink);

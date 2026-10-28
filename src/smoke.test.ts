@@ -36,6 +36,13 @@ describe('toolchain', () => {
     );
   });
 
+  it('draws every printed key as the same chip, wherever it appears', () => {
+    expect(indexCss).toMatch(/(^|\n)kbd\s*\{[^}]*border:\s*1px solid var\(--panel-edge\);[^}]*font:\s*var\(--t-xs\) var\(--font-mono\);/);
+    // One rule, not per-surface copies that leave new surfaces (Dispatcher) bare.
+    expect(indexCss).not.toMatch(/\.junction kbd\s*\{/);
+    expect(indexCss).not.toMatch(/\.line-picker kbd, \.hint kbd\s*\{/);
+  });
+
   it('lights a home card on hover, as the old menu rows did', () => {
     expect(indexCss).toMatch(/\.mode-card:has\(button:hover\)\s*\{[^}]*border-color:\s*var\(--focus-ring\);/);
   });
