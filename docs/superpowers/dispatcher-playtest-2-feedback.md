@@ -10,8 +10,9 @@ are done (F1, F3, F6, F7, F18; F2, F5, F8, F9, F14, F17), and so are F20,
 F22 and F27 (close camera on by default, with a development tuning panel).
 F21 is set aside. F15/F4/F19 are implemented and verified, and so is F28
 (tips close with Enter only). F23 and F11 are done (2026-10-28), so every P0
-and P1 item is done or set aside. F25 was closed as not a bug, and F29
-(platform overflow) is parked.
+and P1 item is done or set aside. F25 was closed as not a bug. F29
+(platform overflow) was revisited and designed as a crowding hint for
+playtest 3, and F30 (camera at a failed Shift) is parked.
 `feat/dispatcher` was merged to `main` on 2026-10-27 at the user's request,
 before playtest 3; see "Check in playtest 3" at the end.
 
@@ -78,7 +79,8 @@ spec and plan.
 | F24 | Service gap trigger: count a pair only while its front train moves? | Parked | M | parked | F22 |
 | F25 | "Reset train at" can name a Signal the train has passed | P2 | S | not a bug (2026-10-28) | |
 | F26 | Service gap card sits at the Station left behind but names the next Signal | P2 | S | watch in playtest | F22 |
-| F29 | A platform overflowing with no Incident gives no warning and no way to act on it | Parked | M–L | parked | F16 |
+| F29 | A platform overflowing with no Incident gives no warning and no way to act on it | P1 | M | designed 2026-10-28 | |
+| F30 | When a Shift fails, the camera moves to the last Station that closed | Parked | S–M | parked | F20 |
 
 **P0** is broken or blocks a normal session; do these next, roughly in this
 order. **P1** is what a first-time player needs to understand and feel the
@@ -869,6 +871,32 @@ backlog of Signals closes", handover). In practice the player:
 capacity, counting down its 19 s; chips of Trains heading to it marked
 urgent (F16's ageing chip); a typed "relieve" action. Each changes balance or
 the typing load and needs the survey rerun.
+
+**Revisited and designed (2026-10-28).** A replay of Shifts 1–2 (4 typists,
+20 seeds) answered both measures. 127 of 163 crowding closures were Masjid
+Jamek or KLCC in the Evening peak. In 72 % no Train called in the last 19 s,
+and about one Train was Held within three Stations heading there, so most
+closures can be prevented. Some cannot: Titiwangsa and PWTC in Shift 2, even
+at 90 WPM. Noise: some platform is at 55 or more for 28–39 % of running time.
+The user wants players to see what went wrong and do better next Shift, not to
+save every Station. They chose a presentation-only crowding hint, switchable
+in the dev panel for playtest 3: A, amber Signal chips on the Trains that
+would relieve a crowded Station; B, A plus a ring on the Station that follows
+today's reset rule. A Declutter switch hides Station labels with no Held
+Train. They dropped an Overcrowding Incident card and kept the closure rule
+(no slow drain). [Design](specs/2026-10-28-dispatcher-crowding-hint-design.md).
+The camera at a failed Shift is parked as F30.
+
+### F30. A failed Shift's camera moves to the last closed Station
+
+**Raised by the user (2026-10-28)** while revisiting F29, from Mini Metro: at
+game over its camera moves to the station that failed, so the player sees how
+it happened. Parked for later.
+
+**Context for then:** a failed Shift already holds the play view 1.2 s before
+its summary (F20: full gauge, the last stamp, the heaviest thud). The camera
+could frame the last closed Station and its neighbours in that hold, with the
+close camera (F27). Reduced motion: cut, or keep the camera still.
 
 ### F13. The full-size map (`?dispatch=full`)
 

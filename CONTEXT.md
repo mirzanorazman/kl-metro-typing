@@ -170,6 +170,17 @@ _Avoid_: bunching incident
 **Out of service**:
 A Station or stretch that has collapsed and no longer carries Passengers.
 
+**Signal chip**:
+The boxed Station name beside a Held Train on the Dispatcher map; typing it
+Clears that Train's Signal. An express offer has a skip chip, and an Incident's
+fix a fix chip.
+_Avoid_: prompt, tag, label (for a chip)
+
+**Station label**:
+A Station's name printed beside its mark on the map. It names the Station and
+is never typed.
+_Avoid_: chip (for a label)
+
 **Served network**:
 The Stations and Lines the Career currently operates.
 
