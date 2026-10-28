@@ -21,3 +21,21 @@
   color: var(--ink-muted);
   font-size: 0.9rem;
 }
+
+/* The drawn card, shown on a summary in place of the stats it carries. It
+   shrinks before anything else so a short screen keeps its buttons; the image
+   letterboxes rather than crops. The placeholder holds the same square. */
+.share-preview {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: 60dvh;
+  min-height: 0;
+  flex: 0 1 auto;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+div.share-preview {
+  background: var(--paper-sub);
+}

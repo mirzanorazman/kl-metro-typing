@@ -132,6 +132,11 @@ function nativeInput(value: string) {
   return input;
 }
 
+/** Lets a completed summary learn its card cannot be drawn here, so the stats show. */
+async function settleCard() {
+  await act(async () => {});
+}
+
 function tickAt(nextNow: number) {
   now = nextNow;
   act(() => vi.advanceTimersByTime(100));
@@ -308,7 +313,7 @@ describe('QuickRunScreen', () => {
     expect(container.querySelector('.quick-run-map')?.getAttribute('data-jumping')).toBe('false');
   });
 
-  it('consumes each jump draw once under StrictMode when a native batch crosses the Terminus', () => {
+  it('consumes each jump draw once under StrictMode when a native batch crosses the Terminus', async () => {
     const random = vi.fn().mockReturnValue(0.999);
     const replayer = vi.spyOn(replay, 'replayQuickRun');
     renderQuick({ random, strict: true });
@@ -321,6 +326,8 @@ describe('QuickRunScreen', () => {
     expect(screen.getByLabelText('Type Gombak').querySelector('[data-state="done"]')?.textContent).toBe('G');
     expect(loadProfile().visited).toEqual(expect.arrayContaining(['raja-chulan', 'titiwangsa']));
     tickAt(now + QUICK_RUN_MS);
+    // The stats stand in for a card the test DOM cannot draw, once that is known.
+    await settleCard();
     expect(stat('Stations completed')).toBe('5');
     expect(replayer).toHaveBeenCalledTimes(1);
     expect(replayer.mock.calls[0]![1].trace.legs).toEqual([
@@ -434,12 +441,13 @@ describe('QuickRunScreen', () => {
     expect(follow).toHaveBeenLastCalledWith(positions, 0, { behind: 1, ahead: 2 });
   });
 
-  it('replays jumped evidence and resets the leg trace, log, metrics, and announcement on Run again', () => {
+  it('replays jumped evidence and resets the leg trace, log, metrics, and announcement on Run again', async () => {
     const replayer = vi.spyOn(replay, 'replayQuickRun');
     const random = vi.fn().mockReturnValueOnce(0.999).mockReturnValue(0);
     renderQuick({ random, providerEnabled: false });
     typeToFirstJump();
     tickAt(now + QUICK_RUN_MS);
+    await settleCard();
 
     expect(stat('Lines used')).toBe('MR → KJ');
     expect(loadProfile().quickBestOverall).toBeGreaterThan(0);

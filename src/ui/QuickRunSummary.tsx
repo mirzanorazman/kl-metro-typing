@@ -40,27 +40,32 @@ export function QuickRunSummary({
         ? null
         : `Personal best: ${Math.round(personalBest)}`;
 
+  const stats = (
+    <dl>
+      <dt>Stations completed</dt>
+      <dd>{Math.round(stations)}</dd>
+      <dt>WPM</dt>
+      <dd>{Math.round(metrics.wpm)}</dd>
+      <dt>Accuracy</dt>
+      <dd>{(metrics.accuracy * 100).toFixed(1)}%</dd>
+      <dt>Score</dt>
+      <dd>{Math.round(metrics.score)}</dd>
+      <dt>Lines used</dt>
+      <dd className="quick-summary-lines">{lines.join(' → ')}</dd>
+    </dl>
+  );
+
   return (
     <section className="quick-summary">
       <h2>{status === 'completed' ? 'Quick Run complete' : 'Run interrupted'}</h2>
       <p>{`${QUICK_RUN_MS / 1000} seconds`}</p>
 
-      <dl>
-        <dt>Stations completed</dt>
-        <dd>{Math.round(stations)}</dd>
-        <dt>WPM</dt>
-        <dd>{Math.round(metrics.wpm)}</dd>
-        <dt>Accuracy</dt>
-        <dd>{(metrics.accuracy * 100).toFixed(1)}%</dd>
-        <dt>Score</dt>
-        <dd>{Math.round(metrics.score)}</dd>
-        <dt>Lines used</dt>
-        <dd className="quick-summary-lines">{lines.join(' → ')}</dd>
-      </dl>
+      {!share && stats}
 
       {resultStatus && <p role="status">{resultStatus}</p>}
       {phoneLandscape && <PhoneLandscapeBlock />}
-      {share && <ShareButton card={share} />}
+      {/* A completed Run's card already carries the stats, so it replaces them. */}
+      {share && <ShareButton card={share} showImage fallback={stats} />}
 
       <div className="quick-summary-actions">
         <button type="button" disabled={phoneLandscape} onClick={onAgain}>Run again</button>

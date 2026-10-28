@@ -1,8 +1,44 @@
 import { readFileSync } from 'node:fs';
-import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Metrics } from '../engine/metrics';
+import type { ShareCard } from '../share/shareCard';
 import { QuickRunSummary } from './QuickRunSummary';
+
+const render$ = vi.hoisted(() => ({ png: vi.fn<[], Promise<Blob | null>>() }));
+vi.mock('../share/shareResult', async (importActual) => ({
+  ...(await importActual<typeof import('../share/shareResult')>()),
+  renderCardPng: () => render$.png(),
+}));
+
+const card: ShareCard = {
+  mode: 'QUICK RUN',
+  title: '18 stations in 30 s',
+  subtitle: 'KL Monorail → Kelana Jaya',
+  lines: [],
+  stats: [
+    { label: 'WPM', value: '70' },
+    { label: 'Accuracy', value: '92%' },
+    { label: 'Score', value: '60' },
+    { label: 'Stations', value: '18' },
+  ],
+  badges: ['Verified'],
+  map: { view: { x: 0, y: 0, w: 1, h: 1 }, network: [], route: [], start: null, end: null } as unknown as ShareCard['map'],
+  text: 'I typed 18 stations',
+  fileName: 'kl-metro-quick-run.png',
+};
+
+beforeEach(() => {
+  render$.png.mockResolvedValue(new Blob(['png'], { type: 'image/png' }));
+  vi.stubGlobal('URL', Object.assign(Object.create(URL), {
+    createObjectURL: vi.fn(() => 'blob:card'),
+    revokeObjectURL: vi.fn(),
+  }));
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 const metrics: Metrics = { wpm: 51.2, accuracy: 0.968, score: 48 };
 const mobileStyles = readFileSync('src/ui/mobile.css', 'utf8');
@@ -31,6 +67,31 @@ function expectStat(label: string, value: string) {
 }
 
 describe('QuickRunSummary', () => {
+  it('shows the result card in place of the stats once it is drawn', async () => {
+    renderSummary({ share: card });
+    const image = await screen.findByRole('img', { name: /18 stations in 30 s/ });
+    expect(image.getAttribute('src')).toBe('blob:card');
+    expect(image.getAttribute('alt')).toBe(
+      'Result card: 18 stations in 30 s. KL Monorail → Kelana Jaya. WPM 70, Accuracy 92%, Score 60, Stations 18.',
+    );
+    expect(screen.queryByText('WPM', { selector: 'dt' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Save image' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Run again' })).toBeTruthy();
+  });
+
+  it('keeps the stats where the card cannot be drawn', async () => {
+    render$.png.mockResolvedValue(null);
+    renderSummary({ share: card });
+    await waitFor(() => expectStat('WPM', '51'));
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
+  it('keeps the stats for an interrupted Run, which has no card', () => {
+    renderSummary({ status: 'interrupted', share: null });
+    expectStat('WPM', '51');
+    expect(screen.queryByRole('img')).toBeNull();
+  });
+
   it('blocks Run again in phone landscape while keeping Back available', () => {
     const onAgain = vi.fn();
     const onBack = vi.fn();

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { ShareCard } from '../share/shareCard';
 import {
   canCopyImage,
@@ -20,7 +20,21 @@ type Image = { status: 'drawing' } | { status: 'ready'; blob: Blob; file: File }
  * opens the share sheet straight from a tap, and waiting for a canvas to
  * encode first can cost the tap its permission.
  */
-export function ShareButton({ card }: { card: ShareCard }) {
+/** What the card says, for the image's alt text: it stands in for the stats it replaces. */
+function cardAlt(card: ShareCard): string {
+  const stats = card.stats.map((s) => `${s.label} ${s.value}`).join(', ');
+  return `Result card: ${card.title}. ${card.subtitle}. ${stats}.`;
+}
+
+export interface ShareButtonProps {
+  card: ShareCard;
+  /** Show the drawn card above the buttons. */
+  showImage?: boolean;
+  /** Shown instead, when `showImage` is set and the card cannot be drawn. */
+  fallback?: ReactNode;
+}
+
+export function ShareButton({ card, showImage = false, fallback = null }: ShareButtonProps) {
   // Callers rebuild the card on every render; only a changed card is redrawn.
   const key = useMemo(() => JSON.stringify(card), [card]);
   const latest = useRef(card);
@@ -28,6 +42,18 @@ export function ShareButton({ card }: { card: ShareCard }) {
 
   const [image, setImage] = useState<Image>({ status: 'drawing' });
   const [message, setMessage] = useState<string | null>(null);
+
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const readyBlob = image.status === 'ready' ? image.blob : null;
+  useEffect(() => {
+    if (!showImage || !readyBlob) return undefined;
+    const url = URL.createObjectURL(readyBlob);
+    setImageUrl(url);
+    return () => {
+      URL.revokeObjectURL(url);
+      setImageUrl(null);
+    };
+  }, [showImage, readyBlob]);
 
   useEffect(() => {
     let live = true;
@@ -44,13 +70,17 @@ export function ShareButton({ card }: { card: ShareCard }) {
     };
   }, [key]);
 
-  if (image.status === 'none') return null;
+  if (image.status === 'none') return <>{showImage ? fallback : null}</>;
 
   if (image.status === 'drawing') {
     return (
-      <div className="share-result">
-        <button type="button" disabled>Preparing image…</button>
-      </div>
+      <>
+        {/* Holds the card's square, so the summary does not jump when it lands. */}
+        {showImage && <div className="share-preview" aria-hidden="true" />}
+        <div className="share-result">
+          <button type="button" disabled>Preparing image…</button>
+        </div>
+      </>
     );
   }
 
@@ -59,6 +89,8 @@ export function ShareButton({ card }: { card: ShareCard }) {
   const copy = !sheet && canCopyImage();
 
   return (
+    <>
+    {showImage && imageUrl && <img className="share-preview" src={imageUrl} alt={cardAlt(latest.current)} />}
     <div className="share-result">
       {sheet && (
         <button
@@ -97,5 +129,6 @@ export function ShareButton({ card }: { card: ShareCard }) {
       </button>
       <p className="share-result-status" role="status">{message}</p>
     </div>
+    </>
   );
 }
