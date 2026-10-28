@@ -163,6 +163,8 @@ body {
 [data-theme='midnight'] .mode-card[data-emphasis='true'] {
   box-shadow: var(--panel-shadow), 0 0 24px -8px var(--ink-faint);
 }
+/* The buttons sit borderless on the card, so the card takes the hover ring. */
+.mode-card:has(button:hover) { border-color: var(--focus-ring); }
 .line-picker .mode-card button {
   background: none; border: 0; box-shadow: none; backdrop-filter: none;
 }

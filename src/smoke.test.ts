@@ -36,6 +36,10 @@ describe('toolchain', () => {
     );
   });
 
+  it('lights a home card on hover, as the old menu rows did', () => {
+    expect(indexCss).toMatch(/\.mode-card:has\(button:hover\)\s*\{[^}]*border-color:\s*var\(--focus-ring\);/);
+  });
+
   it('keeps standalone terminal surfaces scrollable inside the locked document', () => {
     expect(indexCss).toMatch(
       /\.summary\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/,
