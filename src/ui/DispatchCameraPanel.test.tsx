@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { DispatchCameraPanel } from './DispatchCameraPanel';
 import { CLOSE_CAMERA_DEFAULTS } from './dispatchCamera';
+import { CROWDING_HINT_DEFAULTS } from '../render/crowdingHint';
 
 describe('DispatchCameraPanel', () => {
   it('shows the settings and the readout', () => {
@@ -33,5 +34,38 @@ describe('DispatchCameraPanel controls', () => {
     render(<DispatchCameraPanel settings={CLOSE_CAMERA_DEFAULTS} onChange={() => {}} stations={14} closenessNow={3} />);
     expect(screen.queryByRole('slider', { name: 'Hold after a fix' })).toBeNull();
     expect(screen.getAllByRole('slider')).toHaveLength(2);
+  });
+});
+
+describe('DispatchCameraPanel crowding controls', () => {
+  const renderWithCrowding = (onCrowdingChange = () => {}) => render(
+    <DispatchCameraPanel settings={CLOSE_CAMERA_DEFAULTS} onChange={() => {}} stations={14} closenessNow={3}
+      crowding={CROWDING_HINT_DEFAULTS} onCrowdingChange={onCrowdingChange} />,
+  );
+
+  it('shows the crowding controls when given settings', () => {
+    renderWithCrowding();
+    expect((screen.getByRole('combobox', { name: 'Crowding hint' }) as HTMLSelectElement).value).toBe('b');
+    expect(screen.getByText('5 s')).toBeTruthy();
+    expect((screen.getByRole('checkbox', { name: 'Declutter labels' }) as HTMLInputElement).checked).toBe(false);
+  });
+
+  it('each crowding control reports the new settings', () => {
+    const onCrowdingChange = vi.fn();
+    renderWithCrowding(onCrowdingChange);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Crowding hint' }), { target: { value: 'a' } });
+    expect(onCrowdingChange).toHaveBeenLastCalledWith({ ...CROWDING_HINT_DEFAULTS, mode: 'a' });
+    fireEvent.change(screen.getByRole('slider', { name: 'Hint delay' }), { target: { value: '8' } });
+    expect(onCrowdingChange).toHaveBeenLastCalledWith({ ...CROWDING_HINT_DEFAULTS, delayMs: 8_000 });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Declutter labels' }));
+    expect(onCrowdingChange).toHaveBeenLastCalledWith({ ...CROWDING_HINT_DEFAULTS, declutter: true });
+  });
+
+  it('a used crowding control lets go of focus', () => {
+    renderWithCrowding();
+    const select = screen.getByRole('combobox', { name: 'Crowding hint' });
+    select.focus();
+    fireEvent.change(select, { target: { value: 'off' } });
+    expect(document.activeElement).not.toBe(select);
   });
 });

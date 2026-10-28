@@ -1,4 +1,10 @@
 import type { ChangeEvent, KeyboardEvent, PointerEvent } from 'react';
+import {
+  CROWDING_DELAY_RANGE,
+  CROWDING_DELAY_STEP,
+  type CrowdingHintMode,
+  type CrowdingHintSettings,
+} from '../render/crowdingHint';
 import { CLOSE_RANGES, type CloseCameraSettings } from './dispatchCamera';
 
 interface DispatchCameraPanelProps {
@@ -8,6 +14,9 @@ interface DispatchCameraPanelProps {
   stations: number;
   /** The closeness the camera uses now, for the readout. */
   closenessNow: number;
+  /** The crowding hint's settings; its controls show only when these are given. */
+  crowding?: CrowdingHintSettings;
+  onCrowdingChange?: (next: CrowdingHintSettings) => void;
 }
 
 // A used control lets go of focus, so the next key is the game's again.
@@ -24,8 +33,10 @@ const keepKeys = (e: KeyboardEvent<HTMLElement>) => {
   else if (e.target instanceof HTMLElement) e.target.blur();
 };
 
-/** Dev only: tunes the close camera while playing. */
-export function DispatchCameraPanel({ settings, onChange, stations, closenessNow }: DispatchCameraPanelProps) {
+const CROWDING_MODES: readonly [CrowdingHintMode, string][] = [['off', 'Off'], ['a', 'A: amber chips'], ['b', 'B: chips and ring']];
+
+/** Dev only: tunes the close camera and the crowding hint while playing. */
+export function DispatchCameraPanel({ settings, onChange, stations, closenessNow, crowding, onCrowdingChange }: DispatchCameraPanelProps) {
   const slider = (key: 'early' | 'late', label: string, step: number, shown: string) => (
     <label className="dispatch-camera-row">
       <span>{label}</span>
@@ -48,6 +59,37 @@ export function DispatchCameraPanel({ settings, onChange, stations, closenessNow
       {slider('early', 'Early closeness', 0.1, `${settings.early.toFixed(1)}×`)}
       {slider('late', 'Late closeness', 0.1, `${settings.late.toFixed(1)}×`)}
       <p className="dispatch-camera-now">{`Now ${closenessNow.toFixed(1)}× at ${stations} Stations`}</p>
+      {crowding && onCrowdingChange && (
+        <fieldset className="dispatch-camera-group">
+          <legend>Crowding</legend>
+          <label className="dispatch-camera-row">
+            <span>Crowding hint</span>
+            <select aria-label="Crowding hint" value={crowding.mode}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                onCrowdingChange({ ...crowding, mode: e.target.value as CrowdingHintMode });
+                e.target.blur();
+              }}>
+              {CROWDING_MODES.map(([mode, text]) => <option key={mode} value={mode}>{text}</option>)}
+            </select>
+          </label>
+          <label className="dispatch-camera-row">
+            <span>Hint delay</span>
+            <input type="range" aria-label="Hint delay" min={CROWDING_DELAY_RANGE[0] / 1_000} max={CROWDING_DELAY_RANGE[1] / 1_000}
+              step={CROWDING_DELAY_STEP / 1_000} value={crowding.delayMs / 1_000}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => onCrowdingChange({ ...crowding, delayMs: Number(e.target.value) * 1_000 })}
+              onPointerUp={letGo} />
+            <output>{`${crowding.delayMs / 1_000} s`}</output>
+          </label>
+          <label className="dispatch-camera-row">
+            <input type="checkbox" checked={crowding.declutter}
+              onChange={(e) => {
+                onCrowdingChange({ ...crowding, declutter: e.target.checked });
+                e.target.blur();
+              }} />
+            <span>Declutter labels</span>
+          </label>
+        </fieldset>
+      )}
     </aside>
   );
 }
