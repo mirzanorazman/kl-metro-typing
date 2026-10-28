@@ -4,7 +4,7 @@ import { crowdAt, type SimState } from '../engine/dispatchSim';
 import type { Target } from '../engine/dispatchTargets';
 import type { NetworkIndex } from '../engine/network';
 
-/** Off, or the crowded Station's ring alone (a), or the ring with the Trains that relieve it (b). */
+/** Off, or amber Signal chips on the Trains that relieve a crowded Station (a), or those chips and a ring on the Station (b). */
 export type CrowdingHintMode = 'off' | 'a' | 'b';
 export interface CrowdingHintSettings { mode: CrowdingHintMode; delayMs: number; declutter: boolean }
 

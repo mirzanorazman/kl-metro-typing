@@ -899,8 +899,9 @@ with a Held Train, and Incident places. Nothing shows between Shifts, after
 one, or in the lesson.
 
 Probe (`src/ui/crowdingHintProbe.test.ts`, opt-in with `DISPATCH_PROBE=1`): 60
-WPM at 96 %, seeds 1–5, 30 minutes, delay 5 s, weighted by Shift time. A
-closure counts as warned if any amber chip showed in its last 14 s. The
+WPM at 96 %, seeds 1–5, 30 minutes, delay 5 s. "Ring showing" is a share of
+Shift time; the ring and chip means are per sample, over the samples with a
+ring showing, not weighted by time. A closure counts as warned if any amber chip showed in its last 14 s. The
 closure that ends a failed Career is counted too.
 
 | Band | Running | Ring showing | Rings, when any | Amber chips, when a ring shows | Crowding closures warned |
@@ -941,6 +942,14 @@ Open from the browser check:
   typing panel at 1280 × 800 ("Type a waiting Station's name" is cut off).
 
 A final review and a fix wave follow; F29 is not done until they land.
+
+Fix wave (2026-10-28, after the final review): a ringed Station keeps its own
+label, set out past its ring and clear of its count, while other names still
+keep off the ring; the ring radius went from 11 to 15 and the count font from
+10 to 12, with a paper halo; the ring's clearance for other names shrank to
+its outer edge plus a margin; the Crowding group in the dev panel folds to one
+row ("Crowding: B · 5 s"), closed by default; and the hint, Declutter included,
+is off during the Shift-entry reveal.
 
 ### F30. A failed Shift's camera moves to the last closed Station
 

@@ -3095,6 +3095,21 @@ describe('the crowding hint on the screen', () => {
     expect(mapProps().labelOnly ?? null).toBeNull();
   });
 
+  it('stays out of the Shift-entry reveal, whose names Declutter would hide', () => {
+    setHint({ declutter: true });
+    seenTips(ALL_TIPS);
+    allowMotion();
+    vi.useFakeTimers();
+    const clock = fakeClock();
+    renderLesson();
+    expect(mapProps().trackReveal).not.toBeNull();
+    expect(mapProps().labelOnly ?? null).toBeNull();
+    clock.now += 1000;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(mapProps().trackReveal).toBeNull();
+    expect(mapProps().labelOnly).not.toBeNull();
+  });
+
   it('stays out of the guided lesson', () => {
     setHint({ declutter: true });
     fresh();

@@ -644,9 +644,10 @@ export function DispatcherScreen({
   const labelled = dispatchLabelled(net, shown, visited, targets);
   // The crowding hint: Stations whose platform has been full past the delay get
   // a ring, and the Trains that could relieve them an amber chip. It shows only
-  // during a Shift of the Career, never between Shifts or in the lesson. Declutter
-  // then draws only the names of the Stations in play.
-  const hintOn = hintLive(shown.status, lesson != null);
+  // during a Shift of the Career, never between Shifts, in the lesson or while a
+  // reveal introduces the network's names. Declutter then draws only the names
+  // of the Stations in play.
+  const hintOn = hintLive(shown.status, lesson != null) && !reveal;
   const crowded = hintOn && crowding.mode !== 'off' ? crowdedStations(shown.sim, crowding.delayMs) : [];
   const relieving = relievingTrains(net, shown.sim, crowded, targets);
   const rings = crowding.mode === 'b' ? crowded : [];
