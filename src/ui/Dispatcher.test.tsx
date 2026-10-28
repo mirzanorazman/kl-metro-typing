@@ -30,6 +30,7 @@ import { closureText, failureText } from './dispatchTips';
 import { END_CONFIRM_MS } from './ConfirmEndButton';
 import { TypingInputProvider } from './TypingInputProvider';
 import { DISPATCH_CAMERA_KEY } from './useCloseCamera';
+import { DISPATCH_CROWDING_KEY } from './useCrowdingHint';
 import { CLOSE_CAMERA_DEFAULTS, type CloseCameraSettings } from './dispatchCamera';
 import { fitViewBox } from '../geo/fit';
 import { DISPATCH_FIT_PADDING } from '../render/dispatchLayout';
@@ -3018,5 +3019,85 @@ describe('the dev camera panel', () => {
     fireEvent.keyDown(toggle(), { key: ' ' });
     expect(screen.getByTestId('dispatch-typing').getAttribute('data-stalled')).toBeNull();
     expect(doneKeys()).toBe(1);
+  });
+});
+
+describe('the crowding hint on the screen', () => {
+  afterEach(() => { vi.useRealTimers(); });
+  const setHint = (over: Record<string, unknown> = {}) => localStorage.setItem(
+    DISPATCH_CROWDING_KEY, JSON.stringify({ mode: 'b', delayMs: 0, declutter: false, ...over }));
+  /** KLCC has been full for a while; Train 1 waits one block short of it, Train 2 is far from it. */
+  const crowdedCareer = () => {
+    const initial = careerWith([waiting(1, 'KJ', 'Ampang Park'), waiting(2, 'KJ', 'Kerinchi', -1)]);
+    initial.sim.platforms[idOf('KLCC')] = { waiting: { [idOf('KL Sentral')]: 200 }, fullMs: 3_000, lastCall: {} };
+    return initial;
+  };
+  const rings = () => screen.queryAllByTestId('crowding-ring');
+  const relieving = () => document.querySelectorAll('[data-relieve]');
+  const hintSelect = () => screen.getByRole('combobox', { name: 'Crowding hint' }) as HTMLSelectElement;
+
+  it('rings a crowded Station and marks the Trains that relieve it', () => {
+    setHint();
+    renderShift(crowdedCareer());
+    expect(rings().map((r) => r.getAttribute('data-station'))).toEqual([idOf('KLCC')]);
+    expect([...relieving()].map((el) => el.textContent)).toEqual(['Ampang Park']);
+  });
+
+  it('draws nothing with the hint Off', () => {
+    setHint({ mode: 'off' });
+    renderShift(crowdedCareer());
+    expect(rings()).toHaveLength(0);
+    expect(relieving()).toHaveLength(0);
+  });
+
+  it('mode A marks the Trains without a ring', () => {
+    setHint({ mode: 'a' });
+    renderShift(crowdedCareer());
+    expect(rings()).toHaveLength(0);
+    expect(relieving().length).toBeGreaterThan(0);
+  });
+
+  it('waits out the delay before it shows', () => {
+    setHint({ delayMs: 5_000 });
+    renderShift(crowdedCareer());
+    expect(rings()).toHaveLength(0);
+  });
+
+  it('is switched from the dev panel', () => {
+    setHint();
+    renderShift(crowdedCareer());
+    expect(rings()).toHaveLength(1);
+    fireEvent.change(hintSelect(), { target: { value: 'off' } });
+    expect(rings()).toHaveLength(0);
+    expect(relieving()).toHaveLength(0);
+  });
+
+  it('Declutter limits the map labels to the Stations in play, ring included', () => {
+    setHint({ declutter: true });
+    renderShift(crowdedCareer());
+    const only = mapProps().labelOnly!;
+    expect(only.has(idOf('KLCC'))).toBe(true);
+    expect(only.has(idOf('Ampang Park'))).toBe(true);
+    expect(only.has(idOf('Jelatek'))).toBe(false);
+  });
+
+  it('leaves every label alone with Declutter off', () => {
+    setHint();
+    renderShift(crowdedCareer());
+    expect(mapProps().labelOnly ?? null).toBeNull();
+  });
+
+  it('stays out of the guided lesson', () => {
+    setHint({ declutter: true });
+    fresh();
+    allowMotion();
+    vi.useFakeTimers();
+    const clock = fakeClock();
+    renderLesson();
+    clock.now += 1000;
+    act(() => vi.advanceTimersByTime(1000));
+    expect(mapProps().fitKey).toBe('dispatch:lesson');
+    expect(rings()).toHaveLength(0);
+    expect(mapProps().labelOnly ?? null).toBeNull();
   });
 });

@@ -33,6 +33,7 @@ import { candidates, sameRef, visibleTargets, type Target } from '../engine/disp
 import type { TypingState } from '../engine/typing';
 import { closeFrame } from '../geo/fit';
 import { networkLayout } from '../geo/networkLayout';
+import { crowdedStations, declutteredLabels, hintLive, relievingTrains } from '../render/crowdingHint';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import {
   DISPATCH_FIT_PADDING, DISPATCH_LANE_PX, DISPATCH_MIN_MARK_PX, dispatchLabelled, overlayFrame, overlayObstacles,
@@ -61,6 +62,7 @@ import { PlayLayout } from './PlayLayout';
 import { useGameInput } from './TypingInputProvider';
 import { lessonCaption, useDispatchLesson } from './useDispatchLesson';
 import { useCloseCamera } from './useCloseCamera';
+import { useCrowdingHint } from './useCrowdingHint';
 import { useDispatchReveal } from './useDispatchReveal';
 import { useFailHold } from './useFailHold';
 import { runTick, useRunRecorder } from './useRunRecorder';
@@ -298,6 +300,8 @@ export function DispatcherScreen({
 
   // The close camera, tuned from the dev camera panel (development only).
   const [camera, setCamera] = useCloseCamera();
+  // The crowding hint, switched from the same panel (development only).
+  const [crowding, setCrowding] = useCrowdingHint();
 
   // Tips: the seen list is read once; a tip is marked seen when it is shown.
   const seenTips = useRef(new Set(loadProfile().dispatchTipsSeen ?? []));
@@ -638,6 +642,16 @@ export function DispatcherScreen({
   const lean = fixing && !prefersReducedMotion() ? leanIn(net, shown.sim, fixing, targets, served) : null;
   const visited = lessonServed ?? served;
   const labelled = dispatchLabelled(net, shown, visited, targets);
+  // The crowding hint: Stations whose platform has been full past the delay get
+  // a ring, and the Trains that could relieve them an amber chip. It shows only
+  // during a Shift of the Career, never between Shifts or in the lesson. Declutter
+  // then draws only the names of the Stations in play.
+  const hintOn = hintLive(shown.status, lesson != null);
+  const crowded = hintOn && crowding.mode !== 'off' ? crowdedStations(shown.sim, crowding.delayMs) : [];
+  const relieving = relievingTrains(net, shown.sim, crowded, targets);
+  const rings = crowding.mode === 'b' ? crowded : [];
+  const labelOnly = hintOn && crowding.declutter
+    ? declutteredLabels(net, shown.sim, targets, rings.map((r) => r.id)) : null;
   const leanFrame = lean?.stations.map((id) => layout.get(id)).filter((p): p is Point => p !== undefined);
   // A tip about trains points at them while it pauses the Career: the camera
   // leans in on them and the Stations they are about, and they pulse. Reduced
@@ -690,10 +704,11 @@ export function DispatcherScreen({
             layout={layout}
             visited={visited}
             labelled={labelled}
+            labelOnly={labelOnly}
             minMarkPx={DISPATCH_MIN_MARK_PX}
             laneOffsetPx={DISPATCH_LANE_PX}
             labelAvoid={(markScale, { view, screen }) => overlayObstacles(net, layout, shown, targets,
-              liveMarks(net, shown, targets), markScale, overlayFrame(view, screen, panels))}
+              liveMarks(net, shown, targets), markScale, overlayFrame(view, screen, panels), rings)}
             activeStation={null}
             backdrop={backdrop}
             districts={districts}
@@ -706,7 +721,7 @@ export function DispatcherScreen({
             overlay={({ layout: l, markScale, view, screen, tracks }) => (
               <DispatchOverlay net={net} layout={l} markScale={markScale} career={shown} targets={targets} aimed={aimed}
                 moments={moments} frame={overlayFrame(view, screen, panels)} tracks={tracks} stamping={stamping}
-                spotlight={spotlight} />
+                spotlight={spotlight} hint={{ relieving, rings }} />
             )}
           />
         }
@@ -791,7 +806,7 @@ export function DispatcherScreen({
       </aside>
       {import.meta.env.DEV && (
         <DispatchCameraPanel settings={camera} onChange={setCamera} stations={served.size}
-          closenessNow={near} />
+          closenessNow={near} crowding={crowding} onCrowdingChange={setCrowding} />
       )}
       {/* Outside the typing panel: its transform and backdrop-filter would make it the
           containing block, trapping a card inside it with its text showing through. */}
