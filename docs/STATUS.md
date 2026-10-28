@@ -24,11 +24,14 @@ npm test
 Four playable modes share the network and typing foundations. Rush Hour was
 retired on 2026-10-28; Dispatcher replaced it.
 
-**Line Run** — the main entry point. Pick a line off the map (click, or type its
-two-letter code), choose which terminus to start from, and type the line end to
-end. Interchanges never prompt; the route is fixed.
+**Line Run** — open Explore and pick a line (click, its number, or type its
+two-letter code anywhere on home), choose which terminus to start from, and
+type the line end to end. Interchanges never prompt; the route is fixed.
 
-**Quick Run** — a 30-second challenge starting on a selected Line and Direction.
+**Quick Run** — a 30-second challenge starting on a Line and Direction. On
+desktop the home card draws them at random (and draws again for "Run again");
+on phones the player picks them in Transit, and "Run again" repeats the choice.
+Escape leaves: home before the clock starts, the interrupted Summary after.
 The first Station is random and at least four Station advances from the selected
 Terminus. Finishing that Terminus before the deadline jumps immediately to an
 eligible Station on a different Line, also at least four advances from its
@@ -51,7 +54,13 @@ junction. Stations unlock permanently as you visit them, and a journey can be
 resumed after closing the tab.
 
 The home screen *is* the map: the seven Rapid KL lines drawn over a real
-Klang Valley coastline, with per-line and overall progress.
+Klang Valley coastline. On desktop and tablet its panel offers three kinds of
+play as cards (`HomeModes`): **Career** — Dispatcher (key 1, chip: most Shifts
+completed); **Challenge** — Quick Run (key 2, chip: best Score); **Explore** —
+Line Run & Adventure (key 3, chip: Stations visited, with Resume on 0).
+Leaderboard is 4. Explore opens the Line list (`ExploreList`: Resume 0, Lines
+1–7 with per-line progress, Start anywhere 8); Escape steps back one level.
+Spec: `docs/superpowers/specs/2026-10-28-home-modes-design.md`.
 
 On phone-sized landscape screens, Run starts are disabled with the instruction
 `Rotate to portrait to play`. Rotating an active Quick Run interrupts it; its Summary is

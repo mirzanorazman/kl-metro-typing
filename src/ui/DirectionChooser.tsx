@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import type { LineCode } from '../data/types';
 import { terminiOf } from '../engine/lineRun';
 import { lineAt, stationAt, type NetworkIndex } from '../engine/network';
-import { eligibleQuickLegs } from '../engine/quickRun';
 import { sound } from '../audio/sound';
 import { useKeyboard } from './useKeyboard';
 import { LineBadge } from './LineBadge';
@@ -11,18 +10,17 @@ export interface DirectionChooserProps {
   net: NetworkIndex;
   line: LineCode;
   onChoose: (fromStationId: string) => void;
-  onQuick?: (toward: string) => void;
   onCancel: () => void;
 }
 
-export function DirectionChooser({ net, line, onChoose, onQuick, onCancel }: DirectionChooserProps) {
+export function DirectionChooser({ net, line, onChoose, onCancel }: DirectionChooserProps) {
   const def = lineAt(net, line);
   const [head, tail] = terminiOf(net, line);
   // Starting at one terminus means heading for the other.
   const ends = [
     { from: head, toward: tail },
     { from: tail, toward: head },
-  ].map((end) => ({ ...end, quickAvailable: eligibleQuickLegs(net, line, end.toward).length > 0 }));
+  ];
 
   const onKey = useCallback(
     (key: string) => {
@@ -56,27 +54,9 @@ export function DirectionChooser({ net, line, onChoose, onQuick, onCancel }: Dir
               <span>Start at {stationAt(net, e.from)?.name}</span>
               <em>toward {stationAt(net, e.toward)?.name}</em>
             </button>
-            {onQuick && (
-              <button
-                type="button"
-                className="quick-run-option"
-                disabled={!e.quickAvailable}
-                aria-label={`30s Quick Run toward ${stationAt(net, e.toward)?.name ?? e.toward}`}
-                onClick={() => {
-                  if (!e.quickAvailable) return;
-                  sound.select();
-                  onQuick(e.toward);
-                }}
-              >
-                30s Quick Run
-              </button>
-            )}
           </li>
         ))}
       </ul>
-      {onQuick && ends.every((end) => !end.quickAvailable) && (
-        <p role="status">Quick Run needs at least five Stations in this Direction.</p>
-      )}
       <p className="hint"><kbd>Esc</kbd> to go back</p>
     </div>
   );

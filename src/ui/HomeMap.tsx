@@ -3,12 +3,13 @@ import { LINE_CODES, type LineCode } from '../data/types';
 import { networkLayout } from '../geo/networkLayout';
 import { stationAt, type NetworkIndex } from '../engine/network';
 import { loadProfile, saveProfile, type Theme } from '../engine/progress';
+import { bestShifts, loadDispatchBoard } from '../data/dispatchBoardStore';
 import { music, setMuted, sound } from '../audio/sound';
 import { MapCanvas } from '../render/MapCanvas';
 import { entranceTiming } from '../render/entrance';
-import { StationSearch } from './StationSearch';
 import { DirectionChooser } from './DirectionChooser';
-import { LineBadge } from './LineBadge';
+import { ExploreList } from './ExploreList';
+import { HomeModes } from './HomeModes';
 import { SoundToggle } from './SoundToggle';
 import { ThemeToggle } from './ThemeToggle';
 import { useKeyboard } from './useKeyboard';
@@ -18,7 +19,8 @@ export interface HomeMapProps {
   theme: Theme;
   onToggleTheme: () => void;
   onStartLine: (code: LineCode, from: string) => void;
-  onStartQuick?: (code: LineCode, toward: string) => void;
+  /** Starts a Quick Run on a Line and Direction the caller draws at random. */
+  onStartQuick?: () => void;
   onPickStation: (stationId: string) => void;
   onOpenLeaderboard: () => void;
   /** Opens a Dispatcher Career. Omitted where Dispatcher is not offered. */
@@ -80,16 +82,13 @@ export function HomeMap({
     saveProfile({ ...loadProfile(), muted: next });
   };
   const [selected, setSelected] = useState<LineCode | null>(null);
+  // The panel opens on the kinds of play; the Line list lives one level down.
+  const [view, setView] = useState<'modes' | 'explore'>('modes');
 
   const lines = useMemo(() => [...net.lines.values()], [net]);
   const resumeAt = profile.adventure?.at ?? null;
-
-  // The menu is numbered top to bottom, and the numbers are derived from that
-  // order rather than written down twice, so the keys and the printed <kbd>
-  // badges cannot drift apart. Resume takes 0 so that adding or removing it
-  // never renumbers the lines beneath it.
-  const searchKey = String(lines.length + 1);
-  const leaderboardKey = String(lines.length + 2);
+  const resumeName = resumeAt ? stationAt(net, resumeAt)?.name ?? null : null;
+  const shiftsBest = useMemo(() => bestShifts(loadDispatchBoard()), []);
 
   const toggleSearch = useCallback(() => {
     sound.select();
@@ -112,20 +111,50 @@ export function HomeMap({
     setSelected(code);
   }, []);
 
+  const openDispatcher = useCallback(() => {
+    if (!onOpenDispatcher) return;
+    sound.select();
+    onOpenDispatcher();
+  }, [onOpenDispatcher]);
+
+  const startQuick = useCallback(() => {
+    if (!onStartQuick) return;
+    sound.select();
+    onStartQuick();
+  }, [onStartQuick]);
+
+  const openExplore = useCallback(() => {
+    sound.select();
+    setView('explore');
+  }, []);
+
   // Two-letter line codes, buffered in a ref rather than state: calling
   // callbacks from inside a state updater would be a render-phase update.
   const buffer = useRef('');
   const onKey = useCallback(
     (key: string) => {
-      // Digits address the menu rows directly; letters still spell a line
-      // code, so the two schemes never contend for the same keystroke.
+      // Digits address the printed keys of whichever view is showing; letters
+      // still spell a line code, so the two schemes never contend for the
+      // same keystroke. 0 resumes in both views.
       if (key >= '0' && key <= '9') {
         buffer.current = '';
         if (key === '0') return resume();
+        if (view === 'modes') {
+          if (key === '1') return openDispatcher();
+          if (key === '2') return startQuick();
+          if (key === '3') return openExplore();
+          if (key === '4') return openLeaderboard();
+          return;
+        }
         const row = Number(key) - 1;
         if (row < lines.length) return chooseLine(lines[row]!.code);
         if (row === lines.length) return toggleSearch();
-        if (row === lines.length + 1) return openLeaderboard();
+        return;
+      }
+
+      if (key === 'Escape') {
+        buffer.current = '';
+        if (view === 'explore') setView('modes');
         return;
       }
 
@@ -134,10 +163,13 @@ export function HomeMap({
       const match = LINE_CODES.find((c) => c === buffer.current);
       if (match) {
         buffer.current = '';
+        // A typed code is a shortcut into Explore, so backing out of the
+        // directions lands on the Line list it skipped past.
+        setView('explore');
         setSelected(match);
       }
     },
-    [lines, resume, chooseLine, toggleSearch, openLeaderboard],
+    [view, lines, resume, chooseLine, toggleSearch, openLeaderboard, openDispatcher, startQuick, openExplore],
   );
   // Suspended while the search field has focus or a line is selected, so typing
   // a station name or direction choice does not also fire menu shortcuts.
@@ -212,81 +244,51 @@ export function HomeMap({
           <p role="status">Saved progress could not be read, so a fresh profile was started.</p>
         )}
 
-        {profile.adventure && (
-          <button type="button" onClick={resume}>
-            <kbd data-testid="menu-key">0</kbd>
-            <span>Resume from {stationAt(net, profile.adventure.at)?.name}</span>
-          </button>
-        )}
-
         {selected ? (
           <DirectionChooser
             net={net}
             line={selected}
             onChoose={(from) => onStartLine(selected, from)}
-            onQuick={onStartQuick ? (toward) => onStartQuick(selected, toward) : undefined}
             onCancel={() => setSelected(null)}
+          />
+        ) : view === 'explore' ? (
+          <ExploreList
+            net={net}
+            visited={visited}
+            resumeName={resumeName}
+            searching={searching}
+            onResume={resume}
+            onChooseLine={chooseLine}
+            onToggleSearch={toggleSearch}
+            onPickStation={onPickStation}
           />
         ) : (
           <>
-            <div className="line-list">
-              {lines.map((line, i) => {
-                const done = line.stations.filter((id) => visited.has(id)).length;
-                return (
-                  <button
-                    key={line.code}
-                    type="button"
-                    style={{ '--line-colour': line.colour } as React.CSSProperties}
-                    onClick={() => chooseLine(line.code)}
-                  >
-                    <kbd data-testid="menu-key">{i + 1}</kbd>
-                    <LineBadge code={line.code} colour={line.colour} />
-                    <span>{line.name}</span>
-                    <span className="count">{done} / {line.stations.length}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <button type="button" onClick={toggleSearch}>
-              <kbd data-testid="menu-key">{searchKey}</kbd>
-              <span>Start anywhere</span>
-            </button>
-
-            {onOpenDispatcher && (
-              <button
-                type="button"
-                onClick={() => {
-                  sound.select();
-                  onOpenDispatcher();
-                }}
-              >
-                <span>
-                  Dispatcher
-                  <small className="mode-sub">
-                    Run the network Shift by Shift: type Station names to send trains, and fix Incidents before they
-                    spread.
-                  </small>
-                </span>
-              </button>
-            )}
+            <HomeModes
+              resumeName={resumeName}
+              bestShifts={shiftsBest}
+              quickBest={profile.quickBestOverall ?? null}
+              visited={visited.size}
+              total={net.stations.size}
+              onDispatcher={onOpenDispatcher ? openDispatcher : undefined}
+              onQuick={onStartQuick ? startQuick : undefined}
+              onExplore={openExplore}
+              onResume={resume}
+            />
 
             <button type="button" onClick={openLeaderboard}>
-              <kbd data-testid="menu-key">{leaderboardKey}</kbd>
+              <kbd data-testid="menu-key">4</kbd>
               <span>Leaderboard</span>
             </button>
 
-            <p className="hint">
-              Press a number, or type a line code. {searching && <><kbd>Esc</kbd> to close.</>}
-            </p>
-
-            <div className="control-cluster">
-              <SoundToggle muted={muted} onToggle={toggleSound} />
-              <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-            </div>
-            {searching && <StationSearch net={net} onPick={onPickStation} />}
+            <p className="hint">Press a number, or type a line code.</p>
           </>
         )}
+
+        <div className="control-cluster">
+          <SoundToggle muted={muted} onToggle={toggleSound} />
+          <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+        </div>
       </div>
 
       <footer>

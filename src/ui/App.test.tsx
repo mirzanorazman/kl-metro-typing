@@ -4,7 +4,6 @@ import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
 import { App } from './App';
 import * as transit from './MobileTransit';
 import * as adventureSetup from './MobileAdventureSetup';
-import * as homeMap from './HomeMap';
 import * as network from '../engine/network';
 import { loadNetworkData } from '../data/load';
 
@@ -139,7 +138,22 @@ afterEach(() => {
 describe('App', () => {
   beforeEach(() => installMatchMedia(false));
 
-  it.each([false, true])('rejects programmatic Quick starts on a short Line with phone=%s', (phone) => {
+  it('never draws a short Line for the desktop Quick Run card', () => {
+    installMatchMedia(false);
+    const data = structuredClone(loadNetworkData());
+    const line = data.lines.find(({ code }) => code === 'KJ')!;
+    line.stations = line.stations.slice(0, 4);
+    line.termini = ['Gombak', 'Sri Rampai'];
+    vi.spyOn(network, 'buildNetwork').mockReturnValue(network.buildNetwork(data));
+    // KJ comes first, so a draw of 0 would land on it if it were a candidate.
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^2\s*Quick Run/ }));
+    expect(container.querySelector('.quick-run')).toBeTruthy();
+    expect(container.querySelector('.quick-run-context')!.textContent).not.toMatch(/^KJ/);
+  });
+
+  it.each([true])('rejects programmatic Quick starts on a short Line with phone=%s', (phone) => {
     installMatchMedia(phone);
     const data = structuredClone(loadNetworkData());
     const line = data.lines.find(({ code }) => code === 'KJ')!;
@@ -148,13 +162,10 @@ describe('App', () => {
     const shortNetwork = network.buildNetwork(data);
     vi.spyOn(network, 'buildNetwork').mockReturnValue(shortNetwork);
     const transitRender = vi.spyOn(transit, 'MobileTransit');
-    const homeRender = vi.spyOn(homeMap, 'HomeMap');
     // React reports the unhandled render error as well as throwing it in RED.
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const { container } = render(<App />);
-    const onStartQuick = phone
-      ? transitRender.mock.calls[transitRender.mock.calls.length - 1]![0].onStartQuick
-      : homeRender.mock.calls[homeRender.mock.calls.length - 1]![0].onStartQuick!;
+    const onStartQuick = transitRender.mock.calls[transitRender.mock.calls.length - 1]![0].onStartQuick;
 
     expect(() => act(() => onStartQuick('KJ', 'gombak'))).not.toThrow();
     expect(container.querySelector('.quick-run')).toBeNull();
@@ -260,8 +271,7 @@ describe('App', () => {
   it.each([[1024, 768], [1512, 982]])('allows desktop/tablet play in landscape at %sx%s', (width, height) => {
     setViewport(width, height);
     render(<App />);
-    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
+    fireEvent.click(screen.getByRole('button', { name: /^2\s*Quick Run/ }));
     fireEvent.keyDown(window, { key: 'K' });
     expect(screen.getByLabelText(/^Type /)).toBeTruthy();
     expect(screen.queryByText('Rotate to portrait to play')).toBeNull();
@@ -274,6 +284,7 @@ describe('App', () => {
 
   it('starts a line run from the map', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /line run & adventure/i }));
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
     fireEvent.keyDown(window, { key: '1' });
     expect(screen.getByLabelText('Type KL Sentral')).toBeTruthy();
@@ -281,6 +292,7 @@ describe('App', () => {
 
   it('starts an adventure from a searched station', () => {
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /line run & adventure/i }));
     fireEvent.click(screen.getByRole('button', { name: /start anywhere/i }));
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'imbi' } });
     fireEvent.click(screen.getByRole('button', { name: /^imbi/i }));
@@ -329,14 +341,13 @@ describe('App', () => {
     }
   });
 
-  it('starts a desktop quick run from the home direction picker', () => {
+  it('starts a desktop quick run from the home card', () => {
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
+    fireEvent.click(screen.getByRole('button', { name: /^2\s*Quick Run/ }));
 
     expect(document.querySelector('.quick-run')).toBeTruthy();
-    expect(screen.getByText(/KL Monorail · toward/i)).toBeTruthy();
+    expect(screen.getByText(/ · toward /)).toBeTruthy();
     expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
   });
 
@@ -369,27 +380,28 @@ describe('App', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
-    fireEvent.keyDown(window, { key: 'K' });
+    fireEvent.click(screen.getByRole('button', { name: /^2\s*Quick Run/ }));
+    const label = screen.getByLabelText(/^Type /).getAttribute('aria-label')!;
+    const first = label.replace(/^Type /, '')[0]!;
+    fireEvent.keyDown(window, { key: first });
 
-    const prompt = screen.getByLabelText('Type KL Sentral');
-    expect(prompt.querySelector('[data-state="done"]')?.textContent).toBe('K');
+    const prompt = screen.getByLabelText(label);
+    expect(prompt.querySelector('[data-state="done"]')?.textContent).toBe(first);
     const timer = screen.getByText('0:30', { selector: '.quick-run-timer' }).textContent;
 
     act(() => setPhoneLayout(true));
     expect((document.querySelector('.mobile-run-frame') as HTMLElement).style.height).toBe('700px');
-    expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
+    expect(screen.getByLabelText(label).querySelector('[data-state="done"]')?.textContent).toBe(first);
     expect(screen.getByText('0:30', { selector: '.quick-run-timer' }).textContent).toBe(timer);
 
     act(() => setPhoneLayout(false));
     expect(document.querySelector('.mobile-run-frame')).toBeNull();
-    expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
+    expect(screen.getByLabelText(label).querySelector('[data-state="done"]')?.textContent).toBe(first);
     expect(screen.getByText('0:30', { selector: '.quick-run-timer' }).textContent).toBe(timer);
 
     act(() => setPhoneLayout(true));
     expect((document.querySelector('.mobile-run-frame') as HTMLElement).style.height).toBe('700px');
-    expect(screen.getByLabelText('Type KL Sentral').querySelector('[data-state="done"]')?.textContent).toBe('K');
+    expect(screen.getByLabelText(label).querySelector('[data-state="done"]')?.textContent).toBe(first);
     expect(screen.getByText('0:30', { selector: '.quick-run-timer' }).textContent).toBe(timer);
   });
 
@@ -470,19 +482,19 @@ describe('App', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     render(<App />);
 
-    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
-    for (const key of 'KL Sentral') fireEvent.keyDown(window, { key });
-    expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
+    // Math.random is pinned, so both Runs draw the same Line and Direction;
+    // only the excluded previous start can move the second one.
+    fireEvent.click(screen.getByRole('button', { name: /^2\s*Quick Run/ }));
+    const firstStart = screen.getByLabelText(/^Type /).getAttribute('aria-label');
+    fireEvent.keyDown(window, { key: firstStart!.replace(/^Type /, '')[0]! });
 
     setVisibility('hidden');
     fireEvent(document, new Event('visibilitychange'));
     fireEvent.click(screen.getByRole('button', { name: /back to transit/i }));
 
-    fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
-    fireEvent.click(screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }));
+    fireEvent.click(screen.getByRole('button', { name: /^2\s*Quick Run/ }));
 
-    expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
+    expect(screen.getByLabelText(/^Type /).getAttribute('aria-label')).not.toBe(firstStart);
   });
 
   it('takes a completed line run all the way to a visible leaderboard entry', () => {
@@ -494,6 +506,7 @@ describe('App', () => {
     vi.spyOn(performance, 'now').mockImplementation(() => clock.now);
 
     render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /line run & adventure/i }));
     fireEvent.click(screen.getByRole('button', { name: /kl monorail/i }));
     fireEvent.keyDown(window, { key: '1' });
 

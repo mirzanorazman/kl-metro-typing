@@ -11,27 +11,6 @@ afterEach(() => {
 });
 
 describe('DirectionChooser', () => {
-  it('disables short-Line Quick directions and explains why while retaining Line Run starts', () => {
-    const data = structuredClone(loadNetworkData());
-    const line = data.lines.find(({ code }) => code === 'MR')!;
-    line.stations = line.stations.slice(0, 4);
-    line.termini = ['KL Sentral', 'Hang Tuah'];
-    const onQuick = vi.fn();
-    const onChoose = vi.fn();
-    render(<DirectionChooser net={buildNetwork(data)} line="MR" onQuick={onQuick} onChoose={onChoose} onCancel={() => {}} />);
-
-    for (const button of screen.getAllByRole('button', { name: /30s Quick Run toward/ })) {
-      expect((button as HTMLButtonElement).disabled).toBe(true);
-      fireEvent.click(button);
-    }
-    expect(onQuick).not.toHaveBeenCalled();
-    expect(screen.getByRole('status').textContent).toBe('Quick Run needs at least five Stations in this Direction.');
-    fireEvent.click(screen.getByRole('button', { name: /start at kl sentral/i }));
-    expect(onChoose).toHaveBeenCalledWith('kl-sentral');
-    fireEvent.click(screen.getByRole('button', { name: /start at hang tuah/i }));
-    expect(onChoose).toHaveBeenCalledWith('hang-tuah');
-  });
-
   it('offers both termini of the line', () => {
     render(<DirectionChooser net={net} line="MR" onChoose={() => {}} onCancel={() => {}} />);
     expect(screen.getByRole('button', { name: /start at kl sentral/i })).toBeTruthy();
@@ -54,32 +33,9 @@ describe('DirectionChooser', () => {
     expect(select).toHaveBeenCalledTimes(1);
   });
 
-  it('renders no quick-run actions without a quick callback', () => {
+  it('offers no Quick Run', () => {
     render(<DirectionChooser net={net} line="MR" onChoose={() => {}} onCancel={() => {}} />);
-
-    expect(screen.queryByRole('button', { name: '30s Quick Run' })).toBeNull();
-  });
-
-  it('offers one compact quick-run action per direction', () => {
-    const onQuick = vi.fn();
-    render(
-      <DirectionChooser
-        net={net}
-        line="MR"
-        onChoose={() => {}}
-        onQuick={onQuick}
-        onCancel={() => {}}
-      />,
-    );
-
-    const quickActions = [
-      screen.getByRole('button', { name: '30s Quick Run toward Titiwangsa' }),
-      screen.getByRole('button', { name: '30s Quick Run toward KL Sentral' }),
-    ];
-
-    fireEvent.click(quickActions[0]!);
-
-    expect(onQuick).toHaveBeenCalledWith('titiwangsa');
+    expect(screen.queryByRole('button', { name: /Quick Run/ })).toBeNull();
   });
 
   it('cancels on Escape', () => {

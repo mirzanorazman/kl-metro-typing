@@ -87,6 +87,12 @@ export function saveDispatchBoard(board: DispatchBoard): void {
   }
 }
 
+/** The most Shifts any Career on the board completed, or null when none completed one. */
+export function bestShifts(board: DispatchBoard): number | null {
+  const most = Math.max(0, ...board.entries.map((e) => e.shifts));
+  return most > 0 ? most : null;
+}
+
 /** True if `score` would land within the top LEADERBOARD_LIMIT: board not full, or score beats the cutoff. */
 export function dispatchQualifies(board: DispatchBoard, score: number): boolean {
   if (board.entries.length < LEADERBOARD_LIMIT) return true;

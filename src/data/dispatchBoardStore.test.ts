@@ -3,6 +3,7 @@ import type { Metrics } from '../engine/metrics';
 import { LEADERBOARD_LIMIT } from '../engine/leaderboard';
 import {
   DISPATCH_BOARD_KEY,
+  bestShifts,
   dispatchQualifies,
   loadDispatchBoard,
   saveDispatchBoard,
@@ -118,5 +119,24 @@ describe('dispatchQualifies', () => {
     const cutoff = entries[LEADERBOARD_LIMIT - 1]!.score;
     expect(dispatchQualifies(board, cutoff)).toBe(false);
     expect(dispatchQualifies(board, cutoff + 1)).toBe(true);
+  });
+});
+
+describe('bestShifts', () => {
+  const withShifts = (...shifts: number[]): DispatchBoard => ({
+    version: 1,
+    entries: shifts.map((n, i) => ({ ...entry(50 + i, i), shifts: n })),
+  });
+
+  it('is null for an empty board', () => {
+    expect(bestShifts(empty())).toBeNull();
+  });
+
+  it('is null when no Career completed a Shift', () => {
+    expect(bestShifts(withShifts(0, 0))).toBeNull();
+  });
+
+  it('is the most Shifts any Career completed', () => {
+    expect(bestShifts(withShifts(3, 7, 5))).toBe(7);
   });
 });

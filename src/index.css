@@ -141,8 +141,54 @@ body {
   backdrop-filter: var(--panel-blur);
 }
 .line-picker button:hover, .line-picker button:focus-visible { border-color: var(--focus-ring); }
-/* A mode's one-line explanation, under its name. */
-.line-picker .mode-sub { display: block; margin-top: 2px; color: var(--ink-muted); font-size: var(--t-xs); }
+/* The home cards: one per kind of play, each headed by a small caps label.
+   The card is the surface; its main button and Resume sit flat on it, so the
+   Explore card reads as one card with Resume tucked under its pitch. */
+.home-modes { display: flex; flex-direction: column; gap: var(--s); }
+.mode-label {
+  margin: 0; padding: var(--s) var(--s2) 0;
+  color: var(--ink-muted); font: 600 var(--t-xs) var(--font-mono);
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+.mode-card {
+  display: flex; flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  box-shadow: var(--panel-shadow);
+  backdrop-filter: var(--panel-blur);
+}
+/* Dispatcher leads: a firmer edge, and in midnight a faint bloom. */
+.mode-card[data-emphasis='true'] { border-color: var(--ink-faint); }
+[data-theme='midnight'] .mode-card[data-emphasis='true'] {
+  box-shadow: var(--panel-shadow), 0 0 24px -8px var(--ink-faint);
+}
+.line-picker .mode-card button {
+  background: none; border: 0; box-shadow: none; backdrop-filter: none;
+}
+.line-picker .mode-main {
+  grid-template-columns: auto 1fr auto;
+  row-gap: 2px;
+}
+.mode-title { font-size: var(--t-md); font-weight: 600; }
+.mode-chip {
+  justify-self: end;
+  padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--panel-edge); background: var(--paper-sub);
+  color: var(--ink-muted); font: 600 var(--t-xs) var(--font-mono);
+  font-variant-numeric: tabular-nums; letter-spacing: 0.04em;
+  text-transform: uppercase; white-space: nowrap;
+}
+/* The pitch runs under the title, past the key column. */
+.mode-copy { grid-column: 2 / -1; color: var(--ink-muted); font-size: var(--t-sm); line-height: 1.4; }
+.line-picker .mode-resume {
+  border-top: 1px solid var(--panel-edge);
+  border-radius: 0 0 8px 8px;
+  font-size: var(--t-sm);
+}
+.explore-list { display: flex; flex-direction: column; gap: var(--s); }
+.explore-head { padding-bottom: var(--s); }
+.explore-head .mode-copy { margin: 2px 0 0; padding: 0 var(--s2); }
 
 /* The seven lines read as one list, as the design pack draws them: a single
    panel of hairline-separated rows, not seven free-floating cards. The badge

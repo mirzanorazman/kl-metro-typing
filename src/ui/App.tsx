@@ -201,7 +201,7 @@ export function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
         onStartLine={startLine}
-        onStartQuick={startQuick}
+        onStartQuick={startRandomQuick}
         onPickStation={startAdventure}
         onOpenLeaderboard={() => leaveHome({ kind: 'leaderboard' })}
         onOpenDispatcher={() => leaveHome({ kind: 'dispatch' })}

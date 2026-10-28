@@ -59,8 +59,9 @@ The mode where the player types one line from end to end. The route is fixed and
 interchanges never prompt.
 
 **Quick Run**:
-A 30-second timed Run that can travel on multiple Lines. The player chooses its
-starting Line and Direction; the first Station is random and at least four
+A 30-second timed Run that can travel on multiple Lines. Its starting Line and
+Direction are drawn at random from the desktop home card, or chosen by the
+player on phones; the first Station is random and at least four
 Station advances from that Line's Terminus. The clock begins on the first
 printable character, and the Run ends at its deadline.
 
