@@ -1111,7 +1111,7 @@ describe('DispatcherScreen', () => {
     };
     const summary = () => screen.queryByRole('region', { name: 'Career summary' });
 
-    it('a failing closure holds the map 1.2 s, with the gauge full, before the summary', () => {
+    it('a failing closure holds the map 2 s, with the gauge full, before the summary', () => {
       const clock = failShift();
       expect(summary()).toBeNull();
       expect(gauge()!.getAttribute('aria-valuenow')).toBe('4');
@@ -1121,8 +1121,8 @@ describe('DispatcherScreen', () => {
       expect(klcc!.getAttribute('data-stamp')).toBe('true');
       expect(screen.queryByRole('button', { name: 'End Career' })).toBeNull();
       expect(judgeSpy).not.toHaveBeenCalled();
-      clock.now += 1_000;
-      act(() => { vi.advanceTimersByTime(1_000); });
+      clock.now += 1_800;
+      act(() => { vi.advanceTimersByTime(1_800); });
       expect(summary()).toBeNull();
       clock.now += 200;
       act(() => { vi.advanceTimersByTime(200); });
@@ -1140,7 +1140,14 @@ describe('DispatcherScreen', () => {
       const kj = net.lines.get('KJ')!.stations;
       const i = kj.indexOf(idOf('KLCC'));
       for (const id of [kj[i - 1]!, kj[i]!, kj[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
-      expect(mapProps().fitView!.w).toBeLessThan(normalBox(closingCareer().served).w);
+      // Tight on the Station itself: twice the close camera's 3× in Shift 1.
+      const view = mapProps().fitView!;
+      expect(view.w).toBeCloseTo(normalBox(closingCareer().served).w / 6, 3);
+      const klcc = mapProps().layout.get(idOf('KLCC'))!;
+      expect(klcc.x).toBeGreaterThan(view.x);
+      expect(klcc.x).toBeLessThan(view.x + view.w);
+      expect(klcc.y).toBeGreaterThan(view.y);
+      expect(klcc.y).toBeLessThan(view.y + view.h);
     });
 
     it('with the close camera off, the hold still frames the last closed Station', () => {
@@ -1168,8 +1175,8 @@ describe('DispatcherScreen', () => {
       type('Jelatek');
       press('Escape');
       expect(screen.queryByRole('dialog', { name: 'Paused' })).toBeNull();
-      clock.now += 1_200;
-      act(() => { vi.advanceTimersByTime(1_200); });
+      clock.now += 2_000;
+      act(() => { vi.advanceTimersByTime(2_000); });
       expect(summary()).toBeTruthy();
       act(() => { vi.advanceTimersByTime(100); });
       expect(judgeSpy).toHaveBeenCalledTimes(1);

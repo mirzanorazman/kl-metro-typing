@@ -986,6 +986,14 @@ live: the browser pane was hidden during the check, which throttles animation
 frames, so the move could not be watched; unit tests cover the frame, the close
 view and reduced motion. Watch it in playtest 3.
 
+**Tuned (2026-10-28, user's ask: hold longer, zoom tighter).** The hold is now
+2 s (`FAIL_HOLD_MS`, was 1.2 s), so the camera's 0.5 s move is followed by
+1.5 s on the Station. With the close camera on, the view frames the closed
+Station alone at `failCloseness`: twice the close camera's closeness now, and
+never under 4× (6× in Shift 1, 4× on a large network). With it off, the hold
+frames the Station and its neighbours as before. The judge still starts after
+the hold.
+
 ### F13. The full-size map (`?dispatch=full`)
 
 **Reported:** "Feels like a mess." Parked by the user for a later discussion.
@@ -1051,4 +1059,4 @@ Dispatcher tips first (or press How to play) to see the lesson again.
   the Shift bar, given the eyes are on the chips and the Incidents panel?
   Should it be there from the start of the Shift instead of at the first
   closure? Also look at the thud, the pop and ring (and reduced motion), the
-  1.2 s hold before the summary, and the gauge at phone width.
+  hold before the summary (2 s since F30), and the gauge at phone width.

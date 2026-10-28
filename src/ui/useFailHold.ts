@@ -3,7 +3,7 @@ import type { CareerState } from '../engine/dispatch';
 import { runTick } from './useRunRecorder';
 
 /** How long a failed Shift stays on the map, so the last closure is seen. */
-export const FAIL_HOLD_MS = 1_200;
+export const FAIL_HOLD_MS = 2_000;
 
 /**
  * True while a failed Shift holds the play view before its summary. Display

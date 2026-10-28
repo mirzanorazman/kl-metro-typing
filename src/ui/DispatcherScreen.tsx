@@ -50,7 +50,7 @@ import { prefersReducedMotion } from '../render/useLayoutMode';
 import { ClosureGauge, closureBand } from './ClosureGauge';
 import { ConfirmEndButton } from './ConfirmEndButton';
 import { ClearedCrowd, LiveCrowd } from './CrowdMeter';
-import { closeness, leanIn, subjectStations, withNeighbours } from './dispatchCamera';
+import { closeness, failCloseness, leanIn, subjectStations, withNeighbours } from './dispatchCamera';
 import { DispatchCameraPanel } from './DispatchCameraPanel';
 import { DispatchExpansion } from './DispatchExpansion';
 import { DispatchIncidents } from './DispatchIncidents';
@@ -687,7 +687,8 @@ export function DispatcherScreen({
       key: `dispatch:lesson:close:${camera.early.toFixed(2)}`,
     }
     : failFrame ? {
-      view: closeFrame(frame, failFrame, DISPATCH_FIT_PADDING, near),
+      // Tight on the Station alone; its neighbours frame it only with the close camera off.
+      view: closeFrame(frame, [layout.get(lastClosed!)!], DISPATCH_FIT_PADDING, failCloseness(near)),
       key: `fail:${lastClosed}:close:${near.toFixed(2)}`,
     }
     : tipFrame ? {

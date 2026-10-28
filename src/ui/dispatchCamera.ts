@@ -36,6 +36,15 @@ export function closeness(
 }
 
 /**
+ * How close a failed Shift's camera comes to the Station that ended it: twice
+ * the close camera's closeness now, and never less than 4×, so even a large
+ * network ends tight on that one Station.
+ */
+export function failCloseness(closenessNow: number): number {
+  return Math.max(4, 2 * closenessNow);
+}
+
+/**
  * The frame while a fix is typed: a lean towards the Incident, never a
  * close-up. It holds the place and its Served neighbours on its Line, so the
  * shot never closes in on one dot, and every waiting train's Station, so no
