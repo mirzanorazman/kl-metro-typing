@@ -654,6 +654,40 @@ describe('QuickRunScreen', () => {
     expect(screen.getByRole('button', { name: 'Tap to continue typing' })).toBeTruthy();
   });
 
+  it('leaves on Escape before the clock starts', () => {
+    const onBack = vi.fn();
+    renderQuick({ onBack, providerEnabled: false });
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText(/^Type /)).toBeNull();
+  });
+
+  it('interrupts on Escape once the clock is running', () => {
+    const onBack = vi.fn();
+    renderQuick({ onBack, providerEnabled: false });
+    typeQuickAsHuman(currentStationName()[0]!);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByRole('heading', { name: 'Run interrupted' })).toBeTruthy();
+    expect(screen.getByText('This result was not saved as a personal best.')).toBeTruthy();
+    expect(onBack).not.toHaveBeenCalled();
+  });
+
+  it('keeps Escape out of the Keylog', () => {
+    renderQuick({ providerEnabled: false });
+    typeQuickAsHuman(currentStationName()[0]!);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.getByText('100.0%')).toBeTruthy();
+  });
+
+  it('shows the Escape hint on desktop only', () => {
+    const { unmount } = renderQuick();
+    expect(screen.getByText(/to leave/)).toBeTruthy();
+    unmount();
+    phone = true;
+    renderQuick();
+    expect(screen.queryByText(/to leave/)).toBeNull();
+  });
+
   it('never shows the refocus hint on desktop', () => {
     renderQuick();
     expect(screen.queryByRole('button', { name: 'Tap to continue typing' })).toBeNull();

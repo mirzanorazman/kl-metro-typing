@@ -197,10 +197,25 @@ export function QuickRunScreen({
   const onKey = useCallback((key: string, source?: KeySource) => {
     if (playBlocked.current || dismissedRef.current) return;
     if (currentRun.current.status !== 'ready' && currentRun.current.status !== 'running') return;
+    // Escape leaves: home before the clock starts, the Summary once it runs.
+    // Either way it is never typed, so it never reaches the Keylog.
+    if (key === 'Escape') {
+      if (currentRun.current.status === 'ready') {
+        dismissedRef.current = true;
+        blurInput();
+        setDismissed(true);
+        onBack();
+      } else {
+        const leftAt = performance.now();
+        setDisplayNow(leftAt);
+        commitRun(interruptQuickRun(currentRun.current, leftAt));
+      }
+      return;
+    }
     const keyNow = recorder.record(key, source);
     setDisplayNow(keyNow);
     commitRun(enterQuickCharacter(net, currentRun.current, key, keyNow, randomRef.current));
-  }, [commitRun, net, recorder]);
+  }, [commitRun, net, recorder, blurInput, onBack]);
 
   useGameInput(onKey, !phoneLandscape && !dismissed && (run.status === 'ready' || run.status === 'running'));
 
@@ -432,6 +447,7 @@ export function QuickRunScreen({
               </p>
             )}
             <Prompt state={run.typing} errorTick={run.errors} />
+            {!phone && <p className="hint"><kbd>Esc</kbd> to leave</p>}
             {showRefocus && (
               <button type="button" className="quick-run-refocus" onClick={focusInput}>
                 Tap to continue typing
