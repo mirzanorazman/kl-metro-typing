@@ -44,9 +44,9 @@ session scratchpad, not the repo):
 A **crowded Station** is one where the closure countdown is running
 (`platform.fullMs > 0`) and has run for at least the **hint delay**. Its
 **relieving Trains** are Trains that have a Signal chip (Held at a Signal) on
-a Line through the crowded Station, heading toward it, with the Station three
-Stations or fewer ahead along their Line (counting the Station whose Signal
-they wait at as one).
+a Line through the crowded Station, heading toward it, where the crowded
+Station is the one at their Signal or one of the next three along their Line
+(three blocks or fewer ahead, as the replay counted).
 
 The hint has three settings:
 
