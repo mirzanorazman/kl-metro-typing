@@ -28,8 +28,9 @@ interface Tally {
   chipSum: number;
   closures: number;
   warned: number;
+  unwarned: string[];
 }
-const blank = (): Tally => ({ runningMs: 0, ringMs: 0, ringSamples: 0, ringSum: 0, chipSamples: 0, chipSum: 0, closures: 0, warned: 0 });
+const blank = (): Tally => ({ runningMs: 0, ringMs: 0, ringSamples: 0, ringSum: 0, chipSamples: 0, chipSum: 0, closures: 0, warned: 0, unwarned: [] });
 const fixed = (n: number, d = 1) => n.toFixed(d);
 const pct = (a: number, b: number) => (b === 0 ? 'n/a' : `${fixed((100 * a) / b)}%`);
 
@@ -42,10 +43,13 @@ it.skipIf(!process.env.DISPATCH_PROBE)('prints how the crowding hint shows', () 
     let closed = 0;
     let lastChipMs = -Infinity;
     drive({ seed, msPerKey: 200, accuracy: 0.96, limitMs: 30 * 60_000, watch: (s) => {
-      if (s.status !== 'running') return;
+      // The closure that ends a Career lands in the same advance that sets 'ended'; count it, add no time.
+      if (s.status !== 'running' && s.status !== 'ended') return;
       const sim = s.sim;
+      const ended = s.status === 'ended';
       // Time-weight by Shift milliseconds; start afresh when the Shift changes.
       if (s.shift !== shift || sim.shiftMs < lastMs) {
+        if (ended) return;
         shift = s.shift;
         lastMs = sim.shiftMs;
         closed = sim.oosOrder.length;
@@ -53,23 +57,24 @@ it.skipIf(!process.env.DISPATCH_PROBE)('prints how the crowding hint shows', () 
         return;
       }
       const t = tallies.get(band(s))!;
-      const dt = sim.shiftMs - lastMs;
+      const dt = ended ? 0 : sim.shiftMs - lastMs;
       lastMs = sim.shiftMs;
       const rings = crowdedStations(sim, DELAY_MS);
       const chips = relievingTrains(net, sim, rings, visibleTargets(net, sim));
       t.runningMs += dt;
-      if (rings.length > 0) {
+      if (!ended && rings.length > 0) {
         t.ringMs += dt;
         t.ringSamples += 1;
         t.ringSum += rings.length;
         t.chipSamples += 1;
         t.chipSum += chips.size;
       }
-      if (chips.size > 0) lastChipMs = sim.shiftMs;
+      if (!ended && chips.size > 0) lastChipMs = sim.shiftMs;
       for (const id of sim.oosOrder.slice(closed)) {
         if (sim.outOfService[id] !== 'crowding') continue;
         t.closures += 1;
         if (sim.shiftMs - lastChipMs <= WARN_MS) t.warned += 1;
+        else t.unwarned.push(`seed ${seed}, Shift ${s.shift}, ${id}${ended ? ' (ended the Career)' : ''}`);
       }
       closed = sim.oosOrder.length;
     } });
@@ -80,8 +85,9 @@ it.skipIf(!process.env.DISPATCH_PROBE)('prints how the crowding hint shows', () 
       const t = tallies.get(b)!;
       return `  ${b}: running ${fixed(t.runningMs / 60_000)} min, ring showing ${pct(t.ringMs, t.runningMs)} of it, `
         + `${t.ringSamples ? fixed(t.ringSum / t.ringSamples, 2) : 'n/a'} rings and `
-        + `${t.chipSamples ? fixed(t.chipSum / t.chipSamples, 2) : 'n/a'} amber chips when any, `
-        + `${t.warned} of ${t.closures} crowding closures (${pct(t.warned, t.closures)}) had a chip in their last ${WARN_MS / 1000} s`;
+        + `${t.chipSamples ? fixed(t.chipSum / t.chipSamples, 2) : 'n/a'} amber chips when a ring shows, `
+        + `${t.warned} of ${t.closures} crowding closures (${pct(t.warned, t.closures)}) had a chip in their last ${WARN_MS / 1000} s`
+        + (t.unwarned.length > 0 ? `\n    no chip: ${t.unwarned.join('; ')}` : '');
     }),
   ].join('\n'));
 }, 900_000);

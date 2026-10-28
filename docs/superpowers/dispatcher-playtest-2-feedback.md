@@ -893,26 +893,28 @@ delay (0 to 15 s, default 5 s) and Declutter. Development builds start on B;
 production stays Off, and the panel is in development builds only. A Station
 rings after its platform has been full for the delay, with its count and a fill
 that follows the 19 s countdown. Trains within three blocks before it,
-heading its way, get amber Signal chips (a locked chip still reads as locked).
-Declutter keeps only the Station names that matter: ringed Stations, Stations
+heading its way, get amber Signal chips (a locked chip is meant to still read
+as locked). Declutter keeps only the Station names that matter: ringed Stations, Stations
 with a Held Train, and Incident places. Nothing shows between Shifts, after
 one, or in the lesson.
 
 Probe (`src/ui/crowdingHintProbe.test.ts`, opt-in with `DISPATCH_PROBE=1`): 60
 WPM at 96 %, seeds 1–5, 30 minutes, delay 5 s, weighted by Shift time. A
-closure counts as warned if any amber chip showed in its last 14 s.
+closure counts as warned if any amber chip showed in its last 14 s. The
+closure that ends a failed Career is counted too.
 
-| Band | Running | Ring showing | Rings, when any | Amber chips, when any | Crowding closures warned |
+| Band | Running | Ring showing | Rings, when any | Amber chips, when a ring shows | Crowding closures warned |
 |---|---|---|---|---|---|
 | Shifts 1–3 | 22.4 min | 31.3 % | 1.39 | 1.20 | 23 of 23 |
-| Shifts 4–8 | 34.2 min | 46.0 % | 2.06 | 2.06 | 98 of 98 |
-| Shift 9+ | 25.2 min | 50.3 % | 3.18 | 4.11 | 132 of 132 |
+| Shifts 4–8 | 34.2 min | 46.0 % | 2.06 | 2.06 | 100 of 100 |
+| Shift 9+ | 25.2 min | 50.3 % | 3.18 | 4.11 | 135 of 135 |
 
 So the hint is on for about a third to a half of running time. That is the
 same order as the 28–39 % measured for platforms at 55 or more, which is
-expected with a 5 s delay, but it is not rare. Every closure had a chip
-beforehand, but "any chip" is loose when 2–4 chips are showing at a time, so it
-shows the hint was there, not that the right Train was easy to pick.
+expected with a 5 s delay, but it is not rare. All 258 crowding closures had a
+chip in the 14 s before them, but "any chip" is loose when 2–4 chips are
+showing at a time, so it shows the hint was there, not that the right Train was
+easy to pick.
 
 Seen live (dev server, 1280 × 800, dark theme): mode B in Shift 1's Evening
 peak drew rings with counts on KL Sentral, KLCC and Masjid Jamek, and amber
@@ -920,9 +922,11 @@ chips on Damai (relieves KLCC) and Abdullah Hukum (relieves KL Sentral), on the
 right Trains. Declutter on, before a Career, left only Jelatek and Abdullah
 Hukum named, which is as specified but reads very bare.
 
-Not seen live: mode A on its own (it is B without rings; the tests cover it),
-phone width, between Shifts with Declutter on (covered by a unit test), the
-light theme.
+Not seen live: mode A on its own and A then B (A is B without rings; the
+tests cover it); the ring filling and then vanishing when a Train calls; a
+locked amber chip reading as locked (that is how it is built and tested, not
+something seen); `?dispatch=full` with Declutter on and off; phone width;
+between Shifts with Declutter on (covered by a unit test); the light theme.
 
 Open from the browser check:
 
