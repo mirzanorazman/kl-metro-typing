@@ -397,11 +397,15 @@ export function overlayLayout(
   return { trains, marks: placed, chips, fontSize };
 }
 
-/** A crowded Station's ring, and the clearance station names keep from its Station, in nominal units (times the mark scale). */
-export const RING_R = 11;
-export const RING_CLEAR_R = 22;
-/** The waiting count's font size, nominal (times the mark scale); it sits above-right of the ring. */
-export const RING_COUNT_FONT = 10;
+/**
+ * A crowded Station's ring, its stroke, and the clearance other Stations'
+ * names keep from it (its outer edge and a margin), in nominal units (times the mark scale).
+ */
+export const RING_R = 15;
+export const RING_STROKE = 2.5;
+export const RING_CLEAR_R = RING_R + RING_STROKE + 2;
+/** The waiting count's font size, nominal (times the mark scale), a little above a name's; it sits above-right of the ring. */
+export const RING_COUNT_FONT = 12;
 
 /** Where the count is drawn: its start, on the baseline, above-right of the ring. */
 export const ringCountAnchor = (p: Point, m: number): Point => ({ x: p.x + RING_R * m, y: p.y - RING_R * m });
@@ -446,7 +450,9 @@ export function overlayObstacles(
     }),
     ...rings.flatMap(({ id, waiting }) => {
       const p = layout.get(id);
-      return p ? [around(p, RING_CLEAR_R * m), ringCountBox(p, waiting, m)] : [];
+      // The ringed Station's own name may sit over its ring, starting out past
+      // it; it still keeps off the count.
+      return p ? [{ ...around(p, RING_CLEAR_R * m), owner: id, clear: (RING_R + 2) * m }, ringCountBox(p, waiting, m)] : [];
     }),
   ];
 }

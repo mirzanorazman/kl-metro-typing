@@ -6,7 +6,7 @@ import type { CareerState } from '../engine/dispatch';
 import { bunchedTrains, heldTrains } from '../engine/dispatchSim';
 import { sameRef, type Target, type TargetRef } from '../engine/dispatchTargets';
 import {
-  chipBox, incidentBadge, layoutPops, overlayLayout, POP_LINE_EM, RING_COUNT_FONT, RING_R, ringCountAnchor, SIGNAL_HALF_W, SIGNAL_LEN, SIGNAL_POST,
+  chipBox, incidentBadge, layoutPops, overlayLayout, POP_LINE_EM, RING_COUNT_FONT, RING_R, RING_STROKE, ringCountAnchor, SIGNAL_HALF_W, SIGNAL_LEN, SIGNAL_POST,
   type Box, type OverlayFrame,
 } from './dispatchLayout';
 import { contrastText } from './contrast';
@@ -252,9 +252,9 @@ export function DispatchOverlay({
         return (
           <g key={`ring-${id}`} data-testid="crowding-ring" data-station={id} className="crowding-ring">
             {/* No non-scaling-stroke: Chrome then ignores pathLength on the arc, so widths scale by hand. */}
-            <circle className="crowding-ring-track" cx={p.x} cy={p.y} r={r} strokeWidth={2.5 * m} />
+            <circle className="crowding-ring-track" cx={p.x} cy={p.y} r={r} strokeWidth={RING_STROKE * m} />
             <circle className="crowding-ring-arc" cx={p.x} cy={p.y} r={r} pathLength={1} strokeDasharray={`${share} 1`}
-              strokeWidth={2.5 * m} transform={`rotate(-90 ${p.x} ${p.y})`} />
+              strokeWidth={RING_STROKE * m} transform={`rotate(-90 ${p.x} ${p.y})`} />
             <text className="crowding-count" x={count.x} y={count.y} fontSize={RING_COUNT_FONT * m}>{waiting}</text>
           </g>
         );

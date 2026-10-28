@@ -491,11 +491,21 @@
   fill: color-mix(in srgb, var(--warn) 12%, var(--panel));
 }
 
-/* A crowded Station's ring: the countdown to closing fills clockwise from the top. */
+/* A crowded Station's ring: the countdown to closing fills clockwise from the
+   top. The count is haloed in paper, like the passenger pops, to read over track. */
+.crowding-ring { pointer-events: none; }
 .crowding-ring circle { fill: none; }
 .crowding-ring-track { stroke: var(--paper-edge); }
 .crowding-ring-arc { stroke: var(--warn); }
-.crowding-count { fill: var(--warn); font-family: var(--font-mono); font-weight: 700; }
+.crowding-count {
+  fill: var(--warn);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  stroke: var(--paper);
+  stroke-width: 0.3em;
+  stroke-linejoin: round;
+  paint-order: stroke;
+}
 
 .dispatch-chip[data-candidate='true'] rect { stroke: var(--ink); stroke-width: 2px; }
 .dispatch-chip[data-locked='true'] rect { fill: var(--ink); stroke: var(--ink); }

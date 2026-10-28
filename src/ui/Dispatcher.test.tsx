@@ -3043,6 +3043,13 @@ describe('the crowding hint on the screen', () => {
     expect([...relieving()].map((el) => el.textContent)).toEqual(['Ampang Park']);
   });
 
+  it('a ringed Station keeps its own Station label', () => {
+    setHint();
+    renderShift(crowdedCareer());
+    expect(rings()).toHaveLength(1);
+    expect(document.querySelector(`text[data-label="${idOf('KLCC')}"]`)).not.toBeNull();
+  });
+
   it('draws nothing with the hint Off', () => {
     setHint({ mode: 'off' });
     renderShift(crowdedCareer());

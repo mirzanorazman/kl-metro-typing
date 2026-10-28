@@ -107,6 +107,16 @@ describe('placeLabels', () => {
     expect(label!.x).toBeLessThanOrEqual(0);
   });
 
+  it('a box owned by a station blocks every other label but lets its own sit out past `clear`', () => {
+    // The crowding ring around `a`: a square every corner of `a` and of its
+    // neighbour `b` falls inside at the usual offset.
+    const ring = { x0: -20, y0: -20, x1: 20, y1: 20, owner: 'a', clear: 15 };
+    const placed = placeLabels([at('a', 0, 0, 1), at('b', 2, 0)], { ...opts, boxes: [ring] });
+    expect(placed.map((l) => l.id)).toEqual(['a']);
+    const [label] = placed;
+    expect(Math.abs(label!.x)).toBeGreaterThanOrEqual(15);
+  });
+
   it('a `hard` box is avoided by an ordinary label too, ring by ring', () => {
     const panel = { x0: 0, y0: -100, x1: 100, y1: 100 };
     const [label] = placeLabels([at('a', -2, 0)], { ...opts, hard: [panel], rings: [1, 2] });

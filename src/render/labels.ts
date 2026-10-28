@@ -72,6 +72,12 @@ export interface Box {
   y0: number;
   x1: number;
   y1: number;
+  /**
+   * The station whose own label may sit over this box, starting `clear` from
+   * its point: a mark drawn around that station, which every other label keeps off.
+   */
+  owner?: string;
+  clear?: number;
 }
 
 export type Side = 'right' | 'left';
@@ -158,11 +164,15 @@ export function placeLabels(
       [side, 'up'],
       [side, 'down'],
     ]);
+    // A box owned by this station is drawn around it: its label ignores the
+    // box but starts far enough out to clear what is drawn.
+    const own = taken.filter((b) => b.owner === candidate.id);
+    const reach = Math.max(1, ...own.map((b) => (b.clear ?? 0) / opts.offset));
     const firstClear = (avoid: readonly Box[]) => {
       for (const ring of rings) {
         for (const [side, rung] of corners) {
-          const option = boxFor(candidate, side, rung, opts, ring);
-          if (inside(option.box) && !avoid.some((t) => hits(t, option.box))) return option;
+          const option = boxFor(candidate, side, rung, opts, ring * reach);
+          if (inside(option.box) && !avoid.some((t) => t.owner !== candidate.id && hits(t, option.box))) return option;
         }
       }
       return null;
@@ -178,7 +188,7 @@ export function placeLabels(
     // The station being typed wears the beacon ring, so every corner of it is
     // blocked; it keeps its label anyway rather than the player losing the
     // name of the place they are typing.
-    if (!chosen && candidate.required) chosen = boxFor(candidate, sides[0]!, 'up', opts);
+    if (!chosen && candidate.required) chosen = boxFor(candidate, sides[0]!, 'up', opts, reach);
     if (!chosen) continue;
 
     taken.push(chosen.box);

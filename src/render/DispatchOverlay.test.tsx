@@ -8,7 +8,8 @@ import { buildNetwork } from '../engine/network';
 import { networkLayout } from '../geo/networkLayout';
 import type { CrowdedStation } from './crowdingHint';
 import { DispatchOverlay } from './DispatchOverlay';
-import { CHAR_EM, overlayLayout, overlayObstacles, RING_CLEAR_R } from './dispatchLayout';
+import { CHAR_EM, overlayLayout, overlayObstacles, RING_CLEAR_R, RING_R, RING_STROKE, ringCountBox } from './dispatchLayout';
+import { labelBox, labelTiers, mapLabels } from './mapMarks';
 
 describe('the Dispatcher overlay crowding hint', () => {
   const net = buildNetwork(loadNetworkData());
@@ -79,6 +80,7 @@ describe('the Dispatcher overlay crowding hint', () => {
     const [ring, count] = withRing.slice(without.length);
     expect(ring).toEqual({
       x0: p.x - RING_CLEAR_R * M, y0: p.y - RING_CLEAR_R * M, x1: p.x + RING_CLEAR_R * M, y1: p.y + RING_CLEAR_R * M,
+      owner: 'klcc', clear: (RING_R + 2) * M,
     });
     // The three-digit count starts above-right of the ring and its box covers every glyph.
     const text = render(
@@ -92,5 +94,23 @@ describe('the Dispatcher overlay crowding hint', () => {
     expect(count!.x1).toBeGreaterThanOrEqual(x + 3 * CHAR_EM * font);
     expect(count!.y0).toBeLessThanOrEqual(y - font);
     expect(count!.y1).toBeGreaterThanOrEqual(y);
+  });
+
+  it.each([0.7, 1, 1.5])('a ringed Station keeps its own label, clear of its ring and its count (mark scale %s)', (m) => {
+    const c = career();
+    const targets = visibleTargets(net, c.sim);
+    const p = layout.get('klcc')!;
+    const boxes = overlayObstacles(net, layout, c, targets, [], m, null, [klcc]);
+    const view = { x: p.x - 200, y: p.y - 150, w: 400, h: 300 };
+    const { labels, opts, text } = mapLabels({ net, layout, view, markScale: m, activeStation: null, labelled: null,
+      labelOnly: new Set(['klcc']), tiers: labelTiers(net), boxes });
+    expect(labels.map((l) => l.id)).toEqual(['klcc']);
+    const box = labelBox(labels[0]!, text.get('klcc')!, opts);
+    // The nearest point of the name to the Station is outside the ring's outer edge.
+    const dx = Math.max(box.x0 - p.x, 0, p.x - box.x1);
+    const dy = Math.max(box.y0 - p.y, 0, p.y - box.y1);
+    expect(Math.hypot(dx, dy)).toBeGreaterThan((RING_R + RING_STROKE / 2) * m);
+    const count = ringCountBox(p, klcc.waiting, m);
+    expect(box.x0 < count.x1 && count.x0 < box.x1 && box.y0 < count.y1 && count.y0 < box.y1).toBe(false);
   });
 });
