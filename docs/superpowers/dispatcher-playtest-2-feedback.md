@@ -37,6 +37,9 @@ Native audio, live reduced-motion toggling and real phone keyboard behavior
 remain playtest checks; automated coverage is recorded separately. Decisions
 and implemented improvements are tracked below. F11 and F23 stay separate.
 
+The crowding work (F29, F30) has its own short checklist for playtest 2.5:
+[dispatcher-playtest-2.5-checklist.md](dispatcher-playtest-2.5-checklist.md).
+
 The checklist this answers is `dispatcher-playtest-2-checklist.md`; the
 background is in `dispatcher-handover.md`.
 
