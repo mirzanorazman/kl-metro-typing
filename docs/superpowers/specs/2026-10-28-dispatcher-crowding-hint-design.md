@@ -132,6 +132,25 @@ default after playing *(my call: nothing ships to players before then)*.
   (Reworded 2026-10-29 in playtest 2.5: "Clear the amber trains to bring
   trains here" read as amber Trains and left "here" unclear; what is amber is
   the boxed Station name the player types.)
+- **The amber rule and the grey ring** (added 2026-10-29 after playtest 2.5,
+  at the user's request). A dev select, "Amber rule", picks which relieving
+  Trains turn amber. *Within 3 blocks* is the rule above. *Arrives in time*
+  (the development default) also needs the Train to reach the crowded
+  platform before it closes: every Station name from its Signal to the
+  crowded Station's typed at 60 WPM (`ARRIVAL_WPM`), plus the shortest dwell
+  (1.5 s) and one run (5 s) per block, must fit in the time left
+  (`OOS_CROWD_MS - fullMs`). Passengers, busy blocks and closed Stations are
+  left out, so the estimate is the least time *(my call)*. Under B, a ring
+  whose Station no amber Train relieves is **lost** and draws grey
+  (`--ink-muted`, arc and count), under either rule; it can turn amber again
+  if a Train comes near. A has no rings, so a lost Station shows nothing.
+- **The grey-ring tip** (`crowding-lost`, after `crowding`): the first time a
+  grey ring shows, the Career pauses on "A grey ring: no waiting train can
+  reach this station before its ring is full, so it will probably go out of
+  service. To save stations like this, keep trains moving through busy
+  stations before a ring appears." It points at the fullest grey-ringed
+  Station. The `crowding` tip now waits for a Station an amber Train can save,
+  so its "Type the names boxed in amber" always has a chip to point at.
 - Reduced motion: nothing here animates beyond the ring growing with the
   countdown, which is state, not motion; keep it.
 

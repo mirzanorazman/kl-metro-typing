@@ -6,7 +6,7 @@ import { type Train } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
 import { buildNetwork } from '../engine/network';
 import { networkLayout } from '../geo/networkLayout';
-import type { CrowdedStation } from './crowdingHint';
+import type { CrowdingHintView, CrowdingRing } from './crowdingHint';
 import { DispatchOverlay } from './DispatchOverlay';
 import { CHAR_EM, overlayLayout, overlayObstacles, RING_CLEAR_R, RING_R, RING_STROKE, ringCountBox } from './dispatchLayout';
 import { labelBox, labelTiers, mapLabels } from './mapMarks';
@@ -28,9 +28,9 @@ describe('the Dispatcher overlay crowding hint', () => {
     c.sim.platforms['ampang-park']!.lastCall['KJ:1'] = 590_000;
     return c;
   }
-  const klcc: CrowdedStation = { id: 'klcc', share: 0.5, waiting: 62 };
+  const klcc: CrowdingRing = { id: 'klcc', share: 0.5, leftMs: 9_500, waiting: 62, lost: false };
 
-  function draw(c: CareerState, hint?: { relieving: ReadonlySet<number>; rings: readonly CrowdedStation[] }) {
+  function draw(c: CareerState, hint?: CrowdingHintView) {
     const targets = visibleTargets(net, c.sim);
     return render(
       <svg><DispatchOverlay net={net} layout={layout} markScale={M} career={c} targets={targets} aimed={[]}
@@ -58,6 +58,12 @@ describe('the Dispatcher overlay crowding hint', () => {
     expect(rings.length).toBe(1);
     expect(rings[0]!.querySelector('.crowding-ring-arc')!.getAttribute('stroke-dasharray')).toMatch(/^0\.5 /);
     expect(rings[0]!.textContent).toContain('62');
+    expect(rings[0]!.hasAttribute('data-lost')).toBe(false);
+  });
+
+  it('a lost ring is marked for grey', () => {
+    const dom = draw(career(), { relieving: new Set(), rings: [{ ...klcc, lost: true }] });
+    expect(dom.querySelector('[data-testid="crowding-ring"]')!.getAttribute('data-lost')).toBe('true');
   });
 
   it('rings do not move chips', () => {

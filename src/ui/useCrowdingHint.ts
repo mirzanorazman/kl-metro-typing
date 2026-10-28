@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
+  type AmberRule,
   CROWDING_DELAY_RANGE,
   CROWDING_HINT_DEFAULTS,
   CROWDING_HINT_OFF,
@@ -11,6 +12,7 @@ import {
 export const DISPATCH_CROWDING_KEY = 'klmetro.dispatchCrowding.v1';
 
 const MODES: readonly CrowdingHintMode[] = ['off', 'a', 'b'];
+const AMBER_RULES: readonly AmberRule[] = ['blocks', 'time'];
 
 const clamp = (value: unknown, [min, max]: readonly [number, number], fallback: number) =>
   typeof value === 'number' && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
@@ -28,6 +30,7 @@ function loadSettings(): CrowdingHintSettings {
       mode: MODES.find((mode) => mode === s.mode) ?? d.mode,
       delayMs: clamp(s.delayMs, CROWDING_DELAY_RANGE, d.delayMs),
       declutter: typeof s.declutter === 'boolean' ? s.declutter : d.declutter,
+      amber: AMBER_RULES.find((rule) => rule === s.amber) ?? d.amber,
     };
   } catch {
     return d;

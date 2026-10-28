@@ -2,6 +2,7 @@ import type { ChangeEvent, KeyboardEvent, PointerEvent } from 'react';
 import {
   CROWDING_DELAY_RANGE,
   CROWDING_DELAY_STEP,
+  type AmberRule,
   type CrowdingHintMode,
   type CrowdingHintSettings,
 } from '../render/crowdingHint';
@@ -34,10 +35,12 @@ const keepKeys = (e: KeyboardEvent<HTMLElement>) => {
 };
 
 const CROWDING_MODES: readonly [CrowdingHintMode, string][] = [['off', 'Off'], ['a', 'A: amber chips'], ['b', 'B: chips and ring']];
+const AMBER_RULES: readonly [AmberRule, string][] = [['time', 'Arrives in time'], ['blocks', 'Within 3 blocks']];
 
-/** The closed Crowding group's one row: "Crowding: B · 5 s", " · Declutter" when on. */
-function crowdingSummary({ mode, delayMs, declutter }: CrowdingHintSettings): string {
-  const hint = mode === 'off' ? 'Off' : `${mode.toUpperCase()} · ${delayMs / 1_000} s`;
+/** The closed Crowding group's one row: "Crowding: B · 5 s · in time", " · Declutter" when on. */
+function crowdingSummary({ mode, delayMs, declutter, amber }: CrowdingHintSettings): string {
+  const rule = amber === 'time' ? 'in time' : '3 blocks';
+  const hint = mode === 'off' ? 'Off' : `${mode.toUpperCase()} · ${delayMs / 1_000} s · ${rule}`;
   return `Crowding: ${hint}${declutter ? ' · Declutter' : ''}`;
 }
 
@@ -86,6 +89,16 @@ export function DispatchCameraPanel({ settings, onChange, stations, closenessNow
               onChange={(e: ChangeEvent<HTMLInputElement>) => onCrowdingChange({ ...crowding, delayMs: Number(e.target.value) * 1_000 })}
               onPointerUp={letGo} />
             <output>{`${crowding.delayMs / 1_000} s`}</output>
+          </label>
+          <label className="dispatch-camera-row">
+            <span>Amber rule</span>
+            <select aria-label="Amber rule" value={crowding.amber}
+              onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                onCrowdingChange({ ...crowding, amber: e.target.value as AmberRule });
+                e.target.blur();
+              }}>
+              {AMBER_RULES.map(([rule, text]) => <option key={rule} value={rule}>{text}</option>)}
+            </select>
           </label>
           <label className="dispatch-camera-row">
             <input type="checkbox" checked={crowding.declutter}

@@ -103,7 +103,7 @@ const renderShift = (initial?: CareerState) => render(
 );
 
 const START_TIP = "Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift.";
-const ALL_TIPS = ['lesson', 'start', 'incident', 'service-gap', 'late', 'new-train', 'crowding', 'out-of-service', 'expansion'];
+const ALL_TIPS = ['lesson', 'start', 'incident', 'service-gap', 'late', 'new-train', 'crowding', 'crowding-lost', 'out-of-service', 'expansion'];
 const seenTips = (ids: string[]) => saveProfile({ ...emptyProfile(), dispatchTipsSeen: ids });
 /** A profile that has seen every tip but the lesson and the start caption. */
 const fresh = () => seenTips(ALL_TIPS.filter((id) => id !== 'lesson' && id !== 'start'));
@@ -3073,6 +3073,25 @@ describe('the crowding hint on the screen', () => {
     renderShift(crowdedCareer());
     expect(rings().map((r) => r.getAttribute('data-station'))).toEqual([idOf('KLCC')]);
     expect([...relieving()].map((el) => el.textContent)).toEqual(['Ampang Park']);
+    expect(rings()[0]!.hasAttribute('data-lost')).toBe(false);
+  });
+
+  it('greys the ring when no Train can arrive in time, unless the amber rule counts blocks only', () => {
+    // 4 s left: Train 1 needs about 9.5 s to reach KLCC from Ampang Park's Signal.
+    const late = () => {
+      const c = crowdedCareer();
+      c.sim.platforms[idOf('KLCC')]!.fullMs = 15_000;
+      return c;
+    };
+    setHint();
+    const { unmount } = renderShift(late());
+    expect(rings()[0]!.getAttribute('data-lost')).toBe('true');
+    expect(relieving()).toHaveLength(0);
+    unmount();
+    setHint({ amber: 'blocks' });
+    renderShift(late());
+    expect(rings()[0]!.hasAttribute('data-lost')).toBe(false);
+    expect([...relieving()].map((el) => el.textContent)).toEqual(['Ampang Park']);
   });
 
   it('a ringed Station keeps its own Station label', () => {
@@ -3147,7 +3166,7 @@ describe('the crowding hint on the screen', () => {
     setHint();
     renderShift(crowdedCareer());
     expect(rings()).toHaveLength(1);
-    fireEvent.click(screen.getByText('Crowding: B · 0 s'));
+    fireEvent.click(screen.getByText('Crowding: B · 0 s · in time'));
     fireEvent.change(hintSelect(), { target: { value: 'off' } });
     expect(rings()).toHaveLength(0);
     expect(relieving()).toHaveLength(0);

@@ -4,7 +4,8 @@ import { pairedRears, type OosCause } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
 import { PLATFORM_CAPACITY } from '../engine/dispatchBalance';
 import {
-  CROWDING_HINT_OFF, crowdedStations, hintLive, relievingTrains, type CrowdingHintMode, type CrowdingHintSettings,
+  CROWDING_HINT_OFF, crowdedStations, hintLive, relievingTrains, type CrowdedStation, type CrowdingHintMode,
+  type CrowdingHintSettings,
 } from '../render/crowdingHint';
 
 /** One-time Dispatcher tips, in the order they queue when moments coincide. */
@@ -15,6 +16,7 @@ export const DISPATCH_TIPS = [
   { id: 'late', text: 'This train is late: its next platform has waited too long. Type the farther Station shown beside it to run it express.' },
   { id: 'new-train', text: 'A new train has joined at the end of the line. Trains join during the peaks until each line has its full fleet; longer lines get more trains.' },
   { id: 'crowding', text: `This station is overcrowding. The ring fills while ${PLATFORM_CAPACITY} or more people wait; when it is full, the station goes out of service. Type the names boxed in amber to move trains into this station.` },
+  { id: 'crowding-lost', text: 'A grey ring: no waiting train can reach this station before its ring is full, so it will probably go out of service. To save stations like this, keep trains moving through busy stations before a ring appears.' },
   { id: 'out-of-service', text: 'A station is out of service. Each closure fills the gauge at the top; when it is full, the Shift fails.' },
   { id: 'expansion', text: "Shift cleared. Choose where your network grows. Type a station's name or click it." },
 ] as const;
@@ -30,17 +32,26 @@ export function dispatchTipText(id: DispatchTipId, mode: CrowdingHintMode = 'b')
   return DISPATCH_TIPS.find((t) => t.id === id)!.text;
 }
 
+interface Marked { station: CrowdedStation; trains: Set<number> }
+
 /**
- * What the crowding hint shows on a sim: the crowded Stations, and the Trains
- * that relieve them. Under A only the amber chips show, so a crowded Station
- * with no Train heading its way shows nothing.
+ * What the crowding hint shows on a sim: the crowded Stations some amber Train
+ * relieves (`saved`), and under B the grey-ringed ones no Train can (`lost`).
+ * Under A a crowded Station with no amber Train shows nothing.
  */
-function hintShown(net: NetworkIndex, sim: CareerState['sim'], hint: CrowdingHintSettings) {
-  if (hint.mode === 'off') return null;
-  const crowded = crowdedStations(sim, hint.delayMs);
-  if (hint.mode === 'b') return crowded.length > 0 ? { crowded } : null;
-  return relievingTrains(net, sim, crowded, visibleTargets(net, sim)).size > 0 ? { crowded } : null;
+function hintShown(net: NetworkIndex, sim: CareerState['sim'], hint: CrowdingHintSettings): { saved: Marked[]; lost: Marked[] } {
+  if (hint.mode === 'off') return { saved: [], lost: [] };
+  const targets = visibleTargets(net, sim);
+  const marked = crowdedStations(sim, hint.delayMs)
+    .map((station) => ({ station, trains: relievingTrains(net, sim, [station], targets, hint.amber) }));
+  return {
+    saved: marked.filter((m) => m.trains.size > 0),
+    lost: hint.mode === 'b' ? marked.filter((m) => m.trains.size === 0) : [],
+  };
 }
+
+/** The fullest of some marked Stations, the first by id on a tie. */
+const fullest = (marked: Marked[]) => marked.reduce((best, m) => (m.station.share > best.station.share ? m : best));
 
 /**
  * The tip moments that happened between two states, minus those `seen`.
@@ -48,7 +59,9 @@ function hintShown(net: NetworkIndex, sim: CareerState['sim'], hint: CrowdingHin
  * A new Shift's fresh sim is not compared with the last one's. A Service gap
  * has its own tip, so only the random kinds count as a new Incident. Takes
  * `net` because late Trains are read through the network. The crowding tip
- * comes the first time the crowding `hint` shows anything; with it Off, never.
+ * comes the first time the crowding `hint` shows a Station an amber Train can
+ * save, the grey-ring tip the first time it shows one none can; with it Off,
+ * never.
  */
 export function newDispatchTips(
   net: NetworkIndex,
@@ -73,7 +86,11 @@ export function newDispatchTips(
     }
     if (after.nextTrainId > before.nextTrainId) hit.add('new-train');
     // The tick a Shift ends changes the sim too, but the hint is off by then.
-    if (want('crowding') && hintLive(next.status, false) && hintShown(net, after, hint)) hit.add('crowding');
+    if ((want('crowding') || want('crowding-lost')) && hintLive(next.status, false)) {
+      const shown = hintShown(net, after, hint);
+      if (shown.saved.length > 0) hit.add('crowding');
+      if (shown.lost.length > 0) hit.add('crowding-lost');
+    }
     if (after.oosOrder.length > before.oosOrder.length) hit.add('out-of-service');
   }
   return DISPATCH_TIPS.map((t) => t.id).filter((id) => hit.has(id) && want(id));
@@ -88,7 +105,8 @@ export interface TipSubject { trains: number[]; stations: string[] }
  * Station it left behind; the first late train (by id) offering a Station
  * further ahead, at its platform; the train that joined last (the highest id),
  * where it is; the fullest crowded Station the `hint` shows and the Trains that
- * relieve it; or the Station that went Out of service last. Null for any other
+ * relieve it, or for the grey-ring tip the fullest one none relieves; or the
+ * Station that went Out of service last. Null for any other
  * tip, and for a subject that has gone, including between Shifts, when the
  * Shift's trains are out of play.
  */
@@ -116,15 +134,12 @@ export function tipSubject(
     const newest = Math.max(...sim.trains.map((t) => t.id));
     return Number.isFinite(newest) ? { trains: [newest], stations: [stationOf(newest)!] } : null;
   }
-  if (id === 'crowding') {
+  if (id === 'crowding' || id === 'crowding-lost') {
     const shown = hintShown(net, sim, hint);
-    if (!shown) return null;
-    const targets = visibleTargets(net, sim);
-    // Under A the Station must have a Train heading its way, or nothing marks it.
-    const candidates = shown.crowded.filter((c) => hint.mode === 'b'
-      || relievingTrains(net, sim, [c], targets).size > 0);
-    const fullest = candidates.reduce((best, c) => (c.share > best.share ? c : best));
-    return { trains: [...relievingTrains(net, sim, [fullest], targets)].sort((a, b) => a - b), stations: [fullest.id] };
+    const marked = id === 'crowding' ? shown.saved : shown.lost;
+    if (marked.length === 0) return null;
+    const { station, trains } = fullest(marked);
+    return { trains: [...trains].sort((a, b) => a - b), stations: [station.id] };
   }
   if (id === 'out-of-service') {
     const last = sim.oosOrder[sim.oosOrder.length - 1];

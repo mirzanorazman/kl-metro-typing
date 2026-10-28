@@ -50,7 +50,7 @@ describe('DispatchCameraPanel crowding controls', () => {
     renderWithCrowding();
     expect(summary().tagName).toBe('SUMMARY');
     expect(summary().closest('details')!.open).toBe(false);
-    expect(summary().textContent).toBe('Crowding: B · 5 s');
+    expect(summary().textContent).toBe('Crowding: B · 5 s · in time');
     open();
     expect(summary().closest('details')!.open).toBe(true);
   });
@@ -58,7 +58,8 @@ describe('DispatchCameraPanel crowding controls', () => {
   it.each([
     [{ mode: 'off', declutter: false }, 'Crowding: Off'],
     [{ mode: 'off', declutter: true }, 'Crowding: Off · Declutter'],
-    [{ mode: 'a', delayMs: 0, declutter: true }, 'Crowding: A · 0 s · Declutter'],
+    [{ mode: 'a', delayMs: 0, declutter: true }, 'Crowding: A · 0 s · in time · Declutter'],
+    [{ mode: 'b', amber: 'blocks' }, 'Crowding: B · 5 s · 3 blocks'],
   ] as const)('its summary reads %o as %s', (over, text) => {
     renderWithCrowding(() => {}, { ...CROWDING_HINT_DEFAULTS, ...over });
     expect(summary().textContent).toBe(text);
@@ -87,6 +88,7 @@ describe('DispatchCameraPanel crowding controls', () => {
     expect((screen.getByRole('combobox', { name: 'Crowding hint' }) as HTMLSelectElement).value).toBe('b');
     expect(screen.getByText('5 s', { selector: 'output' })).toBeTruthy();
     expect((screen.getByRole('checkbox', { name: 'Declutter labels' }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('combobox', { name: 'Amber rule' }) as HTMLSelectElement).value).toBe('time');
   });
 
   it('each crowding control reports the new settings', () => {
@@ -99,6 +101,8 @@ describe('DispatchCameraPanel crowding controls', () => {
     expect(onCrowdingChange).toHaveBeenLastCalledWith({ ...CROWDING_HINT_DEFAULTS, delayMs: 8_000 });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Declutter labels' }));
     expect(onCrowdingChange).toHaveBeenLastCalledWith({ ...CROWDING_HINT_DEFAULTS, declutter: true });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Amber rule' }), { target: { value: 'blocks' } });
+    expect(onCrowdingChange).toHaveBeenLastCalledWith({ ...CROWDING_HINT_DEFAULTS, amber: 'blocks' });
   });
 
   it('a used crowding control lets go of focus', () => {

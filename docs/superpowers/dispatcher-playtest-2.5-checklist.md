@@ -55,6 +55,17 @@ prompt ("Typ") at 1280 × 800.
 - [ ] Between Shifts the Expansion offers keep their names. Correct?
 - [ ] Keep it, drop it, or keep some names (which)?
 
+## 5b. Amber rule and the grey ring
+
+- [ ] Dev panel, Amber rule: "Arrives in time" (default) or "Within 3 blocks".
+- [ ] With Arrives in time: did any amber Train you Cleared quickly still fail
+      to save its Station? Note the Station and how far back the Train was.
+- [ ] A grey ring: did you understand that Station was lost? Did the grey-ring
+      tip make sense?
+- [ ] Did a grey ring help answer "how did that happen?" after the closure?
+- [ ] Too many grey rings, so the map feels hopeless? Which Shift?
+- [ ] Arrives in time or Within 3 blocks: which one should players get?
+
 ## 6. Did it change how you play?
 
 - [ ] Did you Clear amber Trains first when you saw them?
@@ -80,5 +91,6 @@ prompt ("Typ") at 1280 × 800.
 - Mode for players: Off / A / B: ______
 - Hint delay: ______ s
 - Declutter: on / off / changed: ______
+- Amber rule: in time / 3 blocks: ______
 - Failed-Shift hold ______ s and zoom ______ ×
 - Anything that felt wrong, with the Shift and the Station.

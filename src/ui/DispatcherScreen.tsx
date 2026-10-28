@@ -34,7 +34,7 @@ import type { TypingState } from '../engine/typing';
 import { closeFrame } from '../geo/fit';
 import { networkLayout } from '../geo/networkLayout';
 import {
-  crowdedStations, declutteredLabels, hintLive, relievingTrains, type CrowdingHintMode,
+  crowdedStations, declutteredLabels, hintLive, hintView, type CrowdingHintMode,
 } from '../render/crowdingHint';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import {
@@ -645,14 +645,14 @@ export function DispatcherScreen({
   const visited = lessonServed ?? served;
   const labelled = dispatchLabelled(net, shown, visited, targets);
   // The crowding hint: Stations whose platform has been full past the delay get
-  // a ring, and the Trains that could relieve them an amber chip. It shows only
+  // a ring, and the Trains that could relieve them an amber chip; a ring no
+  // Train can relieve shows grey. It shows only
   // during a Shift of the Career, never between Shifts, in the lesson or while a
   // reveal introduces the network's names. Declutter then draws only the names
   // of the Stations in play.
   const hintOn = hintLive(shown.status, lesson != null) && !reveal;
   const crowded = hintOn && crowding.mode !== 'off' ? crowdedStations(shown.sim, crowding.delayMs) : [];
-  const relieving = relievingTrains(net, shown.sim, crowded, targets);
-  const rings = crowding.mode === 'b' ? crowded : [];
+  const { relieving, rings } = hintView(net, shown.sim, crowded, targets, crowding);
   const labelOnly = hintOn && crowding.declutter
     ? declutteredLabels(shown.sim, rings.map((r) => r.id)) : null;
   const leanFrame = lean?.stations.map((id) => layout.get(id)).filter((p): p is Point => p !== undefined);

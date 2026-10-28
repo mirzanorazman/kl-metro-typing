@@ -978,7 +978,10 @@ each block is a Clear, a dwell (1.5 s or more) and 5 s of travel, and the ring
 appears with 14 s left at the 5 s delay. By that sum only a Train Held at the
 crowded Station's own Signal, or one block back, can still arrive in time; an
 amber Train two or three blocks back is shown as a way out it cannot be.
-Open: whether amber should mean "can still arrive in time".
+Built the same day as a dev option: "Amber rule" (Arrives in time, the
+default, or Within 3 blocks), a grey ring for a Station no amber Train can
+save, and a one-time tip for the grey ring (details in the design). The user's
+playtest settings: mode B, Hint delay 2 s, Declutter on.
 
 ### F30. A failed Shift's camera moves to the last closed Station
 

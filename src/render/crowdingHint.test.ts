@@ -6,7 +6,9 @@ import { STARTING_NETWORK, type Served } from '../engine/dispatchNetwork';
 import { crowdAt, startShiftSim, type Incident, type Train } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
 import { buildNetwork } from '../engine/network';
-import { crowdedStations, declutteredLabels, hintLive, relievingTrains } from './crowdingHint';
+import {
+  arrivalMs, CROWDING_HINT_DEFAULTS, crowdedStations, declutteredLabels, hintLive, hintView, relievingTrains,
+} from './crowdingHint';
 
 describe('the crowding hint rules', () => {
   const net = buildNetwork(loadNetworkData());
@@ -36,7 +38,7 @@ describe('the crowding hint rules', () => {
     expect(crowdedStations(s, 5_000)).toEqual([]);
     s.platforms.klcc!.fullMs = 5_000;
     expect(crowdedStations(s, 5_000)).toEqual([
-      { id: 'klcc', share: 5_000 / OOS_CROWD_MS, waiting: crowdAt(s, 'klcc') },
+      { id: 'klcc', share: 5_000 / OOS_CROWD_MS, leftMs: OOS_CROWD_MS - 5_000, waiting: crowdAt(s, 'klcc') },
     ]);
     expect(crowdAt(s, 'klcc')).toBe(60);
   });
@@ -114,6 +116,42 @@ describe('the crowding hint rules', () => {
     const held = visibleTargets(net, s);
     expect(held.some((t) => t.ref.kind === 'signal' && t.ref.train === 2)).toBe(false);
     expect(relievingTrains(net, s, crowdedStations(s, 0), held).has(2)).toBe(false);
+  });
+
+  it('a Train’s arrival time: each Station name on the way typed at 60 WPM, plus a dwell and a run per block', () => {
+    // KLCC: 4 letters at 200 ms each.
+    expect(arrivalMs(net, waiting(1, 'klcc'), 0)).toBe(800);
+    // Ampang Park, then KLCC: 15 letters, one dwell (1.5 s) and one run (5 s).
+    expect(arrivalMs(net, waiting(1, 'ampang-park'), 1)).toBe(3_000 + 6_500);
+    // Damai, Ampang Park, KLCC: 20 letters, two blocks.
+    expect(arrivalMs(net, waiting(1, 'damai'), 2)).toBe(4_000 + 13_000);
+  });
+
+  it('under the time rule, only a Train that can arrive before the Station closes relieves it', () => {
+    const s = sim();
+    s.trains = [waiting(1, 'klcc'), waiting(2, 'ampang-park'), waiting(3, 'damai')];
+    const timely = () => relievingTrains(net, s, crowdedStations(s, 0), visibleTargets(net, s), 'time');
+    crowd(s, 'klcc', 5_000);
+    expect(timely()).toEqual(new Set([1, 2]));
+    crowd(s, 'klcc', 11_000);
+    expect(timely()).toEqual(new Set([1]));
+    crowd(s, 'klcc', OOS_CROWD_MS);
+    expect(timely()).toEqual(new Set());
+    expect(relieving(s)).toEqual(new Set([1, 2, 3]));
+  });
+
+  it('a ring is lost when no amber Train relieves its Station; A draws no rings', () => {
+    const s = sim();
+    crowd(s, 'klcc', 5_000);
+    crowd(s, 'kerinchi', 5_000);
+    s.trains = [waiting(1, 'damai'), waiting(2, 'ampang-park')];
+    const view = (hint = CROWDING_HINT_DEFAULTS) => hintView(net, s, crowdedStations(s, 0), visibleTargets(net, s), hint);
+    expect(view().relieving).toEqual(new Set([2]));
+    expect(view().rings.map(({ id, lost }) => [id, lost])).toEqual([['kerinchi', true], ['klcc', false]]);
+    s.trains = [waiting(1, 'damai')];
+    expect(view().rings.map(({ lost }) => lost)).toEqual([true, true]);
+    expect(view({ ...CROWDING_HINT_DEFAULTS, amber: 'blocks' }).rings.map(({ lost }) => lost)).toEqual([true, false]);
+    expect(view({ ...CROWDING_HINT_DEFAULTS, mode: 'a' }).rings).toEqual([]);
   });
 
   it('an Interchange counts Trains only on Lines that serve it', () => {

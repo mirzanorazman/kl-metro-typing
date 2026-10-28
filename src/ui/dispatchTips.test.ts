@@ -140,7 +140,7 @@ describe('newDispatchTips', () => {
   });
 
   describe('the crowding hint', () => {
-    const B: CrowdingHintSettings = { mode: 'b', delayMs: 5_000, declutter: false };
+    const B: CrowdingHintSettings = { mode: 'b', delayMs: 5_000, declutter: false, amber: 'time' };
     const A: CrowdingHintSettings = { ...B, mode: 'a' };
     /** KLCC's countdown at `fullMs`, with whatever Trains are given. */
     const crowdedAt = (fullMs: number, trains: Train[] = []) => withSim(running(trains), (sim) => {
@@ -149,8 +149,9 @@ describe('newDispatchTips', () => {
     });
 
     it('sees the hint show for the first time, and only while it is switched on', () => {
-      const prev = crowdedAt(4_900);
-      const next = crowdedAt(5_000);
+      const near = [waiting(1, 'KJ', 'Ampang Park')];
+      const prev = crowdedAt(4_900, near);
+      const next = crowdedAt(5_000, near);
       expect(newDispatchTips(net, prev, next, none, B)).toEqual(['crowding']);
       expect(newDispatchTips(net, prev, prev, none, B)).toEqual([]);
       expect(newDispatchTips(net, prev, withSim(prev, () => {}), none, B)).toEqual([]);
@@ -162,28 +163,43 @@ describe('newDispatchTips', () => {
     it('never tips on the tick a Shift ends', () => {
       const between = { ...crowdedAt(5_000), status: 'between' as const };
       expect(newDispatchTips(net, crowdedAt(4_900), between, none, B)).not.toContain('crowding');
+      expect(newDispatchTips(net, crowdedAt(4_900), between, none, B)).not.toContain('crowding-lost');
+    });
+
+    it('under B, a grey ring has its own tip: no Train near, or none that can arrive in time', () => {
+      expect(newDispatchTips(net, crowdedAt(4_900), crowdedAt(5_000), none, B)).toEqual(['crowding-lost']);
+      // Damai is two blocks out: about 17 s from KLCC, with 14 s left.
+      const far = [waiting(1, 'KJ', 'Damai')];
+      expect(newDispatchTips(net, crowdedAt(4_900, far), crowdedAt(5_000, far), none, B)).toEqual(['crowding-lost']);
+      expect(newDispatchTips(net, crowdedAt(4_900, far), crowdedAt(5_000, far), none, { ...B, amber: 'blocks' }))
+        .toEqual(['crowding']);
+      expect(newDispatchTips(net, crowdedAt(4_900), crowdedAt(5_000), new Set(['crowding-lost']), B)).toEqual([]);
+      expect(newDispatchTips(net, crowdedAt(4_900), crowdedAt(5_000), none, A)).toEqual([]);
     });
 
     it('under A, waits for an amber chip, since there is no ring', () => {
-      const relieving = [waiting(1, 'KJ', 'Damai')];
+      const relieving = [waiting(1, 'KJ', 'Ampang Park')];
       expect(newDispatchTips(net, crowdedAt(0), crowdedAt(5_000), none, A)).toEqual([]);
       expect(newDispatchTips(net, crowdedAt(0, relieving), crowdedAt(5_000, relieving), none, A)).toEqual(['crowding']);
     });
 
     it('tipSubject points at the crowded Station and the Trains that relieve it', () => {
-      const s = crowdedAt(5_000, [waiting(1, 'KJ', 'Damai'), waiting(2, 'KJ', 'Jelatek')]);
+      const s = crowdedAt(5_000, [waiting(1, 'KJ', 'Ampang Park'), waiting(2, 'KJ', 'Damai'), waiting(3, 'KJ', 'Jelatek')]);
       expect(tipSubject(net, s, 'crowding', B)).toEqual({ trains: [1], stations: [idOf('KLCC')] });
+      expect(tipSubject(net, s, 'crowding', { ...B, amber: 'blocks' })).toEqual({ trains: [1, 2], stations: [idOf('KLCC')] });
       expect(tipSubject(net, crowdedAt(0), 'crowding', B)).toBeNull();
       expect(tipSubject(net, s, 'crowding')).toBeNull();
     });
 
-    it('tipSubject takes the fullest Station the hint marks: any under B, one with an amber chip under A', () => {
-      const s = withSim(crowdedAt(5_000, [waiting(1, 'KJ', 'Damai')]), (sim) => {
+    it('tipSubject takes the fullest Station each tip is about: one with an amber chip, or for the grey ring one with none', () => {
+      const s = withSim(crowdedAt(5_000, [waiting(1, 'KJ', 'Ampang Park')]), (sim) => {
         sim.platforms[idOf('Kerinchi')]!.fullMs = 9_000;
         sim.platforms[idOf('Kerinchi')]!.waiting = { [idOf('KLCC')]: 60 };
       });
-      expect(tipSubject(net, s, 'crowding', B)).toEqual({ trains: [], stations: [idOf('Kerinchi')] });
+      expect(tipSubject(net, s, 'crowding', B)).toEqual({ trains: [1], stations: [idOf('KLCC')] });
       expect(tipSubject(net, s, 'crowding', A)).toEqual({ trains: [1], stations: [idOf('KLCC')] });
+      expect(tipSubject(net, s, 'crowding-lost', B)).toEqual({ trains: [], stations: [idOf('Kerinchi')] });
+      expect(tipSubject(net, s, 'crowding-lost', A)).toBeNull();
     });
 
     it('says what the hint shows in each mode', () => {
@@ -209,7 +225,7 @@ describe('newDispatchTips', () => {
 
   it('has the agreed copy, in Dispatcher vocabulary', () => {
     expect(DISPATCH_TIPS.map((t) => t.id))
-      .toEqual(['start', 'incident', 'service-gap', 'late', 'new-train', 'crowding', 'out-of-service', 'expansion']);
+      .toEqual(['start', 'incident', 'service-gap', 'late', 'new-train', 'crowding', 'crowding-lost', 'out-of-service', 'expansion']);
     expect(dispatchTipText('start'))
       .toBe("Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift.");
     expect(dispatchTipText('start')).toMatch(/red signal/);

@@ -497,6 +497,9 @@
 .crowding-ring circle { fill: none; }
 .crowding-ring-track { stroke: var(--paper-edge); }
 .crowding-ring-arc { stroke: var(--warn); }
+/* No Held Train can reach it in time: the same countdown, in grey. */
+.crowding-ring[data-lost='true'] .crowding-ring-arc { stroke: var(--ink-muted); }
+.crowding-ring[data-lost='true'] .crowding-count { fill: var(--ink-muted); }
 .crowding-count {
   fill: var(--warn);
   font-family: var(--font-mono);

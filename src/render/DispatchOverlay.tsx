@@ -35,7 +35,7 @@ export interface DispatchOverlayProps {
   stamping?: ReadonlySet<string>;
   /** Trains a tip is about: each pulses a ring, a steady one under reduced motion. */
   spotlight?: ReadonlySet<number>;
-  /** The crowding hint: Trains whose Signal chips turn amber, and a countdown ring on each crowded Station. */
+  /** The crowding hint: Trains whose Signal chips turn amber, and a countdown ring on each crowded Station, grey when lost. */
   hint?: CrowdingHintView;
 }
 
@@ -244,13 +244,13 @@ export function DispatchOverlay({
         );
       })}
 
-      {hint?.rings.map(({ id, share, waiting }) => {
+      {hint?.rings.map(({ id, share, waiting, lost }) => {
         const p = layout.get(id);
         if (!p) return null;
         const r = RING_R * m;
         const count = ringCountAnchor(p, m);
         return (
-          <g key={`ring-${id}`} data-testid="crowding-ring" data-station={id} className="crowding-ring">
+          <g key={`ring-${id}`} data-testid="crowding-ring" data-station={id} data-lost={lost || undefined} className="crowding-ring">
             {/* No non-scaling-stroke: Chrome then ignores pathLength on the arc, so widths scale by hand. */}
             <circle className="crowding-ring-track" cx={p.x} cy={p.y} r={r} strokeWidth={RING_STROKE * m} />
             <circle className="crowding-ring-arc" cx={p.x} cy={p.y} r={r} pathLength={1} strokeDasharray={`${share} 1`}
