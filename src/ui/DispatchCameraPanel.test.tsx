@@ -38,21 +38,61 @@ describe('DispatchCameraPanel controls', () => {
 });
 
 describe('DispatchCameraPanel crowding controls', () => {
-  const renderWithCrowding = (onCrowdingChange = () => {}) => render(
+  const renderWithCrowding = (onCrowdingChange = () => {}, crowding = CROWDING_HINT_DEFAULTS) => render(
     <DispatchCameraPanel settings={CLOSE_CAMERA_DEFAULTS} onChange={() => {}} stations={14} closenessNow={3}
-      crowding={CROWDING_HINT_DEFAULTS} onCrowdingChange={onCrowdingChange} />,
+      crowding={crowding} onCrowdingChange={onCrowdingChange} />,
   );
+  const summary = () => screen.getByText(/^Crowding:/);
+  /** The group starts closed; its summary opens it. */
+  const open = () => fireEvent.click(summary());
+
+  it('starts closed, one row showing the current settings', () => {
+    renderWithCrowding();
+    expect(summary().tagName).toBe('SUMMARY');
+    expect(summary().closest('details')!.open).toBe(false);
+    expect(summary().textContent).toBe('Crowding: B · 5 s');
+    open();
+    expect(summary().closest('details')!.open).toBe(true);
+  });
+
+  it.each([
+    [{ mode: 'off', declutter: false }, 'Crowding: Off'],
+    [{ mode: 'off', declutter: true }, 'Crowding: Off · Declutter'],
+    [{ mode: 'a', delayMs: 0, declutter: true }, 'Crowding: A · 0 s · Declutter'],
+  ] as const)('its summary reads %o as %s', (over, text) => {
+    renderWithCrowding(() => {}, { ...CROWDING_HINT_DEFAULTS, ...over });
+    expect(summary().textContent).toBe(text);
+  });
+
+  it('a clicked summary lets go of focus; a letter key on it goes on to the game', () => {
+    const onKey = vi.fn();
+    window.addEventListener('keydown', onKey);
+    renderWithCrowding();
+    const row = summary();
+    row.focus();
+    fireEvent.pointerUp(row);
+    expect(document.activeElement).not.toBe(row);
+    row.focus();
+    fireEvent.keyDown(row, { key: 'Enter' });
+    expect(onKey).not.toHaveBeenCalled();
+    fireEvent.keyDown(row, { key: 'k' });
+    expect(document.activeElement).not.toBe(row);
+    expect(onKey).toHaveBeenCalledTimes(1);
+    window.removeEventListener('keydown', onKey);
+  });
 
   it('shows the crowding controls when given settings', () => {
     renderWithCrowding();
+    open();
     expect((screen.getByRole('combobox', { name: 'Crowding hint' }) as HTMLSelectElement).value).toBe('b');
-    expect(screen.getByText('5 s')).toBeTruthy();
+    expect(screen.getByText('5 s', { selector: 'output' })).toBeTruthy();
     expect((screen.getByRole('checkbox', { name: 'Declutter labels' }) as HTMLInputElement).checked).toBe(false);
   });
 
   it('each crowding control reports the new settings', () => {
     const onCrowdingChange = vi.fn();
     renderWithCrowding(onCrowdingChange);
+    open();
     fireEvent.change(screen.getByRole('combobox', { name: 'Crowding hint' }), { target: { value: 'a' } });
     expect(onCrowdingChange).toHaveBeenLastCalledWith({ ...CROWDING_HINT_DEFAULTS, mode: 'a' });
     fireEvent.change(screen.getByRole('slider', { name: 'Hint delay' }), { target: { value: '8' } });
@@ -63,6 +103,7 @@ describe('DispatchCameraPanel crowding controls', () => {
 
   it('a used crowding control lets go of focus', () => {
     renderWithCrowding();
+    open();
     const select = screen.getByRole('combobox', { name: 'Crowding hint' });
     select.focus();
     fireEvent.change(select, { target: { value: 'off' } });

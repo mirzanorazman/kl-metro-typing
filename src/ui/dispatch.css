@@ -1064,15 +1064,16 @@
 }
 
 .dispatch-camera-group {
-  display: grid;
-  gap: 0.25rem;
   margin: 0;
   padding: 0.25rem 0 0;
   border: 0;
   border-top: 1px dashed var(--panel-edge);
 }
 
-.dispatch-camera-group legend {
-  padding: 0 0.25rem 0 0;
+.dispatch-camera-group summary {
   color: var(--ink-muted);
+  cursor: pointer;
 }
+
+/* A details box is no grid in every browser, so its rows space themselves. */
+.dispatch-camera-group > .dispatch-camera-row { margin-top: 0.25rem; }

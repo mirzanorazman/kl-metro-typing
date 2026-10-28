@@ -3074,6 +3074,7 @@ describe('the crowding hint on the screen', () => {
     setHint();
     renderShift(crowdedCareer());
     expect(rings()).toHaveLength(1);
+    fireEvent.click(screen.getByText('Crowding: B · 0 s'));
     fireEvent.change(hintSelect(), { target: { value: 'off' } });
     expect(rings()).toHaveLength(0);
     expect(relieving()).toHaveLength(0);

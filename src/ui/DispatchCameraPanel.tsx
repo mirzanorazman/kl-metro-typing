@@ -20,7 +20,7 @@ interface DispatchCameraPanelProps {
 }
 
 // A used control lets go of focus, so the next key is the game's again.
-const letGo = (e: PointerEvent<HTMLInputElement>) => e.currentTarget.blur();
+const letGo = (e: PointerEvent<HTMLElement>) => e.currentTarget.blur();
 /** The keys a slider or the toggle uses. */
 const PANEL_KEYS = new Set([
   'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown', ' ', 'Enter', 'Tab',
@@ -34,6 +34,12 @@ const keepKeys = (e: KeyboardEvent<HTMLElement>) => {
 };
 
 const CROWDING_MODES: readonly [CrowdingHintMode, string][] = [['off', 'Off'], ['a', 'A: amber chips'], ['b', 'B: chips and ring']];
+
+/** The closed Crowding group's one row: "Crowding: B · 5 s", " · Declutter" when on. */
+function crowdingSummary({ mode, delayMs, declutter }: CrowdingHintSettings): string {
+  const hint = mode === 'off' ? 'Off' : `${mode.toUpperCase()} · ${delayMs / 1_000} s`;
+  return `Crowding: ${hint}${declutter ? ' · Declutter' : ''}`;
+}
 
 /** Dev only: tunes the close camera and the crowding hint while playing. */
 export function DispatchCameraPanel({ settings, onChange, stations, closenessNow, crowding, onCrowdingChange }: DispatchCameraPanelProps) {
@@ -60,8 +66,9 @@ export function DispatchCameraPanel({ settings, onChange, stations, closenessNow
       {slider('late', 'Late closeness', 0.1, `${settings.late.toFixed(1)}×`)}
       <p className="dispatch-camera-now">{`Now ${closenessNow.toFixed(1)}× at ${stations} Stations`}</p>
       {crowding && onCrowdingChange && (
-        <fieldset className="dispatch-camera-group">
-          <legend>Crowding</legend>
+        // Closed, it costs one row, so the panel stays clear of the typing panel's prompt.
+        <details className="dispatch-camera-group">
+          <summary onPointerUp={letGo}>{crowdingSummary(crowding)}</summary>
           <label className="dispatch-camera-row">
             <span>Crowding hint</span>
             <select aria-label="Crowding hint" value={crowding.mode}
@@ -88,7 +95,7 @@ export function DispatchCameraPanel({ settings, onChange, stations, closenessNow
               }} />
             <span>Declutter labels</span>
           </label>
-        </fieldset>
+        </details>
       )}
     </aside>
   );
