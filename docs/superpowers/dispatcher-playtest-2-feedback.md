@@ -951,6 +951,11 @@ its outer edge plus a margin; the Crowding group in the dev panel folds to one
 row ("Crowding: B · 5 s"), closed by default; and the hint, Declutter included,
 is off during the Shift-entry reveal.
 
+A one-time crowding tip was added after the user met a ring with no
+explanation: the first time the hint shows, the Career pauses on a tip that
+points at the crowded Station and pulses the amber Trains (copy per mode in the
+design).
+
 Seen live after the fix wave (Shift 1, mode B, delay 0): rings on Ampang Park,
 KLCC, Masjid Jamek, KL Sentral and Pasar Seni each kept their Station label;
 the ring measured 22.5 px across and the count 11.5 px tall at 1280 × 800. At

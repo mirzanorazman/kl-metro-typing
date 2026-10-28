@@ -33,7 +33,9 @@ import { candidates, sameRef, visibleTargets, type Target } from '../engine/disp
 import type { TypingState } from '../engine/typing';
 import { closeFrame } from '../geo/fit';
 import { networkLayout } from '../geo/networkLayout';
-import { crowdedStations, declutteredLabels, hintLive, relievingTrains } from '../render/crowdingHint';
+import {
+  crowdedStations, declutteredLabels, hintLive, relievingTrains, type CrowdingHintMode,
+} from '../render/crowdingHint';
 import { DispatchOverlay } from '../render/DispatchOverlay';
 import {
   DISPATCH_FIT_PADDING, DISPATCH_LANE_PX, DISPATCH_MIN_MARK_PX, dispatchLabelled, overlayFrame, overlayObstacles,
@@ -101,13 +103,13 @@ const UNRANKED_NOTE = "Mid-Shift, it won't be ranked. Clear the Shift to keep yo
  * never dismisses a tip unread. It stands in the typing panel's place, which
  * hides while it shows, so the map it points at stays in view.
  */
-function TipCard({ id, lineColour, onDismiss }: {
-  id: DispatchTipId; lineColour: string | null; onDismiss: () => void;
+function TipCard({ id, mode, lineColour, onDismiss }: {
+  id: DispatchTipId; mode: CrowdingHintMode; lineColour: string | null; onDismiss: () => void;
 }) {
   return (
     <div className="play-panel dispatch-tip" role="dialog" aria-label="Tip"
       style={lineColour ? ({ '--line-colour': lineColour } as CSSProperties) : undefined}>
-      <p>{dispatchTipText(id)}</p>
+      <p>{dispatchTipText(id, mode)}</p>
       <button type="button" onClick={onDismiss}>
         <kbd>Enter</kbd> Got it
       </button>
@@ -524,7 +526,7 @@ export function DispatcherScreen({
     const prev = tipPrev.current;
     tipPrev.current = run;
     if (prev === run || run.status === 'ended' || run.status === 'ready') return;
-    const fresh = newDispatchTips(net, prev, run, seenTips.current);
+    const fresh = newDispatchTips(net, prev, run, seenTips.current, crowding);
     if (fresh.length === 0) return;
     markSeen(fresh);
     setTips((queue) => [...queue, ...fresh]);
@@ -532,7 +534,7 @@ export function DispatcherScreen({
       tipPaused.current = true;
       act({ a: 'pause' });
     }
-  }, [run, act, markSeen, net]);
+  }, [run, act, markSeen, net, crowding]);
 
   useEffect(() => {
     if (tips.length > 0 || !tipPaused.current) return;
@@ -658,7 +660,7 @@ export function DispatcherScreen({
   // leans in on them and the Stations they are about, and they pulse. Reduced
   // motion keeps the camera still; the pulse becomes a steady ring. Its frame
   // wins over a typed fix's lean-in.
-  const subject = tips[0] && !lesson ? tipSubject(net, run, tips[0]) : null;
+  const subject = tips[0] && !lesson ? tipSubject(net, run, tips[0], crowding) : null;
   const spotlight = subject ? new Set(subject.trains) : undefined;
   const tipFrame = subject && !prefersReducedMotion()
     ? subjectStations(net, run.sim, subject, served).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
@@ -812,7 +814,7 @@ export function DispatcherScreen({
       {/* Outside the typing panel: its transform and backdrop-filter would make it the
           containing block, trapping a card inside it with its text showing through. */}
       {tips.length > 0 ? (
-        <TipCard key={tips[0]} id={tips[0]!} lineColour={lineColour} onDismiss={dismissTip} />
+        <TipCard key={tips[0]} id={tips[0]!} mode={crowding.mode} lineColour={lineColour} onDismiss={dismissTip} />
       ) : (
         run.status === 'paused' && <PauseOverlay onResume={() => act({ a: 'resume' })} />
       )}

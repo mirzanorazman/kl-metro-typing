@@ -103,7 +103,7 @@ const renderShift = (initial?: CareerState) => render(
 );
 
 const START_TIP = "Every red signal on your Line is a train waiting for you. Trains you don't clear wait. Type any waiting Station's name to start your first Shift.";
-const ALL_TIPS = ['lesson', 'start', 'incident', 'service-gap', 'late', 'new-train', 'out-of-service', 'expansion'];
+const ALL_TIPS = ['lesson', 'start', 'incident', 'service-gap', 'late', 'new-train', 'crowding', 'out-of-service', 'expansion'];
 const seenTips = (ids: string[]) => saveProfile({ ...emptyProfile(), dispatchTipsSeen: ids });
 /** A profile that has seen every tip but the lesson and the start caption. */
 const fresh = () => seenTips(ALL_TIPS.filter((id) => id !== 'lesson' && id !== 'start'));
@@ -3062,6 +3062,47 @@ describe('the crowding hint on the screen', () => {
     renderShift(crowdedCareer());
     expect(rings()).toHaveLength(0);
     expect(relieving().length).toBeGreaterThan(0);
+  });
+
+  it('explains itself with a one-time tip that points at the Station and its Trains', () => {
+    setHint();
+    allowMotion();
+    closeCameraOn();
+    seenTips(ALL_TIPS.filter((id) => id !== 'crowding'));
+    const clock = fakeClock();
+    renderShift(crowdedCareer());
+    type('A');
+    clock.now += 100;
+    type('m');
+    const tip = screen.getByRole('dialog', { name: 'Tip' });
+    expect(tip.textContent).toContain('The ring fills while 55 or more people wait');
+    expect(mapProps().fitKey).toMatch(/^tip:crowding/);
+    expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(idOf('KLCC')));
+    expect(document.querySelector('[data-train="1"][data-spotlight="true"]')).not.toBeNull();
+    expect(loadProfile().dispatchTipsSeen).toContain('crowding');
+  });
+
+  it('under A, the tip speaks of the amber trains only', () => {
+    setHint({ mode: 'a' });
+    seenTips(ALL_TIPS.filter((id) => id !== 'crowding'));
+    const clock = fakeClock();
+    renderShift(crowdedCareer());
+    type('A');
+    clock.now += 100;
+    type('m');
+    expect(screen.getByRole('dialog', { name: 'Tip' }).textContent)
+      .toContain('A platform ahead is overcrowding. Clear the amber trains');
+  });
+
+  it('never tips with the hint Off', () => {
+    setHint({ mode: 'off' });
+    seenTips(ALL_TIPS.filter((id) => id !== 'crowding'));
+    const clock = fakeClock();
+    renderShift(crowdedCareer());
+    type('A');
+    clock.now += 100;
+    type('m');
+    expect(screen.queryByRole('dialog', { name: 'Tip' })).toBeNull();
   });
 
   it('waits out the delay before it shows', () => {

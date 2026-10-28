@@ -119,6 +119,15 @@ default after playing *(my call: nothing ships to players before then)*.
 - Nothing shows during the guided lesson, between Shifts, or once the Station
   is Out of service.
 - No sound *(my call: F7 found that any crowding cue plays a third of the time)*.
+- **A one-time tip** (added 2026-10-28 after the user met a ring with no
+  explanation): the first time the hint shows anything (a ring under B, an
+  amber chip under A; never with it Off), the Career pauses on a tip that
+  points at the fullest crowded Station and pulses the Trains that relieve it.
+  Under B: "This platform is overcrowding. The ring fills while 55 or more
+  people wait; when it is full, the station goes out of service. Clear the
+  amber trains to bring trains here." Under A: "A platform ahead is
+  overcrowding. Clear the amber trains to bring trains there before it goes
+  out of service." One tip id (`crowding`), seen once whichever mode.
 - Reduced motion: nothing here animates beyond the ring growing with the
   countdown, which is state, not motion; keep it.
 
