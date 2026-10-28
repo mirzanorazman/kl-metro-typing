@@ -82,7 +82,7 @@ spec and plan.
 | F24 | Service gap trigger: count a pair only while its front train moves? | Parked | M | parked | F22 |
 | F25 | "Reset train at" can name a Signal the train has passed | P2 | S | not a bug (2026-10-28) | |
 | F26 | Service gap card sits at the Station left behind but names the next Signal | P2 | S | watch in playtest | F22 |
-| F29 | A platform overflowing with no Incident gives no warning and no way to act on it | P1 | M | done 54976b8..47c5594 (playtest 3) | |
+| F29 | A platform overflowing with no Incident gives no warning and no way to act on it | P1 | M | done 54976b8..47c5594, shipped on after playtest 2.5 | |
 | F30 | When a Shift fails, the camera moves to the last Station that closed | P1 | S | done 7f33876 | F20 |
 
 **P0** is broken or blocks a normal session; do these next, roughly in this
@@ -982,6 +982,10 @@ Built the same day as a dev option: "Amber rule" (Arrives in time, the
 default, or Within 3 blocks), a grey ring for a Station no amber Train can
 save, and a one-time tip for the grey ring (details in the design). The user's
 playtest settings: mode B, Hint delay 2 s, Declutter on.
+
+**Shipped (2026-10-29).** After playing, the user kept those settings for
+players: B, 2 s, Arrives in time, Declutter on. Production now plays them
+(it was Off); the dev panel still switches them.
 
 ### F30. A failed Shift's camera moves to the last closed Station
 

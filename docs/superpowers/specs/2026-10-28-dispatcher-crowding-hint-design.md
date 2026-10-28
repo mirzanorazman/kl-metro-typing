@@ -5,6 +5,10 @@ playtest 3 (2026-10-28), and dropped C. The calls marked *(my call)* were not
 discussed; the user can check them while playing. Mockups:
 `.superpowers/brainstorm/34843-1793182029/content/crowding-hint-v2.html`.
 
+**Shipped (2026-10-29, after playtest 2.5):** the user chose B, a 2 s Hint
+delay, Arrives in time and Declutter on as what players get
+(`CROWDING_HINT_DEFAULTS`). The dev panel still switches all four.
+
 ## Why
 
 A Station goes Out of service by crowding when 55 or more Passengers wait on
@@ -91,9 +95,9 @@ dev panel, not two)*:
   compares against today)*.
 
 Stored in browser storage under their own key (`klmetro.dispatchCrowding.v1`),
-read and clamped the way `useCloseCamera` does. **Production builds are Off,
-with labels as today,** and never touch that storage, until the user picks a
-default after playing *(my call: nothing ships to players before then)*.
+read and clamped the way `useCloseCamera` does. Production builds play the
+defaults and never touch that storage. Until playtest 2.5 they were Off; the
+user then chose B, 2 s, Arrives in time and Declutter on (2026-10-29).
 
 ## Behaviour details
 
@@ -168,7 +172,7 @@ The Overcrowding Incident card (option C, dropped by the user); a slower
 drain of the countdown (a balance lever for F12's fast-player ceiling, to
 raise there); the closures that typing cannot prevent (a balance question for
 F16/F12); the camera moving to the last closed Station at a failed Shift (F30,
-parked); a production default.
+built separately).
 
 ## Verification
 

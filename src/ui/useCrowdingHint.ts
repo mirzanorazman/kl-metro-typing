@@ -3,7 +3,6 @@ import {
   type AmberRule,
   CROWDING_DELAY_RANGE,
   CROWDING_HINT_DEFAULTS,
-  CROWDING_HINT_OFF,
   type CrowdingHintMode,
   type CrowdingHintSettings,
 } from '../render/crowdingHint';
@@ -49,15 +48,15 @@ const noChange = () => {};
 
 /**
  * The crowding hint's settings and a setter. The panel and its storage are
- * development only: a production build always has the hint off and never
+ * development only: a production build always plays the defaults and never
  * touches storage.
  */
 export function useCrowdingHint(): [CrowdingHintSettings, (next: CrowdingHintSettings) => void] {
-  const [settings, setSettings] = useState(() => (import.meta.env.DEV ? loadSettings() : CROWDING_HINT_OFF));
+  const [settings, setSettings] = useState(() => (import.meta.env.DEV ? loadSettings() : CROWDING_HINT_DEFAULTS));
   const change = useCallback((next: CrowdingHintSettings) => {
     setSettings(next);
     // Guarded here as well, so a production build drops the storage code.
     if (import.meta.env.DEV) saveSettings(next);
   }, []);
-  return import.meta.env.DEV ? [settings, change] : [CROWDING_HINT_OFF, noChange];
+  return import.meta.env.DEV ? [settings, change] : [CROWDING_HINT_DEFAULTS, noChange];
 }

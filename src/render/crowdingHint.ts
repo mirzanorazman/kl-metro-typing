@@ -13,8 +13,8 @@ export type CrowdingHintMode = 'off' | 'a' | 'b';
 export type AmberRule = 'blocks' | 'time';
 export interface CrowdingHintSettings { mode: CrowdingHintMode; delayMs: number; declutter: boolean; amber: AmberRule }
 
-/** Development builds start with the hint on; production ships it off. */
-export const CROWDING_HINT_DEFAULTS: CrowdingHintSettings = { mode: 'b', delayMs: 5_000, declutter: false, amber: 'time' };
+/** What players get, chosen after playtest 2.5 (2026-10-29); development builds start here too. */
+export const CROWDING_HINT_DEFAULTS: CrowdingHintSettings = { mode: 'b', delayMs: 2_000, declutter: true, amber: 'time' };
 export const CROWDING_HINT_OFF: CrowdingHintSettings = { mode: 'off', delayMs: 5_000, declutter: false, amber: 'time' };
 export const CROWDING_DELAY_RANGE = [0, 15_000] as const;
 export const CROWDING_DELAY_STEP = 1_000;

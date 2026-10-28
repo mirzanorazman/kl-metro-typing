@@ -189,6 +189,8 @@ afterEach(() => {
 
 describe('DispatcherScreen', () => {
   it('shows the whole Served network, not a follow camera', () => {
+    // Every name drawn, so Declutter (on by default) is switched off.
+    localStorage.setItem(DISPATCH_CROWDING_KEY, JSON.stringify({ declutter: false }));
     const { container } = renderShift();
     const texts = [...container.querySelectorAll('svg text')].map((t) => t.textContent);
     for (const id of servedStations(net, STARTING_NETWORK)) {

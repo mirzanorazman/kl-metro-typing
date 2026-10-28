@@ -7,7 +7,7 @@ box; numbers you would change are the most useful notes.
 ## Setup
 
 - [ ] `main` (merged at e799a63), `npm run dev`. The hint lives in the dev
-      build only; production is Off.
+      build only; production is Off. (Since shipped: see Bring back.)
 - [ ] The dev panel is bottom left. Click the row "Crowding: B · 5 s" to open
       it: Crowding hint (Off / A / B), Hint delay (0–15 s), Declutter labels.
 - [ ] To meet the new tip again later, press How to play on the ready screen
@@ -88,9 +88,11 @@ prompt ("Typ") at 1280 × 800.
 
 ## Bring back
 
-- Mode for players: Off / A / B: ______
-- Hint delay: ______ s
-- Declutter: on / off / changed: ______
-- Amber rule: in time / 3 blocks: ______
+Chosen 2026-10-29 and shipped to players:
+
+- Mode for players: B
+- Hint delay: 2 s
+- Declutter: on
+- Amber rule: in time
 - Failed-Shift hold ______ s and zoom ______ ×
 - Anything that felt wrong, with the Shift and the Station.
