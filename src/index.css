@@ -316,8 +316,12 @@ body {
   align-items: baseline; width: 100%;
   padding: var(--s) var(--s2); text-align: left; font: inherit; cursor: pointer;
   background: var(--panel); color: var(--ink);
-  border: 1px solid var(--panel-edge); border-left: 6px solid var(--line-colour, var(--ink-faint));
+  border: 1px solid var(--line-colour, var(--panel-edge));
   border-radius: 8px;
+}
+/* Ringed like the play panel: the border alone on paper, a soft bloom in midnight. */
+[data-theme='midnight'] .junction button {
+  box-shadow: 0 0 24px -6px var(--line-colour, transparent);
 }
 .junction button:hover, .junction button:focus-visible { border-color: var(--focus-ring); }
 .junction kbd {

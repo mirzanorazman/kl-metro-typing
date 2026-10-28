@@ -28,6 +28,14 @@ describe('toolchain', () => {
     );
   });
 
+  it("rings direction buttons in their Line's colour", () => {
+    expect(indexCss).toMatch(/\.junction button\s*\{[^}]*border:\s*1px solid var\(--line-colour, var\(--panel-edge\)\);/);
+    expect(indexCss).not.toMatch(/\.junction button\s*\{[^}]*border-left:/);
+    expect(indexCss).toMatch(
+      /\[data-theme='midnight'\] \.junction button\s*\{[^}]*box-shadow:[^}]*0 0 24px -6px var\(--line-colour, transparent\);/,
+    );
+  });
+
   it('keeps standalone terminal surfaces scrollable inside the locked document', () => {
     expect(indexCss).toMatch(
       /\.summary\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/,
