@@ -3126,7 +3126,7 @@ describe('the crowding hint on the screen', () => {
     renderShift(crowdedCareer());
     const only = mapProps().labelOnly!;
     expect(only.has(idOf('KLCC'))).toBe(true);
-    expect(only.has(idOf('Ampang Park'))).toBe(true);
+    expect(only.has(idOf('Ampang Park'))).toBe(false);
     expect(only.has(idOf('Jelatek'))).toBe(false);
   });
 

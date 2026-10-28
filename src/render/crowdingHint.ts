@@ -65,21 +65,13 @@ export function hintLive(status: CareerState['status'], inLesson: boolean): bool
   return !inLesson && (status === 'ready' || status === 'running' || status === 'paused');
 }
 
-/** The only Station names left drawn when the map is decluttered. */
-export function declutteredLabels(
-  net: NetworkIndex,
-  sim: SimState,
-  targets: readonly Target[],
-  ringed: readonly string[],
-): Set<string> {
+/**
+ * The only Station names left drawn when the map is decluttered: Incident
+ * places and ringed Stations. A Held Train's Station is not among them, since
+ * its Signal chip already names it.
+ */
+export function declutteredLabels(sim: SimState, ringed: readonly string[]): Set<string> {
   const ids = new Set<string>(ringed);
-  for (const target of targets) {
-    if (target.ref.kind === 'fix') continue;
-    const id = target.ref.train;
-    const train = sim.trains.find((t) => t.id === id);
-    const station = train && net.lines.get(train.line)!.stations[train.at];
-    if (station) ids.add(station);
-  }
   for (const inc of sim.incidents) ids.add(inc.place);
   return ids;
 }

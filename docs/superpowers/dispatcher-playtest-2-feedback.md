@@ -894,8 +894,9 @@ production stays Off, and the panel is in development builds only. A Station
 rings after its platform has been full for the delay, with its count and a fill
 that follows the 19 s countdown. Trains within three blocks before it,
 heading its way, get amber Signal chips (a locked chip is meant to still read
-as locked). Declutter keeps only the Station names that matter: ringed Stations, Stations
-with a Held Train, and Incident places. Nothing shows between Shifts, after
+as locked). Declutter keeps only the Station names that matter: ringed
+Stations and Incident places (a Held Train's Station dropped its label too
+after the user played it, since the Signal chip already names it). Nothing shows between Shifts, after
 one, or in the lesson.
 
 Probe (`src/ui/crowdingHintProbe.test.ts`, opt-in with `DISPATCH_PROBE=1`): 60

@@ -66,11 +66,12 @@ tuned for today's rule. A ring that drained slowly over a rule that resets
 would show something false.
 
 **Declutter labels** is a separate switch. When on, a Station keeps its Station
-label only if a Train is Held at its Signal (it has a Signal chip), it is an
-Incident's place, or it is a crowded Station showing a ring. Every other
-Station label is hidden: termini, Interchanges and the zoom tiers included
-*(my call: the user's rule taken literally, to see the busy centre at its
-cleanest)*. Signal chips and fix chips never hide. Declutter applies only
+label only if it is an Incident's place or a crowded Station showing a ring.
+Every other Station label is hidden: termini, Interchanges and the zoom tiers
+included *(my call: the user's rule taken literally, to see the busy centre at
+its cleanest)*. A Station with a Held Train loses its label too, since the
+Train's Signal chip already names it (the user's call after playing,
+2026-10-28; the first build kept those labels). Signal chips and fix chips never hide. Declutter applies only
 while a Shift is ready, running or paused; between Shifts (where the
 Expansion offers need their names) and during the guided lesson, labels are
 as today *(my call)*.

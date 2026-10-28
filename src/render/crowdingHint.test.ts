@@ -138,12 +138,11 @@ describe('the crowding hint rules', () => {
     expect(hintLive('running', true)).toBe(false);
   });
 
-  it('decluttered labels keep Held Trains’ Stations, Incident places and ringed Stations only', () => {
+  it('decluttered labels keep Incident places and ringed Stations only: a Held Train’s chip already names its Station', () => {
     const s = sim();
     s.trains = [waiting(1, 'damai')];
     s.incidents = [{ id: 1, kind: 'train-fault', place: 'bangsar', stations: [], line: 'KJ', train: 2,
       startedMs: 0, step: 0, extra: 0 }];
-    expect(declutteredLabels(net, s, visibleTargets(net, s), ['klcc']))
-      .toEqual(new Set(['damai', 'bangsar', 'klcc']));
+    expect(declutteredLabels(s, ['klcc'])).toEqual(new Set(['bangsar', 'klcc']));
   });
 });

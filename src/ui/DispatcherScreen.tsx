@@ -654,7 +654,7 @@ export function DispatcherScreen({
   const relieving = relievingTrains(net, shown.sim, crowded, targets);
   const rings = crowding.mode === 'b' ? crowded : [];
   const labelOnly = hintOn && crowding.declutter
-    ? declutteredLabels(net, shown.sim, targets, rings.map((r) => r.id)) : null;
+    ? declutteredLabels(shown.sim, rings.map((r) => r.id)) : null;
   const leanFrame = lean?.stations.map((id) => layout.get(id)).filter((p): p is Point => p !== undefined);
   // A tip about trains points at them while it pauses the Career: the camera
   // leans in on them and the Stations they are about, and they pulse. Reduced
