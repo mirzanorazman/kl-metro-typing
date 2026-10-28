@@ -4,7 +4,7 @@ import { loadNetworkData } from '../data/load';
 import { validateNetworkData } from '../data/validate';
 import { buildNetwork } from '../engine/network';
 import { loadProfile, saveProfile, type Theme } from '../engine/progress';
-import { eligibleQuickLegs } from '../engine/quickRun';
+import { eligibleQuickLegs, randomQuickRoute } from '../engine/quickRun';
 import { setMuted, installAudioUnlock } from '../audio/sound';
 import { fullNetworkPeak } from '../render/dispatchReadability';
 import { DispatcherScreen } from './DispatcherScreen';
@@ -27,7 +27,7 @@ type Screen =
   | { kind: 'line'; code: LineCode; from: string }
   | { kind: 'adventure'; at: string }
   | { kind: 'leaderboard' }
-  | { kind: 'quick'; code: LineCode; toward: string }
+  | { kind: 'quick'; code: LineCode; toward: string; fromCard: boolean }
   | { kind: 'dispatch' };
 
 function MobileRunFrame({ children, phone }: { children: JSX.Element; phone: boolean }) {
@@ -92,6 +92,8 @@ export function App() {
   playBlocked.current = phoneLandscape;
   const previousPhone = useRef(phone);
   const lastQuickStart = useRef<string | null>(null);
+  // Bumped by each random Quick Run so its screen remounts on the new route.
+  const [quickRound, setQuickRound] = useState(0);
   // Bumped by "New Career" so the screen remounts with a fresh seed.
   const [career, setCareer] = useState(0);
 
@@ -143,11 +145,19 @@ export function App() {
     setScreen(next);
   };
 
-  const startQuick = useCallback((code: LineCode, toward: string) => {
+  const startQuick = useCallback((code: LineCode, toward: string, fromCard = false) => {
     if (playBlocked.current || eligibleQuickLegs(net, code, toward).length === 0) return;
     setIntroSpent(true);
-    setScreen({ kind: 'quick', code, toward });
+    setScreen({ kind: 'quick', code, toward, fromCard });
   }, [net]);
+
+  // The home card's Quick Run: nobody chose a Line, so draw one, and draw
+  // again for every "Run again".
+  const startRandomQuick = useCallback(() => {
+    const route = randomQuickRoute(net, Math.random);
+    startQuick(route.line, route.toward, true);
+    setQuickRound((n) => n + 1);
+  }, [net, startQuick]);
 
   const startLine = (code: LineCode, from: string) => leaveHome({ kind: 'line', code, from });
   const startAdventure = (at: string) => leaveHome({ kind: 'adventure', at });
@@ -219,12 +229,14 @@ export function App() {
   } else if (screen.kind === 'quick') {
     content = (
       <QuickRunScreen
+        key={quickRound}
         net={net}
         line={screen.code}
         toward={screen.toward}
         previousStart={lastQuickStart.current}
         onStartingStation={onStartingStation}
         onBack={home}
+        onAgain={screen.fromCard ? startRandomQuick : undefined}
         phoneLandscape={phoneLandscape}
       />
     );

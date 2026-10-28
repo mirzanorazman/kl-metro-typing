@@ -85,6 +85,23 @@ function pickRandom<T>(candidates: readonly T[], random: () => number): T {
 }
 
 /**
+ * A Line and Direction for a Quick Run nobody chose: any pair, in network
+ * order, that has at least one eligible leg. The home screen's Quick Run card
+ * starts here; the first Station is still drawn by `prepareQuickRun`.
+ */
+export function randomQuickRoute(net: NetworkIndex, random: () => number): { line: LineCode; toward: string } {
+  const candidates = [...net.lines.values()].flatMap((line) => {
+    const first = line.stations[0];
+    const last = line.stations[line.stations.length - 1];
+    if (!first || !last) return [];
+    return [last, first]
+      .filter((toward) => eligibleQuickLegs(net, line.code, toward).length > 0)
+      .map((toward) => ({ line: line.code, toward }));
+  });
+  return pickRandom(candidates, random);
+}
+
+/**
  * A ready Quick Run starting at `at`.
  *
  * Split out of `prepareQuickRun` so a Run can be reconstructed at a known

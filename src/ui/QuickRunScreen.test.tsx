@@ -78,6 +78,7 @@ function renderQuick({
   previousStart = null,
   onStartingStation = vi.fn(),
   onBack = vi.fn(),
+  onAgain,
   random = () => 0,
   providerEnabled = true,
   strict = false,
@@ -88,6 +89,7 @@ function renderQuick({
   previousStart?: string | null;
   onStartingStation?: (id: string) => void;
   onBack?: () => void;
+  onAgain?: () => void;
   random?: () => number;
   providerEnabled?: boolean;
   strict?: boolean;
@@ -102,6 +104,7 @@ function renderQuick({
         previousStart={previousStart}
         onStartingStation={onStartingStation}
         onBack={onBack}
+        onAgain={onAgain}
         random={random}
         phoneLandscape={phoneLandscape}
       />
@@ -711,6 +714,19 @@ describe('QuickRunScreen', () => {
     expect(screen.getByText('MR · KL Monorail · toward Titiwangsa')).toBeTruthy();
     expect(screen.getByLabelText('Type Tun Sambanthan')).toBeTruthy();
     expect(screen.getByText('0:30')).toBeTruthy();
+  });
+
+  it('hands Run again to onAgain when given', () => {
+    const onAgain = vi.fn();
+    const onStartingStation = vi.fn();
+    renderQuick({ onAgain, onStartingStation });
+    nativeInput('K');
+    tickAt(1_000 + QUICK_RUN_MS);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run again' }));
+
+    expect(onAgain).toHaveBeenCalledTimes(1);
+    expect(onStartingStation).toHaveBeenCalledTimes(1);
   });
 
   it('records the second Quick Run of a session as its own personal best, with no integrity failure', () => {

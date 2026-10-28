@@ -15,6 +15,7 @@ import {
   prepareQuickRun,
   quickRunMetrics,
   quickRunToward,
+  randomQuickRoute,
   type QuickLeg,
   type QuickRunState,
 } from './quickRun';
@@ -118,6 +119,24 @@ function sequence(...values: number[]) {
   let index = 0;
   return () => values[index++]!;
 }
+
+describe('randomQuickRoute', () => {
+  it('picks only eligible routes', () => {
+    const net = network();
+    for (const r of [0, 0.25, 0.5, 0.75, 0.9999]) {
+      const route = randomQuickRoute(net, () => r);
+      expect(eligibleQuickLegs(net, route.line, route.toward).length).toBeGreaterThan(0);
+    }
+  });
+
+  it('spans the candidates', () => {
+    const net = network();
+    const first = randomQuickRoute(net, () => 0);
+    const last = randomQuickRoute(net, () => 0.9999);
+    expect(first).not.toEqual(last);
+    expect(first.line).toBe([...net.lines.keys()][0]);
+  });
+});
 
 describe('prepareQuickRun', () => {
   it('uses a 30-second duration and a four-advance minimum', () => {

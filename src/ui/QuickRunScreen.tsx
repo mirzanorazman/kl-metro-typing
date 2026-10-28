@@ -42,6 +42,11 @@ export interface QuickRunScreenProps {
   previousStart: string | null;
   onStartingStation: (id: string) => void;
   onBack: () => void;
+  /**
+   * Replaces the Summary's "Run again". The home card passes one so a new Run
+   * draws a fresh Line and Direction; without it the chosen route repeats.
+   */
+  onAgain?: () => void;
   random?: () => number;
   phoneLandscape?: boolean;
 }
@@ -146,6 +151,7 @@ export function QuickRunScreen({
   previousStart,
   onStartingStation,
   onBack,
+  onAgain,
   random,
   phoneLandscape = false,
 }: QuickRunScreenProps) {
@@ -408,7 +414,7 @@ export function QuickRunScreen({
         personalBest={summaryBest}
         newBest={newBest}
         share={run.status === 'completed' ? quickRunCard(net, run, { metrics, verified, newBest }) : null}
-        onAgain={runAgain}
+        onAgain={onAgain ?? runAgain}
         onBack={onBack}
         phoneLandscape={phoneLandscape}
       />
