@@ -643,6 +643,23 @@ describe('MapCanvas labels', () => {
     }
   });
 
+  it('labelOnly limits Station labels to its set', () => {
+    const kj = net.lines.get('KJ')!.stations;
+    const at = kj.indexOf('klcc');
+    // A tight window of a few neighbours: few enough in view that every
+    // Station would be named.
+    const window = kj.slice(at - 1, at + 2).map((id) => layout.get(id)!);
+    const view = (labelOnly?: ReadonlySet<string>) => render(
+      <MapCanvas net={net} layout={layout} visited={new Set()} activeStation={null}
+        fitTo={window} fitKey="klcc" labelOnly={labelOnly} />,
+    ).container;
+
+    expect(view().querySelectorAll('text[data-label]').length).toBeGreaterThan(1);
+    const only = view(new Set(['klcc']));
+    expect([...only.querySelectorAll('text[data-label]')].map((t) => t.getAttribute('data-label')))
+      .toEqual(['klcc']);
+  });
+
   it('does not label stations the player cannot see', () => {
     const geo = networkLayout().geo;
     const py = net.lines.get('PY')!.stations;

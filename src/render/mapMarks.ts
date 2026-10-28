@@ -91,6 +91,8 @@ export interface MapLabelInput {
   markScale: number;
   activeStation: string | null;
   labelled: ReadonlySet<string> | null;
+  /** When set, the only Stations named besides the active one; the tiers and `labelled` stand down. */
+  labelOnly?: ReadonlySet<string> | null;
   tiers: LabelTiers;
   /** Points in view; pass it when already counted. */
   inView?: number;
@@ -112,10 +114,11 @@ export interface MapLabels {
  * Labelling all 154 at once is noise, so labels come in tiers: the stations
  * that orient you always, then major interchanges once the view is not too
  * crowded, then everything once it is genuinely zoomed in. `labelled` adds
- * Stations that want a name at any zoom.
+ * Stations that want a name at any zoom. `labelOnly` overrides all of that
+ * with an exact set.
  */
 export function mapLabels({
-  net, layout, view, markScale, activeStation, labelled, tiers, inView, obstacles = [], boxes,
+  net, layout, view, markScale, activeStation, labelled, labelOnly = null, tiers, inView, obstacles = [], boxes,
 }: MapLabelInput): MapLabels {
   const crowd = inView ?? countInView(layout, view);
   const showInterchangeLabels = crowd <= 40;
@@ -137,10 +140,12 @@ export function mapLabels({
     if (
       isActive ||
       (onScreen &&
-        (showEveryLabel ||
-          labelled?.has(station.id) ||
-          termini.has(station.id) ||
-          (showInterchangeLabels && majorInterchanges.has(station.id))))
+        (labelOnly
+          ? labelOnly.has(station.id)
+          : showEveryLabel ||
+            labelled?.has(station.id) ||
+            termini.has(station.id) ||
+            (showInterchangeLabels && majorInterchanges.has(station.id))))
     ) {
       candidates.push({
         id: station.id,

@@ -103,6 +103,11 @@ export interface MapCanvasProps {
    */
   labelled?: ReadonlySet<string> | null;
   /**
+   * When set, only these Stations are named (and the active one), whatever
+   * the zoom — for a mode that thins the map's names to the ones that matter.
+   */
+  labelOnly?: ReadonlySet<string> | null;
+  /**
    * When set, no station mark draws smaller than this many screen pixels
    * across, however wide the view; every mark, label and overlay scales with
    * it. Off by default: marks scale with the view.
@@ -165,6 +170,7 @@ export function MapCanvas({
   emphasisRanges = null,
   trackReveal = null,
   labelled = null,
+  labelOnly = null,
   minMarkPx = null,
   laneOffsetPx = 0,
   labelAvoid,
@@ -576,7 +582,7 @@ export function MapCanvas({
         }
 
         const { labels, fontSize, text: named } = mapLabels({
-          net, layout, view, markScale, activeStation, labelled, tiers, inView, obstacles: furniture,
+          net, layout, view, markScale, activeStation, labelled, labelOnly, tiers, inView, obstacles: furniture,
           boxes: labelAvoid?.(markScale, { view, screen, tracks }),
         });
 
