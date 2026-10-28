@@ -79,7 +79,7 @@ spec and plan.
 | F24 | Service gap trigger: count a pair only while its front train moves? | Parked | M | parked | F22 |
 | F25 | "Reset train at" can name a Signal the train has passed | P2 | S | not a bug (2026-10-28) | |
 | F26 | Service gap card sits at the Station left behind but names the next Signal | P2 | S | watch in playtest | F22 |
-| F29 | A platform overflowing with no Incident gives no warning and no way to act on it | P1 | M | implemented, in review | |
+| F29 | A platform overflowing with no Incident gives no warning and no way to act on it | P1 | M | done 54976b8..47c5594 (playtest 3) | |
 | F30 | When a Shift fails, the camera moves to the last Station that closed | Parked | S–M | parked | F20 |
 
 **P0** is broken or blocks a normal session; do these next, roughly in this
@@ -941,7 +941,7 @@ Open from the browser check:
 - The dev panel, taller with the Crowding group, covers the left end of the
   typing panel at 1280 × 800 ("Type a waiting Station's name" is cut off).
 
-A final review and a fix wave follow; F29 is not done until they land.
+A final review and a fix wave followed (below).
 
 Fix wave (2026-10-28, after the final review): a ringed Station keeps its own
 label, set out past its ring and clear of its count, while other names still
@@ -950,6 +950,14 @@ keep off the ring; the ring radius went from 11 to 15 and the count font from
 its outer edge plus a margin; the Crowding group in the dev panel folds to one
 row ("Crowding: B · 5 s"), closed by default; and the hint, Declutter included,
 is off during the Shift-entry reveal.
+
+Seen live after the fix wave (Shift 1, mode B, delay 0): rings on Ampang Park,
+KLCC, Masjid Jamek, KL Sentral and Pasar Seni each kept their Station label;
+the ring measured 22.5 px across and the count 11.5 px tall at 1280 × 800. At
+390 px wide the counts (87, 61, 87) and labels read clearly. Still open: the
+dev panel covers the first letters of the typing prompt ("Typ") at 1280 × 800,
+and most of the typing panel at phone width; it is dev-only and did the same
+before this work.
 
 ### F30. A failed Shift's camera moves to the last closed Station
 
