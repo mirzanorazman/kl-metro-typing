@@ -12,7 +12,7 @@ F21 is set aside. F15/F4/F19 are implemented and verified, and so is F28
 (tips close with Enter only). F23 and F11 are done (2026-10-28), so every P0
 and P1 item is done or set aside. F25 was closed as not a bug. F29
 (platform overflow) was revisited and designed as a crowding hint for
-playtest 3, and F30 (camera at a failed Shift) is parked.
+playtest 3, and F30 (camera at a failed Shift) is done.
 `feat/dispatcher` was merged to `main` on 2026-10-27 at the user's request,
 before playtest 3; see "Check in playtest 3" at the end.
 
@@ -80,7 +80,7 @@ spec and plan.
 | F25 | "Reset train at" can name a Signal the train has passed | P2 | S | not a bug (2026-10-28) | |
 | F26 | Service gap card sits at the Station left behind but names the next Signal | P2 | S | watch in playtest | F22 |
 | F29 | A platform overflowing with no Incident gives no warning and no way to act on it | P1 | M | done 54976b8..47c5594 (playtest 3) | |
-| F30 | When a Shift fails, the camera moves to the last Station that closed | P1 | S | done (feat/crowding-hint) | F20 |
+| F30 | When a Shift fails, the camera moves to the last Station that closed | P1 | S | done 7f33876 | F20 |
 
 **P0** is broken or blocks a normal session; do these next, roughly in this
 order. **P1** is what a first-time player needs to understand and feel the
@@ -981,7 +981,10 @@ Shift's 1.2 s hold the camera moves to the last closed Station and its
 neighbours on every Line through it (the out-of-service tip's framing), close
 when the close camera is on, and it wins over any tip, fix or lean-in frame.
 Reduced motion keeps the camera still (*my call*: a cut on the last beat felt
-more jarring than no move). The summary follows the hold as before.
+more jarring than no move). The summary follows the hold as before. Not seen
+live: the browser pane was hidden during the check, which throttles animation
+frames, so the move could not be watched; unit tests cover the frame, the close
+view and reduced motion. Watch it in playtest 3.
 
 ### F13. The full-size map (`?dispatch=full`)
 
