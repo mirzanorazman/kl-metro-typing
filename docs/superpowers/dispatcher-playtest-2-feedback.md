@@ -79,7 +79,7 @@ spec and plan.
 | F24 | Service gap trigger: count a pair only while its front train moves? | Parked | M | parked | F22 |
 | F25 | "Reset train at" can name a Signal the train has passed | P2 | S | not a bug (2026-10-28) | |
 | F26 | Service gap card sits at the Station left behind but names the next Signal | P2 | S | watch in playtest | F22 |
-| F29 | A platform overflowing with no Incident gives no warning and no way to act on it | P1 | M | designed 2026-10-28 | |
+| F29 | A platform overflowing with no Incident gives no warning and no way to act on it | P1 | M | implemented, in review | |
 | F30 | When a Shift fails, the camera moves to the last Station that closed | Parked | S–M | parked | F20 |
 
 **P0** is broken or blocks a normal session; do these next, roughly in this
@@ -886,6 +886,57 @@ today's reset rule. A Declutter switch hides Station labels with no Held
 Train. They dropped an Overcrowding Incident card and kept the closure rule
 (no slow drain). [Design](specs/2026-10-28-dispatcher-crowding-hint-design.md).
 The camera at a failed Shift is parked as F30.
+
+**Implemented (2026-10-28)** on `feat/crowding-hint`, presentation only (no
+engine change). The dev panel has a Crowding group: mode Off, A or B, the hint
+delay (0 to 15 s, default 5 s) and Declutter. Development builds start on B;
+production stays Off, and the panel is in development builds only. A Station
+rings after its platform has been full for the delay, with its count and a fill
+that follows the 19 s countdown. Trains within three blocks before it,
+heading its way, get amber Signal chips (a locked chip still reads as locked).
+Declutter keeps only the Station names that matter: ringed Stations, Stations
+with a Held Train, and Incident places. Nothing shows between Shifts, after
+one, or in the lesson.
+
+Probe (`src/ui/crowdingHintProbe.test.ts`, opt-in with `DISPATCH_PROBE=1`): 60
+WPM at 96 %, seeds 1–5, 30 minutes, delay 5 s, weighted by Shift time. A
+closure counts as warned if any amber chip showed in its last 14 s.
+
+| Band | Running | Ring showing | Rings, when any | Amber chips, when any | Crowding closures warned |
+|---|---|---|---|---|---|
+| Shifts 1–3 | 22.4 min | 31.3 % | 1.39 | 1.20 | 23 of 23 |
+| Shifts 4–8 | 34.2 min | 46.0 % | 2.06 | 2.06 | 98 of 98 |
+| Shift 9+ | 25.2 min | 50.3 % | 3.18 | 4.11 | 132 of 132 |
+
+So the hint is on for about a third to a half of running time. That is the
+same order as the 28–39 % measured for platforms at 55 or more, which is
+expected with a 5 s delay, but it is not rare. Every closure had a chip
+beforehand, but "any chip" is loose when 2–4 chips are showing at a time, so it
+shows the hint was there, not that the right Train was easy to pick.
+
+Seen live (dev server, 1280 × 800, dark theme): mode B in Shift 1's Evening
+peak drew rings with counts on KL Sentral, KLCC and Masjid Jamek, and amber
+chips on Damai (relieves KLCC) and Abdullah Hukum (relieves KL Sentral), on the
+right Trains. Declutter on, before a Career, left only Jelatek and Abdullah
+Hukum named, which is as specified but reads very bare.
+
+Not seen live: mode A on its own (it is B without rings; the tests cover it),
+phone width, between Shifts with Declutter on (covered by a unit test), the
+light theme.
+
+Open from the browser check:
+
+- **Defect:** a ringed Station's own label is dropped, with Declutter on or
+  off. The ring's label obstacle probably blocks all four label corners of the
+  Station itself, so it loses its name exactly when the hint points at it. The
+  design says it keeps its label.
+- The ring and count are too small at Shift 1's mark scale: the ring was 16.5
+  px across, the count 10 px tall against 11 px Station labels, barely legible
+  when zoomed in.
+- The dev panel, taller with the Crowding group, covers the left end of the
+  typing panel at 1280 × 800 ("Type a waiting Station's name" is cut off).
+
+A final review and a fix wave follow; F29 is not done until they land.
 
 ### F30. A failed Shift's camera moves to the last closed Station
 
