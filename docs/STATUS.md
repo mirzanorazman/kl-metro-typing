@@ -21,8 +21,8 @@ npm test
 
 ## What exists
 
-Five playable modes share the network and typing foundations. Rush Hour is
-being replaced by Dispatcher.
+Four playable modes share the network and typing foundations. Rush Hour was
+retired on 2026-10-28; Dispatcher replaced it.
 
 **Line Run** — the main entry point. Pick a line off the map (click, or type its
 two-letter code), choose which terminus to start from, and type the line end to
@@ -61,29 +61,7 @@ iPad Mini-sized landscape renders the desktop/tablet play layout without being
 blocked, including at a reduced-height browser viewport. A real iPad Mini check
 with its software keyboard open remains a separate compatibility follow-up.
 
-**Rush Hour** (*being replaced* by Dispatcher, below). It stays playable until
-the user has playtested Dispatcher and says to retire it. Retiring it is Task 12
-of the Dispatcher plan, which is gated on that instruction.
-
-Rush Hour is a survival mode for desktop and tablet (v1, merged from
-`feat/rush-hour`).
-Choose a Line set from the Rush Hour button on the home map; Start begins at a
-random Station on it. Passengers spawn in Queues and want a Line, not a Station; the one-carriage
-train (Capacity 8) delivers them at any Station serving it. A full Queue fills
-an Overflow ring; one full ring ends the Run. A Day cycles through five Day
-phases, each Day busier. The sim is a pure fixed-tick engine
-(`engine/rushHour.ts`, tuning in `engine/rushBalance.ts`) with a seeded RNG, so
-a Run replays exactly from its Keylog plus action log; only an Overflow-ended,
-Eligible Run updates `rushHigh`. Upgrades are deferred to a second plan. Spec:
-`docs/superpowers/specs/2026-09-28-rush-hour-design.md`. Tuned per
-`docs/superpowers/specs/2026-09-28-rush-hour-tuning-design.md`: spawns centre
-on the train, an 8-seat train, a 125 s Day, compact Junction rows, and
-one-time tips. Music: an upbeat loop on Setup, and during a Run a calm pulse
-that turns tense while any Overflow ring shows (`music.play` tracks in
-`audio/sound.ts`).
-
-**Dispatcher** (desktop and tablet, branch `feat/dispatcher`) replaces Rush
-Hour.
+**Dispatcher** (desktop and tablet) replaced Rush Hour.
 
 - **Careers and Shifts.** A Career is a run of Shifts on a Served network.
   It starts on the central Kelana Jaya stretch.
@@ -118,7 +96,7 @@ survey, leans, gotchas and deviations from the spec are in
 `docs/superpowers/dispatcher-handover.md` ("Playtest 1"). Next: the user
 playtests again.
 
-**Share result** — every summary but Rush Hour's offers the result as a
+**Share result** — every summary offers the result as a
 1080 × 1080 dark PNG card: Mode, headline, Line badges, the route over the
 faint network, four stats, and stamps (Verified only for a Run that passed
 replay and its Verdict; a leaderboard rank once a name is saved). Phones get
@@ -158,7 +136,7 @@ keyboards.
 src/
   data/      network JSON + types + validation + leaderboardStore   (154 stations, 7 lines, 5 walk links)
   engine/    game logic: network, typing, metrics, run, lineRun, quickRun, replay,
-             progress, leaderboard, rushHour, dispatch* (Dispatcher)
+             progress, leaderboard, dispatch* (Dispatcher)
   geo/       projection, schematic layout, fitting, shared networkLayout
   render/    SVG map, train marker, prompt, HUD, line strip, pan/zoom
   ui/        screens: HomeMap, QuickRunScreen, LineRunScreen, AdventureScreen,
@@ -234,7 +212,7 @@ Nothing here is blocking, but all of it is real.
   so they draw as a single dot and transfer is free.
 - **Station `arrive` animation scales in user units.** The keyframes animate
   `r` from 8 to 14 absolute units, so at follow-camera zoom the new Station
-  balloons into a large disc for 250 ms. Seen in Rush Hour screenshots; the
+  balloons into a large disc for 250 ms. Seen in (since retired) Rush Hour screenshots; the
   same CSS drives every mode.
 - **One unexplained behaviour**: the map's framing effect did not apply its focus
   target on mount (StrictMode double-invoke is the likely cause). Worked around
@@ -293,17 +271,10 @@ Redeploying a previous build needs no migration and will not wipe anyone's
 leaderboard or profile. Keep it that way: the moment a schema version moves,
 this paragraph stops being true.
 
-**Dispatcher playtest, then retire Rush Hour.** The user plays Dispatcher.
-Tuning follow-ups go in the handover's leans. Task 12 removes Rush Hour only
-on the user's instruction.
-
-**Rush Hour v2** — superseded by Dispatcher; kept for history.
-v1 is built; the text below is the original framing.
-
-**Rush Hour (original framing)** — the survival mode from the original spec. Passengers accumulate at stations; your typing speed is the
-train's throughput; one overcrowded station ends the run. It is fully specified
-in `docs/superpowers/specs/2026-09-03-myrapid-typing-design.md` and was always
-intended as its own plan. The redesign it needs to sit on is now done.
+**Dispatcher playtest.** The user plays Dispatcher. Tuning follow-ups go in
+the handover's leans. Rush Hour is retired (Task 12 of the Dispatcher plan,
+run as Task 1 of `plans/2026-10-28-home-modes.md`); its specs and plans stay
+for history.
 
 **The domain model.** `CONTEXT.md` and ADR 0001 are written; the code that
 matches them is not. Nothing in `src/` has been renamed or moved yet, so the
@@ -367,11 +338,11 @@ simply synchronous while the behaviour was animated.
 | `docs/superpowers/2026-09-11-run-integrity-execution-record.md` | **What actually happened** building run integrity: rulings made on the user's behalf, where the code diverges from the spec, and the four defects a green test suite could not catch. |
 | `docs/superpowers/specs/2026-09-23-quick-run-poc-adjustments-design.md` | Revised 30-second, multi-Line Quick Run design and phone-landscape policy. |
 | `docs/superpowers/plans/2026-09-23-quick-run-poc-adjustments.md` | Implementation plan and remaining browser/device verification gate. |
-| `docs/superpowers/specs/2026-09-28-rush-hour-design.md` | Rush Hour v1 design, agreed in a grilling session. |
+| `docs/superpowers/specs/2026-09-28-rush-hour-design.md` | Rush Hour v1 design (retired 2026-10-28), kept for history. |
 | `docs/superpowers/plans/2026-09-28-rush-hour.md` | Rush Hour v1 plan, 12 tasks. |
 | `docs/superpowers/rush-hour-handover.md` | Rush Hour rulings, gotchas, and the open balance finding. |
 | `docs/superpowers/specs/2026-10-23-dispatcher-design.md` | Dispatcher design, which replaces Rush Hour. |
-| `docs/superpowers/plans/2026-10-23-dispatcher.md` | Dispatcher plan, 12 tasks. Task 12 (retire Rush Hour) is gated on the user's playtest. |
+| `docs/superpowers/plans/2026-10-23-dispatcher.md` | Dispatcher plan, 12 tasks. Task 12 (retire Rush Hour) is done. |
 | `docs/superpowers/2026-10-23-dispatcher-execution-record.md` | Dispatcher Tasks 1–6: interpretations and reviews. |
 | `docs/superpowers/specs/2026-10-24-dispatcher-playtest-1-design.md` | Dispatcher changes from the first playtest (amends the design). |
 | `docs/superpowers/plans/2026-10-24-dispatcher-playtest-1.md` | Dispatcher playtest 1 plan, 11 tasks, all done. |

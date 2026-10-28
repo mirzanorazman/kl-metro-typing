@@ -220,15 +220,15 @@ describe('sound', () => {
     window.dispatchEvent(new Event('pointerdown'));
     await flushPromises();
 
-    sound.music.play('rushCalm');
+    sound.music.play('dispatchCalm');
     await flushPromises();
-    expect(sound.music.current()).toBe('rushCalm');
+    expect(sound.music.current()).toBe('dispatchCalm');
     const calmNotes = toneMock.synthTrigger.mock.calls.length + toneMock.membraneTrigger.mock.calls.length;
     expect(calmNotes).toBeGreaterThan(0);
 
-    sound.music.play('rushTense');
+    sound.music.play('dispatchTense');
     await flushPromises();
-    expect(sound.music.current()).toBe('rushTense');
+    expect(sound.music.current()).toBe('dispatchTense');
 
     sound.music.stop();
     toneMock.synthTrigger.mockClear();
@@ -248,7 +248,7 @@ describe('sound', () => {
     window.dispatchEvent(new Event('pointerdown'));
     await flushPromises();
 
-    const notesIn = async (track: 'rushCalm' | 'rushTense') => {
+    const notesIn = async (track: 'dispatchCalm' | 'dispatchTense') => {
       sound.music.play(track);
       await flushPromises();
       toneMock.synthTrigger.mockClear();
@@ -259,15 +259,15 @@ describe('sound', () => {
       sound.music.stop();
       return n;
     };
-    expect(await notesIn('rushTense')).toBeGreaterThan(await notesIn('rushCalm'));
+    expect(await notesIn('dispatchTense')).toBeGreaterThan(await notesIn('dispatchCalm'));
   });
 
   it('stopping a track that is not playing leaves the current one alone', async () => {
     const sound = await loadSound();
-    sound.music.play('rushSetup');
+    sound.music.play('dispatchSetup');
     sound.music.stop('menu');
-    expect(sound.music.current()).toBe('rushSetup');
-    sound.music.stop('rushSetup');
+    expect(sound.music.current()).toBe('dispatchSetup');
+    sound.music.stop('dispatchSetup');
     expect(sound.music.current()).toBeNull();
   });
 });

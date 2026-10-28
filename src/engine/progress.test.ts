@@ -8,8 +8,6 @@ import {
   recordQuickBestOverall,
   saveSelectedLine,
   recordIntegrityFail,
-  markRushTipSeen,
-  resetRushTips,
   markDispatchTipSeen,
   resetDispatchTips,
   INTEGRITY_FAIL_LIMIT,
@@ -40,6 +38,17 @@ describe('loadProfile', () => {
   it('recovers from a record with an unknown schema version', () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 999 }));
     expect(loadProfile().recovered).toBe(true);
+  });
+
+  it('migrate strips Rush Hour keys', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...emptyProfile(), visited: ['imbi'], rushHigh: { KJ: 12 }, rushTipsSeen: ['walk'] }),
+    );
+    const p = loadProfile();
+    expect(p.visited).toEqual(['imbi']);
+    expect('rushHigh' in p).toBe(false);
+    expect('rushTipsSeen' in p).toBe(false);
   });
 });
 
@@ -267,27 +276,6 @@ describe('recordIntegrityFail', () => {
   });
 });
 
-describe('Rush Hour tips seen', () => {
-  it('records each tip once and resets to none', () => {
-    let p = markRushTipSeen(emptyProfile(), 'junction');
-    p = markRushTipSeen(p, 'junction');
-    expect(p.rushTipsSeen).toEqual(['junction']);
-    expect(resetRushTips(p).rushTipsSeen).toEqual([]);
-  });
-
-  it('survives a save, and older saves load without it', () => {
-    saveProfile(markRushTipSeen(emptyProfile(), 'start'));
-    expect(loadProfile().rushTipsSeen).toEqual(['start']);
-    saveProfile(emptyProfile());
-    expect(loadProfile().rushTipsSeen).toBeUndefined();
-  });
-
-  it('drops junk from a stored list', () => {
-    saveProfile({ ...emptyProfile(), rushTipsSeen: ['walk', 7 as unknown as string] });
-    expect(loadProfile().rushTipsSeen).toEqual(['walk']);
-  });
-});
-
 describe('Dispatcher tips seen', () => {
   it('records each tip once and resets to none', () => {
     let p = markDispatchTipSeen(emptyProfile(), 'signal');
@@ -296,12 +284,6 @@ describe('Dispatcher tips seen', () => {
     p = markDispatchTipSeen(p, 'incident');
     expect(p.dispatchTipsSeen).toEqual(['signal', 'incident']);
     expect(resetDispatchTips(p).dispatchTipsSeen).toEqual([]);
-  });
-
-  it('is independent of Rush Hour tips', () => {
-    const p = markDispatchTipSeen(markRushTipSeen(emptyProfile(), 'walk'), 'signal');
-    expect(p.rushTipsSeen).toEqual(['walk']);
-    expect(resetDispatchTips(p).rushTipsSeen).toEqual(['walk']);
   });
 
   it('survives a save, and older saves load without it', () => {

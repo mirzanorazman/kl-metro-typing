@@ -51,8 +51,8 @@ const TRACKS = {
     stepMs: 2400,
     steps: [[['menu', 'C4', 0.3]], [['menu', 'G4', 0.3]], [['menu', 'A4', 0.3]], [['menu', 'E4', 0.3]]],
   },
-  /** Rush Hour setup: a light, bouncing major-pentatonic figure at 120 BPM. */
-  rushSetup: {
+  /** Between Dispatcher Shifts: a light, bouncing major-pentatonic figure at 120 BPM. */
+  dispatchSetup: {
     stepMs: 250,
     steps: [
       [['bass', 'C3', 0.2], ['lead', 'C5', 0.1]], [], [['lead', 'E5', 0.1]], [['lead', 'G5', 0.1]],
@@ -62,7 +62,7 @@ const TRACKS = {
     ],
   },
   /** A Run going fine: a steady 110 BPM pulse under the typing. */
-  rushCalm: {
+  dispatchCalm: {
     stepMs: 273,
     steps: [
       [['kick', 'C2', 0.1], ['bass', 'A2', 0.2]], [], [['tick', 'A6', 0.02]], [['bass', 'A2', 0.1]],
@@ -71,8 +71,8 @@ const TRACKS = {
       [['kick', 'C2', 0.1], ['bass', 'G2', 0.2]], [], [['tick', 'A6', 0.02]], [['lead', 'D5', 0.12]],
     ],
   },
-  /** A Station overcrowding: 140 BPM, higher, with off-beat stabs. */
-  rushTense: {
+  /** A network under strain: 140 BPM, higher, with off-beat stabs. */
+  dispatchTense: {
     stepMs: 214,
     steps: [
       [['kick', 'C2', 0.08], ['bass', 'A2', 0.1]], [['tick', 'E7', 0.02], ['lead', 'A5', 0.06]],
@@ -274,7 +274,7 @@ export const sound = {
     });
   }),
 
-  /** Rush Hour passengers alighting at their Line: a bright three-note chime. */
+  /** Passengers alighting at a cleared Station: a bright three-note chime. */
   delivered: () => play(({ complete }) => {
     ['G5', 'B5', 'D6'].forEach((note, index) => {
       complete.triggerAttackRelease(note, 0.08, `+${(index * 0.06).toFixed(3)}`);
@@ -301,7 +301,7 @@ export const sound = {
     });
   }),
 
-  /** A Rush Hour Overflow ring passing halfway: two low, insistent pulses. */
+  /** A new Incident on the network: two low, insistent pulses. */
   warning: () => play(({ error }) => {
     error.triggerAttackRelease('A1', 0.12);
     error.triggerAttackRelease('A1', 0.12, '+0.18');

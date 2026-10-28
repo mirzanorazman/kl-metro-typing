@@ -505,8 +505,8 @@ export function DispatcherScreen({
 
   // Music while the Shift runs, tense while an Incident is active; the setup
   // theme while choosing an Expansion.
-  const track = run.status === 'between' ? 'rushSetup'
-    : run.status !== 'running' ? null : dispatchTense(run) ? 'rushTense' : 'rushCalm';
+  const track = run.status === 'between' ? 'dispatchSetup'
+    : run.status !== 'running' ? null : dispatchTense(run) ? 'dispatchTense' : 'dispatchCalm';
   useEffect(() => {
     if (track) music.play(track);
     else music.stop();

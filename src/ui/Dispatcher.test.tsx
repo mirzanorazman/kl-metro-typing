@@ -441,14 +441,14 @@ describe('DispatcherScreen', () => {
     const calm = renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
     expect(play).not.toHaveBeenCalled();
     type('J');
-    expect(play).toHaveBeenLastCalledWith('rushCalm');
+    expect(play).toHaveBeenLastCalledWith('dispatchCalm');
     calm.unmount();
 
     const initial = careerWith([waiting(1, 'KJ', 'Jelatek')]);
     initial.sim.incidents = [signalFault()];
     renderShift(initial);
     type('J');
-    expect(play).toHaveBeenLastCalledWith('rushTense');
+    expect(play).toHaveBeenLastCalledWith('dispatchTense');
   });
 
   it('music returns to calm once a missed Incident leaves a Station Out of service and no Incident remains', () => {
@@ -458,14 +458,14 @@ describe('DispatcherScreen', () => {
     initial.sim.incidents = [signalFault()];
     const view = renderShift(initial);
     type('J');
-    expect(play).toHaveBeenLastCalledWith('rushTense');
+    expect(play).toHaveBeenLastCalledWith('dispatchTense');
     view.unmount();
 
     const after = careerWith([waiting(1, 'KJ', 'Jelatek')]);
     after.sim.outOfService = { [idOf('Masjid Jamek')]: 'signal-fault' };
     renderShift(after);
     type('J');
-    expect(play).toHaveBeenLastCalledWith('rushCalm');
+    expect(play).toHaveBeenLastCalledWith('dispatchCalm');
   });
 
   it('End Career on the Expansion screen retires the Career, keeping what it cleared', () => {

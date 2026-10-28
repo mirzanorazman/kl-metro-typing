@@ -21,8 +21,6 @@ export interface HomeMapProps {
   onStartQuick?: (code: LineCode, toward: string) => void;
   onPickStation: (stationId: string) => void;
   onOpenLeaderboard: () => void;
-  /** Opens Rush Hour setup. Omitted where Rush Hour is not offered. */
-  onOpenRush?: () => void;
   /** Opens a Dispatcher Career. Omitted where Dispatcher is not offered. */
   onOpenDispatcher?: () => void;
   /**
@@ -41,7 +39,6 @@ export function HomeMap({
   onStartQuick,
   onPickStation,
   onOpenLeaderboard,
-  onOpenRush,
   onOpenDispatcher,
   intro = true,
 }: HomeMapProps) {
@@ -255,18 +252,6 @@ export function HomeMap({
               <kbd data-testid="menu-key">{searchKey}</kbd>
               <span>Start anywhere</span>
             </button>
-
-            {onOpenRush && (
-              <button
-                type="button"
-                onClick={() => {
-                  sound.select();
-                  onOpenRush();
-                }}
-              >
-                <span>Rush Hour</span>
-              </button>
-            )}
 
             {onOpenDispatcher && (
               <button

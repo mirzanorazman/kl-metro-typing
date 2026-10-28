@@ -40,8 +40,7 @@ the terminus it heads toward.
 _Avoid_: option, choice
 
 **Walk link**:
-Two differently-named stations joined by a walkway. Free in Adventure; costs
-time in Rush Hour.
+Two differently-named stations joined by a walkway. Free in Adventure.
 
 ## Playing
 
@@ -52,7 +51,7 @@ station, and ends when a Shift fails or the player ends it.
 _Avoid_: journey, session, game, play
 
 **Mode**:
-Which kind of Run this is: Line Run, Quick Run, or Adventure.
+Which kind of Run this is: Line Run, Quick Run, Adventure, or Dispatcher.
 _Avoid_: kind, variant, type
 
 **Line Run**:
@@ -81,39 +80,20 @@ Jump adds the Leg that becomes active.
 **Adventure**:
 The mode where the player roams freely and chooses a Direction at every junction.
 
-**Rush Hour**:
-The survival mode: passengers accumulate in Queues at stations, the player's
-typing speed is the train's throughput, and one Overflow ends the Run. The
-train roams the chosen Line set as in Adventure. Score is passengers Delivered.
-Specified in `docs/superpowers/specs/2026-09-28-rush-hour-design.md`.
-
-**Line set**:
-The Lines chosen for a Rush Hour Run — one or more. The train may only travel
-on them, and `Profile.rushHigh` keys its best by them.
-
-**Queue**:
-The Passengers waiting at one Station in Rush Hour, first in, first out.
-
 **Capacity**:
-How many Passengers a Queue (6, or 8 at an Interchange) or the train (8 per
-carriage) can hold.
+How many Passengers a Dispatcher Station's platform or a Train can hold.
 
 **Load**:
-The Passengers aboard the train.
+The Passengers aboard a Train.
 _Avoid_: cargo, riders
 
-**Overflow**:
-A full Queue whose ring is filling. The ring drains once the Queue drops below
-Capacity; a ring that fills ends the Run.
-
 **Delivered**:
-A Passenger who has alighted at a Station served by their target Line. The
-Rush Hour score is the count of them.
+A Passenger who has alighted at their destination. A Dispatcher Career
+counts them across its Shifts.
 
 **Status**:
 Where a Run is right now. A Line Run or Adventure is typing, at a junction, or
-ended; a Quick Run is ready, running, completed, or interrupted; a Rush Hour Run
-is ready, running, paused, or ended.
+ended; a Quick Run is ready, running, completed, or interrupted.
 _Avoid_: phase, state
 
 The code honours neither half of this yet: `RunState` calls the field `phase`,
@@ -134,21 +114,16 @@ The stations reached in any Run, ever. Survives closing the tab.
 _Avoid_: visited (for the lifetime set), discovered, completed
 
 **Passenger**:
-Someone waiting at a station in Rush Hour. A passenger wants a line, not a
-station, and is delivered on reaching any station that line serves.
+Someone waiting at a Station or riding a Train in Dispatcher.
 
 **Demand**:
 A station's passenger spawn weight. 1 is an ordinary stop; major hubs are higher.
-
-**Day phase**:
-Rush Hour's time of day — Off-Peak, Morning Peak, Midday, Evening Peak, Late
-Night. "Phase" always means this, never the status of a Run.
 
 ## Dispatcher
 
 **Dispatcher**:
 The Mode where the player runs a live rail network from a control room, typing
-Station names to Clear Signals and fixing Incidents. It replaces Rush Hour.
+Station names to Clear Signals and fixing Incidents. It replaced Rush Hour.
 Specified in `docs/superpowers/specs/2026-10-23-dispatcher-design.md`.
 
 **Career**:
@@ -263,6 +238,5 @@ Three different things are called a line, and the distinction matters:
 
 1. The line a train travels on **now**, which changes during a Run.
 2. The line chosen before a Line Run or Quick Run starts. It stays fixed for a
-   Line Run, while a Quick Run can Jump to another Line. (Rush Hour chooses a
-   Line set.)
+   Line Run, while a Quick Run can Jump to another Line.
 3. Line Run, the name of a mode.

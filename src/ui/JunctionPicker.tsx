@@ -19,11 +19,9 @@ export interface JunctionPickerProps {
   walk: string[];
   onChoose: (dir: Direction) => void;
   onWalk: (stationId: string) => void;
-  /** Optional extra line per Direction, e.g. Rush Hour's delivery hint. */
-  note?: (dir: Direction) => string | null;
 }
 
-export function JunctionPicker({ net, options, walk, onChoose, onWalk, note }: JunctionPickerProps) {
+export function JunctionPicker({ net, options, walk, onChoose, onWalk }: JunctionPickerProps) {
   const { focusInput } = useTypingInputControls();
   const onKey = useCallback(
     (key: string) => {
@@ -58,7 +56,6 @@ export function JunctionPicker({ net, options, walk, onChoose, onWalk, note }: J
                 <span>{line?.name}</span>
                 <span>toward {dir.toward}</span>
                 <em>next: {stationAt(net, dir.next)?.name}</em>
-                {note?.(dir) && <strong className="junction-note">{note(dir)}</strong>}
               </button>
             </li>
           );

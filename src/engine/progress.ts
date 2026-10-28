@@ -27,8 +27,6 @@ export interface Profile {
   visited: string[];
   bestWpm: Record<string, number>;
   adventure: AdventurePosition | null;
-  /** Rush Hour best Delivered, keyed by `rushLineSetKey` (e.g. `AG+KJ`). */
-  rushHigh: Record<string, number>;
   /** Sound preference. Additive, so older saves migrate to unmuted. */
   muted: boolean;
   /** Quick Run high scores, keyed by line code. */
@@ -53,11 +51,9 @@ export interface Profile {
    */
   integrityFails?: IntegrityFail[];
   /**
-   * Rush Hour tips already shown, by id. Optional and additive, so older saves
+   * Dispatcher tips already shown, by id. Optional and additive, so older saves
    * carry forward through migrate's spread, the path `theme` took.
    */
-  rushTipsSeen?: string[];
-  /** Dispatcher tips already shown, by id. Optional and additive, like `rushTipsSeen`. */
   dispatchTipsSeen?: string[];
   /** True when this profile replaced an unreadable saved record. */
   recovered?: boolean;
@@ -69,7 +65,6 @@ export function emptyProfile(): Profile {
     visited: [],
     bestWpm: {},
     adventure: null,
-    rushHigh: {},
     muted: false,
     quickBest: {},
     wpmHistory: [],
@@ -102,7 +97,11 @@ function cleanQuickBestOverall(value: unknown): number | undefined {
  */
 function migrate(raw: unknown): Profile | null {
   if (typeof raw !== 'object' || raw === null) return null;
-  const rec = raw as Partial<Profile>;
+  // Rush Hour's keys outlive the mode in older saves; drop them on the way in.
+  const { rushHigh: _rushHigh, rushTipsSeen: _rushTipsSeen, ...rec } = raw as Partial<Profile> & {
+    rushHigh?: unknown;
+    rushTipsSeen?: unknown;
+  };
   if (rec.version !== SCHEMA_VERSION) return null;
   return {
     ...emptyProfile(),
@@ -111,9 +110,6 @@ function migrate(raw: unknown): Profile | null {
     quickBest: cleanQuickBest(rec.quickBest),
     quickBestOverall: cleanQuickBestOverall(rec.quickBestOverall),
     lastSelectedLine: isLineCode(rec.lastSelectedLine) ? rec.lastSelectedLine : undefined,
-    rushTipsSeen: Array.isArray(rec.rushTipsSeen)
-      ? rec.rushTipsSeen.filter((id): id is string => typeof id === 'string')
-      : undefined,
     dispatchTipsSeen: Array.isArray(rec.dispatchTipsSeen)
       ? rec.dispatchTipsSeen.filter((id): id is string => typeof id === 'string')
       : undefined,
@@ -174,23 +170,6 @@ export function recordQuickBestOverall(profile: Profile, score: number): Profile
   const best = typeof current === 'number' && Number.isFinite(current) && current >= 0 ? current : 0;
   if (!Number.isFinite(score) || score < 0 || score <= best) return profile;
   return { ...profile, quickBestOverall: score };
-}
-
-export function recordRushBest(profile: Profile, lineSetKey: string, delivered: number): Profile {
-  const current = profile.rushHigh?.[lineSetKey];
-  const best = typeof current === 'number' && Number.isFinite(current) && current >= 0 ? current : 0;
-  if (!Number.isInteger(delivered) || delivered <= best) return profile;
-  return { ...profile, rushHigh: { ...profile.rushHigh, [lineSetKey]: delivered } };
-}
-
-export function markRushTipSeen(profile: Profile, id: string): Profile {
-  const seen = profile.rushTipsSeen ?? [];
-  return seen.includes(id) ? profile : { ...profile, rushTipsSeen: [...seen, id] };
-}
-
-/** "How to play": every tip shows again on the next Run. */
-export function resetRushTips(profile: Profile): Profile {
-  return { ...profile, rushTipsSeen: [] };
 }
 
 export function markDispatchTipSeen(profile: Profile, id: string): Profile {
