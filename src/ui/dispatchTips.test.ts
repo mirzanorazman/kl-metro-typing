@@ -159,6 +159,11 @@ describe('newDispatchTips', () => {
       expect(newDispatchTips(net, prev, next, new Set(['crowding']), B)).toEqual([]);
     });
 
+    it('never tips on the tick a Shift ends', () => {
+      const between = { ...crowdedAt(5_000), status: 'between' as const };
+      expect(newDispatchTips(net, crowdedAt(4_900), between, none, B)).not.toContain('crowding');
+    });
+
     it('under A, waits for an amber chip, since there is no ring', () => {
       const relieving = [waiting(1, 'KJ', 'Damai')];
       expect(newDispatchTips(net, crowdedAt(0), crowdedAt(5_000), none, A)).toEqual([]);
@@ -170,6 +175,15 @@ describe('newDispatchTips', () => {
       expect(tipSubject(net, s, 'crowding', B)).toEqual({ trains: [1], stations: [idOf('KLCC')] });
       expect(tipSubject(net, crowdedAt(0), 'crowding', B)).toBeNull();
       expect(tipSubject(net, s, 'crowding')).toBeNull();
+    });
+
+    it('tipSubject takes the fullest Station the hint marks: any under B, one with an amber chip under A', () => {
+      const s = withSim(crowdedAt(5_000, [waiting(1, 'KJ', 'Damai')]), (sim) => {
+        sim.platforms[idOf('Kerinchi')]!.fullMs = 9_000;
+        sim.platforms[idOf('Kerinchi')]!.waiting = { [idOf('KLCC')]: 60 };
+      });
+      expect(tipSubject(net, s, 'crowding', B)).toEqual({ trains: [], stations: [idOf('Kerinchi')] });
+      expect(tipSubject(net, s, 'crowding', A)).toEqual({ trains: [1], stations: [idOf('KLCC')] });
     });
 
     it('says what the hint shows in each mode', () => {

@@ -4,7 +4,7 @@ import { pairedRears, type OosCause } from '../engine/dispatchSim';
 import { visibleTargets } from '../engine/dispatchTargets';
 import { PLATFORM_CAPACITY } from '../engine/dispatchBalance';
 import {
-  CROWDING_HINT_OFF, crowdedStations, relievingTrains, type CrowdingHintMode, type CrowdingHintSettings,
+  CROWDING_HINT_OFF, crowdedStations, hintLive, relievingTrains, type CrowdingHintMode, type CrowdingHintSettings,
 } from '../render/crowdingHint';
 
 /** One-time Dispatcher tips, in the order they queue when moments coincide. */
@@ -38,9 +38,8 @@ export function dispatchTipText(id: DispatchTipId, mode: CrowdingHintMode = 'b')
 function hintShown(net: NetworkIndex, sim: CareerState['sim'], hint: CrowdingHintSettings) {
   if (hint.mode === 'off') return null;
   const crowded = crowdedStations(sim, hint.delayMs);
-  const relieving = relievingTrains(net, sim, crowded, visibleTargets(net, sim));
-  const shows = hint.mode === 'b' ? crowded.length > 0 : relieving.size > 0;
-  return shows ? { crowded, relieving } : null;
+  if (hint.mode === 'b') return crowded.length > 0 ? { crowded } : null;
+  return relievingTrains(net, sim, crowded, visibleTargets(net, sim)).size > 0 ? { crowded } : null;
 }
 
 /**
@@ -73,7 +72,8 @@ export function newDispatchTips(
       if (skips(after).some((t) => t.ref.kind === 'skip' && !had.has(t.ref.train))) hit.add('late');
     }
     if (after.nextTrainId > before.nextTrainId) hit.add('new-train');
-    if (want('crowding') && hintShown(net, after, hint)) hit.add('crowding');
+    // The tick a Shift ends changes the sim too, but the hint is off by then.
+    if (want('crowding') && hintLive(next.status, false) && hintShown(net, after, hint)) hit.add('crowding');
     if (after.oosOrder.length > before.oosOrder.length) hit.add('out-of-service');
   }
   return DISPATCH_TIPS.map((t) => t.id).filter((id) => hit.has(id) && want(id));
