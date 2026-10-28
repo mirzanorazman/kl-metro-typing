@@ -665,6 +665,14 @@ export function DispatcherScreen({
   const tipFrame = subject && !prefersReducedMotion()
     ? subjectStations(net, run.sim, subject, served).map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
     : null;
+  // A failed Shift's hold: the camera moves to the Station whose closure ended
+  // it and its neighbours, so the player sees how it happened. It wins over
+  // everything else; reduced motion keeps the camera still.
+  const lastClosed = failHold ? run.sim.oosOrder[run.sim.oosOrder.length - 1] : undefined;
+  const failFrame = lastClosed !== undefined && !prefersReducedMotion()
+    ? subjectStations(net, run.sim, { trains: [], stations: [lastClosed] }, served)
+      .map((id) => layout.get(id)).filter((p): p is Point => p !== undefined)
+    : null;
   // The close camera (dev camera panel): the lesson, a pointing tip and a fix
   // being typed frame closer than the normal frame, less close as the Served
   // network grows. A fix's close view is its place and its Served neighbours
@@ -677,6 +685,10 @@ export function DispatcherScreen({
     : lesson ? {
       view: closeFrame(frame, lessonFrame, DISPATCH_FIT_PADDING, camera.early),
       key: `dispatch:lesson:close:${camera.early.toFixed(2)}`,
+    }
+    : failFrame ? {
+      view: closeFrame(frame, failFrame, DISPATCH_FIT_PADDING, near),
+      key: `fail:${lastClosed}:close:${near.toFixed(2)}`,
     }
     : tipFrame ? {
       view: closeFrame(frame, tipFrame, DISPATCH_FIT_PADDING, near),
@@ -717,8 +729,8 @@ export function DispatcherScreen({
             districts={districts}
             emphasisRanges={lesson?.career.served ?? run.served}
             trackReveal={reveal?.track ?? null}
-            fitTo={lesson ? lessonFrame : tipFrame ?? fixFrame ?? leanFrame ?? frame}
-            fitKey={close?.key ?? (lesson ? 'dispatch:lesson' : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey)}
+            fitTo={lesson ? lessonFrame : failFrame ?? tipFrame ?? fixFrame ?? leanFrame ?? frame}
+            fitKey={close?.key ?? (lesson ? 'dispatch:lesson' : failFrame ? `fail:${lastClosed}` : tipFrame ? `tip:${tips[0]}` : lean?.key ?? frameKey)}
             fitView={close?.view}
             fitPadding={offers ? { ...DISPATCH_FIT_PADDING, bottom: 0.7 } : DISPATCH_FIT_PADDING}
             overlay={({ layout: l, markScale, view, screen, tracks }) => (

@@ -80,7 +80,7 @@ spec and plan.
 | F25 | "Reset train at" can name a Signal the train has passed | P2 | S | not a bug (2026-10-28) | |
 | F26 | Service gap card sits at the Station left behind but names the next Signal | P2 | S | watch in playtest | F22 |
 | F29 | A platform overflowing with no Incident gives no warning and no way to act on it | P1 | M | done 54976b8..47c5594 (playtest 3) | |
-| F30 | When a Shift fails, the camera moves to the last Station that closed | Parked | S–M | parked | F20 |
+| F30 | When a Shift fails, the camera moves to the last Station that closed | P1 | S | done (feat/crowding-hint) | F20 |
 
 **P0** is broken or blocks a normal session; do these next, roughly in this
 order. **P1** is what a first-time player needs to understand and feel the
@@ -975,6 +975,13 @@ it happened. Parked for later.
 its summary (F20: full gauge, the last stamp, the heaviest thud). The camera
 could frame the last closed Station and its neighbours in that hold, with the
 close camera (F27). Reduced motion: cut, or keep the camera still.
+
+**Done (2026-10-28, at the user's request after F29).** During a failed
+Shift's 1.2 s hold the camera moves to the last closed Station and its
+neighbours on every Line through it (the out-of-service tip's framing), close
+when the close camera is on, and it wins over any tip, fix or lean-in frame.
+Reduced motion keeps the camera still (*my call*: a cut on the last beat felt
+more jarring than no move). The summary follows the hold as before.
 
 ### F13. The full-size map (`?dispatch=full`)
 

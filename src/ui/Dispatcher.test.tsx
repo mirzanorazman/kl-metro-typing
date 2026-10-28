@@ -1131,6 +1131,31 @@ describe('DispatcherScreen', () => {
       expect(judgeSpy).toHaveBeenCalledTimes(1);
     });
 
+    it('the camera moves to the last closed Station during the hold, close with the close camera', () => {
+      allowMotion();
+      closeCameraOn();
+      failShift();
+      expect(summary()).toBeNull();
+      expect(mapProps().fitKey).toMatch(new RegExp(`^fail:${idOf('KLCC')}:close:`));
+      const kj = net.lines.get('KJ')!.stations;
+      const i = kj.indexOf(idOf('KLCC'));
+      for (const id of [kj[i - 1]!, kj[i]!, kj[i + 1]!]) expect(mapProps().fitTo).toContainEqual(mapProps().layout.get(id));
+      expect(mapProps().fitView!.w).toBeLessThan(normalBox(closingCareer().served).w);
+    });
+
+    it('with the close camera off, the hold still frames the last closed Station', () => {
+      allowMotion();
+      closeCameraOn({ on: false });
+      failShift();
+      expect(mapProps().fitKey).toBe(`fail:${idOf('KLCC')}`);
+      expect(mapProps().fitView).toBeUndefined();
+    });
+
+    it('reduced motion keeps the camera still through the hold', () => {
+      failShift();
+      expect(mapProps().fitKey).not.toMatch(/^fail:/);
+    });
+
     it('the failing closure thuds during the hold', () => {
       const closure = vi.spyOn(sound, 'closure').mockImplementation(() => {});
       failShift();
