@@ -8,6 +8,7 @@ import type { Target, TargetRef } from '../engine/dispatchTargets';
 import type { SignalMark } from './useSignalMarks';
 import { placeLabels } from './labels';
 import { pxPerUnit } from './mapMarks';
+import type { CrowdedStation } from './crowdingHint';
 
 /**
  * Where the Dispatcher overlay puts things, as pure geometry. The overlay
@@ -396,10 +397,14 @@ export function overlayLayout(
   return { trains, marks: placed, chips, fontSize };
 }
 
+/** A crowded Station's ring, and the clearance station names keep from its Station, in nominal units (times the mark scale). */
+export const RING_R = 11;
+export const RING_CLEAR_R = 22;
+
 /**
  * Everything on the overlay that station names must keep off, in layout
  * units: chips (with clearance), Trains, waiting Signal marks, Incident
- * badges and Out of service crosses. Names yield to all of it; the chips
+ * badges, Out of service crosses and crowding rings. Names yield to all of it; the chips
  * already name every Station with a train waiting.
  */
 export function overlayObstacles(
@@ -410,6 +415,7 @@ export function overlayObstacles(
   marks: readonly SignalMark[],
   m: number,
   frame: OverlayFrame | null = null,
+  rings: readonly CrowdedStation[] = [],
 ): Box[] {
   const { trains, marks: placed, chips } = overlayLayout(net, layout, career, targets, marks, m, frame);
   const { sim } = career;
@@ -425,6 +431,10 @@ export function overlayObstacles(
     ...Object.keys(sim.outOfService).flatMap((id) => {
       const p = layout.get(id);
       return p ? [around(p, 7 * m)] : [];
+    }),
+    ...rings.flatMap(({ id }) => {
+      const p = layout.get(id);
+      return p ? [around(p, RING_CLEAR_R * m)] : [];
     }),
   ];
 }

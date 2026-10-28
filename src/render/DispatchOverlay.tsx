@@ -6,10 +6,11 @@ import type { CareerState } from '../engine/dispatch';
 import { bunchedTrains, heldTrains } from '../engine/dispatchSim';
 import { sameRef, type Target, type TargetRef } from '../engine/dispatchTargets';
 import {
-  chipBox, incidentBadge, layoutPops, overlayLayout, POP_LINE_EM, SIGNAL_HALF_W, SIGNAL_LEN, SIGNAL_POST,
+  chipBox, incidentBadge, layoutPops, overlayLayout, POP_LINE_EM, RING_R, SIGNAL_HALF_W, SIGNAL_LEN, SIGNAL_POST,
   type Box, type OverlayFrame,
 } from './dispatchLayout';
 import { contrastText } from './contrast';
+import type { CrowdingHintView } from './crowdingHint';
 import { INCIDENT_GLYPH } from './incidentGlyphs';
 import { NO_MOMENTS, type DispersalPop, type ExchangePop, type PassengerMoments } from './usePassengerMoments';
 import { prefersReducedMotion } from './useLayoutMode';
@@ -34,6 +35,8 @@ export interface DispatchOverlayProps {
   stamping?: ReadonlySet<string>;
   /** Trains a tip is about: each pulses a ring, a steady one under reduced motion. */
   spotlight?: ReadonlySet<number>;
+  /** The crowding hint: Trains whose Signal chips turn amber, and a countdown ring on each crowded Station. */
+  hint?: CrowdingHintView;
 }
 
 const NO_STAMPING: ReadonlySet<string> = new Set();
@@ -143,7 +146,7 @@ function Dispersal({ pop, layout, m }: { pop: DispersalPop; layout: Layout; m: n
  */
 export function DispatchOverlay({
   net, layout, markScale: m, career, targets, aimed, moments = NO_MOMENTS, frame = null, tracks = null,
-  stamping = NO_STAMPING, spotlight = NO_SPOTLIGHT,
+  stamping = NO_STAMPING, spotlight = NO_SPOTLIGHT, hint,
 }: DispatchOverlayProps) {
   const { sim, aim } = career;
   const { marks, pulse } = useSignalMarks(net, career, targets);
@@ -237,6 +240,21 @@ export function DispatchOverlay({
                 vectorEffect="non-scaling-stroke"
               />
             </g>
+          </g>
+        );
+      })}
+
+      {hint?.rings.map(({ id, share, waiting }) => {
+        const p = layout.get(id);
+        if (!p) return null;
+        const r = RING_R * m;
+        return (
+          <g key={`ring-${id}`} data-testid="crowding-ring" data-station={id} className="crowding-ring">
+            {/* No non-scaling-stroke: Chrome then ignores pathLength on the arc, so widths scale by hand. */}
+            <circle className="crowding-ring-track" cx={p.x} cy={p.y} r={r} strokeWidth={2.5 * m} />
+            <circle className="crowding-ring-arc" cx={p.x} cy={p.y} r={r} pathLength={1} strokeDasharray={`${share} 1`}
+              strokeWidth={2.5 * m} transform={`rotate(-90 ${p.x} ${p.y})`} />
+            <text className="crowding-count" x={p.x + r} y={p.y - r} fontSize={10 * m}>{waiting}</text>
           </g>
         );
       })}
@@ -342,6 +360,8 @@ export function DispatchOverlay({
             data-candidate={aimedHere ? 'true' : undefined}
             data-locked={locked ? 'true' : undefined}
             data-kind={chip.kind}
+            data-relieve={chip.kind === 'signal' && chip.ref.kind === 'signal' && hint?.relieving.has(chip.ref.train)
+              ? 'true' : undefined}
           >
             <line className="dispatch-leader" x1={chip.from.x} y1={chip.from.y}
               x2={chip.x + (chip.x + chip.w / 2 > chip.from.x ? 0 : chip.w)} y2={chip.y + chip.h / 2}

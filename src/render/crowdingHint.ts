@@ -24,6 +24,9 @@ export interface CrowdedStation {
   waiting: number;
 }
 
+/** What the overlay draws for the hint: the Trains whose Signal chips turn amber, and the ring on each crowded Station. */
+export interface CrowdingHintView { relieving: ReadonlySet<number>; rings: readonly CrowdedStation[] }
+
 /** Stations whose platform has been full for at least `delayMs`, by id. */
 export function crowdedStations(sim: SimState, delayMs: number): CrowdedStation[] {
   return Object.keys(sim.platforms).sort()

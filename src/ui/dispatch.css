@@ -483,6 +483,20 @@
 .dispatch-chip[data-kind='fix'] rect { stroke: var(--error); stroke-dasharray: 3 2; }
 .dispatch-skip-icon { fill: none; stroke: var(--ink); stroke-width: 1.5px; }
 
+/* The crowding hint: a Signal chip for a Train that would relieve a crowded
+   Station. Before the candidate and locked rules, so those still win. */
+.dispatch-chip[data-relieve='true'] rect {
+  stroke: var(--warn);
+  stroke-width: 2px;
+  fill: color-mix(in srgb, var(--warn) 12%, var(--panel));
+}
+
+/* A crowded Station's ring: the countdown to closing fills clockwise from the top. */
+.crowding-ring circle { fill: none; }
+.crowding-ring-track { stroke: var(--paper-edge); }
+.crowding-ring-arc { stroke: var(--warn); }
+.crowding-count { fill: var(--warn); font-weight: 700; }
+
 .dispatch-chip[data-candidate='true'] rect { stroke: var(--ink); stroke-width: 2px; }
 .dispatch-chip[data-locked='true'] rect { fill: var(--ink); stroke: var(--ink); }
 .dispatch-chip[data-locked='true'] text { fill: var(--paper); }
