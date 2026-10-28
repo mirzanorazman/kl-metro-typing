@@ -6,7 +6,7 @@ box; numbers you would change are the most useful notes.
 
 ## Setup
 
-- [ ] Branch `feat/crowding-hint`, `npm run dev`. The hint lives in the dev
+- [ ] `main` (merged at e799a63), `npm run dev`. The hint lives in the dev
       build only; production is Off.
 - [ ] The dev panel is bottom left. Click the row "Crowding: B · 5 s" to open
       it: Crowding hint (Off / A / B), Hint delay (0–15 s), Declutter labels.
