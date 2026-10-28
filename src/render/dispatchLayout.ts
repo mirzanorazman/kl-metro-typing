@@ -400,6 +400,18 @@ export function overlayLayout(
 /** A crowded Station's ring, and the clearance station names keep from its Station, in nominal units (times the mark scale). */
 export const RING_R = 11;
 export const RING_CLEAR_R = 22;
+/** The waiting count's font size, nominal (times the mark scale); it sits above-right of the ring. */
+export const RING_COUNT_FONT = 10;
+
+/** Where the count is drawn: its start, on the baseline, above-right of the ring. */
+export const ringCountAnchor = (p: Point, m: number): Point => ({ x: p.x + RING_R * m, y: p.y - RING_R * m });
+
+/** The count's own extent (monospace, so its width follows its digits), for names to keep off. */
+export function ringCountBox(p: Point, waiting: number, m: number): Box {
+  const at = ringCountAnchor(p, m);
+  const font = RING_COUNT_FONT * m;
+  return { x0: at.x, y0: at.y - font, x1: at.x + String(waiting).length * CHAR_EM * font, y1: at.y };
+}
 
 /**
  * Everything on the overlay that station names must keep off, in layout
@@ -432,9 +444,9 @@ export function overlayObstacles(
       const p = layout.get(id);
       return p ? [around(p, 7 * m)] : [];
     }),
-    ...rings.flatMap(({ id }) => {
+    ...rings.flatMap(({ id, waiting }) => {
       const p = layout.get(id);
-      return p ? [around(p, RING_CLEAR_R * m)] : [];
+      return p ? [around(p, RING_CLEAR_R * m), ringCountBox(p, waiting, m)] : [];
     }),
   ];
 }

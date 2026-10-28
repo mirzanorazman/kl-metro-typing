@@ -8,7 +8,7 @@ import { buildNetwork } from '../engine/network';
 import { networkLayout } from '../geo/networkLayout';
 import type { CrowdedStation } from './crowdingHint';
 import { DispatchOverlay } from './DispatchOverlay';
-import { overlayLayout, overlayObstacles, RING_CLEAR_R } from './dispatchLayout';
+import { CHAR_EM, overlayLayout, overlayObstacles, RING_CLEAR_R } from './dispatchLayout';
 
 describe('the Dispatcher overlay crowding hint', () => {
   const net = buildNetwork(loadNetworkData());
@@ -69,15 +69,28 @@ describe('the Dispatcher overlay crowding hint', () => {
     expect(before.length).toBeGreaterThan(0);
   });
 
-  it('labels keep clear of rings', () => {
+  it('labels keep clear of rings and of their counts', () => {
     const c = career();
     const targets = visibleTargets(net, c.sim);
     const without = overlayObstacles(net, layout, c, targets, [], M);
-    const withRing = overlayObstacles(net, layout, c, targets, [], M, null, [klcc]);
-    expect(withRing.length).toBe(without.length + 1);
+    const withRing = overlayObstacles(net, layout, c, targets, [], M, null, [{ ...klcc, waiting: 123 }]);
+    expect(withRing.length).toBe(without.length + 2);
     const p = layout.get('klcc')!;
-    expect(withRing[withRing.length - 1]).toEqual({
+    const [ring, count] = withRing.slice(without.length);
+    expect(ring).toEqual({
       x0: p.x - RING_CLEAR_R * M, y0: p.y - RING_CLEAR_R * M, x1: p.x + RING_CLEAR_R * M, y1: p.y + RING_CLEAR_R * M,
     });
+    // The three-digit count starts above-right of the ring and its box covers every glyph.
+    const text = render(
+      <svg><DispatchOverlay net={net} layout={layout} markScale={M} career={c} targets={targets} aimed={[]}
+        hint={{ relieving: new Set(), rings: [{ ...klcc, waiting: 123 }] }} /></svg>,
+    ).container.querySelector('.crowding-count')!;
+    const x = Number(text.getAttribute('x'));
+    const y = Number(text.getAttribute('y'));
+    const font = Number(text.getAttribute('font-size'));
+    expect(count!.x0).toBeLessThanOrEqual(x);
+    expect(count!.x1).toBeGreaterThanOrEqual(x + 3 * CHAR_EM * font);
+    expect(count!.y0).toBeLessThanOrEqual(y - font);
+    expect(count!.y1).toBeGreaterThanOrEqual(y);
   });
 });
