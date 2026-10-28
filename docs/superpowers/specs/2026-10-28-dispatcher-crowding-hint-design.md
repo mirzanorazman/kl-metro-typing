@@ -124,11 +124,14 @@ default after playing *(my call: nothing ships to players before then)*.
   explanation): the first time the hint shows anything (a ring under B, an
   amber chip under A; never with it Off), the Career pauses on a tip that
   points at the fullest crowded Station and pulses the Trains that relieve it.
-  Under B: "This platform is overcrowding. The ring fills while 55 or more
-  people wait; when it is full, the station goes out of service. Clear the
-  amber trains to bring trains here." Under A: "A platform ahead is
-  overcrowding. Clear the amber trains to bring trains there before it goes
-  out of service." One tip id (`crowding`), seen once whichever mode.
+  Under B: "This station is overcrowding. The ring fills while 55 or more
+  people wait; when it is full, the station goes out of service. Type the
+  names boxed in amber to move trains into this station." Under A: "A station
+  is overcrowding. Type the names boxed in amber to move trains into it before
+  it goes out of service." One tip id (`crowding`), seen once whichever mode.
+  (Reworded 2026-10-29 in playtest 2.5: "Clear the amber trains to bring
+  trains here" read as amber Trains and left "here" unclear; what is amber is
+  the boxed Station name the player types.)
 - Reduced motion: nothing here animates beyond the ring growing with the
   countdown, which is state, not motion; keep it.
 

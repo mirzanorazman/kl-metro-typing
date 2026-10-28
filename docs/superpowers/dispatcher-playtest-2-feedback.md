@@ -968,6 +968,18 @@ dev panel covers the first letters of the typing prompt ("Typ") at 1280 × 800,
 and most of the typing panel at phone width; it is dev-only and did the same
 before this work.
 
+**Playtest 2.5 (2026-10-29).** The tip's "Clear the amber trains to bring
+trains here" confused the user: what is amber is the boxed Station name, and
+"here" pointed nowhere. Reworded to "Type the names boxed in amber to move
+trains into this station" (A: "...into it before it goes out of service").
+Second finding: KLCC closed with its ring showing while the only Held KJ Train
+was at Jelatek, 4 blocks back, so no chip was amber. It could not have made it:
+each block is a Clear, a dwell (1.5 s or more) and 5 s of travel, and the ring
+appears with 14 s left at the 5 s delay. By that sum only a Train Held at the
+crowded Station's own Signal, or one block back, can still arrive in time; an
+amber Train two or three blocks back is shown as a way out it cannot be.
+Open: whether amber should mean "can still arrive in time".
+
 ### F30. A failed Shift's camera moves to the last closed Station
 
 **Raised by the user (2026-10-28)** while revisiting F29, from Mini Metro: at

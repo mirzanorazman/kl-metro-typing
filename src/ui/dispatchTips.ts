@@ -14,7 +14,7 @@ export const DISPATCH_TIPS = [
   { id: 'service-gap', text: 'These two trains are too close together, so the Station behind them waits longer. Type the fix to hold the second one, or get the front one moving.' },
   { id: 'late', text: 'This train is late: its next platform has waited too long. Type the farther Station shown beside it to run it express.' },
   { id: 'new-train', text: 'A new train has joined at the end of the line. Trains join during the peaks until each line has its full fleet; longer lines get more trains.' },
-  { id: 'crowding', text: `This platform is overcrowding. The ring fills while ${PLATFORM_CAPACITY} or more people wait; when it is full, the station goes out of service. Clear the amber trains to bring trains here.` },
+  { id: 'crowding', text: `This station is overcrowding. The ring fills while ${PLATFORM_CAPACITY} or more people wait; when it is full, the station goes out of service. Type the names boxed in amber to move trains into this station.` },
   { id: 'out-of-service', text: 'A station is out of service. Each closure fills the gauge at the top; when it is full, the Shift fails.' },
   { id: 'expansion', text: "Shift cleared. Choose where your network grows. Type a station's name or click it." },
 ] as const;
@@ -22,7 +22,7 @@ export const DISPATCH_TIPS = [
 export type DispatchTipId = (typeof DISPATCH_TIPS)[number]['id'];
 
 /** The crowding tip under hint A, which has no ring to explain. */
-const CROWDING_TIP_A = 'A platform ahead is overcrowding. Clear the amber trains to bring trains there before it goes out of service.';
+const CROWDING_TIP_A = 'A station is overcrowding. Type the names boxed in amber to move trains into it before it goes out of service.';
 
 /** A tip's copy; the crowding tip describes the hint mode it was met in. */
 export function dispatchTipText(id: DispatchTipId, mode: CrowdingHintMode = 'b'): string {

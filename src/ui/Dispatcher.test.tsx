@@ -3114,7 +3114,7 @@ describe('the crowding hint on the screen', () => {
     expect(loadProfile().dispatchTipsSeen).toContain('crowding');
   });
 
-  it('under A, the tip speaks of the amber trains only', () => {
+  it('under A, the tip speaks of the amber names only', () => {
     setHint({ mode: 'a' });
     seenTips(ALL_TIPS.filter((id) => id !== 'crowding'));
     const clock = fakeClock();
@@ -3123,7 +3123,7 @@ describe('the crowding hint on the screen', () => {
     clock.now += 100;
     type('m');
     expect(screen.getByRole('dialog', { name: 'Tip' }).textContent)
-      .toContain('A platform ahead is overcrowding. Clear the amber trains');
+      .toContain('A station is overcrowding. Type the names boxed in amber');
   });
 
   it('never tips with the hint Off', () => {

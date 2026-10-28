@@ -188,10 +188,10 @@ describe('newDispatchTips', () => {
 
     it('says what the hint shows in each mode', () => {
       expect(dispatchTipText('crowding')).toBe(
-        'This platform is overcrowding. The ring fills while 55 or more people wait; when it is full, the station goes out of service. Clear the amber trains to bring trains here.',
+        'This station is overcrowding. The ring fills while 55 or more people wait; when it is full, the station goes out of service. Type the names boxed in amber to move trains into this station.',
       );
       expect(dispatchTipText('crowding', 'a')).toBe(
-        'A platform ahead is overcrowding. Clear the amber trains to bring trains there before it goes out of service.',
+        'A station is overcrowding. Type the names boxed in amber to move trains into it before it goes out of service.',
       );
     });
   });
