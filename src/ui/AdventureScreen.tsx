@@ -11,6 +11,10 @@ import {
   loadProfile, recordStation, saveAdventurePosition, saveProfile, type Profile,
 } from '../engine/progress';
 import type { Point } from '../data/types';
+import {
+  recordAdventureArrival, recordJunctionChoice, recordWalk, startAdventure,
+} from '../engine/achievementRuns';
+import type { EarnedTier } from '../engine/achievementState';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { HUD } from '../render/HUD';
@@ -22,6 +26,7 @@ import { JunctionPicker } from './JunctionPicker';
 import { useGameInput, useTypingInputControls } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
 import { SummaryScreen } from './SummaryScreen';
+import { updateAchievements } from './achievementsStore';
 
 function MobileTurnAround({ onTurnAround }: { onTurnAround: () => void }) {
   const { focusInput } = useTypingInputControls();
@@ -44,10 +49,12 @@ export interface AdventureScreenProps {
   net: NetworkIndex;
   startAt: string;
   onExit: () => void;
+  /** Opens the achievements screen from the Summary's "+n more". */
+  onOpenAchievements?: () => void;
   phoneLandscape?: boolean;
 }
 
-export function AdventureScreen({ net, startAt, onExit, phoneLandscape = false }: AdventureScreenProps) {
+export function AdventureScreen({ net, startAt, onExit, onOpenAchievements, phoneLandscape = false }: AdventureScreenProps) {
   const { geo, schematic, backdrop, districts } = networkLayout();
   const { mode, layout, setMode } = useLayoutMode(geo, schematic, 'schematic');
 
@@ -59,6 +66,19 @@ export function AdventureScreen({ net, startAt, onExit, phoneLandscape = false }
   const { focusInput, blurInput } = useTypingInputControls();
   const [awaitingPortrait, setAwaitingPortrait] = useState(false);
   const rotationEnded = useRef(false);
+  /** The Station a walk led to, until it is arrived at: that arrival rode no Line. */
+  const walkedTo = useRef<string | null>(null);
+
+  // An Adventure picked up where the last one stopped keeps its record (Seven
+  // Colours, Round Trip); any other start begins a fresh one. Once, on mount.
+  const adventureStarted = useRef(false);
+  useEffect(() => {
+    if (adventureStarted.current) return;
+    adventureStarted.current = true;
+    const resume = profileRef.current.adventure?.at === startAt;
+    updateAchievements((state) => startAdventure(state, startAt, resume));
+    profileRef.current = loadProfile();
+  }, [startAt]);
 
   useLayoutEffect(() => {
     if (!phoneLandscape) {
@@ -106,7 +126,9 @@ export function AdventureScreen({ net, startAt, onExit, phoneLandscape = false }
     if (pending.length === 0) return;
     persistedCount.current += pending.length;
 
-    let updated = profileRef.current;
+    // Loaded fresh, as LineRunScreen does: another save since the ref was last
+    // refreshed must not be written over.
+    let updated = loadProfile();
     for (const station of pending) {
       const chars = stationAt(net, station.id)?.name.length ?? 0;
       const wpm = station.ms > 0 ? chars / 5 / (station.ms / 60_000) : 0;
@@ -115,10 +137,30 @@ export function AdventureScreen({ net, startAt, onExit, phoneLandscape = false }
     updated = saveAdventurePosition(updated, {
       at: run.at, arrivedFrom: run.arrivedFrom, line: run.line,
     });
-    profileRef.current = updated;
     saveProfile(updated);
+
+    // Each arrival is evaluated against the Stations just saved, so it also
+    // covers what they unlocked. One reached on foot rode no Line.
+    const arrivals = pending.map(({ id }) => {
+      const walked = walkedTo.current === id;
+      if (walked) walkedTo.current = null;
+      return { id, line: walked ? null : run.line };
+    });
+    const at = Date.now();
+    updateAchievements((state, visited) => {
+      let next = state;
+      const earned: EarnedTier[] = [];
+      for (const arrival of arrivals) {
+        const recorded = recordAdventureArrival(net, next, arrival.id, arrival.line, { visited, phone }, at);
+        next = recorded.state;
+        earned.push(...recorded.earned);
+      }
+      return { state: next, earned };
+    });
+    updated = loadProfile();
+    profileRef.current = updated;
     setProfile(updated);
-  }, [run.at, run.arrivedFrom, run.line, run.stationTimes, net]);
+  }, [run.at, run.arrivedFrom, run.line, run.stationTimes, net, phone]);
 
   const onKey = useCallback((key: string) => {
     if (phoneLandscape || rotationEnded.current) return;
@@ -135,22 +177,30 @@ export function AdventureScreen({ net, startAt, onExit, phoneLandscape = false }
     if (run.phase === 'ended') blurInput();
   }, [run.phase, blurInput]);
 
+  // Both record from the handler, never from inside the setRun updater, and
+  // refresh the Profile ref so the next arrival's save keeps what they wrote.
   const onChoose = useCallback((dir: Direction) => {
     if (phoneLandscape || rotationEnded.current) return;
     setRun((prev) => chooseDirection(net, prev, dir, performance.now()));
-  }, [net, phoneLandscape]);
+    updateAchievements((state, visited) => recordJunctionChoice(net, state, { visited, phone }, Date.now()));
+    profileRef.current = loadProfile();
+  }, [net, phoneLandscape, phone]);
 
+  const from = run.at;
   const onWalk = useCallback((to: string) => {
     if (phoneLandscape || rotationEnded.current) return;
     setRun((prev) => walkTo(net, prev, to, performance.now()));
-  }, [net, phoneLandscape]);
+    walkedTo.current = to;
+    updateAchievements((state, visited) => recordWalk(net, state, from, to, { visited, phone }, Date.now()));
+    profileRef.current = loadProfile();
+  }, [net, phoneLandscape, phone, from]);
 
   if (phoneLandscape && (run.phase !== 'ended' || awaitingPortrait)) {
     return <PhoneLandscapeBlock fullScreen />;
   }
 
   if (run.phase === 'ended') {
-    return <SummaryScreen net={net} run={run} onExit={onExit} />;
+    return <SummaryScreen net={net} run={run} onExit={onExit} onOpenAchievements={onOpenAchievements} />;
   }
 
   const line = run.line ? lineAt(net, run.line) : null;

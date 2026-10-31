@@ -32,7 +32,7 @@ function lineRun(code: LineCode, count = lineOf(code).stations.length): RunState
     ...startRun(net, ids[0]!, 0),
     line: code,
     phase: 'ended',
-    stationTimes: ids.map((id) => ({ id, ms: 2_000 })),
+    stationTimes: ids.map((id) => ({ id, ms: 2_000, errors: 0 })),
   };
 }
 
@@ -128,7 +128,7 @@ describe('adventureCard', () => {
   it('counts the stations explored and never claims verification', () => {
     const run: RunState = {
       ...startRun(net, 'pwtc', 0),
-      stationTimes: ['pwtc', 'titiwangsa', 'chow-kit'].map((id) => ({ id, ms: 1_500 })),
+      stationTimes: ['pwtc', 'titiwangsa', 'chow-kit'].map((id) => ({ id, ms: 1_500, errors: 0 })),
     };
     const card = adventureCard(net, run, { metrics, unlocked: 87, total: 154 });
     expect(card.title).toBe('3 stations explored');

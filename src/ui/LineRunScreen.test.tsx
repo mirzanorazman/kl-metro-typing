@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
@@ -111,7 +112,6 @@ describe('LineRunScreen', () => {
     act(() => input.focus());
     fireEvent.input(input, { target: { value: 'KL SentralT' } });
     const end = vi.spyOn(runEngine, 'endRun');
-    const save = vi.spyOn(Storage.prototype, 'setItem');
 
     rerender(content(true));
     expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
@@ -127,12 +127,49 @@ describe('LineRunScreen', () => {
     expect(screen.queryByLabelText(/your name/i)).toBeNull();
     expect(loadProfile().visited).not.toContain('tun-sambanthan');
     expect(end).toHaveBeenCalledTimes(1);
-    expect(save).not.toHaveBeenCalled();
+    // The Summary records the Run: the one Station typed before the rotation, nothing after.
+    expect(loadProfile().achievements?.counters.lineStations).toBe(1);
     rerender(content(true));
     expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
     expect(end).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole('button', { name: 'Back to the map' }));
     expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a finished Line Run once, after the celebration, under StrictMode', async () => {
+    vi.useFakeTimers();
+    try {
+      // Motion allowed: the celebration plays for 1.1 s before the Summary.
+      window.matchMedia = ((q: string) => ({
+        matches: false, media: q, onchange: null,
+        addEventListener: () => {}, removeEventListener: () => {},
+        addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia;
+      render(
+        <StrictMode>
+          <TypingInputProvider enabled={false}>
+            <LineRunScreen net={net} line="MR" from="kl-sentral" onExit={() => {}} />
+          </TypingInputProvider>
+        </StrictMode>,
+      );
+
+      type(MR_ROUTE_FROM_KL_SENTRAL.join(''));
+
+      expect(screen.queryByRole('heading', { name: 'Journey complete' })).toBeNull();
+      expect(loadProfile().achievements?.counters.lineStations ?? 0).toBe(0);
+
+      act(() => { vi.advanceTimersByTime(1100); });
+      // Lets the share card settle, so its late update lands inside act.
+      await act(async () => {});
+
+      expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
+      expect(loadProfile().achievements?.counters.lineStations).toBe(MR_ROUTE_FROM_KL_SENTRAL.length);
+
+      act(() => { vi.advanceTimersByTime(5_000); });
+      expect(loadProfile().achievements?.counters.lineStations).toBe(MR_ROUTE_FROM_KL_SENTRAL.length);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('starts at the chosen terminus', () => {

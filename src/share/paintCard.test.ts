@@ -34,7 +34,7 @@ function recorder() {
 
 function run(): RunState {
   const ids = net.lines.get('KJ')!.stations;
-  return { ...startRun(net, ids[0]!, 0), line: 'KJ', stationTimes: ids.map((id) => ({ id, ms: 2_000 })) };
+  return { ...startRun(net, ids[0]!, 0), line: 'KJ', stationTimes: ids.map((id) => ({ id, ms: 2_000, errors: 0 })) };
 }
 
 describe('paintCard', () => {

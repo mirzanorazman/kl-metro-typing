@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import type { LineCode } from '../data/types';
 import { buildNetwork } from './network';
-import { COMBO_EVERY, COMBO_MAX_WAVE, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS } from './dispatchBalance';
+import { CLOSE_CALL_MS, COMBO_EVERY, COMBO_MAX_WAVE, INCIDENT_LIMIT_MS, PLATFORM_CAPACITY, SHIFT_PHASES, TICK_MS } from './dispatchBalance';
 import { servedStations, STARTING_NETWORK, type Served } from './dispatchNetwork';
 import { advanceFix } from './dispatchIncidents';
-import { clearSignal, cloneSim, closeStation, startShiftSim } from './dispatchSim';
+import { clearSignal, cloneSim, closeStation, startShiftSim, type Incident } from './dispatchSim';
 import { visibleTargets } from './dispatchTargets';
 import {
   SHIFT_MS, advanceCareer, applyDispatchAction, careerMetrics, careerScore, careerTotals,
@@ -36,13 +36,14 @@ function type(s: CareerState, text: string, now = 1_000): CareerState {
 }
 
 function safeShift(s: CareerState, untilMs = SHIFT_MS): CareerState {
+  const base = s.startedAt! + s.pausedMs + s.gameMs;
   for (let i = 0; i < untilMs / TICK_MS && s.status === 'running'; i++) {
     const sim = cloneSim(s.sim);
     for (const inc of [...sim.incidents]) {
       while (sim.incidents.some((item) => item.id === inc.id)) advanceFix(net, sim, inc.id);
     }
     for (const train of sim.trains) if (train.stage === 'signal') clearSignal(net, sim, train.id);
-    s = advanceCareer(net, { ...s, sim }, 1_000 + (i + 1) * TICK_MS);
+    s = advanceCareer(net, { ...s, sim }, base + (i + 1) * TICK_MS);
   }
   return s;
 }
@@ -460,5 +461,171 @@ describe('Dispatcher Green wave', () => {
     const next = applyDispatchAction(net, between, { a: 'expand', pick: 0 }, between.stoppedAt! + 1_000);
     expect(next.shift).toBe(2);
     expect(next).toMatchObject({ streak: 4, clean: true, waves: 1 });
+  });
+});
+
+describe('career tally', () => {
+  const kj = net.lines.get('KJ')!.stations;
+  const incident = (id: number, kind: Incident['kind'], at: number, over: Partial<Incident> = {}): Incident => ({
+    id, kind, place: kj[at]!, stations: [], line: 'KJ', train: null, startedMs: 0, step: 0, extra: 0, ...over,
+  });
+  /** Types whatever the fix Target for this Incident reads now. */
+  const fix = (s: CareerState, id: number, now = 1_000) => type(s, visibleTargets(net, s.sim).find((t) =>
+    t.ref.kind === 'fix' && t.ref.incident === id)!.text, now);
+
+  it('starts empty', () => {
+    expect(startCareer(net, 1).tally).toEqual({ clears: 0, fixes: 0, gapsHeld: 0, express: 0, keyStreak: 0,
+      bestKeyStreak: 0, perfectRun: 0, bestPerfectRun: 0, closeCall: false, againstOdds: false, ampang: false,
+      trio: null, survivedTrio: false });
+  });
+
+  it('counts typed Signal clears but not Green-wave clears', () => {
+    let s = onSignals([['KJ', 5], ['KJ', 7], ['KJ', 13], ['KJ', 15], ['KJ', 16]]);
+    s = type(s, 'Jelatek');
+    s = type(s, 'Damai');
+    s = type(s, 'Pasar Seni');
+    expect(s.lastWave!.cleared).toEqual([4]);
+    expect(s.tally.clears).toBe(3);
+  });
+
+  it('counts breakdown fixes and Service gap holds separately', () => {
+    let s = onSignals([['KJ', 5]]);
+    s.sim.incidents = [
+      incident(1, 'signal-fault', 7, { stations: [kj[6]!, kj[7]!, kj[8]!] }),
+      incident(2, 'crowd-surge', 12),
+      incident(3, 'service-gap', 4, { train: 1 }),
+    ];
+    s = fix(s, 1);
+    expect(s.tally.fixes).toBe(0);
+    s = fix(fix(s, 1), 1);
+    expect(s.tally).toMatchObject({ fixes: 1, gapsHeld: 0 });
+    s = fix(s, 2);
+    s = fix(s, 3);
+    expect(s.sim.incidents).toEqual([]);
+    expect(s.tally).toMatchObject({ fixes: 2, gapsHeld: 1, clears: 0, express: 0 });
+  });
+
+  it('counts skip chips taken', () => {
+    const s0 = onSignals([['KJ', 7]]);
+    s0.sim.shiftMs = 600_000;
+    const skip = visibleTargets(net, s0.sim).find((t) => t.ref.kind === 'skip')!;
+    const s = type(s0, skip.text);
+    expect(s.sim.trains[0]!.skipTo).not.toBeNull();
+    expect(s.tally).toMatchObject({ express: 1, clears: 0 });
+  });
+
+  it('tracks the best key streak across Shifts', () => {
+    let s = type(onSignals([['KJ', 7], ['KJ', 9]]), 'Damai');
+    expect(s.tally).toMatchObject({ keyStreak: 5, bestKeyStreak: 5 });
+    s = type(s, '#');
+    expect(s.tally).toMatchObject({ keyStreak: 0, bestKeyStreak: 5 });
+    // Keys dropped by the stall, and Enter, are not counted.
+    s = type(s, 'K');
+    expect(s.tally).toMatchObject({ keyStreak: 0, bestKeyStreak: 5 });
+    s = type(s, 'KL', 1_600);
+    expect(s.tally).toMatchObject({ keyStreak: 2, bestKeyStreak: 5 });
+
+    const between = safeShift(running());
+    const carried = { ...between, tally: { ...between.tally, keyStreak: 6, bestKeyStreak: 6 } };
+    const next = applyDispatchAction(net, carried, { a: 'expand', pick: 0 }, between.stoppedAt! + 1_000);
+    expect(next.tally).toMatchObject({ keyStreak: 6, bestKeyStreak: 6 });
+    const started = enterDispatchCharacter(net, next, firstKey(next), between.stoppedAt! + 2_000);
+    expect(started.tally).toMatchObject({ keyStreak: 7, bestKeyStreak: 7 });
+  });
+
+  it('counts cleared Shifts in a row with nothing Out of service', () => {
+    const r = running();
+    const first = safeShift({ ...r, tally: { ...r.tally, perfectRun: 2, bestPerfectRun: 2 } });
+    expect(first.status).toBe('between');
+    expect(first.sim.oosOrder).toEqual([]);
+    expect(first.tally).toMatchObject({ perfectRun: 3, bestPerfectRun: 3 });
+
+    const next = applyDispatchAction(net, first, { a: 'expand', pick: 0 }, first.stoppedAt! + 1_000);
+    const started = enterDispatchCharacter(net, next, firstKey(next), first.stoppedAt! + 1_000);
+    const sim = cloneSim(started.sim);
+    closeStation(sim, servedStations(net, sim.served)[0]!, 'crowding');
+    const second = safeShift({ ...started, sim });
+    expect(second.status).toBe('between');
+    expect(second.sim.oosOrder.length).toBeGreaterThan(0);
+    expect(second.tally).toMatchObject({ perfectRun: 0, bestPerfectRun: 3, againstOdds: false });
+  });
+
+  it('marks a close call for a fix within 3 s of escalating', () => {
+    expect(CLOSE_CALL_MS).toBe(3_000);
+    for (const kind of ['crowd-surge', 'service-gap'] as const) {
+      const at = (shiftMs: number) => {
+        // Train 1 is the rear of a bunched pair, so a Service gap on it stands.
+        const s = onSignals([['KJ', 5], ['KJ', 6]]);
+        s.sim.incidents = [incident(1, kind, 4, { startedMs: 1_000, train: kind === 'service-gap' ? 1 : null })];
+        s.sim.shiftMs = shiftMs;
+        return s;
+      };
+      const escalatesAt = 1_000 + INCIDENT_LIMIT_MS;
+      expect(fix(at(escalatesAt - 3_000), 1).tally.closeCall).toBe(true);
+      expect(fix(at(escalatesAt - 3_100), 1).tally.closeCall).toBe(false);
+      // The place really does go Out of service 3 s later, on the engine's own clock.
+      const started = type(at(escalatesAt - 3_000), '#');
+      expect(advanceCareer(net, started, 1_000 + 2_900).sim.outOfService[kj[4]!]).toBeUndefined();
+      expect(advanceCareer(net, started, 1_000 + 3_000).sim.outOfService[kj[4]!]).toBe(kind);
+    }
+  });
+
+  it('marks against the odds when a Shift clears after 3 closures', () => {
+    const almost = safeShift(running(), SHIFT_MS - TICK_MS);
+    expect(almost.sim.oosOrder).toEqual([]);
+    const ending = (closures: number) => {
+      const sim = cloneSim(almost.sim);
+      for (const id of servedStations(net, sim.served).slice(0, closures)) closeStation(sim, id, 'crowding');
+      return safeShift({ ...almost, sim }, TICK_MS);
+    };
+    expect(shiftFailCount(net, almost.served)).toBeGreaterThan(3);
+    const two = ending(2);
+    expect(two.status).toBe('between');
+    expect(two.tally.againstOdds).toBe(false);
+    const three = ending(3);
+    expect(three.status).toBe('between');
+    expect(three.tally.againstOdds).toBe(true);
+  });
+
+  it('marks Ampang when Enter confirms it over Ampang Park', () => {
+    const ampang = net.order.get('AG')!.get('ampang')!;
+    const park = net.order.get('KJ')!.get('ampang-park')!;
+    const served = [{ line: 'AG' as const, from: ampang - 1, to: ampang },
+      { line: 'KJ' as const, from: park, to: park + 1 }];
+    const s = type(onSignals([['AG', ampang], ['KJ', park]], served), 'Ampang');
+    expect(s.tally.ampang).toBe(false);
+    const confirmed = applyDispatchAction(net, s, { a: 'confirm' }, 1_000);
+    expect(stageOf(confirmed, 1)).toBe('cleared');
+    expect(confirmed.tally.ampang).toBe(true);
+    expect(type(s, ' Park').tally).toMatchObject({ ampang: false, clears: 1 });
+  });
+
+  it('survives a trio only when all three are fixed', () => {
+    const trio = (thirdStartedMs: number) => {
+      const s = onSignals([['KJ', 5]]);
+      s.sim.incidents = [incident(1, 'crowd-surge', 8), incident(2, 'crowd-surge', 12),
+        incident(3, 'crowd-surge', 15, { startedMs: thirdStartedMs })];
+      return advanceCareer(net, type(s, 'Jelatek'), 1_100);
+    };
+    let s = trio(0);
+    expect(s.tally.trio).toEqual([1, 2, 3]);
+    s = fix(fix(s, 1, 1_100), 2, 1_100);
+    expect(s.tally).toMatchObject({ trio: [3], survivedTrio: false });
+    s = fix(s, 3, 1_100);
+    expect(s.tally).toMatchObject({ trio: [], survivedTrio: true, fixes: 3 });
+
+    // The third escalates on the second tick, after the other two are fixed.
+    let lost = trio(200 - INCIDENT_LIMIT_MS);
+    expect(lost.tally.trio).toEqual([1, 2, 3]);
+    lost = fix(fix(lost, 1, 1_100), 2, 1_100);
+    lost = advanceCareer(net, lost, 1_200);
+    expect(lost.sim.outOfService[kj[15]!]).toBe('crowd-surge');
+    expect(lost.tally).toMatchObject({ trio: null, survivedTrio: false });
+
+    // A new Shift forgets a trio in progress.
+    const between = safeShift(running());
+    const next = applyDispatchAction(net, { ...between, tally: { ...between.tally, trio: [7] } },
+      { a: 'expand', pick: 0 }, between.stoppedAt! + 1_000);
+    expect(next.tally.trio).toBeNull();
   });
 });

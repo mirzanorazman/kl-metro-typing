@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { act, render, screen, fireEvent } from '@testing-library/react';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
+import { emptyAchievements } from '../engine/achievementState';
 import { App } from './App';
 import * as transit from './MobileTransit';
 import * as adventureSetup from './MobileAdventureSetup';
@@ -277,6 +278,27 @@ describe('App', () => {
     expect(screen.queryByText('Rotate to portrait to play')).toBeNull();
   });
 
+  it('backfills achievements once for a player who has none', () => {
+    const net = network.buildNetwork(loadNetworkData());
+    const visited = [...net.stations.keys()].slice(0, 30);
+    saveProfile({ ...emptyProfile(), visited });
+    render(<App />);
+
+    const saved = loadProfile().achievements!;
+    expect(saved.earned['explorer.unlocked']?.award).toBe('bronze');
+    expect(saved.backfilled).toContain('explorer.unlocked');
+    expect(saved.unannounced).toEqual([]);
+  });
+
+  it('leaves existing achievements alone', () => {
+    const net = network.buildNetwork(loadNetworkData());
+    // Achievements already kept: whatever they say is not re-derived from the Profile.
+    saveProfile({ ...emptyProfile(), visited: [...net.stations.keys()].slice(0, 30), achievements: emptyAchievements() });
+    render(<App />);
+
+    expect(loadProfile().achievements).toEqual(emptyAchievements());
+  });
+
   it('opens on the map', () => {
     const { container } = render(<App />);
     expect(container.querySelectorAll('polyline[data-line]')).toHaveLength(7);
@@ -453,6 +475,38 @@ describe('App', () => {
 
     expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Ranking' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.queryByRole('button', { name: /back to the map/i })).toBeNull();
+
+    act(() => setPhoneLayout(false));
+
+    expect(screen.queryByRole('navigation', { name: 'Primary' })).toBeNull();
+    expect(document.querySelector('.home-map')).toBeTruthy();
+  });
+
+  it('opens achievements from the map with 5, and Escape returns', () => {
+    installMatchMedia(false);
+    render(<App />);
+
+    fireEvent.keyDown(window, { key: '5' });
+    expect(screen.getByRole('heading', { name: 'Achievements' })).toBeTruthy();
+    expect(screen.getByText('0 of 47')).toBeTruthy();
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(document.querySelector('.home-map')).toBeTruthy();
+  });
+
+  it('moves a desktop achievements screen into the phone shell and back', () => {
+    installMatchMedia(false);
+    render(<App />);
+
+    fireEvent.click(screen.getByRole('button', { name: /achievements/i }));
+    expect(screen.getByRole('button', { name: /back to the map/i })).toBeTruthy();
+
+    act(() => setPhoneLayout(true));
+
+    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Achievements' }).getAttribute('aria-current')).toBe('page');
+    expect(screen.getByText('Dispatcher is played on a larger screen.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /back to the map/i })).toBeNull();
 
     act(() => setPhoneLayout(false));

@@ -1,11 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { StrictMode } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadNetworkData } from '../data/load';
 import type { LineCode } from '../data/types';
 import { buildNetwork } from '../engine/network';
-import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
+import { emptyProfile, loadProfile, saveProfile, STORAGE_KEY } from '../engine/progress';
+import { emptyAchievements } from '../engine/achievementState';
 import { QUICK_RUN_MS } from '../engine/quickRun';
 import * as replay from '../engine/replay';
 import * as geoFit from '../geo/fit';
@@ -188,6 +189,13 @@ function hidePage(at: number) {
   now = at;
   visibility = 'hidden';
   fireEvent(document, new Event('visibilitychange'));
+}
+
+/** The overall Quick Run best in each Profile save `setItem` saw, in order. */
+function savedBests(setItem: { mock: { calls: unknown[][] } }): unknown[] {
+  return setItem.mock.calls
+    .filter(([key]) => key === STORAGE_KEY)
+    .map(([, value]) => (JSON.parse(value as string) as { quickBestOverall?: number }).quickBestOverall);
 }
 
 function stat(label: string): string | null {
@@ -573,6 +581,16 @@ describe('QuickRunScreen', () => {
     expect(loadProfile().quickBestOverall).toBe(500);
   });
 
+  it('keeps what another screen saved since it opened when it saves a Station', () => {
+    renderQuick();
+    saveProfile({ ...loadProfile(), theme: 'midnight' });
+
+    nativeInput('KL Sentral');
+
+    expect(loadProfile().visited).toContain('kl-sentral');
+    expect(loadProfile().theme).toBe('midnight');
+  });
+
   it('persists every station completed in one batched native input event', () => {
     renderQuick();
 
@@ -594,7 +612,9 @@ describe('QuickRunScreen', () => {
 
     expect(loadProfile().quickBestOverall).toBeGreaterThan(0);
     expect(loadProfile().quickBest).toEqual({ MR: 999 });
-    expect(setItem).toHaveBeenCalledTimes(1);
+    // The achievements save after the PB; every save carries the one new best.
+    expect(savedBests(setItem)).not.toHaveLength(0);
+    expect(new Set(savedBests(setItem))).toEqual(new Set([loadProfile().quickBestOverall]));
     expect(screen.getByRole('status').textContent).toBe('New personal best');
     act(() => vi.runOnlyPendingTimers());
     expect(screen.getByRole('status').textContent).toBe('New personal best');
@@ -610,8 +630,58 @@ describe('QuickRunScreen', () => {
 
     expect(loadProfile().quickBestOverall).toBe(999);
     expect(loadProfile().quickBest.MR).toBe(42);
-    expect(setItem).not.toHaveBeenCalled();
+    // Only the achievements are saved; none of the saves moves the best.
+    expect(savedBests(setItem)).not.toHaveLength(0);
+    expect(savedBests(setItem).every((best) => best === 999)).toBe(true);
     expect(screen.getByRole('status').textContent).toBe('Personal best: 999');
+  });
+
+  it('records a completed Quick Run and shows its achievements', async () => {
+    const base = emptyAchievements();
+    // Tapau Run's Bronze is 10 Quick Runs; this is the tenth.
+    saveProfile({ ...emptyProfile(), achievements: { ...base, counters: { ...base.counters, quickCompleted: 9 } } });
+    renderQuick({ providerEnabled: false });
+    typeQuickAsHuman('KL SentralTun Sambanthan');
+
+    tickAt(now + QUICK_RUN_MS + 5_000);
+    await settleCard();
+
+    const saved = loadProfile().achievements!;
+    expect(saved.counters.quickCompleted).toBe(10);
+    expect(saved.sets.quickStarts).toEqual(['MR']);
+    expect(saved.unannounced).toEqual([]);
+    const announced = screen.getByRole('region', { name: 'New achievements' });
+    expect(within(announced).getByText('Tapau Run')).toBeTruthy();
+    expect(within(announced).getByText('Bronze · 10 Quick Runs')).toBeTruthy();
+  });
+
+  it('records nothing for an interrupted Quick Run', () => {
+    const base = emptyAchievements();
+    saveProfile({ ...emptyProfile(), achievements: { ...base, counters: { ...base.counters, quickCompleted: 9 } } });
+    renderQuick();
+
+    nativeInput('KL Sentral');
+    hidePage(2_000);
+
+    expect(screen.getByRole('heading', { name: 'Run interrupted' })).toBeTruthy();
+    const saved = loadProfile().achievements!;
+    expect(saved.counters.quickCompleted).toBe(9);
+    expect(saved.sets.quickStarts).toEqual([]);
+    expect(saved.sets.days).toEqual([]);
+    expect(screen.queryByRole('region', { name: 'New achievements' })).toBeNull();
+  });
+
+  it('leaves queued announcements for the next Summary when a Quick Run is interrupted', () => {
+    const queued = [{ id: 'explorer.unlocked', award: 'bronze' as const, at: 1 }];
+    saveProfile({ ...emptyProfile(), achievements: { ...emptyAchievements(), unannounced: queued } });
+    renderQuick();
+
+    nativeInput('KL Sentral');
+    hidePage(2_000);
+
+    expect(screen.getByRole('heading', { name: 'Run interrupted' })).toBeTruthy();
+    expect(loadProfile().achievements!.unannounced).toEqual(queued);
+    expect(screen.queryByRole('region', { name: 'New achievements' })).toBeNull();
   });
 
   it('includes partial characters in interrupted metrics but never unlocks the current station', () => {

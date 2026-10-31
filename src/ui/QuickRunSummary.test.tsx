@@ -1,7 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { sound } from '../audio/sound';
 import type { Metrics } from '../engine/metrics';
+import { loadNetworkData } from '../data/load';
+import { buildNetwork } from '../engine/network';
 import type { ShareCard } from '../share/shareCard';
 import { QuickRunSummary } from './QuickRunSummary';
 
@@ -41,12 +44,14 @@ afterEach(() => {
 });
 
 const metrics: Metrics = { wpm: 51.2, accuracy: 0.968, score: 48 };
+const net = buildNetwork(loadNetworkData());
 const mobileStyles = readFileSync('src/ui/mobile.css', 'utf8');
 const summarySource = readFileSync('src/ui/QuickRunSummary.tsx', 'utf8');
 
 function renderSummary(overrides: Partial<React.ComponentProps<typeof QuickRunSummary>> = {}) {
   return render(
     <QuickRunSummary
+      net={net}
       lines={['MR', 'SP', 'KJ']}
       status="completed"
       stations={6}
@@ -67,6 +72,22 @@ function expectStat(label: string, value: string) {
 }
 
 describe('QuickRunSummary', () => {
+  it('opens the achievements screen from "+n more"', () => {
+    const onOpenAchievements = vi.fn();
+    vi.spyOn(sound, 'achievement').mockImplementation(() => {});
+    renderSummary({
+      achievements: [
+        { id: 'explorer.unlocked', award: 'bronze', at: 1 },
+        { id: 'line.completed', award: 'bronze', at: 1 },
+        { id: 'quick.score', award: 'bronze', at: 1 },
+      ],
+      moreAchievements: 1,
+      onOpenAchievements,
+    });
+    fireEvent.click(screen.getByRole('button', { name: '+1 more' }));
+    expect(onOpenAchievements).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the result card in place of the stats once it is drawn', async () => {
     renderSummary({ share: card });
     const image = await screen.findByRole('img', { name: /18 stations in 30 s/ });
@@ -204,6 +225,7 @@ describe('QuickRunSummary', () => {
 
     rerender(
       <QuickRunSummary
+        net={net}
         lines={['KJ']}
         status="completed"
         stations={1}

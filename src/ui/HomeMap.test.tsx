@@ -29,6 +29,7 @@ function renderHome(props: HomeProps = {}) {
       onStartLine={noop}
       onPickStation={noop}
       onOpenLeaderboard={noop}
+      onOpenAchievements={noop}
       onOpenDispatcher={noop}
       onStartQuick={noop}
       {...props}
@@ -67,11 +68,11 @@ describe('HomeMap', () => {
     expect(lineRows()).toBeNull();
   });
 
-  it('numbers the home cards 0 to 4', () => {
+  it('numbers the home cards 0 to 5', () => {
     saveJourney();
     renderHome();
     // Resume sits inside the Explore card, after 3, so compare as a set.
-    expect([...menuKeys()].sort()).toEqual(['0', '1', '2', '3', '4']);
+    expect([...menuKeys()].sort()).toEqual(['0', '1', '2', '3', '4', '5']);
   });
 
   it('starts a Dispatcher Career with 1', () => {
@@ -108,6 +109,20 @@ describe('HomeMap', () => {
     renderHome({ onOpenLeaderboard });
     fireEvent.click(screen.getByRole('button', { name: /leaderboard/i }));
     expect(onOpenLeaderboard).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens achievements with 5', () => {
+    const onOpenAchievements = vi.fn();
+    renderHome({ onOpenAchievements });
+    press('5');
+    expect(onOpenAchievements).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens achievements by click', () => {
+    const onOpenAchievements = vi.fn();
+    renderHome({ onOpenAchievements });
+    fireEvent.click(screen.getByRole('button', { name: /achievements/i }));
+    expect(onOpenAchievements).toHaveBeenCalledTimes(1);
   });
 
   it('ignores 9 on the home cards', () => {

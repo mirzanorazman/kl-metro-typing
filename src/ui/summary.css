@@ -144,6 +144,10 @@
   .summary {
     animation: none;
   }
+
+  .new-achievements li {
+    animation: none;
+  }
 }
 
 .summary-ineligible {
@@ -152,4 +156,82 @@
   color: var(--ink-muted);
   font-size: 0.9rem;
   text-align: center;
+}
+
+/* What the Run just earned: up to three rows, each rising in after the last. */
+.new-achievements {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s);
+  padding: var(--s2);
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  box-shadow: var(--panel-shadow);
+}
+
+.new-achievements h3 {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  color: var(--ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.new-achievements ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s);
+}
+
+.new-achievements li {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+  animation: new-achievement-in 360ms ease-out backwards;
+}
+
+@keyframes new-achievement-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.new-achievement-badge {
+  flex: none;
+  display: flex;
+}
+
+.new-achievement-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.new-achievement-name {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.new-achievement-tier {
+  font-size: var(--t-sm);
+  color: var(--ink-muted);
+}
+
+.new-achievements .new-achievements-more {
+  margin: 0;
+  align-self: flex-start;
+  font-size: var(--t-sm);
+  color: var(--ink-muted);
 }

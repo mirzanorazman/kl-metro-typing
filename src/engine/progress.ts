@@ -1,5 +1,6 @@
 import { LINE_CODES, type LineCode } from '../data/types';
 import type { IntegrityReason } from './integrity';
+import { cleanAchievements, type AchievementState } from './achievementState';
 
 export const STORAGE_KEY = 'klmetro.v1';
 const SCHEMA_VERSION = 1;
@@ -55,6 +56,12 @@ export interface Profile {
    * carry forward through migrate's spread, the path `theme` took.
    */
   dispatchTipsSeen?: string[];
+  /**
+   * Achievement progress the Profile doesn't otherwise keep. Optional and
+   * additive, so older saves carry forward through migrate's spread, the path
+   * `theme` took. SCHEMA_VERSION does not move.
+   */
+  achievements?: AchievementState;
   /** True when this profile replaced an unreadable saved record. */
   recovered?: boolean;
 }
@@ -113,6 +120,7 @@ function migrate(raw: unknown): Profile | null {
     dispatchTipsSeen: Array.isArray(rec.dispatchTipsSeen)
       ? rec.dispatchTipsSeen.filter((id): id is string => typeof id === 'string')
       : undefined,
+    achievements: cleanAchievements(rec.achievements),
   };
 }
 

@@ -9,7 +9,9 @@ import {
   enterDispatchCharacter,
   startCareer,
   type CareerState,
+  type CareerTally,
   type DispatchAction,
+  type ShiftRecord,
 } from './dispatch';
 import { KEYLOG_VERSION, type KeyLog } from './keylog';
 import { keyLineRun, lineRunRoute } from './lineRun';
@@ -133,6 +135,9 @@ export interface DispatchReplayResult {
   score: number;
   /** Green waves fired over the Career. */
   waves: number;
+  tally: CareerTally;
+  history: ShiftRecord[];
+  correctChars: number;
   complete: boolean;
 }
 
@@ -194,6 +199,9 @@ export function replayDispatch(net: NetworkIndex, evidence: DispatchEvidence): D
       cleared: state.cleared,
       score: careerScore(state),
       waves: state.waves,
+      tally: state.tally,
+      history: state.history,
+      correctChars: state.correctChars,
       complete: state.status === 'ended' && (state.endReason === 'failed' || state.endReason === 'retired')
         && state.endedAt === evidence.endedAt,
     };

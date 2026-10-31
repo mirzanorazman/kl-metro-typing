@@ -14,10 +14,35 @@ import {
   STORAGE_KEY,
   type Profile,
 } from './progress';
+import { emptyAchievements } from './achievementState';
 
 beforeEach(() => localStorage.clear());
 
 describe('loadProfile', () => {
+  it('loads an old profile without achievements unchanged', () => {
+    const old = { version: 1, visited: ['imbi'], bestWpm: { imbi: 40 }, adventure: null, muted: true, quickBest: {}, wpmHistory: [] };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(old));
+    const loaded = loadProfile();
+    expect(loaded).toEqual({ ...old, quickBestOverall: undefined, lastSelectedLine: undefined, dispatchTipsSeen: undefined, achievements: undefined });
+    expect(loaded.achievements).toBeUndefined();
+  });
+
+  it('loads a malformed achievements value as absent', () => {
+    for (const bad of ['x', null, { v: 2 }, 7]) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...emptyProfile(), visited: ['imbi'], achievements: bad }));
+      const loaded = loadProfile();
+      expect(loaded.achievements).toBeUndefined();
+      expect(loaded.visited).toEqual(['imbi']);
+    }
+  });
+
+  it('keeps stored achievements through a save and load', () => {
+    const achievements = emptyAchievements();
+    achievements.counters.clears = 3;
+    saveProfile({ ...emptyProfile(), achievements });
+    expect(loadProfile().achievements).toEqual(achievements);
+  });
+
   it('returns an empty profile when nothing is stored', () => {
     expect(loadProfile().visited).toEqual([]);
   });

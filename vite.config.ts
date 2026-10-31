@@ -8,5 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.test.{ts,tsx}'],
+    // The badge stylesheet travels inside a shared badge image, so tests need its text.
+    css: { include: [/badges\.css/] },
   },
 });

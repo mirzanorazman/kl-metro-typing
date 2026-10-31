@@ -1,7 +1,10 @@
-import { COMBO_EVERY, COMBO_MAX_WAVE, FULL_NETWORK_ESCALATION, OOS_FAIL_SHARE, SHIFT_PHASES, TICK_MS, type ShiftFlow } from './dispatchBalance';
+import {
+  CLOSE_CALL_MS, COMBO_EVERY, COMBO_MAX_WAVE, FULL_NETWORK_ESCALATION, INCIDENT_LIMIT_MS, OOS_FAIL_SHARE, SHIFT_PHASES,
+  TICK_MS, type ShiftFlow,
+} from './dispatchBalance';
 import { applyExpansion, drawOffers, eraFor, servedStations, STARTING_NETWORK, type Expansion, type Served } from './dispatchNetwork';
 import { advanceFix, stepWorld } from './dispatchIncidents';
-import { clearSignal, cloneSim, skipSignal, startShiftSim, type OosCause, type SimState } from './dispatchSim';
+import { clearSignal, cloneSim, skipSignal, startShiftSim, type Incident, type OosCause, type SimState } from './dispatchSim';
 import { aimKey, backspaceAim, EMPTY_AIM, reconcileAim, sameRef, visibleTargets, type Aim, type TargetRef } from './dispatchTargets';
 import type { LineCode } from '../data/types';
 import { computeMetrics, type Metrics } from './metrics';
@@ -28,6 +31,39 @@ export interface Wave {
   /** Career gameMs when it fired. */
   atMs: number;
 }
+/** What a Career did, for achievements; Replay reproduces it from the evidence. */
+export interface CareerTally {
+  /** Signals Cleared by typing; a Green wave's clears don't count. */
+  clears: number;
+  /** Breakdown Incidents fixed: signal fault, train fault, crowd surge. */
+  fixes: number;
+  /** Service gap Incidents fixed by typing the hold. */
+  gapsHeld: number;
+  /** Skip chips typed. */
+  express: number;
+  /** Correct counted keys in a row; a wrong one resets it to 0. */
+  keyStreak: number;
+  bestKeyStreak: number;
+  /** Cleared Shifts in a row with no Station Out of service. */
+  perfectRun: number;
+  bestPerfectRun: number;
+  /** An Incident fixed within CLOSE_CALL_MS of putting its place Out of service. */
+  closeCall: boolean;
+  /** A Shift cleared after 3 or more Stations went Out of service in it. */
+  againstOdds: boolean;
+  /** Enter completed "Ampang" while "Ampang Park" still matched. */
+  ampang: boolean;
+  /** Ids of the first 3 Incidents seen active at once this Shift, less those fixed; null when none, or one was lost. */
+  trio: number[] | null;
+  /** Every Incident of a trio fixed, none escalated. */
+  survivedTrio: boolean;
+}
+
+export function emptyTally(): CareerTally {
+  return { clears: 0, fixes: 0, gapsHeld: 0, express: 0, keyStreak: 0, bestKeyStreak: 0, perfectRun: 0,
+    bestPerfectRun: 0, closeCall: false, againstOdds: false, ampang: false, trio: null, survivedTrio: false };
+}
+
 export interface CareerState {
   seed: number; status: CareerStatus; endReason: CareerEnd | null; failure: Failure | null;
   startedAt: number | null; stoppedAt: number | null; pausedMs: number; endedAt: number | null;
@@ -40,6 +76,7 @@ export interface CareerState {
   clean: boolean;
   waves: number;
   lastWave: Wave | null;
+  tally: CareerTally;
 }
 
 export const SHIFT_MS = SHIFT_PHASES.reduce((sum, phase) => sum + phase.ms, 0);
@@ -69,6 +106,7 @@ export function startCareer(net: NetworkIndex, seed: number): CareerState {
     served, offers: [], offerRng: seedRandom(seed), filledAt: null,
     sim: startShiftSim(net, served, seedRandom(seed)), aim: { ...EMPTY_AIM }, history: [],
     correctChars: 0, keystrokes: 0, errors: 0, streak: 0, clean: true, waves: 0, lastWave: null,
+    tally: emptyTally(),
   };
 }
 
@@ -94,12 +132,20 @@ function cloneCareer(s: CareerState): CareerState {
     sim: cloneSim(s.sim), aim: { ...s.aim, lock: s.aim.lock ? { ...s.aim.lock } : null },
     history: s.history.map((entry) => ({ ...entry })),
     lastWave: s.lastWave ? { ...s.lastWave, cleared: [...s.lastWave.cleared] } : null,
+    tally: { ...s.tally, trio: s.tally.trio ? [...s.tally.trio] : null },
   };
 }
 
 /** How many Station closures fail a Shift: a share of its Served Stations, rounded up. */
 export function shiftFailCount(net: NetworkIndex, served: Served): number {
   return Math.ceil(OOS_FAIL_SHARE * servedStations(net, served).length);
+}
+
+/** A trio forms from the first 3 Incidents active at once, and is lost when one leaves unfixed. */
+function trackTrio(tally: CareerTally, incidents: Incident[]): void {
+  const active = incidents.map((inc) => inc.id);
+  if (tally.trio?.some((id) => !active.includes(id))) tally.trio = null;
+  if (tally.trio === null && active.length >= 3) tally.trio = active.slice(0, 3);
 }
 
 /** Advance only whole simulation ticks, stopping at the first Shift boundary or failure. */
@@ -115,6 +161,7 @@ export function advanceCareer(net: NetworkIndex, state: CareerState, now: number
       trainFactor: phase.trainFactor, escalation: shiftEscalation(s) });
     s.gameMs += TICK_MS;
     s.aim = reconcileAim(visibleTargets(net, s.sim), s.aim);
+    trackTrio(s.tally, s.sim.incidents);
     if (s.sim.oosOrder.length >= failCount) {
       s.status = 'ended'; s.endReason = 'failed';
       s.failure = { shift: s.shift,
@@ -126,6 +173,10 @@ export function advanceCareer(net: NetworkIndex, state: CareerState, now: number
     if (s.gameMs - s.shiftStartMs >= SHIFT_MS) {
       s.cleared++;
       s.history.push(record(s, true));
+      const closures = s.sim.oosOrder.length;
+      if (closures >= 3) s.tally.againstOdds = true;
+      s.tally.perfectRun = closures === 0 ? s.tally.perfectRun + 1 : 0;
+      s.tally.bestPerfectRun = Math.max(s.tally.bestPerfectRun, s.tally.perfectRun);
       [s.offers, s.offerRng] = drawOffers(net, s.served, eraFor(s.cleared), s.offerRng);
       if (s.offers.length === 0 && s.filledAt === null) s.filledAt = s.shift;
       s.status = 'between';
@@ -168,12 +219,32 @@ function fireWave(net: NetworkIndex, s: CareerState, at: Completion, size: numbe
   s.lastWave = { id: s.waves, line: at.line, origin: at.origin, cleared, atMs: s.gameMs };
 }
 
+/** Credits a completion that took effect; `inc` is the Incident a fix finished. */
+function tallyCompletion(tally: CareerTally, ref: TargetRef, inc: Incident | undefined, text: string, key: string,
+  shiftMs: number): void {
+  if (ref.kind === 'signal') tally.clears++;
+  else if (ref.kind === 'skip') tally.express++;
+  else if (inc) {
+    if (inc.kind === 'service-gap') tally.gapsHeld++;
+    else tally.fixes++;
+    // stepIncidents closes every kind's place on the tick ending at startedMs + INCIDENT_LIMIT_MS.
+    if (inc.startedMs + INCIDENT_LIMIT_MS - shiftMs <= CLOSE_CALL_MS) tally.closeCall = true;
+    if (tally.trio?.includes(inc.id)) {
+      tally.trio = tally.trio.filter((id) => id !== inc.id);
+      if (tally.trio.length === 0) tally.survivedTrio = true;
+    }
+  }
+  if (key === 'Enter' && text === 'Ampang') tally.ampang = true;
+}
+
 export function applyTargetKey(net: NetworkIndex, state: CareerState, key: string): CareerState {
   const targets = visibleTargets(net, state.sim);
   const outcome = aimKey(targets, state.aim, key, state.gameMs);
   if (!outcome.counted && !outcome.completed) return state;
   const wrong = outcome.counted && !outcome.correct;
+  const keyStreak = outcome.correct ? state.tally.keyStreak + 1 : wrong ? 0 : state.tally.keyStreak;
   const s = { ...state, aim: outcome.aim,
+    tally: { ...state.tally, keyStreak, bestKeyStreak: Math.max(state.tally.bestKeyStreak, keyStreak) },
     correctChars: state.correctChars + Number(outcome.correct),
     keystrokes: state.keystrokes + Number(outcome.counted),
     errors: state.errors + Number(wrong),
@@ -181,8 +252,11 @@ export function applyTargetKey(net: NetworkIndex, state: CareerState, key: strin
   if (outcome.completed) {
     const target = targets.find((item) => sameRef(item.ref, outcome.completed!));
     s.sim = cloneSim(state.sim);
-    const done = completeTarget(net, s.sim, outcome.completed, target?.text ?? '');
+    const ref = outcome.completed;
+    const inc = ref.kind === 'fix' ? s.sim.incidents.find((candidate) => candidate.id === ref.incident) : undefined;
+    const done = completeTarget(net, s.sim, ref, target?.text ?? '');
     if (done) {
+      tallyCompletion(s.tally, ref, inc, target?.text ?? '', key, s.sim.shiftMs);
       if (s.clean) {
         s.streak += 1;
         if (s.streak % COMBO_EVERY === 0) fireWave(net, s, done, Math.min(s.streak / COMBO_EVERY, COMBO_MAX_WAVE));
@@ -251,7 +325,8 @@ export function applyDispatchAction(net: NetworkIndex, state: CareerState, actio
       const served = action.pick === -1 ? state.served.map((range) => ({ ...range }))
         : applyExpansion(state.served, state.offers[action.pick]!);
       return { ...state, status: 'ready', shift: state.shift + 1, shiftStartMs: state.gameMs,
-        served, offers: [], sim: startShiftSim(net, served, state.sim.rng), aim: { ...EMPTY_AIM } };
+        served, offers: [], sim: startShiftSim(net, served, state.sim.rng), aim: { ...EMPTY_AIM },
+        tally: { ...state.tally, trio: null } };
     }
     case 'abandon': {
       if (state.startedAt === null || state.status === 'ended') return state;

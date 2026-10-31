@@ -42,6 +42,19 @@ describe('replayDispatch', () => {
     expectSame(state, evidence);
   }, 120_000);
 
+  it('replays the same tally the live Career reached', () => {
+    const { state, evidence } = drive({ seed: 5, msPerKey: 200, limitMs: 30 * 60_000, accuracy: 0.97, skips: true });
+    expect(state.endReason).toBe('failed');
+    expect(state.tally.clears).toBeGreaterThan(0);
+    expect(state.tally.fixes).toBeGreaterThan(0);
+    expect(state.tally.express).toBeGreaterThan(0);
+    expect(state.tally.bestKeyStreak).toBeGreaterThan(0);
+    const replayed = replayDispatch(net, evidence)!;
+    expect(replayed.tally).toEqual(state.tally);
+    expect(replayed.history).toEqual(state.history);
+    expect(replayed.correctChars).toBe(state.correctChars);
+  }, 120_000);
+
   it('waves replay', () => {
     const { state, evidence } = drive({ seed: 2, msPerKey: 200, limitMs: 30 * 60_000, accuracy: 0.99 });
     expect(state.endReason).toBe('failed');
@@ -145,6 +158,10 @@ describe('judgeCareer', () => {
     expect(judged.delivered).toBe(careerTotals(state).delivered);
     expect(judged.cleared).toBe(state.cleared);
     expect(judged.score).toBe(careerScore(state));
+    expect(judged.tally).toEqual(state.tally);
+    expect(judged.history).toEqual(state.history);
+    expect(judged.correctChars).toBe(state.correctChars);
+    expect(judged.metrics).toEqual(careerMetrics(state, evidence.endedAt));
   }, 120_000);
 
   it('is ineligible for forged evidence, without throwing', () => {
@@ -153,6 +170,7 @@ describe('judgeCareer', () => {
       const judged = judgeCareer(net, forged);
       expect(judged.eligible).toBe(false);
       expect(judged.verdict).toBeNull();
+      expect(judged).toMatchObject({ history: [], correctChars: 0, tally: { clears: 0, trio: null } });
     }
   }, 120_000);
 });

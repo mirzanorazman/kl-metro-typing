@@ -77,7 +77,7 @@ describe('MobileShell', () => {
     expect(nav.tagName).toBe('NAV');
   });
 
-  it('renders the three destinations in the exact order', () => {
+  it('renders the four destinations in the exact order', () => {
     installVisualViewport(700);
     render(
       <MobileShell active="transit" onNavigate={() => {}}>
@@ -88,12 +88,29 @@ describe('MobileShell', () => {
     expect(
       screen.getByRole('navigation', { name: 'Primary' })
         .querySelectorAll('button'),
-    ).toHaveLength(3);
+    ).toHaveLength(4);
     expect(screen.getAllByRole('button').map((button) => button.textContent)).toEqual([
       'Transit',
       'Adventure',
       'Ranking',
+      'Achievements',
     ]);
+  });
+
+  it('offers an Achievements destination', () => {
+    installVisualViewport(700);
+    const onNavigate = vi.fn();
+    render(
+      <MobileShell active="achievements" onNavigate={onNavigate}>
+        Content
+      </MobileShell>,
+    );
+
+    const button = screen.getByRole('button', { name: 'Achievements' });
+    expect(button.getAttribute('aria-current')).toBe('page');
+    fireEvent.click(screen.getByRole('button', { name: 'Transit' }));
+    fireEvent.click(button);
+    expect(onNavigate.mock.calls.map(([destination]) => destination)).toEqual(['transit', 'achievements']);
   });
 
   it('marks only the active destination as the current page', () => {

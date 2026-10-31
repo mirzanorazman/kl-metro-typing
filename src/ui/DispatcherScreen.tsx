@@ -27,6 +27,7 @@ import {
 import { DISPATCH_KEYLOG_MAX_EVENTS } from '../engine/dispatchBalance';
 import { LESSON_SEEN, lessonStations } from '../engine/dispatchLesson';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
+import { recordCareer } from '../engine/achievementRuns';
 import { servedKey, servedLines, servedStations } from '../engine/dispatchNetwork';
 import { crowdAt } from '../engine/dispatchSim';
 import { candidates, sameRef, visibleTargets, type Target } from '../engine/dispatchTargets';
@@ -68,11 +69,16 @@ import { useCrowdingHint } from './useCrowdingHint';
 import { useDispatchReveal } from './useDispatchReveal';
 import { useFailHold } from './useFailHold';
 import { runTick, useRunRecorder } from './useRunRecorder';
+import { usePhoneLayout } from './usePhoneLayout';
+import { NOTHING_CLAIMED, claimAnnouncements, updateAchievements, type Claimed } from './achievementsStore';
+import { SUMMARY_SHOWN } from './NewAchievements';
 import './dispatch.css';
 
 export interface DispatcherScreenProps {
   net: NetworkIndex;
   onExit: () => void;
+  /** Opens the achievements screen from the Summary's "+n more". */
+  onOpenAchievements?: () => void;
   onAgain: () => void;
   phoneLandscape?: boolean;
   /** Test-only: start from this state instead of startCareer. */
@@ -290,7 +296,7 @@ function TypingLine({ career, aimed, showStreak = true, waiting = true, cleared 
 }
 
 export function DispatcherScreen({
-  net, onExit, onAgain, phoneLandscape = false, initial, lessonFor,
+  net, onExit, onOpenAchievements, onAgain, phoneLandscape = false, initial, lessonFor,
 }: DispatcherScreenProps) {
   const { geo: layout, backdrop, districts } = useMemo(() => networkLayout(), []);
   const [seed] = useState(() => initial?.seed ?? lessonFor?.seed ?? Math.floor(Math.random() * 2 ** 32));
@@ -584,6 +590,21 @@ export function DispatcherScreen({
     };
   }, [run, failHold, net, recorder, seed]);
 
+  // A judged Career's achievements, once: only a failed or retired Career is
+  // ever judged, and only an eligible judgement records anything. An abandoned
+  // Career is never judged, so it neither records nor claims: the queue waits.
+  const phone = usePhoneLayout();
+  const [achievements, setAchievements] = useState<Claimed>(NOTHING_CLAIMED);
+  const careerRecorded = useRef(false);
+  useEffect(() => {
+    if (!judgement || careerRecorded.current) return;
+    careerRecorded.current = true;
+    if (judgement.eligible) {
+      updateAchievements((state, visited) => recordCareer(net, state, judgement, { visited, phone }, Date.now()));
+    }
+    setAchievements(claimAnnouncements(SUMMARY_SHOWN));
+  }, [judgement, net, phone]);
+
   const key = servedKey(run.served);
   const served = useMemo(() => new Set(servedStations(net, run.served)), [net, key]); // eslint-disable-line react-hooks/exhaustive-deps
   const lines = useMemo(() => new Set(servedLines(run.served)), [key]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -625,8 +646,11 @@ export function DispatcherScreen({
         career={run}
         metrics={careerMetrics(run, 0)}
         judgement={judgement}
+        achievements={achievements.items}
+        moreAchievements={achievements.more}
         onAgain={() => { cancelReveal(); onAgain(); }}
         onBack={exit}
+        onOpenAchievements={onOpenAchievements}
       />
     );
   }

@@ -39,3 +39,171 @@
 div.share-preview {
   background: var(--paper-sub);
 }
+
+/* The share sheet: what to share, its image, and the same buttons. It follows
+   the player's theme; the image inside is always dark. */
+.share-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: var(--s2);
+  background: color-mix(in srgb, var(--paper) 70%, transparent);
+}
+
+.share-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  width: min(560px, 100%);
+  max-height: calc(100dvh - 2 * var(--s2));
+  overflow-y: auto;
+  padding: var(--s2);
+  /* The panel over the paper: midnight's panel is see-through, and the page
+     beneath would read through the sheet. */
+  background: linear-gradient(var(--panel), var(--panel)) var(--paper);
+  border: 1px solid var(--panel-edge);
+  border-radius: 14px;
+  box-shadow: var(--panel-shadow);
+  color: var(--ink);
+}
+
+.share-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s);
+}
+
+.share-sheet-head h2 {
+  margin: 0;
+  font-size: var(--t-lg);
+}
+
+.share-sheet-head button {
+  min-height: 44px;
+}
+
+/* Desktop: the image beside the choices. */
+.share-sheet-body {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: var(--s2);
+}
+
+.share-sheet-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s);
+  flex: 0 0 11rem;
+  min-width: 0;
+}
+
+.share-sheet-panels {
+  flex: 1;
+  min-width: 0;
+}
+
+.share-sheet-panel .share-preview {
+  max-height: 50dvh;
+}
+
+/* A choice is a tile with its radio inside. The chosen one stands out by a
+   bright outline and bold text, never by colour alone. */
+.share-choice {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s);
+  padding: var(--s);
+  border: 2px solid var(--panel-edge);
+  border-radius: 10px;
+  font-size: var(--t-sm);
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.share-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.share-choice:has(input:checked) {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.share-choice:has(input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.share-choice-thumb {
+  display: flex;
+  flex: none;
+}
+
+.share-choice-run {
+  display: block;
+  border: 1px solid var(--panel-edge);
+  border-radius: 6px;
+  color: var(--ink-muted);
+}
+
+.share-choice-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.share-sheet-failed {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  max-height: 50dvh;
+  margin: 0;
+  border-radius: 12px;
+  background: var(--paper-sub);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/* Phone: a bottom sheet, choices in a row above the image. */
+.share-sheet-backdrop:has(.share-sheet--phone) {
+  place-items: end stretch;
+  padding: 0;
+}
+
+.share-sheet--phone {
+  width: 100%;
+  max-height: 92dvh;
+  border-radius: 18px 18px 0 0;
+  border-bottom: 0;
+  padding-bottom: calc(var(--s2) + env(safe-area-inset-bottom));
+}
+
+.share-sheet--phone .share-sheet-body {
+  flex-direction: column;
+}
+
+.share-sheet--phone .share-sheet-choices {
+  flex-direction: row;
+  flex-basis: auto;
+}
+
+.share-sheet--phone .share-choice {
+  flex: 1;
+  flex-direction: column;
+  text-align: center;
+}
+
+.share-sheet--phone .share-sheet-panel .share-preview {
+  max-height: 42dvh;
+}
+
+/* The sheet takes focus only to hold it inside; its controls show their own ring. */
+.share-sheet:focus {
+  outline: none;
+}

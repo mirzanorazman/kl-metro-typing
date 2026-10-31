@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useVisualViewport } from './useVisualViewport';
 import './mobile.css';
 
-export type MobileDestination = 'transit' | 'adventure' | 'ranking';
+export type MobileDestination = 'transit' | 'adventure' | 'ranking' | 'achievements';
 
 interface MobileShellProps {
   active: MobileDestination;
@@ -17,6 +17,7 @@ const destinations: ReadonlyArray<{
   { destination: 'transit', label: 'Transit' },
   { destination: 'adventure', label: 'Adventure' },
   { destination: 'ranking', label: 'Ranking' },
+  { destination: 'achievements', label: 'Achievements' },
 ];
 
 export function MobileShell({ active, onNavigate, children }: MobileShellProps) {

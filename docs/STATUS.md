@@ -1,6 +1,6 @@
 # KL-Metro Typing — status and handoff
 
-**Last updated:** 2026-10-27
+**Last updated:** 2026-10-31
 
 A typing game on the Kuala Lumpur Rapid KL rail network. Type station names to
 drive a train across the Klang Valley.
@@ -114,6 +114,46 @@ canvas in the browser from the shared layout, so it makes no network request.
 An interrupted Quick Run or abandoned Career offers none. Spec:
 `docs/superpowers/specs/2026-10-27-share-result-card-design.md`.
 
+**Achievements** — 47 in all: 36 tiered achievements (Bronze, Silver, Gold) in
+five categories — Explorer, Line Run, Quick Run, Dispatcher and Typing craft —
+plus 11 Secrets, which are single-award and hidden until earned. Speed and
+accuracy achievements are recorded only from Eligible Runs; Dispatcher
+achievements only from ended (failed or retired) Careers whose judgement is
+eligible. Adventure records as each Station is reached. Nothing interrupts
+typing: an achievement earned without a Summary is queued, and announced on the
+next completed Summary in any Mode (an interrupted Quick Run or an abandoned
+Career neither announces nor consumes the queue) or when the player opens the
+Achievements screen, which also marks them as new. Line Run, Adventure, Quick
+Run and Dispatcher Summaries show a "New achievements" list of up to three,
+newest first, and claim only those; "+n more" counts the ones still queued and
+opens the screen, which marks them new. The Achievements screen is key 5 on the
+desktop and tablet home (a button beside Leaderboard) and an "Achievements" tab
+in the phone bottom nav; on phones All-Rounder does not require Dispatcher.
+Existing players are backfilled once from `visited` and `quickBestOverall`.
+State is the optional `Profile.achievements`, with its own bounded run log
+(`recordRun` still has no callers, so `wpmHistory` is empty); see the rollback
+note under **What is next**. Badges are poster-style SVG drawn in code under
+`src/render/badges/`: the frame is in the tier's metal, earned Secrets use a
+plum frame, and locked badges are greyscale. The logic is pure
+(`engine/achievementDefs.ts`, `achievementState.ts`, `achievements.ts`,
+`achievementRuns.ts`); the screen is `ui/AchievementsScreen.tsx`. Spec:
+`docs/superpowers/specs/2026-10-31-achievements-design.md`; the approved badge
+style spike is `docs/superpowers/achievement-badges-spike.html`.
+
+**Share a badge** — one earned badge at a time, as a 1080 × 1080 dark PNG: the
+whole network faint behind the badge, its name, its tier in words, the game's
+name, line and address. A Summary that shows new achievements has one "Share…"
+in place of "Share result"; it opens a sheet (a bottom sheet on phones, a
+dialog otherwise) offering "This run" first, then each badge the Summary shows.
+A Summary with nothing new keeps "Share result" unchanged. An opened row on the
+Achievements screen offers "Share badge" for anything earned, at its highest
+award; locked rows and unearned Secrets never do, and an earned Secret's image
+leaves out what the player did. The badge reaches the canvas as its own SVG in
+a `data:` URL, carrying `badges.css` inside it, so nothing is fetched
+(`render/badges/badgeSvg.ts`, `share/badgeCard.ts`, `share/paintBadgeCard.ts`,
+`ui/ShareSheet.tsx`, `ui/SummaryShare.tsx`). Spec:
+`docs/superpowers/specs/2026-11-01-badge-share-design.md`.
+
 **Local leaderboard** — Line Run, plus a separate Dispatcher tab. Completing a
 line end to end offers a name entry if the run's score would place in the top
 20 overall or the top 20 for that line. Longer lines are weighted more heavily on the overall board, so
@@ -145,13 +185,14 @@ keyboards.
 src/
   data/      network JSON + types + validation + leaderboardStore   (154 stations, 7 lines, 5 walk links)
   engine/    game logic: network, typing, metrics, run, lineRun, quickRun, replay,
-             progress, leaderboard, dispatch* (Dispatcher)
+             progress, leaderboard, achievement*, dispatch* (Dispatcher)
   geo/       projection, schematic layout, fitting, shared networkLayout
-  render/    SVG map, train marker, prompt, HUD, line strip, pan/zoom
+  render/    SVG map, train marker, prompt, HUD, line strip, pan/zoom, badges/
   ui/        screens: HomeMap, QuickRunScreen, LineRunScreen, AdventureScreen,
-             SummaryScreen, LeaderboardScreen, LeaderboardPanel
+             SummaryScreen, LeaderboardScreen, LeaderboardPanel, AchievementsScreen,
+             NewAchievements, achievementsStore
   audio/     Tone.js-backed synthesised sound, menu ambience, UI cues
-  share/     share card: pure per-Mode model, canvas painter, share/copy/save
+  share/     share cards: pure per-Mode and badge models, canvas painters, share/copy/save
 ```
 
 ### Invariants that are easy to break
@@ -277,8 +318,9 @@ added (`Profile.integrityFails`, `LeaderboardEntry.verified`, `KeyLog.truncated`
 is optional; and both stores load and save by spreading, so older code reading a
 newer record preserves the unknown fields instead of rejecting or dropping them.
 Redeploying a previous build needs no migration and will not wipe anyone's
-leaderboard or profile. Keep it that way: the moment a schema version moves,
-this paragraph stops being true.
+leaderboard or profile. Achievements kept this property: `Profile.achievements`
+is optional and `SCHEMA_VERSION` did not move. Keep it that way: the moment a
+schema version moves, this paragraph stops being true.
 
 **Dispatcher playtest.** The user plays Dispatcher. Tuning follow-ups go in
 the handover's leans. Rush Hour is retired (Task 12 of the Dispatcher plan,
@@ -304,8 +346,9 @@ are real and were found by reading the code:
 The spec has the full plan. It is a refactor, not a feature, and nothing is
 blocked on it.
 
-Smaller candidates: a stats/history screen (`wpmHistory` is already recorded in
-the profile but never displayed), and the aesthetic debt above.
+Smaller candidates: a stats/history screen (`recordRun` has no callers, so
+`wpmHistory` is never filled; wire that up first, or build on the achievements
+run log), and the aesthetic debt above.
 
 ## Working notes
 
@@ -355,6 +398,9 @@ simply synchronous while the behaviour was animated.
 | `docs/superpowers/2026-10-23-dispatcher-execution-record.md` | Dispatcher Tasks 1–6: interpretations and reviews. |
 | `docs/superpowers/specs/2026-10-24-dispatcher-playtest-1-design.md` | Dispatcher changes from the first playtest (amends the design). |
 | `docs/superpowers/plans/2026-10-24-dispatcher-playtest-1.md` | Dispatcher playtest 1 plan, 11 tasks, all done. |
+| `docs/superpowers/specs/2026-10-31-achievements-design.md` | Achievements: the 47 goals, tracking and storage, announcements, the screen, and badge art. Implemented. |
+| `docs/superpowers/plans/2026-10-31-achievements.md` | Achievements plan, 13 tasks. |
+| `docs/superpowers/achievement-badges-spike.html` | The approved badge style spike. |
 | `docs/superpowers/dispatcher-handover.md` | Dispatcher resume point, balance survey, leans for playtesting, gotchas, deviations from the spec. |
 
 Early work after Plan 2 was driven by direct feedback rather than a plan: the

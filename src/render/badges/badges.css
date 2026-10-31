@@ -1,0 +1,29 @@
+/* Badges are physical-colour objects: the same in the paper and midnight themes. */
+
+.badge {
+  display: block;
+  flex: none;
+}
+
+/* Locked (and unearned secret) badges: the silver badge, greyed and faded. */
+.badge--locked {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+/* The poster's off-register key line: outlines of the art's filled shapes.
+   Strokes drawn with fill="none" are line work and get no key line. */
+.badge__key * {
+  fill: none;
+  stroke: #2a2a2e;
+  stroke-width: 1.6px;
+  stroke-linejoin: round;
+}
+
+.badge__key :not(g) {
+  opacity: 0.8;
+}
+
+.badge__key [fill='none'] {
+  display: none;
+}

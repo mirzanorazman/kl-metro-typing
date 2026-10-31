@@ -13,6 +13,8 @@ export type RunPhase = 'typing' | 'junction' | 'ended';
 export interface StationTime {
   id: string;
   ms: number;
+  /** Wrong keys typed on this Station. */
+  errors: number;
 }
 
 export interface RunState {
@@ -31,6 +33,10 @@ export interface RunState {
   correctChars: number;
   keystrokes: number;
   errors: number;
+  /** Correct keys in a row; a wrong key resets it to 0. */
+  keyStreak: number;
+  /** The longest `keyStreak` this Run has reached. */
+  bestKeyStreak: number;
 }
 
 export function startRun(net: NetworkIndex, at: string, now: number): RunState {
@@ -50,6 +56,8 @@ export function startRun(net: NetworkIndex, at: string, now: number): RunState {
     correctChars: 0,
     keystrokes: 0,
     errors: 0,
+    keyStreak: 0,
+    bestKeyStreak: 0,
   };
 }
 
@@ -86,7 +94,7 @@ function arrive(net: NetworkIndex, state: RunState, now: number): RunState {
     visited,
     stationTimes: [
       ...state.stationTimes,
-      { id: state.at, ms: now - state.stationStartedAt },
+      { id: state.at, ms: now - state.stationStartedAt, errors: state.typing.errors },
     ],
   };
 
@@ -113,12 +121,15 @@ export function keyRun(
   if (typing === before) return state;
 
   const gainedChar = typing.cursor > before.cursor;
+  const keyStreak = gainedChar ? state.keyStreak + 1 : 0;
   const next: RunState = {
     ...state,
     typing,
     correctChars: state.correctChars + (gainedChar ? 1 : 0),
     keystrokes: state.keystrokes + 1,
     errors: state.errors + (gainedChar ? 0 : 1),
+    keyStreak,
+    bestKeyStreak: Math.max(state.bestKeyStreak, keyStreak),
   };
 
   return typing.done ? arrive(net, next, now) : next;

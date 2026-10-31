@@ -9,7 +9,7 @@ import { CARD_MAP, CARD_SIZE, SHARE_URL, type CardPath, type ShareCard } from '.
  * assets/brand/social-card.svg by hand: a canvas cannot read CSS custom
  * properties.
  */
-const C = {
+export const C = {
   paper: '#0b0f17',
   panel: '#0e1420',
   land: '#141d2e',
@@ -24,14 +24,14 @@ const C = {
   roundelBox: '#101725',
 };
 
-const SANS = "'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif";
-const MONO = "'JetBrains Mono Variable', ui-monospace, SFMono-Regular, monospace";
+export const SANS = "'Plus Jakarta Sans Variable', ui-sans-serif, system-ui, sans-serif";
+export const MONO = "'JetBrains Mono Variable', ui-monospace, SFMono-Regular, monospace";
 
 /** Left and right margin. */
 const M = 48;
 const INNER = CARD_SIZE - 2 * M;
 
-function font(ctx: CanvasRenderingContext2D, weight: number, size: number, family: string) {
+export function font(ctx: CanvasRenderingContext2D, weight: number, size: number, family: string) {
   ctx.font = `${weight} ${size}px ${family}`;
 }
 
@@ -39,7 +39,7 @@ function font(ctx: CanvasRenderingContext2D, weight: number, size: number, famil
  * Sets the largest font from `size` down to `min` at which `text` fits in
  * `width`, and returns the text, cut with an ellipsis if even `min` is too wide.
  */
-function fitText(
+export function fitText(
   ctx: CanvasRenderingContext2D,
   text: string,
   width: number,
@@ -134,7 +134,7 @@ function titles(ctx: CanvasRenderingContext2D, card: ShareCard) {
   ctx.fillText(subtitle, x, 277);
 }
 
-function trace(ctx: CanvasRenderingContext2D, pts: readonly Point[]) {
+export function trace(ctx: CanvasRenderingContext2D, pts: readonly Point[]) {
   ctx.beginPath();
   pts.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
 }

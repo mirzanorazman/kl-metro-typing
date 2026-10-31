@@ -8,8 +8,9 @@ import {
 } from '../data/dispatchBoardStore';
 import { buildNetwork } from '../engine/network';
 import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
-import { careerScore, SHIFT_MS, startCareer, type CareerState } from '../engine/dispatch';
+import { careerScore, emptyTally, SHIFT_MS, startCareer, type CareerState } from '../engine/dispatch';
 import { judgeCareer, type DispatchJudgement } from '../engine/dispatchJudge';
+import { emptyAchievements } from '../engine/achievementState';
 import {
   GAP_TRIGGER_MS, INCIDENT_LIMIT_MS, LATE_FACTOR, OOS_CROWD_MS, PLATFORM_CAPACITY, TICK_MS, TRAVEL_MS,
 } from '../engine/dispatchBalance';
@@ -482,6 +483,49 @@ describe('DispatcherScreen', () => {
     expect(screen.getByRole('heading', { name: 'Career retired' })).toBeTruthy();
     expect(within(summary).getByText('Shifts cleared').nextElementSibling!.textContent).toBe('1');
     expect(within(summary).getByText('Delivered').nextElementSibling!.textContent).toBe('40');
+  });
+
+  it('records a retired, verified Career', async () => {
+    vi.spyOn(sound, 'achievement').mockImplementation(() => {});
+    // jsdom's keys are never trusted, so the verdict is stood in for: 150 Signals cleared.
+    judgeSpy.mockImplementationOnce(() => ({
+      eligible: true, score: 120, delivered: 40, cleared: 1, metrics: { wpm: 40, accuracy: 0.95, score: 38 },
+      tally: { ...emptyTally(), clears: 150 }, history: [], correctChars: 300, verdict: { ok: true },
+    }));
+    renderShift({ ...startCareer(net, 7), status: 'between', shift: 1, cleared: 1, startedAt: 1_000, stoppedAt: 2_000,
+      history: [{ shift: 1, delivered: 40, calls: 10, onTimeCalls: 9, cleared: true }] });
+    endCareer();
+
+    const announced = await screen.findByRole('region', { name: 'New achievements' });
+    expect(within(announced).getByText('All Clear')).toBeTruthy();
+    expect(within(announced).getByText('Bronze · 100 Signals cleared')).toBeTruthy();
+    const saved = loadProfile().achievements!;
+    expect(saved.counters.clears).toBe(150);
+    expect(saved.unannounced).toEqual([]);
+  });
+
+  it('records nothing for an abandoned Career', async () => {
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    type('J');
+    endCareer();
+
+    expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(loadProfile().achievements).toBeUndefined();
+    expect(screen.queryByRole('region', { name: 'New achievements' })).toBeNull();
+  });
+
+  it('leaves queued announcements for the next Summary when a Career is abandoned', async () => {
+    const queued = [{ id: 'explorer.unlocked', award: 'bronze' as const, at: 1 }];
+    saveProfile({ ...loadProfile(), achievements: { ...emptyAchievements(), unannounced: queued } });
+    renderShift(careerWith([waiting(1, 'KJ', 'Jelatek')]));
+    type('J');
+    endCareer();
+
+    expect(screen.getByText("Ended early — an abandoned Career can't enter the leaderboard.")).toBeTruthy();
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 20)); });
+    expect(loadProfile().achievements!.unannounced).toEqual(queued);
+    expect(screen.queryByRole('region', { name: 'New achievements' })).toBeNull();
   });
 
   it('top bar counts the Lines and Stations in service', () => {
@@ -2857,7 +2901,8 @@ describe('DispatchSummary', () => {
     };
   };
   const judgement = (over: Partial<DispatchJudgement> = {}): DispatchJudgement => ({
-    eligible: true, score: 399, delivered: 420, cleared: 1, verdict: { ok: true }, ...over,
+    eligible: true, score: 399, delivered: 420, cleared: 1, metrics, tally: emptyTally(), history: [], correctChars: 950,
+    verdict: { ok: true }, ...over,
   });
   const renderSummary = (career: CareerState, j: DispatchJudgement | null) => render(
     <DispatchSummary net={net} career={career} metrics={metrics} judgement={j} onAgain={() => {}} onBack={() => {}} />,

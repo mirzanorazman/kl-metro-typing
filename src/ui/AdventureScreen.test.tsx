@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { act, render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
-import { loadProfile } from '../engine/progress';
+import { loadProfile, saveProfile } from '../engine/progress';
 import { AdventureScreen } from './AdventureScreen';
 import { TypingInputProvider } from './TypingInputProvider';
 import * as runEngine from '../engine/run';
@@ -76,7 +76,7 @@ describe('AdventureScreen', () => {
     act(() => input.focus());
     fireEvent.input(input, { target: { value: phase === 'typing' ? 'I' : 'Imbi' } });
     const end = vi.spyOn(runEngine, 'endRun');
-    const save = vi.spyOn(Storage.prototype, 'setItem');
+    const before = loadProfile();
 
     rerender(content(true));
     expect(screen.getByRole('status').textContent).toBe('Rotate to portrait to play');
@@ -91,7 +91,9 @@ describe('AdventureScreen', () => {
     expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
     expect(screen.getByText(phase === 'typing' ? '0 stations this run' : '1 station this run')).toBeTruthy();
     expect(end).toHaveBeenCalledTimes(1);
-    expect(save).not.toHaveBeenCalled();
+    // The Summary records the Adventure's end, but nothing typed in landscape is kept.
+    expect(loadProfile().visited).toEqual(before.visited);
+    expect(loadProfile().adventure).toEqual(before.adventure);
     rerender(content(true));
     expect(screen.getByRole('heading', { name: 'Journey complete' })).toBeTruthy();
     expect(end).toHaveBeenCalledTimes(1);
@@ -161,6 +163,23 @@ describe('AdventureScreen', () => {
     });
   });
 
+  it('keeps a junction choice made between arrivals', () => {
+    render(
+      <TypingInputProvider enabled>
+        <AdventureScreen net={net} startAt="kl-sentral" onExit={() => {}} />
+      </TypingInputProvider>,
+    );
+    const input = screen.getByRole('textbox', { name: 'Typing input for Station name' });
+
+    fireEvent.input(input, { target: { value: 'KL Sentral' } });
+    fireEvent.click(screen.getByRole('button', { name: /toward Titiwangsa/i }));
+    fireEvent.input(input, { target: { value: 'Tun Sambanthan' } });
+
+    const saved = loadProfile().achievements!;
+    expect(saved.counters.junctions).toBe(1);
+    expect(saved.adventureRun?.visited).toEqual(['kl-sentral', 'tun-sambanthan']);
+  });
+
   it('releases the native input when the adventure ends', () => {
     render(
       <TypingInputProvider enabled>
@@ -221,6 +240,14 @@ describe('AdventureScreen', () => {
     renderAdventure({ startAt: 'imbi', onExit: () => {} });
     type('Imbi');
     expect(loadProfile().visited).toContain('imbi');
+  });
+
+  it('keeps what another screen saved since it opened when it saves an arrival', () => {
+    renderAdventure({ startAt: 'imbi', onExit: () => {} });
+    saveProfile({ ...loadProfile(), theme: 'midnight' });
+    type('Imbi');
+    expect(loadProfile().visited).toContain('imbi');
+    expect(loadProfile().theme).toBe('midnight');
   });
 
   it('rides at close-up zoom rather than framing the whole network', async () => {

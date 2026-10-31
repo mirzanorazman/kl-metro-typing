@@ -204,9 +204,24 @@ WPM multiplied by accuracy squared. Squaring prices sloppiness above raw speed.
 
 **Profile**:
 The player's persisted record: unlocked stations, best WPM per station, the
-Adventure resume position, Quick Run personal best, WPM history, the sound and
+Adventure resume position, Quick Run personal best, achievements, the sound and
 theme preferences, and the integrity-failure log. `quickBest` holds legacy
 per-Line Quick Run bests; `quickBestOverall` is the active Mode-wide record.
+It also has a `wpmHistory` field, but `recordRun` has no callers, so it stays
+empty; achievements keep their own bounded run log instead.
+
+**Achievement**:
+A goal recorded in the Profile. Most are tiered (Bronze, Silver, Gold) and grow
+as the player plays; a Secret is awarded once. Speed and accuracy achievements
+count only Eligible Runs.
+
+**Tier**:
+One of an Achievement's three levels: Bronze, Silver, Gold. Always written out
+in text, never shown by colour alone.
+
+**Secret**:
+A single-award Achievement with no Tiers. Its name and goal stay hidden until it
+is earned.
 
 **Integrity-failure log**:
 The Runs that failed their Verdict, newest first, capped at twenty. It has no

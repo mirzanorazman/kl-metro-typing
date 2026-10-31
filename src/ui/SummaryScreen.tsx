@@ -12,21 +12,29 @@ import { verifyKeyLog, type IntegrityReason } from '../engine/integrity';
 import { replayLineRun } from '../engine/replay';
 import { loadProfile, recordIntegrityFail, saveProfile } from '../engine/progress';
 import { adventureCard, lineRunCard } from '../share/shareCard';
-import { ShareButton } from './ShareButton';
+import { recordAdventureEnd, recordLineRun } from '../engine/achievementRuns';
+import { SummaryShare } from './SummaryShare';
+import { NOTHING_CLAIMED, claimAnnouncements, updateAchievements, type Claimed } from './achievementsStore';
+import { NewAchievements, SUMMARY_SHOWN } from './NewAchievements';
+import { usePhoneLayout } from './usePhoneLayout';
 import './summary.css';
 
 export function SummaryScreen({
   net,
   run,
   onExit,
+  onOpenAchievements,
   leaderboardLine = null,
   leaderboardFrom = null,
   keylog = null,
   mode = 'adventure',
+  line = null,
 }: {
   net: NetworkIndex;
   run: RunState;
   onExit: () => void;
+  /** Opens the achievements screen from "+n more". */
+  onOpenAchievements?: () => void;
   /** Which Mode ended, for the share card. */
   mode?: 'line' | 'adventure';
   leaderboardLine?: LineCode | null;
@@ -34,6 +42,8 @@ export function SummaryScreen({
   leaderboardFrom?: string | null;
   /** The Run's evidence. Absent for Adventure, which has no board. */
   keylog?: KeyLog | null;
+  /** The Line a Line Run rode, finished or not. Its achievements are recorded against it. */
+  line?: LineCode | null;
 }) {
   useEffect(() => {
     music.startMenu();
@@ -92,6 +102,33 @@ export function SummaryScreen({
       t: Date.now(), mode: 'line', reason: eligibility.reason,
     }));
   }, [eligibility]);
+
+  // The Run's achievements are recorded once, here, and whatever is waiting to
+  // be announced is claimed with them. The ref keeps StrictMode's second
+  // effect from recording the Run again.
+  const phone = usePhoneLayout();
+  const [achievements, setAchievements] = useState<Claimed>(NOTHING_CLAIMED);
+  const achievementsRecorded = useRef(false);
+  useEffect(() => {
+    if (achievementsRecorded.current) return;
+    achievementsRecorded.current = true;
+    const at = Date.now();
+    if (mode === 'line' && line && leaderboardFrom) {
+      updateAchievements((state, visited) => recordLineRun(net, state, {
+        line,
+        from: leaderboardFrom,
+        complete: leaderboardLine !== null,
+        eligible: Boolean(eligibility?.ok),
+        metrics: eligibility?.ok ? eligibility.metrics : metrics,
+        correctChars: run.correctChars,
+        bestKeyStreak: run.bestKeyStreak,
+        stations: run.stationTimes,
+      }, { visited, phone }, at));
+    } else if (mode === 'adventure') {
+      updateAchievements((state, visited) => recordAdventureEnd(net, state, { visited, phone }, at));
+    }
+    setAchievements(claimAnnouncements(SUMMARY_SHOWN));
+  }, [mode, line, leaderboardFrom, leaderboardLine, eligibility, metrics, net, run, phone]);
 
   const boardMetrics = eligibility?.ok ? eligibility.metrics : null;
   const qualification = useMemo(
@@ -212,6 +249,8 @@ export function SummaryScreen({
         </div>
       </div>
 
+      <NewAchievements net={net} items={achievements.items} more={achievements.more} onMore={onOpenAchievements} />
+
       {fastest && slowest && (
         <ul>
           <li>Fastest: {stationAt(net, fastest.id)?.name} ({(fastest.ms / 1000).toFixed(1)}s)</li>
@@ -219,7 +258,7 @@ export function SummaryScreen({
         </ul>
       )}
 
-      {count > 0 && <ShareButton card={card} />}
+      <SummaryShare net={net} card={count > 0 ? card : null} items={achievements.items} />
 
       <button
         type="button"

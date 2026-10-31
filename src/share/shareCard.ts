@@ -161,7 +161,7 @@ export function routePaths(net: NetworkIndex, steps: readonly RouteStep[]): Card
   return paths;
 }
 
-function networkPaths(net: NetworkIndex): CardPath[] {
+export function networkPaths(net: NetworkIndex): CardPath[] {
   const { geo } = networkLayout();
   return [...net.lines.values()].map((line) => ({
     line: line.code,
@@ -198,7 +198,7 @@ function travelMap(net: NetworkIndex, steps: readonly RouteStep[]): CardMap {
 
 const stationName = (net: NetworkIndex, id: string | undefined) => (id ? stationAt(net, id)?.name ?? id : '');
 
-function slug(text: string): string {
+export function slug(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 

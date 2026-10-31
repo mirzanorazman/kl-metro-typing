@@ -7,14 +7,16 @@ import {
 } from '../data/dispatchBoardStore';
 import { careerScore, careerTotals, type CareerState } from '../engine/dispatch';
 import type { DispatchJudgement } from '../engine/dispatchJudge';
+import type { EarnedTier } from '../engine/achievementState';
 import { servedLines, servedStations } from '../engine/dispatchNetwork';
 import type { Metrics } from '../engine/metrics';
 import type { NetworkIndex } from '../engine/network';
 import { closureText, failureText } from './dispatchTips';
 import { careerCard } from '../share/shareCard';
 import { LineBadge } from './LineBadge';
-import { ShareButton } from './ShareButton';
+import { SummaryShare } from './SummaryShare';
 import { LeaderboardTrack } from './LeaderboardTrack';
+import { NewAchievements } from './NewAchievements';
 
 export interface DispatchSummaryProps {
   net: NetworkIndex;
@@ -22,8 +24,14 @@ export interface DispatchSummaryProps {
   metrics: Metrics;
   /** The Career's judgement; null while judging (shown as checking), and always for one abandoned mid-Shift. */
   judgement: DispatchJudgement | null;
+  /** What the judged Career earned; empty while judging and for an abandoned Career. */
+  achievements?: readonly EarnedTier[];
+  /** How many more are waiting to be announced, shown as "+n more". */
+  moreAchievements?: number;
   onAgain: () => void;
   onBack: () => void;
+  /** Opens the achievements screen from "+n more". */
+  onOpenAchievements?: () => void;
 }
 
 const DISPATCH_CREDIT = 'Ridership estimates informed by data.gov.my (CC BY 4.0)';
@@ -116,7 +124,9 @@ function BoardEntry({ metrics, judgement, onSaved }: {
   );
 }
 
-export function DispatchSummary({ net, career, metrics, judgement, onAgain, onBack }: DispatchSummaryProps) {
+export function DispatchSummary({
+  net, career, metrics, judgement, achievements = [], moreAchievements = 0, onAgain, onBack, onOpenAchievements,
+}: DispatchSummaryProps) {
   const totals = careerTotals(career);
   const stations = servedStations(net, career.served).length;
   const lines = servedLines(career.served);
@@ -168,9 +178,13 @@ export function DispatchSummary({ net, career, metrics, judgement, onAgain, onBa
         <p className="summary-ineligible" role="status">This Career wasn&apos;t eligible for the leaderboard.</p>
       ))}
 
-      {!abandoned && (
-        <ShareButton card={careerCard(net, career, { metrics, verified: Boolean(judgement?.eligible), rank })} />
-      )}
+      <NewAchievements net={net} items={achievements} more={moreAchievements} onMore={onOpenAchievements} />
+
+      <SummaryShare
+        net={net}
+        card={abandoned ? null : careerCard(net, career, { metrics, verified: Boolean(judgement?.eligible), rank })}
+        items={achievements}
+      />
 
       <div className="summary-actions">
         <button type="button" onClick={onAgain}>New Career</button>

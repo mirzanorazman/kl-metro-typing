@@ -267,6 +267,12 @@ export const sound = {
     });
   }),
 
+  /** A new achievement on a Summary: a short rising two-note chime, a fifth up and held. */
+  achievement: () => play(({ complete }) => {
+    complete.triggerAttackRelease('A5', 0.1);
+    complete.triggerAttackRelease('E6', 0.32, '+0.1');
+  }),
+
   /** A newly joined Dispatcher Line: a bright ascending welcome. */
   lineOpen: () => play(({ complete }) => {
     ['D5', 'A5', 'D6'].forEach((note, i) => {

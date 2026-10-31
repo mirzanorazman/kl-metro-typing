@@ -33,6 +33,10 @@ import { recordIntegrityFail } from '../engine/progress';
 import type { KeySource } from '../engine/keylog';
 import type { Metrics } from '../engine/metrics';
 import { quickRunCard } from '../share/shareCard';
+import { recordUnlocks } from '../engine/achievements';
+import { recordQuickRun } from '../engine/achievementRuns';
+import { NOTHING_CLAIMED, claimAnnouncements, updateAchievements, type Claimed } from './achievementsStore';
+import { SUMMARY_SHOWN } from './NewAchievements';
 import './mobile.css';
 
 export interface QuickRunScreenProps {
@@ -42,6 +46,8 @@ export interface QuickRunScreenProps {
   previousStart: string | null;
   onStartingStation: (id: string) => void;
   onBack: () => void;
+  /** Opens the achievements screen from the Summary's "+n more". */
+  onOpenAchievements?: () => void;
   /**
    * Replaces the Summary's "Run again". The home card passes one so a new Run
    * draws a fresh Line and Direction; without it the chosen route repeats.
@@ -151,6 +157,7 @@ export function QuickRunScreen({
   previousStart,
   onStartingStation,
   onBack,
+  onOpenAchievements,
   onAgain,
   random,
   phoneLandscape = false,
@@ -183,6 +190,10 @@ export function QuickRunScreen({
   const [newBest, setNewBest] = useState(false);
   /** The completed Run replayed and passed its Verdict. */
   const [verified, setVerified] = useState(false);
+  /** Wall-clock time this Run was opened, for One More Go's chain. */
+  const openedAt = useRef(Date.now());
+  /** What the completed Run earned, claimed for its Summary. */
+  const [achievements, setAchievements] = useState<Claimed>(NOTHING_CLAIMED);
   const [dismissed, setDismissed] = useState(false);
   const dismissedRef = useRef(false);
   const [awaitingPortrait, setAwaitingPortrait] = useState(false);
@@ -293,7 +304,9 @@ export function QuickRunScreen({
     if (pending.length === 0) return;
     persistedCount.current += pending.length;
 
-    let updated = profileRef.current;
+    // Loaded fresh, as LineRunScreen does: another save since the ref was last
+    // refreshed (the achievements, a Run's PB) must not be written over.
+    let updated = loadProfile();
     for (const completed of pending) {
       const characters = stationAt(net, completed.id)?.name.length ?? 0;
       const wpm = completed.ms > 0
@@ -302,10 +315,12 @@ export function QuickRunScreen({
       updated = recordStation(updated, completed.id, wpm);
     }
 
-    profileRef.current = updated;
     saveProfile(updated);
+    updateAchievements((state, visited) => recordUnlocks(net, state, { visited, phone }, Date.now()));
+    updated = loadProfile();
+    profileRef.current = updated;
     setProfile(updated);
-  }, [net, run.completedStations]);
+  }, [net, run.completedStations, phone]);
 
   useEffect(() => {
     const previous = heard.current;
@@ -336,45 +351,56 @@ export function QuickRunScreen({
     // rather than believed.
     const log = recorder.snapshot();
     const replayed = replayQuickRun(net, { keylog: log, trace: run.trace });
+    const verdict: Verdict | null = replayed && replayed.complete ? verifyKeyLog(log, replayed.metrics.wpm) : null;
+    const eligible = replayed !== null && verdict !== null && verdict.ok;
 
-    if (!replayed || !replayed.complete) {
+    if (!eligible) {
       const updated = recordIntegrityFail(profileRef.current, {
-        t: Date.now(), mode: 'quick', reason: 'malformed-log',
+        t: Date.now(), mode: 'quick', reason: verdict && !verdict.ok ? verdict.reason : 'malformed-log',
       });
       profileRef.current = updated;
       saveProfile(updated);
       setProfile(updated);
       setSummaryBest(bestAtStart.current);
-      return;
+    } else {
+      setVerified(true);
+      const previousBest = bestAtStart.current ?? 0;
+      if (replayed.metrics.score <= previousBest) {
+        setSummaryBest(bestAtStart.current);
+      } else {
+        const updated = recordQuickBestOverall(profileRef.current, replayed.metrics.score);
+        profileRef.current = updated;
+        saveProfile(updated);
+        setProfile(updated);
+        setSummaryBest(replayed.metrics.score);
+        setNewBest(true);
+      }
     }
 
-    const verdict: Verdict = verifyKeyLog(log, replayed.metrics.wpm);
-
-    if (!verdict.ok) {
-      const updated = recordIntegrityFail(profileRef.current, {
-        t: Date.now(), mode: 'quick', reason: verdict.reason,
-      });
-      profileRef.current = updated;
-      saveProfile(updated);
-      setProfile(updated);
-      setSummaryBest(bestAtStart.current);
-      return;
-    }
-
-    setVerified(true);
-    const previousBest = bestAtStart.current ?? 0;
-    if (replayed.metrics.score <= previousBest) {
-      setSummaryBest(bestAtStart.current);
-      return;
-    }
-
-    const updated = recordQuickBestOverall(profileRef.current, replayed.metrics.score);
+    // Recorded either way: an unverified Run still counts as played, but its
+    // Score and typing records don't.
+    const facts = {
+      eligible,
+      metrics: eligible ? replayed.metrics : quickRunMetrics(run, run.endedAt ?? performance.now()),
+      correctChars: run.correctChars,
+      bestKeyStreak: run.bestKeyStreak,
+      stations: run.completedStations,
+      startLine: run.trace.legs[0]!.line,
+      jumps: run.trace.legs.length - 1,
+      // The last Station completed when the next one began.
+      lastStationLeftMs: run.completedStations.length > 0 && run.deadline !== null && run.stationStartedAt !== null
+        ? run.deadline - run.stationStartedAt
+        : null,
+      openedAt: openedAt.current,
+    };
+    updateAchievements((state, visited) => recordQuickRun(net, state, facts, { visited, phone }, Date.now()));
+    const updated = loadProfile();
     profileRef.current = updated;
-    saveProfile(updated);
     setProfile(updated);
-    setSummaryBest(replayed.metrics.score);
-    setNewBest(true);
-  }, [run, net, recorder]);
+    // Only a completed Run claims (this effect returns early for an
+    // interrupted one), so an interrupted Run leaves the queue for the next Summary.
+    setAchievements(claimAnnouncements(SUMMARY_SHOWN));
+  }, [run, net, recorder, phone]);
 
   const runAgain = useCallback(() => {
     if (playBlocked.current) return;
@@ -391,6 +417,8 @@ export function QuickRunScreen({
     setSummaryBest(bestAtStart.current);
     setNewBest(false);
     setVerified(false);
+    setAchievements(NOTHING_CLAIMED);
+    openedAt.current = Date.now();
     setLiveMetrics(null);
     setDisplayNow(performance.now());
     commitRun(next);
@@ -413,9 +441,13 @@ export function QuickRunScreen({
         metrics={metrics}
         personalBest={summaryBest}
         newBest={newBest}
+        achievements={run.status === 'completed' ? achievements.items : []}
+        moreAchievements={run.status === 'completed' ? achievements.more : 0}
+        net={net}
         share={run.status === 'completed' ? quickRunCard(net, run, { metrics, verified, newBest }) : null}
         onAgain={onAgain ?? runAgain}
         onBack={onBack}
+        onOpenAchievements={onOpenAchievements}
         phoneLandscape={phoneLandscape}
       />
     );

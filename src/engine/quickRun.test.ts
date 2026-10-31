@@ -259,7 +259,7 @@ describe('prepareQuickRun', () => {
 
     expect(second.completedStations).not.toBe(first.completedStations);
     expect(second.typing).not.toBe(first.typing);
-    first.completedStations.push({ id: 'kl-sentral', ms: 1 });
+    first.completedStations.push({ id: 'kl-sentral', ms: 1, errors: 0 });
     first.typing.cursor = 2;
     expect(second.completedStations).toEqual([]);
     expect(second.typing.cursor).toBe(0);
@@ -289,7 +289,7 @@ describe('Quick Run transitions', () => {
     expect(state.at).toBe('tun-sambanthan');
     expect(state.arrivedFrom).toBe('kl-sentral');
     expect(state.typing.target).toBe('Tun Sambanthan');
-    expect(state.completedStations).toEqual([{ id: 'kl-sentral', ms: 0 }]);
+    expect(state.completedStations).toEqual([{ id: 'kl-sentral', ms: 0, errors: 0 }]);
     expect(quickRunToward(network(), state)).toBe('Titiwangsa');
   });
 
@@ -400,9 +400,9 @@ describe('Quick Run transitions', () => {
       secondKey,
     );
 
-    expect(firstComplete.completedStations[0]).toEqual({ id: 'kl-sentral', ms: 500 });
+    expect(firstComplete.completedStations[0]).toEqual({ id: 'kl-sentral', ms: 500, errors: 0 });
     expect(firstComplete.stationStartedAt).toBe(1500);
-    expect(secondComplete.completedStations[1]).toEqual({ id: 'tun-sambanthan', ms: 700 });
+    expect(secondComplete.completedStations[1]).toEqual({ id: 'tun-sambanthan', ms: 700, errors: 0 });
     expect(firstComplete.completedStations).not.toBe(ready.completedStations);
     expect(secondComplete.completedStations).not.toBe(firstComplete.completedStations);
     expect(firstComplete.typing).not.toBe(ready.typing);
@@ -425,7 +425,7 @@ describe('Quick Run Line jumps', () => {
     for (let i = 0; i < 4; i += 1) terminus = typePrompt(net, terminus, 1000);
     const jumped = typePrompt(net, terminus, 1500, sequence(0, 1));
 
-    expect(jumped.completedStations[jumped.completedStations.length - 1]).toEqual({ id: 'MR4', ms: 500 });
+    expect(jumped.completedStations[jumped.completedStations.length - 1]).toEqual({ id: 'MR4', ms: 500, errors: 0 });
     expect(jumped).toMatchObject({
       status: 'running', line: 'KG', at: 'KG5', direction: -1, arrivedFrom: null,
       activeLeg: { line: 'KG', at: 'KG5', toward: 'KG0' },
@@ -567,5 +567,30 @@ describe('Quick Run Line jumps', () => {
       { line: 'PY', at: 'PY6', toward: 'PY0' },
       { line: 'KG', at: 'KG1', toward: 'KG5' },
     ]);
+  });
+});
+
+describe('station errors and key streak', () => {
+  it('records wrong keys per Station', () => {
+    const net = network();
+    let state = prepareQuickRun(net, 'MR', 'titiwangsa', null, () => 0);
+    state = enterQuickCharacter(net, state, '#', 1000);
+    state = typeCurrent(state, 1001);
+    state = typeCurrent(state, 1002);
+
+    expect(state.completedStations[0]!.errors).toBe(1);
+    expect(state.completedStations[1]!.errors).toBe(0);
+  });
+
+  it('tracks the best run of correct keys', () => {
+    const net = network();
+    const target = prepareQuickRun(net, 'MR', 'titiwangsa', null, () => 0).typing.target;
+    let state = prepareQuickRun(net, 'MR', 'titiwangsa', null, () => 0);
+    for (const key of target.slice(0, 5)) state = enterQuickCharacter(net, state, key, 1000);
+    state = enterQuickCharacter(net, state, '#', 1001);
+    for (const key of target.slice(5, 8)) state = enterQuickCharacter(net, state, key, 1002);
+
+    expect(state.keyStreak).toBe(3);
+    expect(state.bestKeyStreak).toBe(5);
   });
 });

@@ -4,12 +4,14 @@ import { loadNetworkData } from '../data/load';
 import { validateNetworkData } from '../data/validate';
 import { buildNetwork } from '../engine/network';
 import { loadProfile, saveProfile, type Theme } from '../engine/progress';
+import { backfill } from '../engine/achievements';
 import { eligibleQuickLegs, randomQuickRoute } from '../engine/quickRun';
 import { setMuted, installAudioUnlock } from '../audio/sound';
 import { fullNetworkPeak } from '../render/dispatchReadability';
 import { DispatcherScreen } from './DispatcherScreen';
 import { HomeMap } from './HomeMap';
 import { LineRunScreen } from './LineRunScreen';
+import { AchievementsScreen } from './AchievementsScreen';
 import { AdventureScreen } from './AdventureScreen';
 import { LeaderboardScreen } from './LeaderboardScreen';
 import { MobileAdventureSetup } from './MobileAdventureSetup';
@@ -27,6 +29,7 @@ type Screen =
   | { kind: 'line'; code: LineCode; from: string }
   | { kind: 'adventure'; at: string }
   | { kind: 'leaderboard' }
+  | { kind: 'achievements' }
   | { kind: 'quick'; code: LineCode; toward: string; fromCard: boolean }
   | { kind: 'dispatch' };
 
@@ -104,6 +107,9 @@ export function App() {
     if (phone && screen.kind === 'leaderboard') {
       setMobileDestination('ranking');
       setScreen({ kind: 'home' });
+    } else if (phone && screen.kind === 'achievements') {
+      setMobileDestination('achievements');
+      setScreen({ kind: 'home' });
     } else if (!phone && screen.kind === 'adventure-setup') {
       setMobileDestination('transit');
       setScreen({ kind: 'home' });
@@ -115,6 +121,15 @@ export function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // A player from before achievements gets what their Profile already shows,
+  // quietly, once. Skipped for a save that couldn't be read, so this never
+  // writes over it unasked. `backfill` empties `unannounced`, hence only here.
+  useEffect(() => {
+    const profile = loadProfile();
+    if (profile.achievements !== undefined || profile.recovered) return;
+    saveProfile({ ...profile, achievements: backfill(net, profile, Date.now()) });
+  }, [net]);
 
   const toggleTheme = () => {
     const next: Theme = theme === 'midnight' ? 'paper' : 'midnight';
@@ -143,6 +158,14 @@ export function App() {
     ) return;
     setIntroSpent(true);
     setScreen(next);
+  };
+
+  // On a phone the achievements are a destination of the shell, not a screen of their own.
+  const openAchievements = () => {
+    if (!phone) return leaveHome({ kind: 'achievements' });
+    setIntroSpent(true);
+    setMobileDestination('achievements');
+    setScreen({ kind: 'home' });
   };
 
   const startQuick = useCallback((code: LineCode, toward: string, fromCard = false) => {
@@ -191,6 +214,7 @@ export function App() {
             />
           )}
           {mobileDestination === 'ranking' && <LeaderboardScreen net={net} embedded />}
+          {mobileDestination === 'achievements' && <AchievementsScreen net={net} embedded />}
         </MobileShell>
       );
     }
@@ -204,6 +228,7 @@ export function App() {
         onStartQuick={startRandomQuick}
         onPickStation={startAdventure}
         onOpenLeaderboard={() => leaveHome({ kind: 'leaderboard' })}
+        onOpenAchievements={openAchievements}
         onOpenDispatcher={() => leaveHome({ kind: 'dispatch' })}
         intro={!introSpent}
       />
@@ -219,13 +244,16 @@ export function App() {
         line={screen.code}
         from={screen.from}
         onExit={home}
+        onOpenAchievements={openAchievements}
         phoneLandscape={phoneLandscape}
       />
     );
   } else if (screen.kind === 'adventure') {
-    content = <AdventureScreen net={net} startAt={screen.at} onExit={home} phoneLandscape={phoneLandscape} />;
+    content = <AdventureScreen net={net} startAt={screen.at} onExit={home} onOpenAchievements={openAchievements} phoneLandscape={phoneLandscape} />;
   } else if (screen.kind === 'leaderboard') {
     content = <LeaderboardScreen net={net} onExit={home} />;
+  } else if (screen.kind === 'achievements') {
+    content = <AchievementsScreen net={net} onExit={home} />;
   } else if (screen.kind === 'quick') {
     content = (
       <QuickRunScreen
@@ -236,6 +264,7 @@ export function App() {
         previousStart={lastQuickStart.current}
         onStartingStation={onStartingStation}
         onBack={home}
+        onOpenAchievements={openAchievements}
         onAgain={screen.fromCard ? startRandomQuick : undefined}
         phoneLandscape={phoneLandscape}
       />
@@ -247,6 +276,7 @@ export function App() {
         net={net}
         initial={career === 0 ? devInitial : undefined}
         onExit={home}
+        onOpenAchievements={openAchievements}
         onAgain={() => setCareer((n) => n + 1)}
         phoneLandscape={phoneLandscape}
       />

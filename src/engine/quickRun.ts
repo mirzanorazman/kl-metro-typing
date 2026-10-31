@@ -23,6 +23,8 @@ export type QuickRunStatus = 'ready' | 'running' | 'completed' | 'interrupted';
 export interface QuickStationTime {
   id: string;
   ms: number;
+  /** Wrong keys typed on this Station. */
+  errors: number;
 }
 
 export interface QuickRunState {
@@ -44,6 +46,10 @@ export interface QuickRunState {
   correctChars: number;
   keystrokes: number;
   errors: number;
+  /** Correct keys in a row; a wrong key resets it to 0. */
+  keyStreak: number;
+  /** The longest `keyStreak` this Run has reached. */
+  bestKeyStreak: number;
   status: QuickRunStatus;
   interruptionReason: 'continuation-error' | null;
 }
@@ -138,6 +144,8 @@ export function quickRunAt(
     correctChars: 0,
     keystrokes: 0,
     errors: 0,
+    keyStreak: 0,
+    bestKeyStreak: 0,
     status: 'ready',
     interruptionReason: null,
   };
@@ -240,7 +248,7 @@ function advanceStation(net: NetworkIndex, state: QuickRunState, now: number, ch
 
   const completed: QuickRunState = {
     ...state,
-    completedStations: [...state.completedStations, { id: state.at, ms: now - stationStartedAt }],
+    completedStations: [...state.completedStations, { id: state.at, ms: now - stationStartedAt, errors: state.typing.errors }],
   };
   if (state.at === state.activeLeg.toward) {
     const candidates = nextQuickLegCandidates(net, completed);
@@ -270,12 +278,15 @@ function applyQuickCharacter(net: NetworkIndex, state: QuickRunState, key: strin
   const typing = applyKey(state.typing, key);
   if (typing === state.typing) return state;
 
+  const keyStreak = typing.cursor > state.typing.cursor ? state.keyStreak + 1 : 0;
   const next = {
     ...state,
     typing,
     correctChars: state.correctChars + (typing.cursor - state.typing.cursor),
     keystrokes: state.keystrokes + (typing.keystrokes - state.typing.keystrokes),
     errors: state.errors + (typing.errors - state.typing.errors),
+    keyStreak,
+    bestKeyStreak: Math.max(state.bestKeyStreak, keyStreak),
   };
   return typing.done ? advanceStation(net, next, now, chooseLeg) : next;
 }

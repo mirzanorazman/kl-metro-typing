@@ -25,7 +25,7 @@
 
 .mobile-bottom-nav {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding-right: env(safe-area-inset-right);
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
@@ -35,10 +35,13 @@
 
 .mobile-bottom-nav button {
   min-height: 44px;
+  padding: 0 2px;
   border: 0;
   background: transparent;
   color: inherit;
   font: inherit;
+  /* Four destinations share the width; "Achievements" is the longest word. */
+  font-size: var(--t-sm);
 }
 
 .mobile-bottom-nav button[aria-current='page'] {
@@ -292,6 +295,35 @@
 .quick-summary-actions {
   display: grid;
   gap: var(--s);
+}
+
+/* The Quick Run Summary never scrolls, and its card shrinks first. On a
+   shorter screen the new achievements sit side by side, so the card keeps
+   most of its room. */
+@media (max-height: 800px) {
+  .quick-summary .new-achievements ul {
+    flex-direction: row;
+    gap: var(--s);
+  }
+
+  .quick-summary .new-achievements li {
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+  }
+
+  .quick-summary .new-achievement-text {
+    align-items: center;
+  }
+
+  .quick-summary .new-achievement-name {
+    font-size: var(--t-sm);
+  }
+
+  .quick-summary .new-achievement-tier {
+    font-size: var(--t-xs);
+  }
 }
 
 .quick-summary-actions button {

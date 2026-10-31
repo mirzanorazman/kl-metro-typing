@@ -1,35 +1,49 @@
 import type { Metrics } from '../engine/metrics';
 import type { LineCode } from '../data/types';
+import type { EarnedTier } from '../engine/achievementState';
+import type { NetworkIndex } from '../engine/network';
 import { QUICK_RUN_MS } from '../engine/quickRun';
 import type { ShareCard } from '../share/shareCard';
 import { PhoneLandscapeBlock } from './PhoneLandscapeBlock';
-import { ShareButton } from './ShareButton';
+import { SummaryShare } from './SummaryShare';
+import { NewAchievements } from './NewAchievements';
 import './mobile.css';
 
 export interface QuickRunSummaryProps {
+  net: NetworkIndex;
   lines: readonly LineCode[];
   status: 'completed' | 'interrupted';
   stations: number;
   metrics: Metrics;
   personalBest: number | null;
   newBest: boolean;
+  /** What the Run earned; an interrupted Run earns nothing. */
+  achievements?: readonly EarnedTier[];
+  /** How many more are waiting to be announced, shown as "+n more". */
+  moreAchievements?: number;
   /** The card to share; null for an interrupted Run, which has nothing to show. */
   share?: ShareCard | null;
   onAgain: () => void;
   onBack: () => void;
+  /** Opens the achievements screen from "+n more". */
+  onOpenAchievements?: () => void;
   phoneLandscape?: boolean;
 }
 
 export function QuickRunSummary({
+  net,
   lines,
   status,
   stations,
   metrics,
   personalBest,
   newBest,
+  achievements = [],
+  moreAchievements = 0,
   share = null,
   onAgain,
   onBack,
+  onOpenAchievements,
   phoneLandscape = false,
 }: QuickRunSummaryProps) {
   const resultStatus = status === 'interrupted'
@@ -65,7 +79,9 @@ export function QuickRunSummary({
       {resultStatus && <p role="status">{resultStatus}</p>}
       {phoneLandscape && <PhoneLandscapeBlock />}
       {/* A completed Run's card already carries the stats, so it replaces them. */}
-      {share && <ShareButton card={share} showImage fallback={stats} />}
+      <SummaryShare net={net} card={share} items={achievements} showImage fallback={stats} />
+
+      <NewAchievements net={net} items={achievements} more={moreAchievements} onMore={onOpenAchievements} />
 
       <div className="quick-summary-actions">
         <button type="button" disabled={phoneLandscape} onClick={onAgain}>Run again</button>

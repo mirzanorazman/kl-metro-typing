@@ -23,6 +23,8 @@ export interface HomeMapProps {
   onStartQuick?: () => void;
   onPickStation: (stationId: string) => void;
   onOpenLeaderboard: () => void;
+  /** Opens the achievements screen. */
+  onOpenAchievements?: () => void;
   /** Opens a Dispatcher Career. Omitted where Dispatcher is not offered. */
   onOpenDispatcher?: () => void;
   /**
@@ -41,6 +43,7 @@ export function HomeMap({
   onStartQuick,
   onPickStation,
   onOpenLeaderboard,
+  onOpenAchievements,
   onOpenDispatcher,
   intro = true,
 }: HomeMapProps) {
@@ -100,6 +103,12 @@ export function HomeMap({
     onOpenLeaderboard();
   }, [onOpenLeaderboard]);
 
+  const openAchievements = useCallback(() => {
+    if (!onOpenAchievements) return;
+    sound.select();
+    onOpenAchievements();
+  }, [onOpenAchievements]);
+
   const resume = useCallback(() => {
     if (!resumeAt) return;
     sound.select();
@@ -144,6 +153,7 @@ export function HomeMap({
           if (key === '2') return startQuick();
           if (key === '3') return openExplore();
           if (key === '4') return openLeaderboard();
+          if (key === '5') return openAchievements();
           return;
         }
         const row = Number(key) - 1;
@@ -169,7 +179,7 @@ export function HomeMap({
         setSelected(match);
       }
     },
-    [view, lines, resume, chooseLine, toggleSearch, openLeaderboard, openDispatcher, startQuick, openExplore],
+    [view, lines, resume, chooseLine, toggleSearch, openLeaderboard, openAchievements, openDispatcher, startQuick, openExplore],
   );
   // Suspended while the search field has focus or a line is selected, so typing
   // a station name or direction choice does not also fire menu shortcuts.
@@ -280,6 +290,13 @@ export function HomeMap({
               <kbd data-testid="menu-key">4</kbd>
               <span>Leaderboard</span>
             </button>
+
+            {onOpenAchievements && (
+              <button type="button" onClick={openAchievements}>
+                <kbd data-testid="menu-key">5</kbd>
+                <span>Achievements</span>
+              </button>
+            )}
 
             <p className="hint">Press a number, or type a line code.</p>
           </>

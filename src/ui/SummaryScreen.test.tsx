@@ -1,12 +1,16 @@
+import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent, within } from '@testing-library/react';
 import { loadNetworkData } from '../data/load';
 import { buildNetwork } from '../engine/network';
 import { startRun, keyRun, endRun } from '../engine/run';
 import { music, sound } from '../audio/sound';
 import { emptyStore, submitEntry } from '../data/leaderboardStore';
 import { SummaryScreen } from './SummaryScreen';
-import { loadProfile } from '../engine/progress';
+import { AchievementsScreen } from './AchievementsScreen';
+import { emptyProfile, loadProfile, saveProfile } from '../engine/progress';
+import { ACHIEVEMENTS } from '../engine/achievementDefs';
+import { emptyAchievements, type AchievementState } from '../engine/achievementState';
 import { appendKey, beginLog, PLAIN_SOURCE, type KeyLog, type KeySource } from '../engine/keylog';
 import { keyLineRun, lineRunRoute } from '../engine/lineRun';
 import { stationAt } from '../engine/network';
@@ -212,5 +216,90 @@ describe('SummaryScreen leaderboard eligibility', () => {
     expect(fails).toHaveLength(1);
     expect(fails[0]!.mode).toBe('line');
     expect(fails[0]!.reason).toBe('untrusted-input');
+  });
+});
+
+describe('SummaryScreen achievements', () => {
+  /** Every achievement already earned but `except`, so only that one can be announced. */
+  function earnedAllBut(except: string): AchievementState['earned'] {
+    return Object.fromEntries(ACHIEVEMENTS.filter((a) => a.id !== except).map((a) => [
+      a.id, { award: a.category === 'secret' ? 'secret' as const : 'gold' as const, at: {} },
+    ]));
+  }
+
+  it('announces a Line Run achievement once under StrictMode', async () => {
+    vi.spyOn(sound, 'achievement').mockImplementation(() => {});
+    const base = emptyAchievements();
+    // Long Line's Bronze is 200 stations typed; MR's 11 tip it over.
+    saveProfile({
+      ...emptyProfile(),
+      achievements: { ...base, earned: earnedAllBut('line.stations'), counters: { ...base.counters, lineStations: 195 } },
+    });
+    const { run, log } = playMR();
+
+    render(
+      <StrictMode>
+        <SummaryScreen
+          net={net} run={run} onExit={() => {}} mode="line" line="MR"
+          leaderboardLine="MR" leaderboardFrom="kl-sentral" keylog={log}
+        />
+      </StrictMode>,
+    );
+    // Lets the share card settle, so its late update lands inside act.
+    await act(async () => {});
+
+    const announced = screen.getByRole('region', { name: 'New achievements' });
+    expect(within(announced).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(announced).getAllByText('Long Line')).toHaveLength(1);
+    expect(within(announced).getByText('Bronze · 200 stations typed')).toBeTruthy();
+    const saved = loadProfile().achievements!;
+    expect(saved.counters.lineStations).toBe(195 + run.stationTimes.length);
+    expect(saved.unannounced).toEqual([]);
+  });
+  it('claims only the three it shows, the Run\'s own first, and leaves the rest for the achievements screen', async () => {
+    vi.spyOn(sound, 'achievement').mockImplementation(() => {});
+    const base = emptyAchievements();
+    const queued = [
+      { id: 'explorer.unlocked', award: 'gold' as const, at: 1 },
+      { id: 'explorer.interchanges', award: 'gold' as const, at: 2 },
+      { id: 'quick.score', award: 'gold' as const, at: 3 },
+      { id: 'craft.days', award: 'gold' as const, at: 4 },
+    ];
+    saveProfile({
+      ...emptyProfile(),
+      achievements: {
+        ...base,
+        earned: earnedAllBut('line.stations'),
+        counters: { ...base.counters, lineStations: 195 },
+        unannounced: queued,
+      },
+    });
+    const { run, log } = playMR();
+
+    const summary = render(
+      <StrictMode>
+        <SummaryScreen
+          net={net} run={run} onExit={() => {}} mode="line" line="MR"
+          leaderboardLine="MR" leaderboardFrom="kl-sentral" keylog={log}
+        />
+      </StrictMode>,
+    );
+    await act(async () => {});
+
+    const announced = screen.getByRole('region', { name: 'New achievements' });
+    const rows = within(announced).getAllByRole('listitem');
+    expect(rows).toHaveLength(3);
+    expect(rows[0]!.textContent).toContain('Long Line');
+    expect(rows[1]!.textContent).toContain('Regular Commuter');
+    expect(rows[2]!.textContent).toContain('Express Service');
+    expect(within(announced).getByText('+2 more')).toBeTruthy();
+    expect(loadProfile().achievements!.unannounced).toEqual(queued.slice(0, 2));
+    summary.unmount();
+
+    render(<AchievementsScreen net={net} onExit={() => {}} />);
+    expect(screen.getAllByText('New')).toHaveLength(2);
+    expect(within(screen.getByRole('button', { name: /Jalan-Jalan/ })).getByText('New')).toBeTruthy();
+    expect(within(screen.getByRole('button', { name: /All Change/ })).getByText('New')).toBeTruthy();
+    expect(loadProfile().achievements!.unannounced).toEqual([]);
   });
 });

@@ -11,6 +11,7 @@ import {
   loadProfile, recordStation, saveProfile, type Profile,
 } from '../engine/progress';
 import { keyLineRun, lineRunRoute } from '../engine/lineRun';
+import { recordUnlocks } from '../engine/achievements';
 import { MapCanvas } from '../render/MapCanvas';
 import { Prompt } from '../render/Prompt';
 import { HUD } from '../render/HUD';
@@ -21,6 +22,7 @@ import { useGameInput, useTypingInputControls } from './TypingInputProvider';
 import { usePhoneLayout } from './usePhoneLayout';
 import { SummaryScreen } from './SummaryScreen';
 import { runTick, useRunRecorder } from './useRunRecorder';
+import { updateAchievements } from './achievementsStore';
 import type { KeySource } from '../engine/keylog';
 
 export interface LineRunScreenProps {
@@ -28,10 +30,12 @@ export interface LineRunScreenProps {
   line: LineCode;
   from: string;
   onExit: () => void;
+  /** Opens the achievements screen from the Summary's "+n more". */
+  onOpenAchievements?: () => void;
   phoneLandscape?: boolean;
 }
 
-export function LineRunScreen({ net, line, from, onExit, phoneLandscape = false }: LineRunScreenProps) {
+export function LineRunScreen({ net, line, from, onExit, onOpenAchievements, phoneLandscape = false }: LineRunScreenProps) {
   const data = useMemo(() => loadNetworkData(), []);
   const route = useMemo(() => lineRunRoute(net, line, from), [net, line, from]);
 
@@ -101,10 +105,12 @@ export function LineRunScreen({ net, line, from, onExit, phoneLandscape = false 
       const wpm = station.ms > 0 ? chars / 5 / (station.ms / 60_000) : 0;
       updated = recordStation(updated, station.id, wpm);
     }
-    profileRef.current = updated;
     saveProfile(updated);
+    updateAchievements((state, visited) => recordUnlocks(net, state, { visited, phone }, Date.now()));
+    updated = loadProfile();
+    profileRef.current = updated;
     setProfile(updated);
-  }, [run.stationTimes, net]);
+  }, [run.stationTimes, net, phone]);
 
   const onKey = useCallback((key: string, source?: KeySource) => {
     if (phoneLandscape || rotationEnded.current) return;
@@ -133,22 +139,31 @@ export function LineRunScreen({ net, line, from, onExit, phoneLandscape = false 
   }, [run, route, net, onKey]);
 
   // Finishing the line earns a moment before the numbers arrive: the sweep
-  // plays on the map, then the summary. Skipped entirely under reduced motion.
-  const [celebrating, setCelebrating] = useState(false);
+  // plays on the map, then the summary. Skipped under reduced motion. The
+  // summary waits on this effect even then, so it mounts once — it records the
+  // Run's achievements — and after the arrivals above are saved.
+  const [summaryReady, setSummaryReady] = useState(false);
   useEffect(() => {
-    if (run.phase !== 'ended' || rotationEnded.current) return;
+    if (run.phase !== 'ended') return;
+    if (rotationEnded.current) {
+      setSummaryReady(true);
+      return;
+    }
     sound.complete();
-    if (prefersReducedMotion()) return;
-    setCelebrating(true);
-    const t = setTimeout(() => setCelebrating(false), 1100);
+    if (prefersReducedMotion()) {
+      setSummaryReady(true);
+      return;
+    }
+    const t = setTimeout(() => setSummaryReady(true), 1100);
     return () => clearTimeout(t);
   }, [run.phase]);
+  const celebrating = run.phase === 'ended' && !summaryReady && !prefersReducedMotion();
 
   if (phoneLandscape && (run.phase !== 'ended' || awaitingPortrait)) {
     return <PhoneLandscapeBlock fullScreen />;
   }
 
-  if (run.phase === 'ended' && !celebrating) {
+  if (run.phase === 'ended' && summaryReady) {
     // Only a fully completed route is leaderboard-eligible — an early "End
     // run" click also sets phase to 'ended', but stationTimes falls short.
     const leaderboardLine = run.stationTimes.length === route.length ? line : null;
@@ -157,7 +172,9 @@ export function LineRunScreen({ net, line, from, onExit, phoneLandscape = false 
         net={net}
         run={run}
         onExit={onExit}
+        onOpenAchievements={onOpenAchievements}
         mode="line"
+        line={line}
         leaderboardLine={leaderboardLine}
         leaderboardFrom={from}
         keylog={recorder.snapshot()}

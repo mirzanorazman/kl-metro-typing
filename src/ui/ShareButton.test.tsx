@@ -16,7 +16,7 @@ const net = buildNetwork(loadNetworkData());
 const ids = net.lines.get('MR')!.stations;
 const card = lineRunCard(
   net,
-  { ...startRun(net, ids[0]!, 0), line: 'MR', stationTimes: ids.map((id) => ({ id, ms: 1_000 })) },
+  { ...startRun(net, ids[0]!, 0), line: 'MR', stationTimes: ids.map((id) => ({ id, ms: 1_000, errors: 0 })) },
   { metrics: { wpm: 50, accuracy: 0.95, score: 45 }, verified: true },
 );
 

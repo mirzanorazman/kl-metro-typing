@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 const indexCss = readFileSync('src/index.css', 'utf8');
 const mobileCss = readFileSync('src/ui/mobile.css', 'utf8');
 const leaderboardCss = readFileSync('src/ui/leaderboard.css', 'utf8');
+const achievementsCss = readFileSync('src/ui/achievements.css', 'utf8');
 
 describe('toolchain', () => {
   it('runs tests', () => {
@@ -53,6 +54,9 @@ describe('toolchain', () => {
     );
     expect(leaderboardCss).toMatch(
       /\.leaderboard-screen\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/,
+    );
+    expect(achievementsCss).toMatch(
+      /\.achievements-screen\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*overflow-y:\s*auto;/,
     );
     expect(mobileCss).toMatch(
       /\.leaderboard-screen--embedded\s*\{[^}]*height:\s*100%;[^}]*overflow:\s*auto;/,

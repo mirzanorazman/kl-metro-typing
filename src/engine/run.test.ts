@@ -114,3 +114,26 @@ describe('chooseTowards', () => {
     expect(chooseTowards(net, junction, 'kajang', 100)).toEqual(junction);
   });
 });
+
+describe('station errors and key streak', () => {
+  it('records wrong keys per Station', () => {
+    let s = startRun(net, 'raja-chulan', 0);
+    s = keyRun(net, s, 'z', 1);
+    s = typeStation(s, 2);
+    expect(s.stationTimes[0]!.errors).toBe(1);
+
+    s = chooseDirection(net, s, s.options[0]!, 50);
+    s = typeStation(s, 100);
+    expect(s.stationTimes[1]!.errors).toBe(0);
+  });
+
+  it('tracks the best run of correct keys', () => {
+    const name = stationAt(net, 'raja-chulan')!.name;
+    let s = startRun(net, 'raja-chulan', 0);
+    for (const k of name.slice(0, 5)) s = keyRun(net, s, k, 1);
+    s = keyRun(net, s, '#', 2);
+    for (const k of name.slice(5, 8)) s = keyRun(net, s, k, 3);
+    expect(s.keyStreak).toBe(3);
+    expect(s.bestKeyStreak).toBe(5);
+  });
+});

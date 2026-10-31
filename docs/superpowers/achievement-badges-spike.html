@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Badge style spike</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root { --size: 140px; --bg: #FBF7F0; --card: #FFFDF9; --line: #EDE6DA; --ink: #24183F; --muted: #7A7290; }
+  body.dark { --bg: #17141F; --card: #211D2B; --line: #322C40; --ink: #F3EEFF; --muted: #A49CB8; }
+  body.tier-bronze { --m1: #F6C08F; --m2: #B86B33; --m3: #6B3512; }
+  body.tier-silver, body.tier-locked { --m1: #F7F9FB; --m2: #A7B0BA; --m3: #545D68; }
+  body.tier-gold { --m1: #FFEB94; --m2: #E2A72A; --m3: #855505; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--ink); font-family: Nunito, system-ui, sans-serif; transition: background .2s; }
+  .controls { display: flex; flex-wrap: wrap; gap: 18px; margin: 0 auto 24px; max-width: 1100px; }
+  .group { display: flex; align-items: center; gap: 6px; }
+  .group span { font-size: 13px; color: var(--muted); margin-right: 4px; font-weight: 600; }
+  button { font: inherit; font-size: 14px; font-weight: 600; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+  button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  section { max-width: 1100px; margin: 0 auto 28px; }
+  h2 { font-size: 18px; font-weight: 800; margin: 0 0 4px; }
+  .note { font-size: 14px; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; align-items: center; gap: 14px; min-height: calc(var(--size) + 32px); }
+  .card svg { width: var(--size); height: var(--size); flex: none; }
+  body.tier-locked .card svg { filter: grayscale(1); opacity: .5; }
+  .name { font-size: 18px; font-weight: 800; line-height: 1.2; }
+  .sub { font-size: 14px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+  .gold-only { display: none; }
+  body.tier-gold .gold-only { display: inline; }
+</style>
+</head>
+<body class="tier-silver">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs id="defs"></defs></svg>
+
+<div class="controls">
+  <div class="group" data-k="tier"><span>Tier</span>
+    <button data-v="bronze">Bronze</button><button data-v="silver" class="on">Silver</button><button data-v="gold">Gold</button><button data-v="locked">Locked</button>
+  </div>
+  <div class="group" data-k="size"><span>Size</span>
+    <button data-v="140" class="on">140</button><button data-v="96">96</button><button data-v="48">48</button>
+  </div>
+  <div class="group" data-k="theme"><span>Background</span>
+    <button data-v="light" class="on">Light</button><button data-v="dark">Dark</button>
+  </div>
+</div>
+
+<div id="out"></div>
+
+<script>
+const mix = (hex, to, t) => {
+  const a = hex.match(/\w\w/g).map(h => parseInt(h, 16)), b = to.match(/\w\w/g).map(h => parseInt(h, 16));
+  return '#' + a.map((v, i) => Math.round(v + (b[i] - v) * t).toString(16).padStart(2, '0')).join('');
+};
+const lighten = (c, t) => mix(c, '#ffffff', t), darken = (c, t) => mix(c, '#000000', t);
+const at = a => Object.entries(a).map(([k, v]) => `${k}="${v}"`).join(' ');
+
+const F = (t, a, r) => ({ t, a, r, k: 'f' });
+const L = (d, r, w, dash) => ({ t: 'path', a: { d }, r, k: 'l', w, dash });
+const G = (transform, kids) => ({ t: 'g', transform, kids });
+
+const SUBJECTS = [
+  { name: 'Jalan-Jalan', subs: { bronze: '25 stations', silver: '75 stations', gold: 'all 154 stations' }, art: [
+    F('path', { d: 'M38 72 L82 60 L82 152 L38 164 Z' }, 'cream'),
+    F('path', { d: 'M82 60 L120 72 L120 164 L82 152 Z' }, 'paper2'),
+    F('path', { d: 'M120 72 L162 60 L162 152 L120 164 Z' }, 'cream'),
+    L('M52 92 L84 104 L104 142', 'teal', 6),
+    L('M48 140 L70 118 L96 126 L124 112 L152 98', 'mag', 6),
+    F('circle', { cx: 70, cy: 118, r: 4.5 }, 'cream'),
+    F('circle', { cx: 96, cy: 126, r: 4.5 }, 'cream'),
+    F('circle', { cx: 84, cy: 104, r: 4.5 }, 'cream'),
+    F('path', { d: 'M128 112 C114 92 106 84 106 70 A22 22 0 1 1 150 70 C150 84 142 92 128 112 Z' }, 'red'),
+    F('circle', { cx: 128, cy: 70, r: 8 }, 'cream'),
+  ]},
+  { name: 'All Clear', subs: { bronze: '100 signals', silver: '1,000 signals', gold: '10,000 signals' }, art: [
+    F('rect', { x: 76, y: 164, width: 48, height: 12, rx: 4 }, 'grey'),
+    F('rect', { x: 94, y: 112, width: 12, height: 56 }, 'grey'),
+    F('rect', { x: 66, y: 24, width: 68, height: 98, rx: 30 }, 'dark'),
+    F('circle', { cx: 100, cy: 56, r: 17 }, 'offRed'),
+    F('circle', { cx: 100, cy: 94, r: 17 }, 'green'),
+    F('circle', { cx: 94, cy: 88, r: 5 }, 'cream'),
+    L('M56 82 Q50 94 56 106', 'green', 5),
+    L('M144 82 Q150 94 144 106', 'green', 5),
+    L('M44 76 Q36 94 44 112', 'green', 4),
+    L('M156 76 Q164 94 156 112', 'green', 4),
+  ]},
+  { name: 'End of the Line', subs: { bronze: '3 termini', silver: '7 termini', gold: 'all 11 termini' }, art: [
+    ...[36, 64, 92, 120, 148].map(x => F('rect', { x, y: 156, width: 16, height: 10, rx: 2 }, 'brown')),
+    F('rect', { x: 26, y: 148, width: 148, height: 9, rx: 3 }, 'grey'),
+    F('path', { d: 'M96 112 L84 148 L95 148 L106 112 Z' }, 'mag'),
+    F('path', { d: 'M148 112 L160 148 L149 148 L138 112 Z' }, 'mag'),
+    F('rect', { x: 72, y: 97, width: 22, height: 12 }, 'grey'),
+    F('rect', { x: 60, y: 86, width: 14, height: 34, rx: 6 }, 'grey'),
+    F('rect', { x: 90, y: 90, width: 68, height: 26, rx: 6 }, 'mag'),
+    ...[104, 124, 144].map(x => F('path', { d: `M${x} 90 h10 l-9 26 h-10 Z` }, 'cream')),
+    F('rect', { x: 120, y: 60, width: 7, height: 32 }, 'grey'),
+    F('circle', { cx: 123.5, cy: 50, r: 13 }, 'red'),
+    L('M98 38 L105 42', 'yellow', 4), L('M149 38 L142 42', 'yellow', 4), L('M123.5 24 L123.5 30', 'yellow', 4),
+  ]},
+  { name: 'Line Hopper', subs: { bronze: '1 Jump in one run', silver: '2 Jumps in one run', gold: '3 Jumps in one run' }, art: [
+    L('M34 144 Q46 84 70 70', 'grey', 4, '3 7'),
+    L('M150 100 Q160 118 158 140', 'grey', 4, '3 7'),
+    F('rect', { x: 16, y: 150, width: 64, height: 9, rx: 3 }, 'red'),
+    F('rect', { x: 120, y: 150, width: 64, height: 9, rx: 3 }, 'teal'),
+    ...[24, 44, 64, 128, 148, 168].map(x => F('rect', { x: x - 5, y: 162, width: 10, height: 6, rx: 1.5 }, 'brown')),
+    G('translate(112 76) rotate(14)', [
+      L('M-74 -8 H-56', 'teal', 4), L('M-80 4 H-58', 'teal', 4), L('M-72 16 H-56', 'teal', 4),
+      F('path', { d: 'M-46 -18 H22 Q44 -18 46 4 L46 18 H-46 Z' }, 'cream'),
+      F('rect', { x: -46, y: 4, width: 92, height: 6 }, 'mag'),
+      ...[-40, -22, -4].map(x => F('rect', { x, y: -12, width: 14, height: 11, rx: 2 }, 'dark')),
+      F('path', { d: 'M18 -12 H28 Q37 -10 39 -2 H18 Z' }, 'dark'),
+      F('circle', { cx: -28, cy: 20, r: 6 }, 'dark'),
+      F('circle', { cx: 28, cy: 20, r: 6 }, 'dark'),
+    ]),
+  ]},
+];
+
+const PAL = {
+  enamel: { red: '#E8414B', green: '#22C07A', teal: '#17A2A0', mag: '#C2185B', cream: '#FFF3DF', paper2: '#F1DFC2', dark: '#2B2140', grey: '#8B93A3', offRed: '#6E2230', yellow: '#FFC93C', brown: '#9A5B34' },
+  patch:  { red: '#D2343E', green: '#2FA35C', teal: '#2A9D8F', mag: '#B83B6B', cream: '#F4E9D3', paper2: '#E2D2B4', dark: '#1C2238', grey: '#9AA0AA', offRed: '#6E2A30', yellow: '#F2C14E', brown: '#8C5A3C' },
+  poster: { red: '#B23A2A', green: '#7FDCC6', teal: '#2C8C86', mag: '#D2693A', cream: '#F7EEDB', paper2: '#E3D3B3', dark: '#2A2A2E', grey: '#7C8B86', offRed: '#D8452C', yellow: '#E7A673', brown: '#2A2A2E' },
+};
+
+const sparkle = (cx, cy, s, cls = '') =>
+  `<path class="${cls}" fill="url(#metal)" stroke="var(--m3)" stroke-width="1" d="M${cx} ${cy - s} Q${cx + s * .12} ${cy - s * .12} ${cx + s} ${cy} Q${cx + s * .12} ${cy + s * .12} ${cx} ${cy + s} Q${cx - s * .12} ${cy + s * .12} ${cx - s} ${cy} Q${cx - s * .12} ${cy - s * .12} ${cx} ${cy - s} Z"/>`;
+
+const STYLES = {
+  enamel: {
+    title: '1. Glossy enamel pin',
+    note: 'Gradient fills, metal outlines in the tier colour, drop shadow, built-in sparkle. Gold adds a second sparkle.',
+    fill: (p, pal) => `<${p.t} ${at(p.a)} fill="url(#en-${p.r})" stroke="url(#metal)" stroke-width="3.5" stroke-linejoin="round"/>`,
+    line: (p, pal) => {
+      const d = p.dash ? `stroke-dasharray="${p.dash}"` : '';
+      return `<path d="${p.a.d}" fill="none" stroke="url(#metal)" stroke-width="${p.w + 4}" stroke-linecap="round" stroke-linejoin="round" ${d}/>` +
+             `<path d="${p.a.d}" fill="none" stroke="${pal[p.r]}" stroke-width="${p.w}" stroke-linecap="round" stroke-linejoin="round" ${d}/>`;
+    },
+    wrap: art => `<g filter="url(#shadow)">${art}</g>${sparkle(166, 30, 13)}${sparkle(34, 40, 9, 'gold-only')}`,
+  },
+  patch: {
+    title: '2. Embroidered patch',
+    note: 'Flat thread colours with a satin-stitch texture on a navy twill backing. The merrowed edge is stitched in the tier colour.',
+    fill: (p, pal) => `<${p.t} ${at(p.a)} fill="${pal[p.r]}" stroke="${darken(pal[p.r], .35)}" stroke-width="2.2" stroke-linejoin="round"/><${p.t} ${at(p.a)} fill="url(#satin)"/>`,
+    line: (p, pal) => {
+      const d = p.dash ? `stroke-dasharray="${p.dash}"` : '';
+      return `<path d="${p.a.d}" fill="none" stroke="${darken(pal[p.r], .35)}" stroke-width="${p.w + 2.5}" stroke-linecap="round" ${d}/>` +
+             `<path d="${p.a.d}" fill="none" stroke="${pal[p.r]}" stroke-width="${p.w}" stroke-linecap="round" ${d}/>` +
+             `<path d="${p.a.d}" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="${Math.max(1, p.w - 2)}" stroke-dasharray="1.5 2" />`;
+    },
+    wrap: art =>
+      `<circle cx="100" cy="100" r="86" fill="#22305A"/><circle cx="100" cy="100" r="86" fill="url(#twill)"/>` +
+      `<circle cx="100" cy="100" r="77" fill="none" stroke="#F4E9D3" stroke-width="1.5" stroke-dasharray="4 3" opacity=".55"/>` +
+      `<g transform="translate(100 102) scale(.8) translate(-100 -100)">${art}</g>` +
+      `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--m2)" stroke-width="10"/>` +
+      `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--m3)" stroke-width="10" stroke-dasharray="1.2 2.2" opacity=".55"/>` +
+      `<circle cx="100" cy="100" r="88" fill="none" stroke="var(--m1)" stroke-width="10" stroke-dasharray="1 3.4" stroke-dashoffset="1.6" opacity=".6"/>` +
+      sparkle(170, 30, 14, 'gold-only'),
+  },
+  poster: {
+    title: '3. Mid-century transit poster',
+    note: 'Flat inks, a sun disc with halftone dots, a charcoal key line printed slightly off-register. The frame is in the tier colour.',
+    fill: (p, pal) => `<${p.t} ${at(p.a)} fill="${pal[p.r]}"/>`,
+    line: (p, pal) => `<path d="${p.a.d}" fill="none" stroke="${pal[p.r]}" stroke-width="${p.w}" stroke-linecap="round" ${p.dash ? `stroke-dasharray="${p.dash}"` : ''}/>`,
+    key: p => p.k === 'f' ? `<${p.t} ${at(p.a)} fill="none" stroke="#2A2A2E" stroke-width="1.6" stroke-linejoin="round" opacity=".8"/>` : '',
+    wrap: (art, key) =>
+      `<g clip-path="url(#posterClip)">` +
+        `<rect x="12" y="12" width="176" height="176" fill="#EFDDBB"/>` +
+        `<rect x="12" y="132" width="176" height="56" fill="#E3CFA6"/>` +
+        `<circle cx="100" cy="100" r="60" fill="#E7A673"/><circle cx="100" cy="100" r="60" fill="url(#halftone)"/>` +
+        `<g transform="translate(100 102) scale(.84) translate(-100 -100)">${art}<g transform="translate(1.8 -1.2)">${key}</g></g>` +
+        `<rect x="12" y="12" width="176" height="176" fill="url(#grain)"/>` +
+      `</g>` +
+      `<rect x="12" y="12" width="176" height="176" rx="28" fill="none" stroke="var(--m2)" stroke-width="8"/>` +
+      `<rect x="21" y="21" width="158" height="158" rx="21" fill="none" stroke="#2A2A2E" stroke-width="1" opacity=".35"/>` +
+      sparkle(172, 28, 14, 'gold-only'),
+  },
+};
+
+function render(prims, st, pal, mode) {
+  return prims.map(p => {
+    if (p.t === 'g') return `<g transform="${p.transform}">${render(p.kids, st, pal, mode)}</g>`;
+    if (mode === 'key') return st.key(p);
+    return p.k === 'f' ? st.fill(p, pal) : st.line(p, pal);
+  }).join('');
+}
+
+const defs = [
+  `<linearGradient id="metal" gradientUnits="userSpaceOnUse" x1="30" y1="10" x2="170" y2="190"><stop offset="0" style="stop-color:var(--m1)"/><stop offset=".5" style="stop-color:var(--m2)"/><stop offset="1" style="stop-color:var(--m3)"/></linearGradient>`,
+  `<filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#2B2140" flood-opacity=".3"/></filter>`,
+  `<pattern id="satin" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="1.4" height="4" fill="rgba(0,0,0,.2)"/><rect x="2" width=".8" height="4" fill="rgba(255,255,255,.18)"/></pattern>`,
+  `<pattern id="twill" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(-45)"><rect width="1" height="3" fill="rgba(255,255,255,.08)"/></pattern>`,
+  `<pattern id="halftone" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(20)"><circle cx="3" cy="3" r="1.4" fill="#B5582E" opacity=".55"/></pattern>`,
+  `<pattern id="grain" width="3" height="3" patternUnits="userSpaceOnUse" patternTransform="rotate(37)"><circle cx="1" cy="1" r=".55" fill="#2A2A2E" opacity=".14"/></pattern>`,
+  `<clipPath id="posterClip"><rect x="12" y="12" width="176" height="176" rx="28"/></clipPath>`,
+  ...Object.entries(PAL.enamel).map(([r, c]) =>
+    `<linearGradient id="en-${r}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${lighten(c, .38)}"/><stop offset=".55" stop-color="${c}"/><stop offset="1" stop-color="${darken(c, .25)}"/></linearGradient>`),
+];
+document.getElementById('defs').innerHTML = defs.join('');
+
+const state = { tier: 'silver' };
+const out = document.getElementById('out');
+out.innerHTML = Object.entries(STYLES).map(([k, st]) => `
+  <section>
+    <h2>${st.title}</h2>
+    <p class="note">${st.note}</p>
+    <div class="row">${SUBJECTS.map((s, i) => {
+      const art = render(s.art, st, PAL[k]);
+      const key = st.key ? render(s.art, st, PAL[k], 'key') : '';
+      return `<div class="card"><svg viewBox="0 0 200 200" role="img" aria-label="${s.name}">${st.wrap(art, key)}</svg>
+        <div><div class="name">${s.name}</div><div class="sub" data-i="${i}"></div></div></div>`;
+    }).join('')}</div>
+  </section>`).join('');
+
+function subs() {
+  document.querySelectorAll('.sub').forEach(el => {
+    const s = SUBJECTS[el.dataset.i];
+    el.textContent = state.tier === 'locked' ? 'Locked · play to unlock'
+      : `${state.tier[0].toUpperCase() + state.tier.slice(1)} · ${s.subs[state.tier]}`;
+  });
+}
+subs();
+
+document.querySelectorAll('.group').forEach(g => g.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  g.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  const k = g.dataset.k, v = b.dataset.v;
+  if (k === 'tier') { document.body.className = document.body.className.replace(/tier-\w+/, 'tier-' + v); state.tier = v; subs(); }
+  if (k === 'size') document.documentElement.style.setProperty('--size', v + 'px');
+  if (k === 'theme') document.body.classList.toggle('dark', v === 'dark');
+}));
+</script>
+</body>
+</html>

@@ -59,6 +59,8 @@ export const LATE_FACTOR = 1.5;
 export const ON_TIME_FACTOR = 1.25;
 /** Incident arrivals per minute at demand multiplier 1. */
 export const INCIDENTS_PER_MINUTE = 2;
+/** A fix with this little time left before its place would go Out of service is a close call. */
+export const CLOSE_CALL_MS = 3_000;
 /** Maximum simultaneous Incidents. */
 export const INCIDENT_MAX = 3;
 /** No Incident can start before this time in a Shift. */
